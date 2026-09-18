@@ -150,6 +150,50 @@
         flex-direction: column;
       }
     }
+.draft-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.edit-button,
+.save-button {
+  border: 1px solid #252329;
+  padding: 10px 16px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.edit-button {
+  background: transparent;
+  color: #252329;
+}
+
+.save-button {
+  background: #252329;
+  color: #fff;
+}
+
+.email-subject,
+.email-body {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.email-subject {
+  padding: 10px;
+  margin-bottom: 14px;
+}
+
+.email-body {
+  min-height: 220px;
+  padding: 12px;
+  resize: vertical;
+}
+    
   </style>
 </head>
 
@@ -269,23 +313,65 @@
                 </div>
 
                 <div class="label">
-                  Subject
-                </div>
+  Subject
+</div>
 
-                <div class="subject">
-                  ${escapeHtml(draft.subject)}
-                </div>
+<div
+  class="subject"
+  id="subject-${draft.id}"
+>
+  ${escapeHtml(draft.subject || "")}
+</div>
 
-                <div class="label">
-                  Draft
-                </div>
+<input
+  class="email-subject"
+  id="subject-input-${draft.id}"
+  type="text"
+  value="${escapeHtml(draft.subject || "")}"
+  style="display:none;"
+>
 
-                <div class="email-body">${escapeHtml(draft.body)}</div>
+<div class="label">
+  Draft
+</div>
 
-                <div class="meta">
-                  Created: ${escapeHtml(created)}
-                </div>
+<div
+  class="email-body"
+  id="body-${draft.id}"
+>
+  ${escapeHtml(draft.body || "")}
+</div>
 
+<textarea
+  class="email-body"
+  id="body-input-${draft.id}"
+  style="display:none;"
+>${escapeHtml(draft.body || "")}</textarea>
+
+<div class="draft-actions">
+  <button
+    type="button"
+    class="edit-button"
+    id="edit-${draft.id}"
+    onclick="editDraft(${draft.id})"
+  >
+    Edit Draft
+  </button>
+
+  <button
+    type="button"
+    class="save-button"
+    id="save-${draft.id}"
+    onclick="saveDraft(${draft.id})"
+    style="display:none;"
+  >
+    Save Changes
+  </button>
+</div>
+
+<div class="meta">
+  Created: ${escapeHtml(created)}
+</div>
               </article>
             `;
           })
@@ -304,7 +390,85 @@
         `;
       }
     }
+function editDraft(id) {
+  const subjectDisplay =
+    document.getElementById(`subject-${id}`);
 
+  const bodyDisplay =
+    document.getElementById(`body-${id}`);
+
+  const subjectInput =
+    document.getElementById(`subject-input-${id}`);
+
+  const bodyInput =
+    document.getElementById(`body-input-${id}`);
+
+  const editButton =
+    document.getElementById(`edit-${id}`);
+
+  const saveButton =
+    document.getElementById(`save-${id}`);
+
+  subjectDisplay.style.display = "none";
+  bodyDisplay.style.display = "none";
+
+  subjectInput.style.display = "block";
+  bodyInput.style.display = "block";
+
+  editButton.style.display = "none";
+  saveButton.style.display = "inline-block";
+}
+
+async function saveDraft(id) {
+  const subjectInput =
+    document.getElementById(`subject-input-${id}`);
+
+  const bodyInput =
+    document.getElementById(`body-input-${id}`);
+
+  const saveButton =
+    document.getElementById(`save-${id}`);
+
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  try {
+    const response = await fetch(
+      `/api/admin/email-drafts/${id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          subject: subjectInput.value,
+          body: bodyInput.value
+        })
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(
+        result.message || "Unable to save draft."
+      );
+    }
+
+    await loadDrafts();
+
+  } catch (error) {
+    console.error(
+      "Email draft save error:",
+      error
+    );
+
+    alert("Unable to save the email draft.");
+
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Changes";
+  }
+}
     loadDrafts();
   </script>
 
