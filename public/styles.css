@@ -1,64 +1,157 @@
 /* Private Request Form */
 
+.request-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 80px 32px;
+}
+
+.request-page > .eyebrow,
+.request-page > h1,
+.request-intro {
+  text-align: center;
+}
+
+.request-page > h1 {
+  margin-bottom: 20px;
+}
+
+.request-intro {
+  max-width: 700px;
+  margin: 0 auto 55px;
+  line-height: 1.7;
+}
+
 #request-form {
   width: 100%;
-  max-width: 680px;
-  margin: 40px auto 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 24px;
+  max-width: 760px;
+  margin: 0 auto;
   text-align: left;
 }
 
-#request-form label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  margin-top: 12px;
+.form-section {
+  padding: 38px 0;
+  border-top: 1px solid rgba(32, 27, 24, 0.18);
 }
 
-#request-form input,
-#request-form textarea {
+.form-section:first-child {
+  border-top: 0;
+}
+
+.form-section h2 {
+  margin: 8px 0 25px;
+  font-family: "Playfair Display", serif;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.field label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.field input,
+.field select,
+.field textarea {
   width: 100%;
   padding: 14px 16px;
   border: 1px solid rgba(32, 27, 24, 0.25);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.5);
   color: #201b18;
   font: inherit;
 }
 
-#request-form label,
-#request-form input,
-#request-form textarea {
-  grid-column: 1 / -1;
-}
-
-#request-form input:focus,
-#request-form textarea:focus {
-  outline: 1px solid #201b18;
-  border-color: #201b18;
-}
-
-#request-form textarea {
+.field textarea {
+  min-height: 125px;
   resize: vertical;
-  min-height: 130px;
 }
 
-#request-form .button {
-  grid-column: 1 / -1;
-  justify-self: start;
-  margin-top: 16px;
-  border: 0;
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #201b18;
+  box-shadow: 0 0 0 1px #201b18;
+}
+
+.form-note {
+  margin-bottom: 25px;
+  line-height: 1.6;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 20px 0;
+  line-height: 1.5;
   cursor: pointer;
 }
 
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.submit-area {
+  padding-top: 20px;
+  text-align: center;
+}
+
+.submit-area .button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  padding: 15px 30px;
+}
+
+.privacy-note {
+  max-width: 520px;
+  margin: 18px auto 0;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.7;
+}
+
 #form-message {
-  grid-column: 1 / -1;
+  margin-top: 18px;
 }
 
 @media (max-width: 700px) {
-  #request-form {
+  .request-page {
+    padding: 55px 20px;
+  }
+
+  .form-grid {
     grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .form-section {
+    padding: 30px 0;
+  }
+
+  .form-section h2 {
+    font-size: 26px;
   }
 }
