@@ -3,12 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Private request portal for Kendra Bexly">
-  <title>Request Time | Kendra Bexly</title>
+
+  <meta
+    name="description"
+    content="Private request portal for Kendra Bexly"
+  >
+
+  <title>Private Request | Kendra Bexly</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap"
+    rel="stylesheet"
+  >
+
   <link rel="stylesheet" href="/styles.css">
 </head>
 
@@ -16,55 +26,311 @@
 
   <header class="nav">
     <a class="brand" href="/">Kendra Bexly</a>
+
     <nav>
       <a href="/">Home</a>
     </nav>
   </header>
 
+
   <main>
-    <section class="connect">
+
+    <section class="connect request-page">
+
       <div class="eyebrow">PRIVATE REQUEST</div>
 
       <h1>Let's get acquainted.</h1>
 
-      <p>
-        Tell me a little about yourself and the time you'd like to spend
-        together. Your request will be reviewed privately before moving
+      <p class="request-intro">
+        Before we make plans, I'd love to know a little more about you
+        and what you have in mind. Please complete the private request
+        below. I'll personally review your information before moving
         forward.
       </p>
 
+
       <form id="request-form">
 
-        <label for="first-name">First name</label>
-        <input id="first-name" name="first_name" type="text" required>
+        <!-- CONTACT INFORMATION -->
 
-        <label for="last-name">Last name</label>
-        <input id="last-name" name="last_name" type="text">
+        <div class="form-section">
+          <div class="eyebrow">ABOUT YOU</div>
+          <h2>First, the basics.</h2>
 
-        <label for="email">Email address</label>
-        <input id="email" name="email" type="email" required>
+          <div class="form-grid">
 
-        <label for="phone">Phone number</label>
-        <input id="phone" name="phone" type="tel">
+            <div class="field">
+              <label for="first-name">First name *</label>
+              <input
+                id="first-name"
+                name="first_name"
+                type="text"
+                autocomplete="given-name"
+                required
+              >
+            </div>
 
-        <label for="requested-date">Preferred date</label>
-        <input id="requested-date" name="requested_date" type="date" required>
+            <div class="field">
+              <label for="last-name">Last name *</label>
+              <input
+                id="last-name"
+                name="last_name"
+                type="text"
+                autocomplete="family-name"
+                required
+              >
+            </div>
 
-        <label for="requested-time">Preferred time</label>
-        <input id="requested-time" name="requested_time" type="time" required>
+            <div class="field">
+              <label for="email">Email address *</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+              >
+            </div>
 
-        <label for="notes">Tell me a little about yourself</label>
-        <textarea id="notes" name="notes" rows="5"></textarea>
+            <div class="field">
+              <label for="phone">Phone number *</label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                autocomplete="tel"
+                required
+              >
+            </div>
 
-        <button class="button" type="submit">
-          Submit Request
-        </button>
+          </div>
+        </div>
 
-        <p id="form-message" hidden></p>
+
+        <!-- DATE REQUEST -->
+
+        <div class="form-section">
+
+          <div class="eyebrow">OUR TIME</div>
+          <h2>What do you have in mind?</h2>
+
+          <div class="form-grid">
+
+            <div class="field">
+              <label for="requested-date">Preferred date *</label>
+              <input
+                id="requested-date"
+                name="requested_date"
+                type="date"
+                required
+              >
+            </div>
+
+            <div class="field">
+              <label for="requested-time">Preferred start time *</label>
+              <input
+                id="requested-time"
+                name="requested_time"
+                type="time"
+                required
+              >
+            </div>
+
+            <div class="field">
+              <label for="duration">Desired time together *</label>
+              <select id="duration" name="duration" required>
+                <option value="">Select</option>
+                <option value="2-hours">2 hours</option>
+                <option value="3-hours">3 hours</option>
+                <option value="4-hours">4 hours</option>
+                <option value="5-hours">5 hours</option>
+                <option value="evening">Extended evening</option>
+                <option value="other">Something else</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="area">City / general area *</label>
+              <input
+                id="area"
+                name="area"
+                type="text"
+                placeholder="Los Angeles, Beverly Hills, etc."
+                required
+              >
+            </div>
+
+          </div>
+
+          <div class="field full-width">
+            <label for="date-details">
+              Tell me what you have in mind for our time together. *
+            </label>
+
+            <textarea
+              id="date-details"
+              name="date_details"
+              rows="5"
+              required
+            ></textarea>
+          </div>
+
+        </div>
+
+
+        <!-- INTRODUCTION -->
+
+        <div class="form-section">
+
+          <div class="eyebrow">A LITTLE ABOUT YOU</div>
+          <h2>Introduce yourself.</h2>
+
+          <div class="field full-width">
+            <label for="about-yourself">
+              Tell me a little about yourself. *
+            </label>
+
+            <textarea
+              id="about-yourself"
+              name="about_yourself"
+              rows="6"
+              placeholder="A short introduction is perfect."
+              required
+            ></textarea>
+          </div>
+
+          <div class="field full-width">
+            <label for="found-me">How did you find me? *</label>
+
+            <select id="found-me" name="found_me" required>
+              <option value="">Select one</option>
+              <option value="website">Website</option>
+              <option value="x">X / Twitter</option>
+              <option value="referral">Referral</option>
+              <option value="returning">We've met before</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="field full-width">
+            <label for="referral-details">
+              If you were referred, who may I thank?
+            </label>
+
+            <input
+              id="referral-details"
+              name="referral_details"
+              type="text"
+            >
+          </div>
+
+        </div>
+
+
+        <!-- SCREENING -->
+
+        <div class="form-section">
+
+          <div class="eyebrow">SCREENING</div>
+          <h2>A few final details.</h2>
+
+          <p class="form-note">
+            Screening helps keep our time together private and comfortable.
+            Additional verification may be requested after your submission
+            has been reviewed.
+          </p>
+
+          <div class="field full-width">
+            <label for="screening-name">
+              Name used for screening *
+            </label>
+
+            <input
+              id="screening-name"
+              name="screening_name"
+              type="text"
+              required
+            >
+          </div>
+
+          <div class="field full-width">
+            <label for="screening-info">
+              Is there anything you'd like me to know before reviewing
+              your request?
+            </label>
+
+            <textarea
+              id="screening-info"
+              name="screening_info"
+              rows="4"
+            ></textarea>
+          </div>
+
+        </div>
+
+
+        <!-- ACKNOWLEDGMENT -->
+
+        <div class="form-section">
+
+          <div class="eyebrow">BEFORE YOU SEND</div>
+
+          <label class="checkbox-row">
+
+            <input
+              id="accuracy"
+              name="accuracy"
+              type="checkbox"
+              required
+            >
+
+            <span>
+              I confirm that the information I've provided is accurate.
+            </span>
+
+          </label>
+
+          <label class="checkbox-row">
+
+            <input
+              id="request-understanding"
+              name="request_understanding"
+              type="checkbox"
+              required
+            >
+
+            <span>
+              I understand that submitting this request does not confirm
+              or guarantee a date. I'll receive further details if my
+              request is approved to move forward.
+            </span>
+
+          </label>
+
+        </div>
+
+
+        <div class="submit-area">
+
+          <button class="button" type="submit">
+            Send My Request
+          </button>
+
+          <p class="privacy-note">
+            Your information is submitted privately and used only for
+            reviewing and managing your request.
+          </p>
+
+          <p id="form-message" hidden></p>
+
+        </div>
 
       </form>
+
     </section>
+
   </main>
+
 
   <footer>
     <span>© 2026 Kendra Bexly</span>
