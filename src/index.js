@@ -372,28 +372,45 @@ export default {
 
     const data = await request.json();
 
+    const now = new Date();
+    const month = now.toLocaleString("en-US", { month: "long", timeZone: "America/Los_Angeles" });
+    const year = now.toLocaleString("en-US", { year: "numeric", timeZone: "America/Los_Angeles" });
+
     const subject =
-      String(data.subject || "A Note From Kendra").trim();
+      String(data.subject || `${month} with Kendra — A Little Something New`).trim();
 
     const content =
       String(
         data.content ||
-        "Hi there,\n\nHere is a little update from me this month."
+        `Hi there,
+
+Welcome to my ${month} note. I wanted this space to feel personal — a quick way to catch up, share what has been on my mind, and give you something new each month.
+
+This month I am making room for more intentional moments, fresh experiences, and the little details that make time together memorable.
+
+Keep reading for this month's journal feature and a special offer created just for newsletter subscribers.
+
+Until next time,
+Kendra`
       ).trim();
 
     const blogTitle =
-      String(data.blog_title || "This Month's Journal").trim();
+      String(data.blog_title || `${month} ${year}: The Beauty of Being Present`).trim();
 
     const blogContent =
       String(
         data.blog_content ||
-        "A fresh monthly journal post will be featured here."
+        `There is something special about giving a moment your full attention. Life moves quickly, and it is easy to rush from one thing to the next without really enjoying where we are.
+
+This month, I am focusing on being more present — enjoying good conversation, noticing the small details, and making space for experiences that feel genuine instead of hurried.
+
+My journal will continue to be a place where I share a little more of that side of me: what I am enjoying, what I am learning, and what is inspiring me lately.`
       ).trim();
 
     const specialOffer =
       String(
         data.special_offer ||
-        "A one-time monthly special will be added here."
+        `${month} Newsletter Special: A limited one-time special rate is available to newsletter subscribers this month. Contact me and mention the ${month} newsletter for details. Available for a limited time and subject to availability.`
       ).trim();
 
     const result = await env.DB.prepare(`
