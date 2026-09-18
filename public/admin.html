@@ -960,7 +960,8 @@ loadRequests();
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">One-Time Special Rate Offer</label>
           <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
-            ${readOnly ? "" : '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button>'}
+            <button type="button" data-newsletter-action="preview">Preview</button>
+            ${readOnly ? "" : '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>'}
             ${item.status === "approved" ? '<button type="button" data-newsletter-action="send" disabled title="Email delivery will be connected next.">Send Newsletter</button>' : ""}
           </div>
         </div>`;
@@ -981,6 +982,34 @@ loadRequests();
               const id = Number(card.dataset.newsletterDraft);
               const action = button.dataset.newsletterAction;
               if (action === "send") return;
+              if (action === "preview") {
+                const subject = card.querySelector('[data-field="subject"]').value;
+                const content = card.querySelector('[data-field="content"]').value;
+                const blogTitle = card.querySelector('[data-field="blog_title"]').value;
+                const blogContent = card.querySelector('[data-field="blog_content"]').value;
+                const specialOffer = card.querySelector('[data-field="special_offer"]').value;
+                const w = window.open("", "_blank");
+                if (w) {
+                  w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1><p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p></div></main></body></html>`);
+                  w.document.close();
+                }
+                return;
+              }
+              if (action === "delete") {
+                if (!confirm("Delete this newsletter draft?")) return;
+                button.disabled = true;
+                try {
+                  const r = await fetch("/api/admin/newsletter/drafts/" + id, { method: "DELETE" });
+                  const d = await r.json();
+                  if (!r.ok || !d.ok) throw new Error(d.message || "Unable to delete newsletter draft.");
+                  await loadNewsletterDrafts();
+                } catch (e) {
+                  alert(e.message);
+                } finally {
+                  button.disabled = false;
+                }
+                return;
+              }
               const payload = {};
               card.querySelectorAll("[data-field]").forEach(el => payload[el.dataset.field] = el.value.trim());
               if (action === "approve") payload.status = "approved";
