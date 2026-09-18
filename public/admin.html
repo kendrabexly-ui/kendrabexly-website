@@ -740,9 +740,8 @@
       </div>
     </div>
 
-    <div id="newsletter-subscriber-count">
-      Loading subscriber count...
-    </div>
+    <div id="newsletter-subscriber-count">Loading subscribers...</div>
+    <div id="newsletter-subscribers" style="margin-top:14px;"></div>
   </div>
 
   <div class="panel">
@@ -940,6 +939,25 @@ loadRequests();
         xCharCount.textContent = xNewContent.value.length + " / 280";
       });
     }
+
+    async function loadNewsletterSubscribers() {
+      const count = document.getElementById("newsletter-subscriber-count");
+      const list = document.getElementById("newsletter-subscribers");
+      if (!count || !list) return;
+      try {
+        const r = await fetch("/api/admin/newsletter/subscribers");
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load subscribers.");
+        count.textContent = (d.count || 0) + ((d.count || 0) === 1 ? " subscriber" : " subscribers");
+        list.innerHTML = d.subscribers.length
+          ? d.subscribers.map(item => `<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;"><span>${escapeHtml(item.email)}</span><small>${escapeHtml(item.status)}</small></div>`).join("")
+          : '<div class="empty">No subscribers yet.</div>';
+      } catch (error) {
+        count.textContent = "Unable to load subscribers.";
+        list.innerHTML = "";
+      }
+    }
+    loadNewsletterSubscribers();
 
     function newsletterDraftCard(item) {
       const readOnly = item.status === "sent";
