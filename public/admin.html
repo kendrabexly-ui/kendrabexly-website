@@ -376,9 +376,11 @@
             </div>
           </div>
 
-          <div class="empty">
-            Connecting your request records is the next step.
-          </div>
+          <div id="recent-requests">
+    <div class="empty">
+        Loading recent requests...
+    </div>
+</div>
 
         </div>
 
@@ -524,6 +526,110 @@
     }
 
     loadDashboard();
+
+    async function loadRequests() {
+  const recentContainer =
+    document.getElementById("recent-requests");
+
+  try {
+    const response =
+      await fetch("/api/admin/requests");
+
+    const data =
+      await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(
+        data.message || "Unable to load requests."
+      );
+    }
+
+    const requests = data.requests || [];
+
+    if (requests.length === 0) {
+      recentContainer.innerHTML = `
+        <div class="empty">
+          No private requests yet.
+        </div>
+      `;
+      return;
+    }
+
+    const recentRequests =
+      requests.slice(0, 5);
+
+    recentContainer.innerHTML =
+      recentRequests
+        .map((item) => {
+          const name =
+            `${item.first_name || ""} ${item.last_name || ""}`.trim();
+
+          const date =
+            item.requested_date || "Date not provided";
+
+          const time =
+            item.requested_time || "Time not provided";
+
+          const location =
+            item.location_name || "Location not provided";
+
+          const status =
+            item.status || "pending";
+
+          return `
+            <div style="
+              padding: 18px 0;
+              border-bottom: 1px solid rgba(0,0,0,.12);
+            ">
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:20px;
+                align-items:flex-start;
+              ">
+                <div>
+                  <strong>${escapeHtml(name || "Client")}</strong>
+                  <div style="margin-top:6px;">
+                    ${escapeHtml(date)} at ${escapeHtml(time)}
+                  </div>
+                  <div style="margin-top:4px;">
+                    ${escapeHtml(location)}
+                  </div>
+                </div>
+
+                <div>
+                  ${escapeHtml(status)}
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+  } catch (error) {
+    console.error(
+      "Request loading error:",
+      error
+    );
+
+    recentContainer.innerHTML = `
+      <div class="empty">
+        Unable to load recent requests.
+      </div>
+    `;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+loadRequests();
     const navButtons =
       document.querySelectorAll(".nav button");
 
