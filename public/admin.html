@@ -284,6 +284,11 @@
     }
 
     @media (max-width: 520px) {
+      html, body {
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+
       .stats {
         grid-template-columns: 1fr;
       }
@@ -294,6 +299,72 @@
 
       .secure {
         display: none;
+      }
+
+      .main {
+        width: 100%;
+        min-width: 0;
+        padding: 28px 16px;
+      }
+
+      .section,
+      .panel,
+      .panel-header,
+      .section-heading {
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .section-heading h2 {
+        font-size: 30px;
+      }
+
+      .section-heading p,
+      .panel-subtitle {
+        overflow-wrap: anywhere;
+      }
+
+      #x-agent .panel-header {
+        align-items: flex-start;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 20px;
+      }
+
+      #x-agent .panel-header > div {
+        min-width: 0;
+        flex: 1 1 220px;
+      }
+
+      #x-agent .panel-header > a {
+        flex: 0 0 auto;
+      }
+
+      #x-agent textarea {
+        display: block;
+        width: 100% !important;
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      #x-agent #x-create-draft {
+        width: 100%;
+        margin-top: 4px;
+      }
+
+      #x-agent #x-char-count {
+        display: block;
+        width: 100%;
+      }
+
+      #x-agent [data-x-draft] {
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+      }
+
+      #x-agent [data-x-draft] button {
+        flex: 1 1 100%;
+        width: 100%;
       }
     }
   </style>
