@@ -333,6 +333,58 @@ export default {
     `).run();
   }
 
+  async function ensureNewsletterSubscribersTable() {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        unsubscribed_at TEXT
+      )
+    `).run();
+  }
+
+  // Public newsletter signup
+  if (url.pathname === "/api/newsletter/subscribe" && request.method === "POST") {
+    await ensureNewsletterSubscribersTable();
+    const data = await request.json();
+    const email = String(data.email || "").trim().toLowerCase();
+    const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+    if (!emailPattern.test(email)) {
+      return Response.json({ ok: false, message: "Please enter a valid email address." }, { status: 400 });
+    }
+    const existing = await env.DB.prepare(
+      "SELECT id, status FROM newsletter_subscribers WHERE LOWER(email) = LOWER(?)"
+    ).bind(email).first();
+    if (existing) {
+      if (existing.status !== "active") {
+        await env.DB.prepare(
+          "UPDATE newsletter_subscribers SET status = 'active', unsubscribed_at = NULL WHERE id = ?"
+        ).bind(existing.id).run();
+      }
+      return Response.json({ ok: true, message: "You're on the list. Thank you." });
+    }
+    await env.DB.prepare(
+      "INSERT INTO newsletter_subscribers (email, status) VALUES (?, 'active')"
+    ).bind(email).run();
+    return Response.json({ ok: true, message: "You're on the list. Thank you." });
+  }
+
+  // Admin subscriber list
+  if (url.pathname === "/api/admin/newsletter/subscribers" && request.method === "GET") {
+    await ensureNewsletterSubscribersTable();
+    const result = await env.DB.prepare(
+      "SELECT id, email, status, created_at FROM newsletter_subscribers ORDER BY id DESC LIMIT 500"
+    ).all();
+    const subscribers = result.results || [];
+    return Response.json({
+      ok: true,
+      count: subscribers.filter(item => item.status === "active").length,
+      subscribers
+    });
+  }
+
   // Get newsletter drafts
   if (
     url.pathname === "/api/admin/newsletter/drafts" &&
