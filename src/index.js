@@ -117,6 +117,90 @@ export default {
     }
 
     // =========================================================
+    // X CONNECTION STATUS + TOKEN REFRESH
+    // =========================================================
+
+    if (url.pathname === "/api/admin/x/status" && request.method === "GET") {
+      try {
+        const row = await env.DB.prepare(`
+          SELECT access_token, refresh_token, expires_at, scope, updated_at
+          FROM x_oauth_tokens
+          WHERE id = 1
+        `).first();
+
+        if (!row) {
+          return Response.json({ ok: true, connected: false });
+        }
+
+        let accessToken = row.access_token;
+        let refreshToken = row.refresh_token;
+        let expiresAt = Number(row.expires_at || 0);
+        const now = Math.floor(Date.now() / 1000);
+
+        // Refresh a little early so a dashboard action never starts with an expired token.
+        if (expiresAt <= now + 300) {
+          if (!refreshToken) {
+            return Response.json({ ok: true, connected: false, reconnect_required: true });
+          }
+
+          const body = new URLSearchParams({
+            grant_type: "refresh_token",
+            refresh_token: refreshToken,
+            client_id: env.X_CLIENT_ID
+          });
+          const basic = btoa(String(env.X_CLIENT_ID) + ":" + String(env.X_CLIENT_SECRET));
+          const refreshResponse = await fetch(new Request("https://api.x.com/2/oauth2/token", {
+            method: "POST",
+            headers: new Headers([
+              ["Authorization", "Basic " + basic],
+              ["Content-Type", "application/x-www-form-urlencoded;charset=UTF-8"],
+              ["Accept", "application/json"]
+            ]),
+            body: body.toString()
+          }));
+
+          if (!refreshResponse.ok) {
+            console.error("X token refresh failed:", refreshResponse.status);
+            return Response.json({ ok: true, connected: false, reconnect_required: true });
+          }
+
+          const tokens = await refreshResponse.json();
+          accessToken = tokens.access_token;
+          refreshToken = tokens.refresh_token || refreshToken;
+          expiresAt = now + Number(tokens.expires_in || 7200);
+
+          await env.DB.prepare(`
+            UPDATE x_oauth_tokens
+            SET access_token = ?, refresh_token = ?, expires_at = ?, scope = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = 1
+          `).bind(accessToken, refreshToken, expiresAt, tokens.scope || row.scope || null).run();
+        }
+
+        const meResponse = await fetch("https://api.x.com/2/users/me?user.fields=username,name", {
+          headers: { Authorization: "Bearer " + accessToken }
+        });
+
+        if (!meResponse.ok) {
+          console.error("X user lookup failed:", meResponse.status);
+          return Response.json({ ok: true, connected: false, reconnect_required: meResponse.status === 401 });
+        }
+
+        const me = await meResponse.json();
+        return Response.json({
+          ok: true,
+          connected: true,
+          username: me?.data?.username || null,
+          name: me?.data?.name || null,
+          expires_at: expiresAt,
+          scope: row.scope || null
+        });
+      } catch (error) {
+        console.error("X connection status error:", error);
+        return Response.json({ ok: false, message: "Unable to check X connection." }, { status: 500 });
+      }
+    }
+
+    // =========================================================
     // DATABASE HEALTH CHECK
     // =========================================================
 
