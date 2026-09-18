@@ -316,6 +316,7 @@
         <button data-section="blacklist">Blacklist</button>
         <button data-section="emails">Email Drafts</button>
         <button data-section="newsletter">Newsletter</button>
+        <button data-section="x-agent">X Agent</button>
       </nav>
 
       <a class="back-site" href="/">
@@ -469,6 +470,51 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- X AGENT -->
+
+      <section id="x-agent" class="section">
+        <div class="section-heading">
+          <h2>X Agent</h2>
+          <p>Draft, review, approve, and publish to your connected X account.</p>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">X Connection</div>
+              <div class="panel-subtitle" id="x-status">Checking connection...</div>
+            </div>
+            <a href="/api/auth/x/start" style="color:var(--ink);">Reconnect X</a>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">New Post Draft</div>
+              <div class="panel-subtitle">Nothing publishes until you approve it and press Publish.</div>
+            </div>
+          </div>
+          <div style="padding:24px;">
+            <textarea id="x-new-content" maxlength="280" placeholder="Write or paste your post draft here..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;">
+              <span id="x-char-count" style="color:var(--muted);font-size:13px;">0 / 280</span>
+              <button id="x-create-draft" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Post Drafts</div>
+              <div class="panel-subtitle">Edit drafts, approve them, then publish when you are ready.</div>
+            </div>
+          </div>
+          <div id="x-drafts"><div class="empty">Loading X drafts...</div></div>
+        </div>
       </section>
 
       <!-- NEWSLETTER -->
@@ -660,6 +706,111 @@ function escapeHtml(value) {
 }
 
 loadRequests();
+    const xNewContent = document.getElementById("x-new-content");
+    const xCharCount = document.getElementById("x-char-count");
+    if (xNewContent) {
+      xNewContent.addEventListener("input", () => {
+        xCharCount.textContent = xNewContent.value.length + " / 280";
+      });
+    }
+
+    async function loadXStatus() {
+      const el = document.getElementById("x-status");
+      if (!el) return;
+      try {
+        const r = await fetch("/api/admin/x/status");
+        const d = await r.json();
+        el.textContent = d.connected
+          ? "Connected to @" + (d.username || "your X account")
+          : "Not connected — reconnect X to publish.";
+      } catch {
+        el.textContent = "Unable to check X connection.";
+      }
+    }
+
+    function xDraftCard(item) {
+      const disabled = item.status === "published";
+      return `
+        <div style="padding:22px 24px;border-bottom:1px solid var(--line);" data-x-draft="${item.id}">
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;">
+            <strong>Draft #${item.id}</strong>
+            <span class="status">${escapeHtml(item.status)}</span>
+          </div>
+          <textarea maxlength="280" ${disabled ? "disabled" : ""} style="width:100%;min-height:110px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.content)}</textarea>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+            ${disabled ? "" : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="approve">Approve</button>'}
+            ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button>' : ""}
+          </div>
+        </div>`;
+    }
+
+    async function loadXDrafts() {
+      const box = document.getElementById("x-drafts");
+      if (!box) return;
+      try {
+        const r = await fetch("/api/admin/x/drafts");
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load drafts.");
+        box.innerHTML = d.drafts.length ? d.drafts.map(xDraftCard).join("") : '<div class="empty">No X drafts yet.</div>';
+        box.querySelectorAll("[data-x-draft]").forEach(card => {
+          card.querySelectorAll("button[data-action]").forEach(button => {
+            button.style.cssText = "border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;";
+            button.addEventListener("click", async () => {
+              const id = Number(card.dataset.xDraft);
+              const content = card.querySelector("textarea").value.trim();
+              const action = button.dataset.action;
+              button.disabled = true;
+              try {
+                let r;
+                if (action === "save") r = await fetch("/api/admin/x/drafts/" + id, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
+                if (action === "approve") {
+                  const save = await fetch("/api/admin/x/drafts/" + id, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
+                  if (!save.ok) r = save;
+                  else r = await fetch("/api/admin/x/approve", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
+                }
+                if (action === "publish") {
+                  if (!confirm("Publish this approved post to X now?")) return;
+                  r = await fetch("/api/admin/x/publish", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
+                }
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error(d.message || "Action failed.");
+                await loadXDrafts();
+                await loadXStatus();
+              } catch (e) {
+                alert(e.message);
+              } finally {
+                button.disabled = false;
+              }
+            });
+          });
+        });
+      } catch (e) {
+        box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    const xCreate = document.getElementById("x-create-draft");
+    if (xCreate) xCreate.addEventListener("click", async () => {
+      const content = xNewContent.value.trim();
+      if (!content) return alert("Write a draft first.");
+      xCreate.disabled = true;
+      try {
+        const r = await fetch("/api/admin/x/drafts", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.message || "Unable to save draft.");
+        xNewContent.value = "";
+        xCharCount.textContent = "0 / 280";
+        await loadXDrafts();
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        xCreate.disabled = false;
+      }
+    });
+
+    loadXStatus();
+    loadXDrafts();
+
     const navButtons =
       document.querySelectorAll(".nav button");
 
