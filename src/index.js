@@ -350,7 +350,7 @@ export default {
     await ensureNewsletterSubscribersTable();
     const data = await request.json();
     const email = String(data.email || "").trim().toLowerCase();
-    const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email)) {
       return Response.json({ ok: false, message: "Please enter a valid email address." }, { status: 400 });
     }
