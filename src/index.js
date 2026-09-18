@@ -930,7 +930,87 @@ if (
     // =========================================================
 
    
+    // ============================================================
+    // MOVE REQUEST FORWARD
+    // ============================================================
 
+    if (
+      url.pathname === "/api/admin/request/move-forward" &&
+      request.method === "POST"
+    ) {
+      try {
+        const data = await request.json();
+        const requestId = Number(data.id);
+
+        if (!Number.isInteger(requestId) || requestId < 1) {
+          return Response.json(
+            {
+              ok: false,
+              message: "Invalid request ID."
+            },
+            { status: 400 }
+          );
+        }
+
+        const existingRequest = await env.DB
+          .prepare(`
+            SELECT
+              dr.id,
+              dr.client_id,
+              dr.requested_date,
+              dr.requested_time,
+              dr.location_name,
+              c.first_name,
+              c.last_name,
+              c.email
+            FROM date_requests dr
+            JOIN clients c
+              ON c.id = dr.client_id
+            WHERE dr.id = ?
+          `)
+          .bind(requestId)
+          .first();
+
+        if (!existingRequest) {
+          return Response.json(
+            {
+              ok: false,
+              message: "Request not found."
+            },
+            { status: 404 }
+          );
+        }
+
+        await env.DB
+          .prepare(`
+            UPDATE date_requests
+            SET status = 'pending_final_approval'
+            WHERE id = ?
+          `)
+          .bind(requestId)
+          .run();
+
+        return Response.json({
+          ok: true,
+          message: "Request moved forward.",
+          status: "pending_final_approval"
+        });
+
+      } catch (error) {
+        console.error(
+          "Move request forward error:",
+          error
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            message: "Unable to move request forward."
+          },
+          { status: 500 }
+        );
+      }
+    }
 
     // =========================================================
     // SERVE THE EXISTING WEBSITE
