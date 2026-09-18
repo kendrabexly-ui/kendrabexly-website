@@ -375,7 +375,7 @@ export default {
   if (url.pathname === "/api/admin/newsletter/subscribers" && request.method === "GET") {
     await ensureNewsletterSubscribersTable();
     const result = await env.DB.prepare(
-      "SELECT id, email, status, created_at FROM newsletter_subscribers ORDER BY id DESC LIMIT 500"
+      "SELECT id, email, status FROM newsletter_subscribers ORDER BY id DESC LIMIT 500"
     ).all();
     const subscribers = result.results || [];
     const activeCountRow = await env.DB.prepare(
