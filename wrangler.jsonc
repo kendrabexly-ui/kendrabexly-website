@@ -1,9 +1,17 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kendrabexly-website",
+  "name": "kendrabexly",
   "compatibility_date": "2026-09-17",
+
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application"
-  }
-}
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kendrabexly-db",
+      "database_id": "ffc0149a-0694-4164-8b82-f676783daa98"
+    }
+  ]
