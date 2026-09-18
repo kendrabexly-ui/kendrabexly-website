@@ -312,7 +312,214 @@ export default {
       await env.DB.prepare("UPDATE x_post_drafts SET status = 'published', x_post_id = ?, published_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(postId, id).run();
       return Response.json({ ok: true, status: "published", x_post_id: postId });
     }
+  // ==========================================
+  // NEWSLETTER AGENT
+  // ==========================================
 
+  async function ensureNewsletterTable() {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS newsletter_drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subject TEXT NOT NULL,
+        content TEXT NOT NULL,
+        blog_title TEXT,
+        blog_content TEXT,
+        special_offer TEXT,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        sent_at TEXT
+      )
+    `).run();
+  }
+
+  // Get newsletter drafts
+  if (
+    url.pathname === "/api/admin/newsletter/drafts" &&
+    request.method === "GET"
+  ) {
+    await ensureNewsletterTable();
+
+    const result = await env.DB.prepare(`
+      SELECT
+        id,
+        subject,
+        content,
+        blog_title,
+        blog_content,
+        special_offer,
+        status,
+        created_at,
+        updated_at,
+        sent_at
+      FROM newsletter_drafts
+      ORDER BY id DESC
+      LIMIT 50
+    `).all();
+
+    return Response.json({
+      ok: true,
+      drafts: result.results || []
+    });
+  }
+
+  // Create a newsletter draft
+  if (
+    url.pathname === "/api/admin/newsletter/drafts" &&
+    request.method === "POST"
+  ) {
+    await ensureNewsletterTable();
+
+    const data = await request.json();
+
+    const subject =
+      String(data.subject || "A Note From Kendra").trim();
+
+    const content =
+      String(
+        data.content ||
+        "Hi there,\n\nHere is a little update from me this month."
+      ).trim();
+
+    const blogTitle =
+      String(data.blog_title || "This Month's Journal").trim();
+
+    const blogContent =
+      String(
+        data.blog_content ||
+        "A fresh monthly journal post will be featured here."
+      ).trim();
+
+    const specialOffer =
+      String(
+        data.special_offer ||
+        "A one-time monthly special will be added here."
+      ).trim();
+
+    const result = await env.DB.prepare(`
+      INSERT INTO newsletter_drafts
+      (
+        subject,
+        content,
+        blog_title,
+        blog_content,
+        special_offer,
+        status
+      )
+      VALUES (?, ?, ?, ?, ?, 'draft')
+    `)
+      .bind(
+        subject,
+        content,
+        blogTitle,
+        blogContent,
+        specialOffer
+      )
+      .run();
+
+    return Response.json({
+      ok: true,
+      id: result.meta.last_row_id,
+      status: "draft"
+    });
+  }
+
+  // Update or approve a newsletter draft
+  if (
+    url.pathname.startsWith("/api/admin/newsletter/drafts/") &&
+    request.method === "PATCH"
+  ) {
+    await ensureNewsletterTable();
+
+    const id = Number(url.pathname.split("/").pop());
+
+    if (!Number.isInteger(id) || id < 1) {
+      return Response.json(
+        { ok: false, message: "Invalid newsletter ID." },
+        { status: 400 }
+      );
+    }
+
+    const data = await request.json();
+
+    const existing = await env.DB.prepare(
+      "SELECT * FROM newsletter_drafts WHERE id = ?"
+    )
+      .bind(id)
+      .first();
+
+    if (!existing) {
+      return Response.json(
+        { ok: false, message: "Newsletter draft not found." },
+        { status: 404 }
+      );
+    }
+
+    if (existing.status === "sent") {
+      return Response.json(
+        { ok: false, message: "Sent newsletters are read-only." },
+        { status: 400 }
+      );
+    }
+
+    const subject =
+      String(data.subject ?? existing.subject).trim();
+
+    const content =
+      String(data.content ?? existing.content).trim();
+
+    const blogTitle =
+      String(data.blog_title ?? existing.blog_title ?? "").trim();
+
+    const blogContent =
+      String(data.blog_content ?? existing.blog_content ?? "").trim();
+
+    const specialOffer =
+      String(data.special_offer ?? existing.special_offer ?? "").trim();
+
+    const status =
+      data.status === "approved"
+        ? "approved"
+        : existing.status;
+
+    if (!subject || !content) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Subject and newsletter content are required."
+        },
+        { status: 400 }
+      );
+    }
+
+    await env.DB.prepare(`
+      UPDATE newsletter_drafts
+      SET
+        subject = ?,
+        content = ?,
+        blog_title = ?,
+        blog_content = ?,
+        special_offer = ?,
+        status = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `)
+      .bind(
+        subject,
+        content,
+        blogTitle,
+        blogContent,
+        specialOffer,
+        status,
+        id
+      )
+      .run();
+
+    return Response.json({
+      ok: true,
+      status
+    });
+  }
     // =========================================================
     // DATABASE HEALTH CHECK
     // =========================================================
