@@ -1085,7 +1085,56 @@ if (
           `)
           .bind(requestId)
           .run();
+const approvedRequest = await env.DB
+  .prepare(`
+    SELECT
+      dr.id,
+      dr.client_id,
+      dr.requested_date,
+      dr.requested_time,
+      dr.location_name,
+      c.first_name,
+      c.last_name,
+      c.email
+    FROM date_requests dr
+    JOIN clients c
+      ON c.id = dr.client_id
+    WHERE dr.id = ?
+  `)
+  .bind(requestId)
+  .first();
 
+await env.DB
+  .prepare(`
+    INSERT INTO email_drafts (
+      client_id,
+      date_request_id,
+      email_type,
+      subject,
+      body,
+      status
+    )
+    VALUES (?, ?, ?, ?, ?, 'draft')
+  `)
+  .bind(
+    approvedRequest.client_id,
+    requestId,
+    "date_confirmed",
+    "Our date is confirmed",
+    `Hi ${approvedRequest.first_name},
+
+Our date is officially confirmed.
+
+Date: ${approvedRequest.requested_date}
+Time: ${approvedRequest.requested_time}
+Location: ${approvedRequest.location_name}
+
+I'm looking forward to seeing you. I'll send you the exact address for our date location two hours before our scheduled time.
+
+See you soon,
+Kendra`
+  )
+  .run();
         return Response.json({
           ok: true,
           message: "Final approval complete.",
