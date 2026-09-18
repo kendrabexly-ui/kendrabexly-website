@@ -56,6 +56,9 @@ export default {
         code_verifier: cookies.x_oauth_verifier
       });
 
+      // X OAuth 2.0 confidential clients authenticate at the token endpoint.
+      // Include client_id in the form body as well as HTTP Basic auth for compatibility.
+      body.set("client_id", env.X_CLIENT_ID);
       const basic = btoa(env.X_CLIENT_ID + ":" + env.X_CLIENT_SECRET);
       const tokenResponse = await fetch("https://api.x.com/2/oauth2/token", {
         method: "POST",
@@ -63,7 +66,7 @@ export default {
           "Content-Type": "application/x-www-form-urlencoded",
           "Authorization": "Basic " + basic
         },
-        body
+        body: body.toString()
       });
 
       if (!tokenResponse.ok) {
