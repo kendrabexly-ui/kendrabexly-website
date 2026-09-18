@@ -344,13 +344,61 @@
   >
     Move Forward
   </button>
+<div
+  id="final-approval-controls"
+  style="display: none; margin-top: 24px;"
+>
+  <label style="display: block; margin-bottom: 14px;">
+    <input
+      type="checkbox"
+      id="id-received-checkbox"
+    >
+    ID received and screening completed
+  </label>
 
+  <label style="display: block; margin-bottom: 20px;">
+    <input
+      type="checkbox"
+      id="deposit-paid-checkbox"
+    >
+    25% deposit received
+  </label>
+
+  <button
+    type="button"
+    id="final-approve-button"
+    style="
+      background: #25252d;
+      color: white;
+      border: none;
+      padding: 15px 28px;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 15px;
+      cursor: pointer;
+    "
+  >
+    Final Approve
+  </button>
+
+  <div
+    id="final-approval-status"
+    style="margin-top: 12px;"
+  ></div>
+</div>
   <div
     id="move-forward-status"
     style="margin-top: 12px;"
   ></div>
 </div>
         `;
+        const finalApprovalControls =
+  document.getElementById("final-approval-controls");
+
+if (item.status === "pending_final_approval") {
+  document.getElementById("move-forward-button").style.display = "none";
+  finalApprovalControls.style.display = "block";
+}
       const moveForwardButton =
   document.getElementById("move-forward-button");
 
@@ -407,6 +455,83 @@ moveForwardButton.addEventListener(
     }
   }
 );
+const finalApproveButton =
+  document.getElementById("final-approve-button");
+
+const finalApprovalStatus =
+  document.getElementById("final-approval-status");
+
+const idReceivedCheckbox =
+  document.getElementById("id-received-checkbox");
+
+const depositPaidCheckbox =
+  document.getElementById("deposit-paid-checkbox");
+        finalApproveButton.addEventListener(
+  "click",
+  async function () {
+
+    if (
+      !idReceivedCheckbox.checked ||
+      !depositPaidCheckbox.checked
+    ) {
+      finalApprovalStatus.textContent =
+        "Please confirm both the ID screening and deposit before final approval.";
+      return;
+    }
+
+    finalApproveButton.disabled = true;
+    finalApprovalStatus.textContent =
+      "Finalizing approval...";
+
+    try {
+  const response = await fetch(
+    "/api/admin/request/final-approve",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        id: Number(id),
+        id_received: true,
+        deposit_paid: true
+      })
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.ok) {
+    throw new Error(
+      result.message ||
+      "Unable to complete final approval."
+    );
+  }
+
+      finalApprovalStatus.textContent =
+  "Final approval complete.";
+
+finalApproveButton.textContent =
+  "Approved";
+
+finalApproveButton.disabled = true;
+
+idReceivedCheckbox.disabled = true;
+depositPaidCheckbox.disabled = true;
+
+      } catch (error) {
+  console.error(
+    "Final approval error:",
+    error
+  );
+
+  finalApprovalStatus.textContent =
+    "Unable to complete final approval.";
+
+   finalApproveButton.disabled = false;
+}
+);
+    
       } catch (error) {
         console.error(
           "Request detail loading error:",
