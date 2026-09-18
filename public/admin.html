@@ -941,6 +941,102 @@ loadRequests();
       });
     }
 
+    function newsletterDraftCard(item) {
+      const readOnly = item.status === "sent";
+      return `
+        <div style="padding:22px 24px;border-bottom:1px solid var(--line);" data-newsletter-draft="${item.id}">
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:14px;">
+            <strong>Newsletter #${item.id}</strong>
+            <span class="status">${escapeHtml(item.status)}</span>
+          </div>
+          <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Subject</label>
+          <input data-field="subject" ${readOnly ? "disabled" : ""} value="${escapeHtml(item.subject || "")}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:12px;">
+          <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Newsletter</label>
+          <textarea data-field="content" ${readOnly ? "disabled" : ""} style="width:100%;min-height:150px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;margin-bottom:12px;">${escapeHtml(item.content || "")}</textarea>
+          <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Featured Blog Post Title</label>
+          <input data-field="blog_title" ${readOnly ? "disabled" : ""} value="${escapeHtml(item.blog_title || "")}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:12px;">
+          <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Featured Blog Post</label>
+          <textarea data-field="blog_content" ${readOnly ? "disabled" : ""} style="width:100%;min-height:120px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;margin-bottom:12px;">${escapeHtml(item.blog_content || "")}</textarea>
+          <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">One-Time Special Rate Offer</label>
+          <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+            ${readOnly ? "" : '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button>'}
+            ${item.status === "approved" ? '<button type="button" data-newsletter-action="send" disabled title="Email delivery will be connected next.">Send Newsletter</button>' : ""}
+          </div>
+        </div>`;
+    }
+
+    async function loadNewsletterDrafts() {
+      const box = document.getElementById("newsletter-drafts");
+      if (!box) return;
+      try {
+        const r = await fetch("/api/admin/newsletter/drafts");
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load newsletter drafts.");
+        box.innerHTML = d.drafts.length ? d.drafts.map(newsletterDraftCard).join("") : '<div class="empty">No newsletter drafts yet.</div>';
+        box.querySelectorAll("[data-newsletter-draft]").forEach(card => {
+          card.querySelectorAll("button[data-newsletter-action]").forEach(button => {
+            button.style.cssText = "border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;";
+            button.addEventListener("click", async () => {
+              const id = Number(card.dataset.newsletterDraft);
+              const action = button.dataset.newsletterAction;
+              if (action === "send") return;
+              const payload = {};
+              card.querySelectorAll("[data-field]").forEach(el => payload[el.dataset.field] = el.value.trim());
+              if (action === "approve") payload.status = "approved";
+              button.disabled = true;
+              try {
+                const r = await fetch("/api/admin/newsletter/drafts/" + id, {
+                  method: "PATCH",
+                  headers: {"Content-Type":"application/json"},
+                  body: JSON.stringify(payload)
+                });
+                const d = await r.json();
+                if (!r.ok || !d.ok) throw new Error(d.message || "Newsletter action failed.");
+                await loadNewsletterDrafts();
+              } catch (e) {
+                alert(e.message);
+              } finally {
+                button.disabled = false;
+              }
+            });
+          });
+        });
+      } catch (e) {
+        box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    const generateNewsletter = document.getElementById("generate-newsletter");
+    if (generateNewsletter) {
+      generateNewsletter.style.cssText = "margin:20px 24px 24px;border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;";
+      generateNewsletter.addEventListener("click", async () => {
+        generateNewsletter.disabled = true;
+        try {
+          const r = await fetch("/api/admin/newsletter/drafts", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({})
+          });
+          const d = await r.json();
+          if (!r.ok || !d.ok) throw new Error(d.message || "Unable to create newsletter draft.");
+          await loadNewsletterDrafts();
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          generateNewsletter.disabled = false;
+        }
+      });
+    }
+
+    const subscriberCount = document.getElementById("newsletter-subscriber-count");
+    if (subscriberCount) {
+      subscriberCount.style.padding = "20px 24px";
+      subscriberCount.textContent = "Subscriber list connection coming next.";
+    }
+
+    loadNewsletterDrafts();
+
     async function loadXStatus() {
       const el = document.getElementById("x-status");
       if (!el) return;
