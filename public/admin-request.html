@@ -225,7 +225,10 @@
       try {
         const response =
           await fetch(
-            `/api/admin/requests/${encodeURIComponent(id)}`
+            const response =
+  await fetch(
+    `/api/admin/request?id=${encodeURIComponent(id)}`
+  );
           );
 
         const data =
