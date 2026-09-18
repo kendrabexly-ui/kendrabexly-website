@@ -494,6 +494,36 @@
   </div>
 
   <script>
+
+        async function loadDashboard() {
+      try {
+        const response = await fetch("/api/admin/dashboard");
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(
+            data.message || "Unable to load dashboard."
+          );
+        }
+
+        document.getElementById("pending-count").textContent =
+          data.counts.pending_requests ?? 0;
+
+        document.getElementById("client-count").textContent =
+          data.counts.clients ?? 0;
+
+        document.getElementById("approved-count").textContent =
+          data.counts.approved_dates ?? 0;
+
+        document.getElementById("payment-count").textContent =
+          data.counts.recorded_payments ?? 0;
+
+      } catch (error) {
+        console.error("Dashboard loading error:", error);
+      }
+    }
+
+    loadDashboard();
     const navButtons =
       document.querySelectorAll(".nav button");
 
