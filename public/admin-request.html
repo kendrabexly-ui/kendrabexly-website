@@ -327,8 +327,86 @@
               ${displayValue(item.notes)}
             </div>
           </div>
-        `;
+          <div style="margin-top: 32px;">
+  <button
+    type="button"
+    id="move-forward-button"
+    style="
+      background: #25252d;
+      color: white;
+      border: none;
+      padding: 15px 28px;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 15px;
+      cursor: pointer;
+    "
+  >
+    Move Forward
+  </button>
 
+  <div
+    id="move-forward-status"
+    style="margin-top: 12px;"
+  ></div>
+</div>
+        `;
+      const moveForwardButton =
+  document.getElementById("move-forward-button");
+
+const moveForwardStatus =
+  document.getElementById("move-forward-status");
+
+moveForwardButton.addEventListener(
+  "click",
+  async function () {
+
+    moveForwardButton.disabled = true;
+    moveForwardStatus.textContent =
+      "Moving request forward...";
+
+    try {
+      const response = await fetch(
+        "/api/admin/request/move-forward",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            id: Number(id)
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(
+          result.message ||
+          "Unable to move request forward."
+        );
+      }
+
+      moveForwardStatus.textContent =
+        "Request moved forward successfully.";
+
+      moveForwardButton.textContent =
+        "Moved Forward";
+
+    } catch (error) {
+      console.error(
+        "Move forward error:",
+        error
+      );
+
+      moveForwardStatus.textContent =
+        "Unable to move request forward.";
+
+      moveForwardButton.disabled = false;
+    }
+  }
+);
       } catch (error) {
         console.error(
           "Request detail loading error:",
