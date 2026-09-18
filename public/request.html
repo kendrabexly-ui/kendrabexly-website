@@ -275,67 +275,389 @@
 
           <div class="eyebrow">BEFORE YOU SEND</div>
 
-          <label class="checkbox-row">
+          <label class="checkbox-row"><!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta
+    name="description"
+    content="Private request portal for Kendra Bexly"
+  >
+
+  <title>Private Request | Kendra Bexly</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+
+  <!-- NAVIGATION -->
+  <header class="nav">
+    <a class="brand" href="/">Kendra Bexly</a>
+
+    <nav>
+      <a href="/">Home</a>
+    </nav>
+  </header>
+
+
+  <main class="request-page">
+
+    <!-- INTRODUCTION -->
+    <div class="eyebrow">PRIVATE REQUEST</div>
+
+    <h1>Let's get acquainted.</h1>
+
+    <p class="request-intro">
+      Before we make plans, I'd love to know a little more about you
+      and what you have in mind. Please complete the private request
+      below. I'll personally review your information before moving
+      forward.
+    </p>
+
+
+    <form id="request-form">
+
+      <!-- ABOUT YOU -->
+      <div class="form-section">
+
+        <div class="eyebrow">ABOUT YOU</div>
+        <h2>First, the basics.</h2>
+
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="first-name">First name *</label>
+            <input
+              id="first-name"
+              name="first_name"
+              type="text"
+              autocomplete="given-name"
+              required
+            >
+          </div>
+
+          <div class="field">
+            <label for="last-name">Last name *</label>
+            <input
+              id="last-name"
+              name="last_name"
+              type="text"
+              autocomplete="family-name"
+              required
+            >
+          </div>
+
+          <div class="field">
+            <label for="email">Email address *</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+            >
+          </div>
+
+          <div class="field">
+            <label for="phone">Phone number *</label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              autocomplete="tel"
+              required
+            >
+            <small>
+              Please provide a standard mobile number.
+              No app-based or virtual phone numbers.
+            </small>
+          </div>
+
+        </div>
+      </div>
+
+
+      <!-- OUR TIME -->
+      <div class="form-section">
+
+        <div class="eyebrow">OUR TIME</div>
+        <h2>What do you have in mind?</h2>
+
+        <div class="form-grid">
+
+          <!-- TYPE OF DATE -->
+          <div class="field">
+            <label for="date-type">Type of date *</label>
+
+            <select
+              id="date-type"
+              name="date_type"
+              required
+            >
+              <option value="" selected disabled>
+                Select a date type
+              </option>
+
+              <option value="dinner">
+                Dinner Date
+              </option>
+
+              <option value="drinks">
+                Drinks &amp; Conversation
+              </option>
+
+              <option value="event">
+                Event / Social Engagement
+              </option>
+
+              <option value="travel">
+                Travel
+              </option>
+
+              <option value="other">
+                Other
+              </option>
+            </select>
+          </div>
+
+
+          <!-- INCALL / OUTCALL -->
+          <div class="field">
+            <label for="date-location-type">
+              Incall or Outcall *
+            </label>
+
+            <select
+              id="date-location-type"
+              name="date_location_type"
+              required
+            >
+              <option value="" selected disabled>
+                Select one
+              </option>
+
+              <option value="incall">
+                Incall
+              </option>
+
+              <option value="outcall">
+                Outcall
+              </option>
+            </select>
+          </div>
+
+
+          <!-- DATE -->
+          <div class="field">
+            <label for="requested-date">
+              Preferred date *
+            </label>
 
             <input
-              id="accuracy"
-              name="accuracy"
+              id="requested-date"
+              name="requested_date"
+              type="date"
+              required
+            >
+          </div>
+
+
+          <!-- TIME -->
+          <div class="field">
+            <label for="requested-time">
+              Preferred start time *
+            </label>
+
+            <input
+              id="requested-time"
+              name="requested_time"
+              type="time"
+              required
+            >
+          </div>
+
+
+          <!-- DURATION -->
+          <div class="field">
+            <label for="duration">
+              How much time would you like to spend together? *
+            </label>
+
+            <select
+              id="duration"
+              name="duration"
+              required
+            >
+              <option value="" selected disabled>
+                Select duration
+              </option>
+
+              <option value="2-hours">
+                2 Hours
+              </option>
+
+              <option value="3-hours">
+                3 Hours
+              </option>
+
+              <option value="4-hours">
+                4 Hours
+              </option>
+
+              <option value="6-hours">
+                6 Hours
+              </option>
+
+              <option value="overnight">
+                Overnight
+              </option>
+
+              <option value="extended">
+                Extended / Travel
+              </option>
+            </select>
+          </div>
+
+
+          <!-- CITY -->
+          <div class="field">
+            <label for="city">
+              City *
+            </label>
+
+            <input
+              id="city"
+              name="city"
+              type="text"
+              autocomplete="address-level2"
+              required
+            >
+          </div>
+
+
+          <!-- DETAILS -->
+          <div class="field full-width">
+            <label for="details">
+              Tell me what you have in mind for our time together? *
+            </label>
+
+            <textarea
+              id="details"
+              name="details"
+              rows="6"
+              required
+            ></textarea>
+
+            <small>
+              Please keep your response respectful.
+              No explicit language.
+            </small>
+          </div>
+
+        </div>
+      </div>
+
+
+      <!-- SCREENING & CONFIRMATION -->
+      <div class="form-section">
+
+        <div class="eyebrow">BEFORE YOU SUBMIT</div>
+
+        <h2>A few important details.</h2>
+
+        <p>
+          Every request is personally reviewed before moving forward.
+          Submitting this form does not confirm a date.
+        </p>
+
+
+        <!-- DEPOSIT ACKNOWLEDGMENT -->
+        <div class="field full-width">
+
+          <label>
+            <input
               type="checkbox"
+              name="deposit_acknowledgment"
+              value="yes"
               required
             >
 
-            <span>
-              I confirm that the information I've provided is accurate.
-            </span>
-
-          </label>
-
-          <label class="checkbox-row">
-
-            <input
-              id="request-understanding"
-              name="request_understanding"
-              type="checkbox"
-              required
-            >
-
-            <span>
-              I understand that submitting this request does not confirm
-              or guarantee a date. I'll receive further details if my
-              request is approved to move forward.
-            </span>
-
+            I understand that a 25% deposit is required
+            to confirm my date after my request has been approved. *
           </label>
 
         </div>
 
 
-        <div class="submit-area">
+        <!-- ID ACKNOWLEDGMENT -->
+        <div class="field full-width">
 
-          <button class="button" type="submit">
-            Send My Request
-          </button>
+          <label>
+            <input
+              type="checkbox"
+              name="id_acknowledgment"
+              value="yes"
+              required
+            >
 
-          <p class="privacy-note">
-            Your information is submitted privately and used only for
-            reviewing and managing your request.
-          </p>
-
-          <p id="form-message" hidden></p>
+            I understand that a valid government-issued ID
+            is required for screening and final approval. *
+          </label>
 
         </div>
 
-      </form>
 
-    </section>
+        <!-- PRIVACY NOTE -->
+        <p>
+          If your request moves forward, instructions for completing
+          screening and submitting the required information will be
+          provided privately.
+        </p>
+
+
+        <!-- SUBMIT -->
+        <button type="submit" class="button">
+          Submit Private Request
+        </button>
+
+        <small id="form-status"></small>
+
+      </div>
+
+    </form>
 
   </main>
 
 
+  <!-- FOOTER -->
   <footer>
     <span>© 2026 Kendra Bexly</span>
-    <span>Official Website • KendraBexly.com</span>
+    <span>Official website • KendraBexly.com</span>
   </footer>
+
+
+  <script>
+    const form = document.getElementById("request-form");
+    const status = document.getElementById("form-status");
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      status.textContent =
+        "Your request form is ready. Secure submission will be enabled once the private backend connection is complete.";
+    });
+  </script>
 
 </body>
 </html>
