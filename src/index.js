@@ -1157,6 +1157,96 @@ Kendra`
       }
     }
 
+    // ==================================================
+// UPDATE EMAIL DRAFT
+// ==================================================
+
+if (
+  url.pathname === "/api/admin/email-draft/update" &&
+  request.method === "POST"
+) {
+  try {
+    const data = await request.json();
+
+    const draftId = Number(data.id);
+    const subject = String(data.subject || "").trim();
+    const body = String(data.body || "").trim();
+
+    if (!Number.isInteger(draftId) || draftId < 1) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Invalid email draft ID."
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!subject || !body) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Subject and email body are required."
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingDraft = await env.DB
+      .prepare(`
+        SELECT id
+        FROM email_drafts
+        WHERE id = ?
+      `)
+      .bind(draftId)
+      .first();
+
+    if (!existingDraft) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Email draft not found."
+        },
+        { status: 404 }
+      );
+    }
+
+    await env.DB
+      .prepare(`
+        UPDATE email_drafts
+        SET
+          subject = ?,
+          body = ?
+        WHERE id = ?
+      `)
+      .bind(
+        subject,
+        body,
+        draftId
+      )
+      .run();
+
+    return Response.json({
+      ok: true,
+      message: "Email draft saved."
+    });
+
+  } catch (error) {
+    console.error(
+      "Email draft update error:",
+      error
+    );
+
+    return Response.json(
+      {
+        ok: false,
+        message: "Unable to save email draft."
+      },
+      { status: 500 }
+    );
+  }
+}
+
     // =========================================================
     // SERVE THE EXISTING WEBSITE
     // =========================================================
