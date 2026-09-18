@@ -1,8 +1,13 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
 
   <meta
     name="description"
@@ -15,52 +20,79 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
   <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap"
     rel="stylesheet"
   >
 
   <link rel="stylesheet" href="/styles.css">
 </head>
 
+
 <body>
 
   <!-- NAVIGATION -->
   <header class="nav">
-    <a class="brand" href="/">Kendra Bexly</a>
+
+    <a class="brand" href="/">
+      Kendra Bexly
+    </a>
 
     <nav>
       <a href="/">Home</a>
     </nav>
+
   </header>
 
 
   <main class="request-page">
 
     <!-- INTRODUCTION -->
-    <div class="eyebrow">PRIVATE REQUEST</div>
+    <section class="request-intro">
 
-    <h1>Let's get acquainted.</h1>
+      <div class="eyebrow">
+        PRIVATE REQUEST
+      </div>
 
-    <p class="request-intro">
-      Before we make plans, I'd love to know a little more about you
-      and what you have in mind. Please complete the private request
-      below. I'll personally review your information before moving
-      forward.
-    </p>
+      <h1>
+        Let's get acquainted.
+      </h1>
+
+      <p>
+        Before we make plans, I'd love to know a little more about you
+        and what you have in mind. Please complete the private request
+        below. I'll personally review your information before moving
+        forward.
+      </p>
+
+    </section>
 
 
+    <!-- PRIVATE REQUEST FORM -->
     <form id="request-form">
+
 
       <!-- ABOUT YOU -->
       <div class="form-section">
 
-        <div class="eyebrow">ABOUT YOU</div>
-        <h2>First, the basics.</h2>
+        <div class="eyebrow">
+          ABOUT YOU
+        </div>
+
+        <h2>
+          First, the basics.
+        </h2>
+
 
         <div class="form-grid">
 
+
+          <!-- FIRST NAME -->
           <div class="field">
-            <label for="first-name">First name *</label>
+
+            <label for="first-name">
+              First name *
+            </label>
+
             <input
               id="first-name"
               name="first_name"
@@ -68,10 +100,17 @@
               autocomplete="given-name"
               required
             >
+
           </div>
 
+
+          <!-- LAST NAME -->
           <div class="field">
-            <label for="last-name">Last name *</label>
+
+            <label for="last-name">
+              Last name *
+            </label>
+
             <input
               id="last-name"
               name="last_name"
@@ -79,10 +118,17 @@
               autocomplete="family-name"
               required
             >
+
           </div>
 
+
+          <!-- EMAIL -->
           <div class="field">
-            <label for="email">Email address *</label>
+
+            <label for="email">
+              Email address *
+            </label>
+
             <input
               id="email"
               name="email"
@@ -90,10 +136,17 @@
               autocomplete="email"
               required
             >
+
           </div>
 
+
+          <!-- PHONE -->
           <div class="field">
-            <label for="phone">Phone number *</label>
+
+            <label for="phone">
+              Phone number *
+            </label>
+
             <input
               id="phone"
               name="phone"
@@ -101,27 +154,41 @@
               autocomplete="tel"
               required
             >
+
             <small>
               Please provide a standard mobile number.
               No app-based or virtual phone numbers.
             </small>
+
           </div>
 
         </div>
+
       </div>
+
 
 
       <!-- OUR TIME -->
       <div class="form-section">
 
-        <div class="eyebrow">OUR TIME</div>
-        <h2>What do you have in mind?</h2>
+        <div class="eyebrow">
+          OUR TIME
+        </div>
+
+        <h2>
+          What do you have in mind?
+        </h2>
+
 
         <div class="form-grid">
 
+
           <!-- TYPE OF DATE -->
           <div class="field">
-            <label for="date-type">Type of date *</label>
+
+            <label for="date-type">
+              Type of date *
+            </label>
 
             <select
               id="date-type"
@@ -129,19 +196,23 @@
               required
             >
               <option value="" selected disabled>
-                Select a date type
+                Select one
               </option>
 
               <option value="dinner">
-                Dinner Date
+                Dinner
               </option>
 
               <option value="drinks">
-                Drinks &amp; Conversation
+                Drinks
               </option>
 
               <option value="event">
-                Event / Social Engagement
+                Event
+              </option>
+
+              <option value="social">
+                Social outing
               </option>
 
               <option value="travel">
@@ -149,21 +220,24 @@
               </option>
 
               <option value="other">
-                Other
+                Something else
               </option>
+
             </select>
+
           </div>
 
 
           <!-- INCALL / OUTCALL -->
           <div class="field">
-            <label for="date-location-type">
-              Incall or Outcall *
+
+            <label for="appointment-type">
+              Incall or outcall *
             </label>
 
             <select
-              id="date-location-type"
-              name="date_location_type"
+              id="appointment-type"
+              name="appointment_type"
               required
             >
               <option value="" selected disabled>
@@ -177,12 +251,15 @@
               <option value="outcall">
                 Outcall
               </option>
+
             </select>
+
           </div>
 
 
           <!-- DATE -->
           <div class="field">
+
             <label for="requested-date">
               Preferred date *
             </label>
@@ -193,11 +270,13 @@
               type="date"
               required
             >
+
           </div>
 
 
           <!-- TIME -->
           <div class="field">
+
             <label for="requested-time">
               Preferred start time *
             </label>
@@ -208,13 +287,15 @@
               type="time"
               required
             >
+
           </div>
 
 
           <!-- DURATION -->
           <div class="field">
+
             <label for="duration">
-              How much time would you like to spend together? *
+              How much time would you like? *
             </label>
 
             <select
@@ -223,23 +304,27 @@
               required
             >
               <option value="" selected disabled>
-                Select duration
+                Select one
               </option>
 
               <option value="2-hours">
-                2 Hours
+                2 hours
               </option>
 
               <option value="3-hours">
-                3 Hours
+                3 hours
               </option>
 
               <option value="4-hours">
-                4 Hours
+                4 hours
+              </option>
+
+              <option value="5-hours">
+                5 hours
               </option>
 
               <option value="6-hours">
-                6 Hours
+                6 hours
               </option>
 
               <option value="overnight">
@@ -247,95 +332,109 @@
               </option>
 
               <option value="extended">
-                Extended / Travel
+                Extended time
               </option>
+
             </select>
+
           </div>
 
 
-          <!-- CITY -->
+          <!-- LOCATION -->
           <div class="field">
-            <label for="city">
-              City *
+
+            <label for="location-name">
+              City or general location *
             </label>
 
             <input
-              id="city"
-              name="city"
+              id="location-name"
+              name="location_name"
               type="text"
-              autocomplete="address-level2"
               required
             >
+
           </div>
 
 
           <!-- DETAILS -->
           <div class="field full-width">
-            <label for="details">
-              Tell me what you have in mind for our time together? *
+
+            <label for="request-details">
+              Tell me what you have in mind for our time together. *
             </label>
 
             <textarea
-              id="details"
-              name="details"
+              id="request-details"
+              name="request_details"
               rows="6"
               required
             ></textarea>
 
             <small>
-              Please keep your response respectful.
-              No explicit language.
+              Please keep your request respectful and do not use
+              explicit language.
             </small>
+
           </div>
 
         </div>
+
       </div>
 
 
-      <!-- SCREENING & CONFIRMATION -->
+
+      <!-- SCREENING -->
       <div class="form-section">
 
-        <div class="eyebrow">BEFORE YOU SUBMIT</div>
+        <div class="eyebrow">
+          SCREENING
+        </div>
 
-        <h2>A few important details.</h2>
-
-        <p>
-          Every request is personally reviewed before moving forward.
-          Submitting this form does not confirm a date.
-        </p>
+        <h2>
+          A few important details.
+        </h2>
 
 
-        <!-- DEPOSIT ACKNOWLEDGMENT -->
         <div class="field full-width">
 
-          <label>
+          <label class="checkbox-label">
+
             <input
               type="checkbox"
-              name="deposit_acknowledgment"
+              id="screening-acknowledgement"
+              name="screening_acknowledgement"
               value="yes"
               required
             >
 
-            I understand that a 25% deposit is required
-            to confirm my date after my request has been approved. *
+            <span>
+              I understand that a valid ID is required for screening
+              before final approval.
+            </span>
+
           </label>
 
         </div>
 
 
-        <!-- ID ACKNOWLEDGMENT -->
         <div class="field full-width">
 
-          <label>
+          <label class="checkbox-label">
+
             <input
               type="checkbox"
-              name="id_acknowledgment"
+              id="deposit-acknowledgement"
+              name="deposit_acknowledgement"
               value="yes"
               required
             >
 
-            I understand that a valid government-issued ID
-            is required for screening and final approval. *
+            <span>
+              I understand that a 25% deposit is required to confirm
+              an approved date.
+            </span>
+
           </label>
 
         </div>
@@ -350,11 +449,20 @@
 
 
         <!-- SUBMIT -->
-        <button type="submit" class="button">
+        <button
+          type="submit"
+          class="button"
+          id="submit-request"
+        >
           Submit Private Request
         </button>
 
-        <small id="form-status"></small>
+
+        <small
+          id="form-status"
+          role="status"
+          aria-live="polite"
+        ></small>
 
       </div>
 
@@ -363,24 +471,123 @@
   </main>
 
 
+
   <!-- FOOTER -->
   <footer>
-    <span>© 2026 Kendra Bexly</span>
-    <span>Official website • KendraBexly.com</span>
+
+    <span>
+      © 2026 Kendra Bexly
+    </span>
+
+    <span>
+      Official website • KendraBexly.com
+    </span>
+
   </footer>
 
 
+
+  <!-- FORM SUBMISSION -->
   <script>
-    const form = document.getElementById("request-form");
-    const status = document.getElementById("form-status");
 
-    form.addEventListener("submit", function (event) {
-      event.preventDefault();
+    const form =
+      document.getElementById("request-form");
 
-      status.textContent =
-        "Your request form is ready. Secure submission will be enabled once the private backend connection is complete.";
-    });
+    const status =
+      document.getElementById("form-status");
+
+    const submitButton =
+      document.getElementById("submit-request");
+
+
+    form.addEventListener(
+      "submit",
+      async function (event) {
+
+        event.preventDefault();
+
+
+        status.textContent =
+          "Submitting your request...";
+
+        submitButton.disabled = true;
+
+
+        const formData =
+          new FormData(form);
+
+        const data =
+          Object.fromEntries(
+            formData.entries()
+          );
+
+
+        try {
+
+          const response =
+            await fetch(
+              "/api/request",
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
+
+                body:
+                  JSON.stringify(data)
+              }
+            );
+
+
+          const result =
+            await response.json();
+
+
+          if (
+            !response.ok ||
+            !result.ok
+          ) {
+
+            throw new Error(
+              result.message ||
+              "Unable to submit request."
+            );
+
+          }
+
+
+          status.textContent =
+            "Thank you. Your private request has been received and is pending review.";
+
+
+          form.reset();
+
+
+        } catch (error) {
+
+          console.error(
+            "Request submission error:",
+            error
+          );
+
+
+          status.textContent =
+            "Your request could not be submitted. Please try again.";
+
+
+        } finally {
+
+          submitButton.disabled = false;
+
+        }
+
+      }
+    );
+
   </script>
+
 
 </body>
 </html>
