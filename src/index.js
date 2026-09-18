@@ -378,9 +378,12 @@ export default {
       "SELECT id, email, status, created_at FROM newsletter_subscribers ORDER BY id DESC LIMIT 500"
     ).all();
     const subscribers = result.results || [];
+    const activeCountRow = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM newsletter_subscribers WHERE status = 'active'"
+    ).first();
     return Response.json({
       ok: true,
-      count: subscribers.filter(item => item.status === "active").length,
+      count: Number(activeCountRow?.count || 0),
       subscribers
     });
   }
