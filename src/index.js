@@ -566,7 +566,86 @@ Kendra`
         );
       }
     }
+// ======================================================
+// ADMIN REQUEST DETAIL
+// ======================================================
 
+if (
+  url.pathname === "/api/admin/request" &&
+  request.method === "GET"
+) {
+  try {
+    const id = Number(url.searchParams.get("id"));
+
+    if (!Number.isInteger(id) || id < 1) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Invalid request ID."
+        },
+        { status: 400 }
+      );
+    }
+
+    const item = await env.DB
+      .prepare(`
+        SELECT
+          dr.id,
+          dr.client_id,
+          c.first_name,
+          c.last_name,
+          c.email,
+          c.phone,
+          dr.requested_date,
+          dr.requested_time,
+          dr.location_name,
+          dr.location_address,
+          dr.status,
+          dr.deposit_amount,
+          dr.deposit_paid,
+          dr.id_received,
+          dr.final_approval,
+          dr.notes,
+          dr.created_at
+        FROM date_requests dr
+        JOIN clients c
+          ON c.id = dr.client_id
+        WHERE dr.id = ?
+        LIMIT 1
+      `)
+      .bind(id)
+      .first();
+
+    if (!item) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Request not found."
+        },
+        { status: 404 }
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      request: item
+    });
+
+  } catch (error) {
+    console.error(
+      "Admin request detail error:",
+      error
+    );
+
+    return Response.json(
+      {
+        ok: false,
+        message: "Unable to load request."
+      },
+      { status: 500 }
+    );
+  }
+}
 
     // =========================================================
     // ADMIN CLIENT LIST
@@ -850,20 +929,7 @@ Kendra`
     // REJECT UNSUPPORTED ADMIN API METHODS
     // =========================================================
 
-    if (url.pathname.startsWith("/api/admin/")) {
-      return Response.json(
-        {
-          ok: false,
-          message: "Method not allowed."
-        },
-        {
-          status: 405,
-          headers: {
-            Allow: "GET"
-          }
-        }
-      );
-    }
+   
 
 
     // =========================================================
