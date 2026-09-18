@@ -201,6 +201,119 @@ export default {
     }
 
     // =========================================================
+    // X AGENT DRAFTS + APPROVAL/PUBLISH
+    // =========================================================
+
+    if (url.pathname === "/api/admin/x/drafts" && request.method === "GET") {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS x_post_drafts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          content TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'draft',
+          x_post_id TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          published_at TEXT
+        )
+      `).run();
+      const result = await env.DB.prepare(`
+        SELECT id, content, status, x_post_id, created_at, updated_at, published_at
+        FROM x_post_drafts ORDER BY id DESC LIMIT 50
+      `).all();
+      return Response.json({ ok: true, drafts: result.results || [] });
+    }
+
+    if (url.pathname === "/api/admin/x/drafts" && request.method === "POST") {
+      const data = await request.json();
+      const topic = String(data.topic || "").trim();
+      const details = String(data.details || "").trim();
+      let content = String(data.content || "").trim();
+      if (!content && topic) {
+        content = details ? `${topic}\n\n${details}` : topic;
+      }
+      if (!content) return Response.json({ ok: false, message: "Add a topic or draft first." }, { status: 400 });
+      if (content.length > 280) return Response.json({ ok: false, message: "X posts must be 280 characters or fewer." }, { status: 400 });
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS x_post_drafts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          content TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'draft',
+          x_post_id TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          published_at TEXT
+        )
+      `).run();
+      const result = await env.DB.prepare(`
+        INSERT INTO x_post_drafts (content, status) VALUES (?, 'draft')
+      `).bind(content).run();
+      return Response.json({ ok: true, id: result.meta.last_row_id, content, status: "draft" });
+    }
+
+    if (url.pathname.startsWith("/api/admin/x/drafts/") && request.method === "PUT") {
+      const id = Number(url.pathname.split("/").pop());
+      const data = await request.json();
+      const content = String(data.content || "").trim();
+      if (!Number.isInteger(id) || id < 1) return Response.json({ ok: false, message: "Invalid draft ID." }, { status: 400 });
+      if (!content || content.length > 280) return Response.json({ ok: false, message: "Draft must be 1–280 characters." }, { status: 400 });
+      const row = await env.DB.prepare("SELECT status FROM x_post_drafts WHERE id = ?").bind(id).first();
+      if (!row) return Response.json({ ok: false, message: "Draft not found." }, { status: 404 });
+      if (row.status === "published") return Response.json({ ok: false, message: "Published posts cannot be edited here." }, { status: 400 });
+      await env.DB.prepare("UPDATE x_post_drafts SET content = ?, status = 'draft', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(content, id).run();
+      return Response.json({ ok: true, status: "draft" });
+    }
+
+    if (url.pathname === "/api/admin/x/approve" && request.method === "POST") {
+      const data = await request.json();
+      const id = Number(data.id);
+      if (!Number.isInteger(id) || id < 1) return Response.json({ ok: false, message: "Invalid draft ID." }, { status: 400 });
+      const row = await env.DB.prepare("SELECT id, status FROM x_post_drafts WHERE id = ?").bind(id).first();
+      if (!row) return Response.json({ ok: false, message: "Draft not found." }, { status: 404 });
+      if (row.status === "published") return Response.json({ ok: false, message: "This post is already published." }, { status: 400 });
+      await env.DB.prepare("UPDATE x_post_drafts SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(id).run();
+      return Response.json({ ok: true, status: "approved" });
+    }
+
+    if (url.pathname === "/api/admin/x/publish" && request.method === "POST") {
+      const data = await request.json();
+      const id = Number(data.id);
+      const draft = await env.DB.prepare("SELECT id, content, status FROM x_post_drafts WHERE id = ?").bind(id).first();
+      if (!draft) return Response.json({ ok: false, message: "Draft not found." }, { status: 404 });
+      if (draft.status !== "approved") return Response.json({ ok: false, message: "Approve this draft before publishing." }, { status: 400 });
+
+      let row = await env.DB.prepare("SELECT access_token, refresh_token, expires_at, scope FROM x_oauth_tokens WHERE id = 1").first();
+      if (!row) return Response.json({ ok: false, message: "X is not connected." }, { status: 400 });
+      let accessToken = row.access_token;
+      const now = Math.floor(Date.now() / 1000);
+      if (Number(row.expires_at || 0) <= now + 300) {
+        if (!row.refresh_token) return Response.json({ ok: false, message: "Reconnect X before publishing." }, { status: 401 });
+        const refreshBody = new URLSearchParams({ grant_type: "refresh_token", refresh_token: row.refresh_token, client_id: env.X_CLIENT_ID });
+        const basic = btoa(String(env.X_CLIENT_ID) + ":" + String(env.X_CLIENT_SECRET));
+        const rr = await fetch("https://api.x.com/2/oauth2/token", { method: "POST", headers: { Authorization: "Basic " + basic, "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" }, body: refreshBody.toString() });
+        if (!rr.ok) return Response.json({ ok: false, message: "X connection expired. Please reconnect." }, { status: 401 });
+        const tokens = await rr.json();
+        accessToken = tokens.access_token;
+        const expiresAt = now + Number(tokens.expires_in || 7200);
+        await env.DB.prepare("UPDATE x_oauth_tokens SET access_token = ?, refresh_token = ?, expires_at = ?, scope = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1")
+          .bind(accessToken, tokens.refresh_token || row.refresh_token, expiresAt, tokens.scope || row.scope || null).run();
+      }
+
+      const xr = await fetch("https://api.x.com/2/tweets", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: draft.content })
+      });
+      const xdata = await xr.json().catch(() => ({}));
+      if (!xr.ok) {
+        console.error("X publish failed:", xr.status, xdata);
+        return Response.json({ ok: false, message: xdata?.detail || xdata?.title || "X rejected the post." }, { status: xr.status });
+      }
+      const postId = xdata?.data?.id || null;
+      await env.DB.prepare("UPDATE x_post_drafts SET status = 'published', x_post_id = ?, published_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(postId, id).run();
+      return Response.json({ ok: true, status: "published", x_post_id: postId });
+    }
+
+    // =========================================================
     // DATABASE HEALTH CHECK
     // =========================================================
 
