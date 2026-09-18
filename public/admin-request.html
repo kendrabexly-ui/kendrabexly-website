@@ -392,15 +392,16 @@
   ></div>
 </div>
         `;
-        const finalApprovalControls =
+   const finalApprovalControls =
   document.getElementById("final-approval-controls");
 
-if (item.status === "pending_final_approval") {
-  document.getElementById("move-forward-button").style.display = "none";
-  finalApprovalControls.style.display = "block";
-}
-      const moveForwardButton =
+const moveForwardButton =
   document.getElementById("move-forward-button");
+
+if (item.status === "pending_final_approval") {
+ moveForwardButton.style.display = "none";
+finalApprovalControls.style.display = "block";
+}
 
 const moveForwardStatus =
   document.getElementById("move-forward-status");
