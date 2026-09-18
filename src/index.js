@@ -3,6 +3,107 @@ export default {
     const url = new URL(request.url);
 
     // =========================================================
+    // X OAUTH 2.0
+    // =========================================================
+
+    if (url.pathname === "/api/auth/x/start" && request.method === "GET") {
+      if (!env.X_CLIENT_ID || !env.X_CLIENT_SECRET) {
+        return Response.json({ ok: false, message: "X OAuth is not configured." }, { status: 500 });
+      }
+
+      const stateBytes = crypto.getRandomValues(new Uint8Array(24));
+      const state = btoa(String.fromCharCode(...stateBytes))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+
+      const verifierBytes = crypto.getRandomValues(new Uint8Array(48));
+      const verifier = btoa(String.fromCharCode(...verifierBytes))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+      const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+
+      const params = new URLSearchParams({
+        response_type: "code",
+        client_id: env.X_CLIENT_ID,
+        redirect_uri: "https://kendrabexly.com/api/auth/x/callback",
+        scope: "tweet.read tweet.write users.read offline.access",
+        state,
+        code_challenge: challenge,
+        code_challenge_method: "S256"
+      });
+
+      const headers = new Headers({ Location: "https://x.com/i/oauth2/authorize?" + params.toString() });
+      headers.append("Set-Cookie", `x_oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`);
+      headers.append("Set-Cookie", `x_oauth_verifier=${verifier}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`);
+      return new Response(null, { status: 302, headers });
+    }
+
+    if (url.pathname === "/api/auth/x/callback" && request.method === "GET") {
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      const error = url.searchParams.get("error");
+      if (error) return new Response("X authorization was cancelled or denied.", { status: 400 });
+
+      const cookies = Object.fromEntries((request.headers.get("Cookie") || "").split(";").map(v => v.trim().split(/=(.*)/s).slice(0, 2)));
+      if (!code || !state || !cookies.x_oauth_state || state !== cookies.x_oauth_state || !cookies.x_oauth_verifier) {
+        return new Response("Invalid or expired X authorization request.", { status: 400 });
+      }
+
+      const body = new URLSearchParams({
+        code,
+        grant_type: "authorization_code",
+        redirect_uri: "https://kendrabexly.com/api/auth/x/callback",
+        code_verifier: cookies.x_oauth_verifier
+      });
+
+      const basic = btoa(env.X_CLIENT_ID + ":" + env.X_CLIENT_SECRET);
+      const tokenResponse = await fetch("https://api.x.com/2/oauth2/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": "Basic " + basic
+        },
+        body
+      });
+
+      if (!tokenResponse.ok) {
+        console.error("X token exchange failed:", tokenResponse.status);
+        return new Response("X connection failed. Please try again.", { status: 502 });
+      }
+
+      const tokens = await tokenResponse.json();
+      if (!tokens.access_token) return new Response("X did not return an access token.", { status: 502 });
+
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS x_oauth_tokens (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          access_token TEXT NOT NULL,
+          refresh_token TEXT,
+          expires_at INTEGER,
+          scope TEXT,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+
+      const expiresAt = Math.floor(Date.now() / 1000) + Number(tokens.expires_in || 7200);
+      await env.DB.prepare(`
+        INSERT INTO x_oauth_tokens (id, access_token, refresh_token, expires_at, scope, updated_at)
+        VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+          access_token = excluded.access_token,
+          refresh_token = excluded.refresh_token,
+          expires_at = excluded.expires_at,
+          scope = excluded.scope,
+          updated_at = CURRENT_TIMESTAMP
+      `).bind(tokens.access_token, tokens.refresh_token || null, expiresAt, tokens.scope || null).run();
+
+      const headers = new Headers({ Location: "https://kendrabexly.com/?x=connected" });
+      headers.append("Set-Cookie", "x_oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0");
+      headers.append("Set-Cookie", "x_oauth_verifier=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0");
+      return new Response(null, { status: 302, headers });
+    }
+
+    // =========================================================
     // DATABASE HEALTH CHECK
     // =========================================================
 
