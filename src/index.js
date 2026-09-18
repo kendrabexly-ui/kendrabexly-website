@@ -868,7 +868,100 @@ if (
         );
       }
     }
+// ========================================
+// UPDATE ADMIN EMAIL DRAFT
+// ========================================
 
+if (
+  url.pathname.startsWith("/api/admin/email-drafts/") &&
+  request.method === "PUT"
+) {
+  try {
+    const id = Number(
+      url.pathname.split("/").pop()
+    );
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Invalid email draft ID."
+        },
+        { status: 400 }
+      );
+    }
+
+    const data = await request.json();
+
+    const subject =
+      String(data.subject || "").trim();
+
+    const body =
+      String(data.body || "").trim();
+
+    if (!subject || !body) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Subject and email body are required."
+        },
+        { status: 400 }
+      );
+    }
+
+    const existing = await env.DB
+      .prepare(
+        `SELECT id
+         FROM email_drafts
+         WHERE id = ?`
+      )
+      .bind(id)
+      .first();
+
+    if (!existing) {
+      return Response.json(
+        {
+          ok: false,
+          message: "Email draft not found."
+        },
+        { status: 404 }
+      );
+    }
+
+    await env.DB
+      .prepare(
+        `UPDATE email_drafts
+         SET subject = ?,
+             body = ?
+         WHERE id = ?`
+      )
+      .bind(
+        subject,
+        body,
+        id
+      )
+      .run();
+
+    return Response.json({
+      ok: true,
+      message: "Email draft saved."
+    });
+
+  } catch (error) {
+    console.error(
+      "Email draft update error:",
+      error
+    );
+
+    return Response.json(
+      {
+        ok: false,
+        message: "Unable to save email draft."
+      },
+      { status: 500 }
+    );
+  }
+}
 
     // =========================================================
     // ADMIN NEWSLETTERS
