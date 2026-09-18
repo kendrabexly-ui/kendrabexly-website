@@ -441,6 +441,29 @@ My journal will continue to be a place where I share a little more of that side 
     });
   }
 
+  // Delete an unsent newsletter draft
+  if (
+    url.pathname.startsWith("/api/admin/newsletter/drafts/") &&
+    request.method === "DELETE"
+  ) {
+    await ensureNewsletterTable();
+    const id = Number(url.pathname.split("/").pop());
+    if (!Number.isInteger(id) || id < 1) {
+      return Response.json({ ok: false, message: "Invalid newsletter ID." }, { status: 400 });
+    }
+    const existing = await env.DB.prepare(
+      "SELECT status FROM newsletter_drafts WHERE id = ?"
+    ).bind(id).first();
+    if (!existing) {
+      return Response.json({ ok: false, message: "Newsletter draft not found." }, { status: 404 });
+    }
+    if (existing.status === "sent") {
+      return Response.json({ ok: false, message: "Sent newsletters cannot be deleted." }, { status: 400 });
+    }
+    await env.DB.prepare("DELETE FROM newsletter_drafts WHERE id = ?").bind(id).run();
+    return Response.json({ ok: true });
+  }
+
   // Update or approve a newsletter draft
   if (
     url.pathname.startsWith("/api/admin/newsletter/drafts/") &&
