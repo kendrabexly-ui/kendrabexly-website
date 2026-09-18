@@ -1012,6 +1012,102 @@ if (
       }
     }
 
+        // ============================================================
+    // FINAL APPROVE REQUEST
+    // ============================================================
+
+    if (
+      url.pathname === "/api/admin/request/final-approve" &&
+      request.method === "POST"
+    ) {
+      try {
+        const data = await request.json();
+        const requestId = Number(data.id);
+
+        if (!Number.isInteger(requestId) || requestId < 1) {
+          return Response.json(
+            {
+              ok: false,
+              message: "Invalid request ID."
+            },
+            { status: 400 }
+          );
+        }
+
+        if (data.id_received !== true || data.deposit_paid !== true) {
+          return Response.json(
+            {
+              ok: false,
+              message: "ID screening and deposit must both be confirmed."
+            },
+            { status: 400 }
+          );
+        }
+
+        const existingRequest = await env.DB
+          .prepare(`
+            SELECT id, status
+            FROM date_requests
+            WHERE id = ?
+          `)
+          .bind(requestId)
+          .first();
+
+        if (!existingRequest) {
+          return Response.json(
+            {
+              ok: false,
+              message: "Request not found."
+            },
+            { status: 404 }
+          );
+        }
+
+        if (existingRequest.status !== "pending_final_approval") {
+          return Response.json(
+            {
+              ok: false,
+              message: "Request is not pending final approval."
+            },
+            { status: 400 }
+          );
+        }
+
+        await env.DB
+          .prepare(`
+            UPDATE date_requests
+            SET
+              status = 'approved',
+              id_received = 1,
+              deposit_paid = 1,
+              final_approval = 1
+            WHERE id = ?
+          `)
+          .bind(requestId)
+          .run();
+
+        return Response.json({
+          ok: true,
+          message: "Final approval complete.",
+          status: "approved"
+        });
+
+      } catch (error) {
+        console.error(
+          "Final approval error:",
+          error
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            message: "Unable to complete final approval."
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     // =========================================================
     // SERVE THE EXISTING WEBSITE
     // =========================================================
