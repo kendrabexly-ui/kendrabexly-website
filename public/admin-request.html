@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Private Request | Kendra Admin</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@400;500&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <style>
+    body {
+      margin: 0;
+      background: #f6f1e8;
+      color: #24242b;
+      font-family: "DM Sans", sans-serif;
+    }
+
+    .admin-top {
+      background: #25252d;
+      color: white;
+      padding: 22px 6%;
+    }
+
+    .admin-top a {
+      color: white;
+      text-decoration: none;
+    }
+
+    .page {
+      max-width: 1050px;
+      margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      font-size: 12px;
+      margin-bottom: 15px;
+    }
+
+    h1 {
+      font-family: "Playfair Display", serif;
+      font-weight: 400;
+      font-size: clamp(42px, 6vw, 72px);
+      margin: 0 0 12px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 40px;
+    }
+
+    .request-card {
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(30,30,30,.12);
+      border-radius: 22px;
+      overflow: hidden;
+    }
+
+    .request-header {
+      padding: 28px 32px;
+      border-bottom: 1px solid rgba(30,30,30,.1);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .client-name {
+      font-family: "Playfair Display", serif;
+      font-size: 32px;
+    }
+
+    .status {
+      padding: 8px 14px;
+      border: 1px solid #bbb;
+      border-radius: 999px;
+      text-transform: capitalize;
+      font-size: 13px;
+    }
+
+    .details {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .detail {
+      padding: 24px 32px;
+      border-bottom: 1px solid rgba(30,30,30,.08);
+    }
+
+    .detail:nth-child(odd) {
+      border-right: 1px solid rgba(30,30,30,.08);
+    }
+
+    .label {
+      color: #777;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .notes {
+      padding: 30px 32px;
+    }
+
+    .notes .value {
+      white-space: pre-wrap;
+    }
+
+    .message {
+      padding: 35px;
+      text-align: center;
+      color: #666;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 28px;
+      color: #24242b;
+      text-decoration: none;
+    }
+
+    @media (max-width: 700px) {
+      .details {
+        grid-template-columns: 1fr;
+      }
+
+      .detail:nth-child(odd) {
+        border-right: 0;
+      }
+
+      .request-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="admin-top">
+    <a href="/admin">← Back to Kendra's Dashboard</a>
+  </div>
+
+  <main class="page">
+
+    <a class="back" href="/admin">
+      ← All Requests
+    </a>
+
+    <div class="eyebrow">
+      Private Administration
+    </div>
+
+    <h1>Private Request</h1>
+
+    <div class="subtitle">
+      Review the complete client request.
+    </div>
+
+    <div id="request-container" class="request-card">
+      <div class="message">
+        Loading request...
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function displayValue(value, fallback = "Not provided") {
+      const text = String(value ?? "").trim();
+
+      return text
+        ? escapeHtml(text)
+        : fallback;
+    }
+
+    async function loadRequest() {
+      const container =
+        document.getElementById("request-container");
+
+      const params =
+        new URLSearchParams(window.location.search);
+
+      const id =
+        params.get("id");
+
+      if (!id) {
+        container.innerHTML = `
+          <div class="message">
+            No request was selected.
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        const response =
+          await fetch(
+            `/api/admin/requests/${encodeURIComponent(id)}`
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(
+            data.message ||
+            "Unable to load this request."
+          );
+        }
+
+        const item =
+          data.request;
+
+        const name =
+          `${item.first_name || ""} ${item.last_name || ""}`.trim()
+          || "Client";
+
+        container.innerHTML = `
+          <div class="request-header">
+
+            <div class="client-name">
+              ${escapeHtml(name)}
+            </div>
+
+            <div class="status">
+              ${displayValue(item.status, "Pending")}
+            </div>
+
+          </div>
+
+          <div class="details">
+
+            <div class="detail">
+              <div class="label">Email</div>
+              <div class="value">
+                ${displayValue(item.email)}
+              </div>
+            </div>
+
+            <div class="detail">
+              <div class="label">Phone</div>
+              <div class="value">
+                ${displayValue(item.phone)}
+              </div>
+            </div>
+
+            <div class="detail">
+              <div class="label">Requested Date</div>
+              <div class="value">
+                ${displayValue(item.requested_date)}
+              </div>
+            </div>
+
+            <div class="detail">
+              <div class="label">Requested Time</div>
+              <div class="value">
+                ${displayValue(item.requested_time)}
+              </div>
+            </div>
+
+            <div class="detail">
+              <div class="label">Location</div>
+              <div class="value">
+                ${displayValue(item.location_name)}
+              </div>
+            </div>
+
+            <div class="detail">
+              <div class="label">Request Status</div>
+              <div class="value">
+                ${displayValue(item.status, "Pending")}
+              </div>
+            </div>
+
+            <div class="detail">
+              <div class="label">ID Received</div>
+              <div class="value">
+                ${item.id_received ? "Yes" : "No"}
+              </div>
+            </div>
+
+            <div class="detail">
+              <div class="label">Deposit Paid</div>
+              <div class="value">
+                ${item.deposit_paid ? "Yes" : "No"}
+              </div>
+            </div>
+
+          </div>
+
+          <div class="notes">
+            <div class="label">
+              Request Details
+            </div>
+
+            <div class="value">
+              ${displayValue(item.notes)}
+            </div>
+          </div>
+        `;
+
+      } catch (error) {
+        console.error(
+          "Request detail loading error:",
+          error
+        );
+
+        container.innerHTML = `
+          <div class="message">
+            Unable to load this request.
+          </div>
+        `;
+      }
+    }
+
+    loadRequest();
+  </script>
+
+</body>
+</html>
