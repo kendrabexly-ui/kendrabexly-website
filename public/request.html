@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Private request portal for Kendra Bexly">
+  <title>Request Time | Kendra Bexly</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+
+  <header class="nav">
+    <a class="brand" href="/">Kendra Bexly</a>
+    <nav>
+      <a href="/">Home</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="connect">
+      <div class="eyebrow">PRIVATE REQUEST</div>
+
+      <h1>Let's get acquainted.</h1>
+
+      <p>
+        Tell me a little about yourself and the time you'd like to spend
+        together. Your request will be reviewed privately before moving
+        forward.
+      </p>
+
+      <form id="request-form">
+
+        <label for="first-name">First name</label>
+        <input id="first-name" name="first_name" type="text" required>
+
+        <label for="last-name">Last name</label>
+        <input id="last-name" name="last_name" type="text">
+
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" required>
+
+        <label for="phone">Phone number</label>
+        <input id="phone" name="phone" type="tel">
+
+        <label for="requested-date">Preferred date</label>
+        <input id="requested-date" name="requested_date" type="date" required>
+
+        <label for="requested-time">Preferred time</label>
+        <input id="requested-time" name="requested_time" type="time" required>
+
+        <label for="notes">Tell me a little about yourself</label>
+        <textarea id="notes" name="notes" rows="5"></textarea>
+
+        <button class="button" type="submit">
+          Submit Request
+        </button>
+
+        <p id="form-message" hidden></p>
+
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <span>© 2026 Kendra Bexly</span>
+    <span>Official Website • KendraBexly.com</span>
+  </footer>
+
+</body>
+</html>
