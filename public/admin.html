@@ -577,34 +577,64 @@
             item.status || "pending";
 
           return `
-            <div style="
-              padding: 18px 0;
-              border-bottom: 1px solid rgba(0,0,0,.12);
-            ">
-              <div style="
-                display:flex;
-                justify-content:space-between;
-                gap:20px;
-                align-items:flex-start;
-              ">
-                <div>
-                  <strong>${escapeHtml(name || "Client")}</strong>
-                  <div style="margin-top:6px;">
-                    ${escapeHtml(date)} at ${escapeHtml(time)}
-                  </div>
-                  <div style="margin-top:4px;">
-                    ${escapeHtml(location)}
-                  </div>
-                </div>
+            <button
+              type="button"
+              class="request-card"
+              data-request-id="${item.id}"
+              style="
+                width:100%;
+                text-align:left;
+                background:transparent;
+                border:0;
+                border-bottom:1px solid #ddd6ca;
+                padding:22px 0;
+                cursor:pointer;
+                font:inherit;
+              "
+            >
+              <strong>
+                ${escapeHtml(name || "Client")}
+              </strong>
 
-                <div>
-                  ${escapeHtml(status)}
-                </div>
+              <div style="margin-top:6px;">
+                ${escapeHtml(date)}
+                at
+                ${escapeHtml(time)}
               </div>
-            </div>
+
+              <div style="margin-top:4px;">
+                ${escapeHtml(location)}
+              </div>
+
+              <div style="margin-top:8px;">
+                Status: ${escapeHtml(status)}
+              </div>
+
+              <div
+                style="
+                  margin-top:10px;
+                  font-size:13px;
+                  text-decoration:underline;
+                "
+              >
+                View full request →
+              </div>
+            </button>
           `;
         })
         .join("");
+
+    recentContainer
+      .querySelectorAll(".request-card")
+      .forEach((card) => {
+        card.addEventListener("click", () => {
+          const requestId =
+            card.dataset.requestId;
+
+          window.location.href =
+            `/admin-request?id=${encodeURIComponent(requestId)}`;
+        });
+      });
 
   } catch (error) {
     console.error(
