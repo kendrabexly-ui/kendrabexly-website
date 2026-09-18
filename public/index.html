@@ -61,13 +61,13 @@
         <h2>Stay in the know.</h2>
         <p>A monthly newsletter with a new post, personal updates, and a one-time special offer.</p>
       </div>
-      <form onsubmit="event.preventDefault(); document.getElementById('thanks').hidden=false;">
+      <form id="newsletter-signup">
         <label for="email">Email address</label>
         <div class="form-row">
-          <input id="email" type="email" placeholder="you@example.com" required>
+          <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
           <button class="button" type="submit">Join the list</button>
         </div>
-        <small id="thanks" hidden>Thank you — signup processing will be activated with the backend.</small>
+        <small id="thanks" hidden></small>
       </form>
     </section>
 
@@ -83,5 +83,32 @@
     <span>© 2026 Kendra Bexly</span>
     <span>Official website • KendraBexly.com</span>
   </footer>
+<script>
+  document.getElementById("newsletter-signup")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const email = form.email.value.trim();
+    const message = document.getElementById("thanks");
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    message.hidden = false;
+    message.textContent = "Joining...";
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || "Unable to join the list.");
+      message.textContent = data.message || "You're on the list. Thank you.";
+      form.reset();
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
 </body>
 </html>
