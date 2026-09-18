@@ -70,8 +70,14 @@ export default {
       });
 
       if (!tokenResponse.ok) {
-        console.error("X token exchange failed:", tokenResponse.status);
-        return new Response("X connection failed. Please try again.", { status: 502 });
+        const errorText = await tokenResponse.text();
+        let detail = "unknown_error";
+        try {
+          const parsed = JSON.parse(errorText);
+          detail = parsed.error_description || parsed.error || detail;
+        } catch {}
+        console.error("X token exchange failed:", tokenResponse.status, detail);
+        return new Response("X connection failed (" + tokenResponse.status + ": " + detail + ").", { status: 502 });
       }
 
       const tokens = await tokenResponse.json();
