@@ -59,15 +59,19 @@ export default {
       // X OAuth 2.0 confidential clients authenticate at the token endpoint.
       // Include client_id in the form body as well as HTTP Basic auth for compatibility.
       body.set("client_id", env.X_CLIENT_ID);
-      const basic = btoa(env.X_CLIENT_ID + ":" + env.X_CLIENT_SECRET);
-      const tokenResponse = await fetch("https://api.x.com/2/oauth2/token", {
+      // X requires HTTP Basic authentication for confidential OAuth clients.
+      // Build the header explicitly so the credentials survive the Workers subrequest.
+      const basic = btoa(String(env.X_CLIENT_ID) + ":" + String(env.X_CLIENT_SECRET));
+      const tokenRequest = new Request("https://api.x.com/2/oauth2/token", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Authorization": "Basic " + basic
-        },
+        headers: new Headers([
+          ["Authorization", "Basic " + basic],
+          ["Content-Type", "application/x-www-form-urlencoded;charset=UTF-8"],
+          ["Accept", "application/json"]
+        ]),
         body: body.toString()
       });
+      const tokenResponse = await fetch(tokenRequest);
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
