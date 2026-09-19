@@ -356,6 +356,12 @@
   >
     Move Forward
   </button>
+  <div style="margin-top:10px;font-size:13px;color:#6f675f;">
+    Moving forward creates the client's next email draft. After it is created, review it in <strong>Email Drafts</strong>.
+  </div>
+  <button type="button" id="open-email-drafts-button" style="display:none;margin-top:10px;background:transparent;border:1px solid #cfc6ba;padding:10px 16px;border-radius:999px;font-family:inherit;cursor:pointer;">
+    Review Email Draft
+  </button>
 <div
   id="final-approval-controls"
   style="display: none; margin-top: 24px;"
@@ -439,6 +445,15 @@ finalApprovalControls.style.display = "block";
 
 const moveForwardStatus =
   document.getElementById("move-forward-status");
+const openEmailDraftsButton =
+  document.getElementById("open-email-drafts-button");
+
+if (["pending_final_approval", "screening_pending"].includes(item.status)) {
+  openEmailDraftsButton.style.display = "inline-block";
+}
+openEmailDraftsButton.addEventListener("click", () => {
+  window.location.href = "/admin?section=emails&request_id=" + encodeURIComponent(id);
+});
 
 moveForwardButton.addEventListener(
   "click",
@@ -478,6 +493,10 @@ moveForwardButton.addEventListener(
 
       moveForwardButton.textContent =
         "Moved Forward";
+      moveForwardButton.style.display = "none";
+      finalApprovalControls.style.display = "block";
+      openEmailDraftsButton.style.display = "inline-block";
+      moveForwardStatus.textContent += " Email draft is ready for review.";
 
     } catch (error) {
       console.error(
