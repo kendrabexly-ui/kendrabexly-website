@@ -986,7 +986,11 @@
     const response = await fetch("/api/admin/blacklist");
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load blacklist.");
-    const records = data.blacklist || [];
+    const records = (data.blacklist || []).slice().sort((a,b) => {
+      const aTime = Date.parse(a.created_at || "") || 0;
+      const bTime = Date.parse(b.created_at || "") || 0;
+      return bTime - aTime || Number(b.id || 0) - Number(a.id || 0);
+    });
     const totalEl = document.getElementById("blacklist-total");
     const safetyCountEl = document.getElementById("blacklist-safety-count");
     if (totalEl) totalEl.textContent = records.length;
