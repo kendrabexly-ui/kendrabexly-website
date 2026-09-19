@@ -586,7 +586,7 @@
         <div class="panel">
           <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;flex-wrap:wrap;">
             <select id="request-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-              <option value="all">All requests</option>
+              <option value="all" selected>All requests</option>
               <option value="pending">Pending</option>
               <option value="pending_final_approval">Pending final approval</option>
               <option value="approved">Approved</option>
@@ -965,6 +965,8 @@
     document.getElementById("request-records");
   const statusFilter =
     document.getElementById("request-status-filter");
+
+  if (statusFilter) statusFilter.value = "all";
 
   try {
     const response =
