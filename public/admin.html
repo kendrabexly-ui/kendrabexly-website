@@ -592,6 +592,7 @@
               <option value="approved">Approved</option>
               <option value="canceled">Canceled</option>
             </select>
+            <input id="request-search" type="search" placeholder="Search client, date, or location" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
           </div>
           <div id="request-records">
             <div class="empty">Loading requests...</div>
@@ -965,6 +966,8 @@
     document.getElementById("request-records");
   const statusFilter =
     document.getElementById("request-status-filter");
+  const requestSearch =
+    document.getElementById("request-search");
 
   if (statusFilter) statusFilter.value = "all";
 
@@ -1017,13 +1020,30 @@
     const renderAllRequests = () => {
       if (!recordsContainer) return;
       const selected = statusFilter ? statusFilter.value : "all";
-      const filtered = selected === "all" ? requests : requests.filter(item => item.status === selected);
-      recordsContainer.innerHTML = filtered.length ? renderRequestCards(filtered) : '<div class="empty">No requests match this filter.</div>';
+      const query = requestSearch ? requestSearch.value.trim().toLowerCase() : "";
+      let filtered = selected === "all" ? requests : requests.filter(item => item.status === selected);
+      if (query) {
+        filtered = filtered.filter((item) => {
+          const haystack = [
+            item.first_name,
+            item.last_name,
+            item.email,
+            item.phone,
+            item.requested_date,
+            item.requested_time,
+            item.location_name,
+            item.status
+          ].filter(Boolean).join(" ").toLowerCase();
+          return haystack.includes(query);
+        });
+      }
+      recordsContainer.innerHTML = filtered.length ? renderRequestCards(filtered) : '<div class="empty">No requests match your search or filter.</div>';
       wireRequestCards(recordsContainer);
     };
 
     renderAllRequests();
     if (statusFilter) statusFilter.addEventListener("change", renderAllRequests);
+    if (requestSearch) requestSearch.addEventListener("input", renderAllRequests);
 
     const recentRequests =
       requests.slice(0, 5);
