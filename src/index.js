@@ -584,7 +584,7 @@ export default {
     }
 
     if (url.pathname === "/api/admin/x/weekly-plan" && request.method === "GET") {
-      await ensureXWeeklyPlanTable(); await ensureXDraftMedia(env);
+      await ensureXWeeklyPlanTable(); await ensureXScheduledTable(); await ensureXDraftMedia(env);
       const weekStart=String(url.searchParams.get("week_start")||"").trim();
       if(!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return Response.json({ok:false,message:"Choose a valid week starting date."},{status:400});
       const rows=await env.DB.prepare(`
@@ -606,6 +606,7 @@ export default {
       const data=await request.json(),draftId=Number(data.draft_id),weekStart=String(data.week_start||"").trim(),plannedFor=String(data.planned_for||"").trim(),slotIndex=Number(data.slot_index),style=String(data.content_style||"").trim();
       if(!Number.isInteger(draftId)||draftId<1||!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)||!/^\d{4}-\d{2}-\d{2}$/.test(plannedFor)||!Number.isInteger(slotIndex)||slotIndex<0||slotIndex>9) return Response.json({ok:false,message:"Invalid weekly plan item."},{status:400});
       const draft=await env.DB.prepare("SELECT id FROM x_post_drafts WHERE id=?").bind(draftId).first();if(!draft)return Response.json({ok:false,message:"Draft not found."},{status:404});
+      await env.DB.prepare("DELETE FROM x_weekly_plan_items WHERE week_start=? AND planned_for=? AND slot_index=? AND draft_id<>?").bind(weekStart,plannedFor,slotIndex,draftId).run();
       await env.DB.prepare(`INSERT INTO x_weekly_plan_items(week_start,planned_for,slot_index,content_style,draft_id,updated_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)
         ON CONFLICT(draft_id) DO UPDATE SET week_start=excluded.week_start,planned_for=excluded.planned_for,slot_index=excluded.slot_index,content_style=excluded.content_style,updated_at=CURRENT_TIMESTAMP`).bind(weekStart,plannedFor,slotIndex,style,draftId).run();
       return Response.json({ok:true});
