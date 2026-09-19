@@ -2318,6 +2318,7 @@ if (
               dr.requested_date,
               dr.requested_time,
               dr.location_name,
+              dr.notes,
               c.first_name,
               c.last_name,
               c.email
@@ -2339,19 +2340,47 @@ if (
           );
         }
 
+        const notesText = String(existingRequest.notes || "");
+        const durationMatch = notesText.match(/Duration:\s*([^\n]+)/i);
+        const offerMatch = notesText.match(/Offer:\s*([\s\S]*?)(?=\n(?:Date type:|Appointment type:|Duration:|Request details:|Screening requirement|25% deposit)|$)/i);
+        const specialRateMatch = offerMatch?.[1]?.match(/for\s+\$([\d,]+)/i);
+
+        const standardRates = {
+          "1-hour": 500,
+          "1 hour": 500,
+          "2-hours": 750,
+          "2 hours": 750,
+          "3-hours": 1000,
+          "3 hours": 1000,
+          "4-hours": 1250,
+          "4 hours": 1250
+        };
+
+        const durationKey = String(durationMatch?.[1] || "").trim().toLowerCase();
+        const specialRate = specialRateMatch
+          ? Number(specialRateMatch[1].replace(/,/g, ""))
+          : 0;
+        const bookingRate = specialRate || standardRates[durationKey] || 0;
+        const depositAmount = bookingRate > 0
+          ? Math.round(bookingRate * 0.25 * 100) / 100
+          : 0;
+
         await env.DB
           .prepare(`
             UPDATE date_requests
-            SET status = 'pending_final_approval'
+            SET status = 'pending_final_approval',
+                deposit_amount = ?
             WHERE id = ?
           `)
-          .bind(requestId)
+          .bind(depositAmount, requestId)
           .run();
 
         return Response.json({
           ok: true,
           message: "Request moved forward.",
-          status: "pending_final_approval"
+          status: "pending_final_approval",
+          deposit_amount: depositAmount,
+          booking_rate: bookingRate
         });
 
       } catch (error) {
