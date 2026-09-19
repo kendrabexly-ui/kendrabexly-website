@@ -1234,6 +1234,17 @@ async function loadRequests() {
               </div>
               <div style="margin-top:10px;font-size:13px;">Manage this client without affecting their booking history.</div>
               <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+                <strong style="font-size:13px;">Follow Up Agent</strong>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Generate a private draft in my voice. Nothing is sent automatically.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                  <button type="button" class="generate-client-followup" data-followup-type="reconnect" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Reconnect</button>
+                  <button type="button" class="generate-client-followup" data-followup-type="after-date" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">After Date</button>
+                </div>
+                <textarea class="client-followup-draft" rows="5" placeholder="Your follow up draft will appear here..." style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                <div class="client-followup-status" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+              </div>
+
+              <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <strong style="font-size:13px;">Private Notes & Preferences</strong>
                 <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Preferences</label>
                 <textarea class="client-preferences" rows="3" placeholder="Favorite details, preferences, things they enjoy, thoughtful touches to remember..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.preferences || "")}</textarea>
@@ -1294,6 +1305,22 @@ async function loadRequests() {
           const opening = controls.style.display === "none";
           controls.style.display = opening ? "block" : "none";
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
+        });
+      });
+      clientRecords.querySelectorAll(".generate-client-followup").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const controls=button.closest(".client-profile-actions");
+          const draft=controls.querySelector(".client-followup-draft");
+          const status=controls.querySelector(".client-followup-status");
+          const buttons=controls.querySelectorAll(".generate-client-followup");
+          buttons.forEach(b=>b.disabled=true);status.textContent="Writing...";
+          try{
+            const response=await fetch("/api/admin/clients/follow-up",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId),type:button.dataset.followupType})});
+            const result=await response.json();
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to generate follow up.");
+            draft.value=result.draft||"";status.textContent="Draft ready. Review and edit before using it.";
+          }catch(error){status.textContent=error.message||"Unable to generate follow up.";}
+          finally{buttons.forEach(b=>b.disabled=false);}
         });
       });
       clientRecords.querySelectorAll(".save-client-profile").forEach((button) => {
