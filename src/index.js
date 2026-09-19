@@ -201,6 +201,47 @@ export default {
     }
 
     // =========================================================
+    // X TIMELINE
+    // =========================================================
+
+    if (url.pathname === "/api/admin/x/timeline" && request.method === "GET") {
+      const token = await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id = 1").first();
+      if (!token) return Response.json({ ok:false, message:"X is not connected." }, { status:400 });
+
+      const meResponse = await fetch("https://api.x.com/2/users/me?user.fields=username,name", {
+        headers: { Authorization:"Bearer " + token.access_token }
+      });
+      if (!meResponse.ok) return Response.json({ ok:false, message:"Reconnect X before loading your timeline." }, { status:401 });
+      const me = await meResponse.json();
+
+      const timelineResponse = await fetch("https://api.x.com/2/users/" + encodeURIComponent(me.data.id) + "/tweets?max_results=20&exclude=retweets&tweet.fields=created_at,conversation_id,public_metrics", {
+        headers: { Authorization:"Bearer " + token.access_token }
+      });
+      const timeline = await timelineResponse.json().catch(()=>({}));
+      if (!timelineResponse.ok) {
+        return Response.json({ ok:false, message:timeline?.detail || timeline?.title || "Your current X API access could not load the timeline." }, { status:timelineResponse.status });
+      }
+      return Response.json({ ok:true, username:me.data.username, tweets:timeline.data || [] });
+    }
+
+    if (url.pathname === "/api/admin/x/tweet-replies" && request.method === "GET") {
+      const tweetId = String(url.searchParams.get("tweet_id") || "").trim();
+      if (!tweetId) return Response.json({ ok:false, message:"Choose a tweet first." }, { status:400 });
+      const token = await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id = 1").first();
+      if (!token) return Response.json({ ok:false, message:"X is not connected." }, { status:400 });
+      const meResponse = await fetch("https://api.x.com/2/users/me?user.fields=username", { headers:{ Authorization:"Bearer " + token.access_token } });
+      if (!meResponse.ok) return Response.json({ ok:false, message:"Reconnect X before loading replies." }, { status:401 });
+      const me = await meResponse.json();
+      const query = "conversation_id:" + tweetId + " -from:" + me.data.username;
+      const rr = await fetch("https://api.x.com/2/tweets/search/recent?query=" + encodeURIComponent(query) + "&max_results=20&tweet.fields=author_id,conversation_id,created_at&expansions=author_id&user.fields=username,name", { headers:{ Authorization:"Bearer " + token.access_token } });
+      const data = await rr.json().catch(()=>({}));
+      if (!rr.ok) return Response.json({ ok:false, message:data?.detail || data?.title || "Your current X API access could not load replies for this tweet." }, { status:rr.status });
+      const users = Object.fromEntries((data.includes?.users || []).map(u=>[u.id,u]));
+      const replies=(data.data||[]).map(item=>({tweet_id:item.id,text:item.text,created_at:item.created_at,author_name:users[item.author_id]?.name||"",author_username:users[item.author_id]?.username||""}));
+      return Response.json({ok:true,replies});
+    }
+
+    // =========================================================
     // X REPLIES
     // =========================================================
 
