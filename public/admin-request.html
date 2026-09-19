@@ -316,13 +316,6 @@
               </div>
             </div>
 
-            <div class="detail">
-              <div class="label">Expected Deposit</div>
-              <div class="value">
-                ${Number(item.deposit_amount || 0) > 0 ? "$" + Number(item.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : (item.status === "pending_final_approval" ? "Custom rate required — deposit not calculated" : "Calculated when request moves forward")}
-              </div>
-            </div>
-
           </div>
 
           ${String(item.notes || "").includes("Newsletter special: Newsletter #") ? `
@@ -336,6 +329,13 @@
             </div>
           </div>
           ` : ""}
+
+          <div style="margin:24px 0;padding:18px 20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:12px;">
+            <div class="label">EXPECTED DEPOSIT</div>
+            <div class="value" style="margin-top:8px;font-size:20px;font-weight:600;">
+              ${Number(item.deposit_amount || 0) > 0 ? "$" + Number(item.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : (item.status === "pending_final_approval" ? "Custom rate required — deposit not calculated" : "Calculated when request moves forward")}
+            </div>
+          </div>
 
           <div class="notes">
             <div class="label">
