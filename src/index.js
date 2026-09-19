@@ -1064,7 +1064,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nBook a ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience} ${monthlyOffer.duration} at ${money(monthlyOffer.regular)} this month.\n\n${flirtyOfferClosers[flirtyIndex]} This special is just for this month and is subject to availability. Use the button below when you're ready to see me, and your ${month} special will be attached to your request.`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nBook a ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience} ${monthlyOffer.duration} at ${money(monthlyOffer.regular)} this month.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. When you're ready to make plans with me, use the button below and I’ll know exactly which special caught your eye. 💋`
       ).trim();
 
     const result = await env.DB.prepare(`
@@ -1182,7 +1182,7 @@ My journal will continue to be a place where I share a little more of that side 
     ];
     const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));
     const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} This special is just for this month and is subject to availability. Use the button below when you're ready to see me, and your ${month} special will be attached to your request.`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. When you're ready to make plans with me, use the button below and I’ll know exactly which special caught your eye. 💋`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
