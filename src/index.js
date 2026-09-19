@@ -2350,6 +2350,28 @@ if (
       }
     }
 
+    if (url.pathname === "/api/admin/clients/follow-up/send" && request.method === "POST") {
+      try {
+        if(!env.RESEND_API_KEY)return Response.json({ok:false,message:"Email delivery is not configured."},{status:500});
+        const data=await request.json();
+        const clientId=Number(data.client_id);
+        const subject=String(data.subject||"A little note from me").trim().slice(0,180);
+        let body=String(data.body||"").trim();
+        if(!Number.isInteger(clientId)||clientId<1)return Response.json({ok:false,message:"Choose a client first."},{status:400});
+        if(!body)return Response.json({ok:false,message:"Write or generate a follow up first."},{status:400});
+        const client=await env.DB.prepare("SELECT id,first_name,email FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
+        if(!client?.email)return Response.json({ok:false,message:"This client does not have an email address."},{status:400});
+        body=body.replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
+        const resendResponse=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.EMAIL_FROM||"Kendra Bexly <hello@kendrabexly.com>",to:[client.email],subject,text:body})});
+        const resendData=await resendResponse.json().catch(()=>({}));
+        if(!resendResponse.ok)throw new Error(resendData?.message||"Email provider rejected the message.");
+        return Response.json({ok:true,message:"Follow up sent.",email_id:resendData?.id||null});
+      }catch(error){
+        console.error("Follow up send error:",error);
+        return Response.json({ok:false,message:"Unable to send follow up."},{status:502});
+      }
+    }
+
     if (url.pathname === "/api/admin/clients/special-invitation" && request.method === "POST") {
       try {
         const data=await request.json();
