@@ -1540,7 +1540,7 @@ loadRequests();
           <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
             <button type="button" data-newsletter-action="preview">Preview</button>
-            ${item.status === "draft" ? '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
+            ${item.status === "draft" ? '<button type="button" data-newsletter-action="regenerate">Regenerate Newsletter</button><button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
             ${item.status === "approved" ? '<button type="button" data-newsletter-action="send">Send Newsletter</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
             ${item.status === "sent" ? '<button type="button" data-newsletter-action="delete">Delete Newsletter</button>' : ""}
           </div>
@@ -1564,6 +1564,33 @@ loadRequests();
             button.addEventListener("click", async () => {
               const id = Number(card.dataset.newsletterDraft);
               const action = button.dataset.newsletterAction;
+              if (action === "regenerate") {
+                if (!confirm("Regenerate this newsletter? The current draft wording will be replaced while the monthly offer and required booking instructions stay the same.")) return;
+                button.disabled = true;
+                button.textContent = "Regenerating...";
+                try {
+                  const current = {};
+                  card.querySelectorAll("[data-field]").forEach(el => current[el.dataset.field] = el.value.trim());
+                  const r = await fetch("/api/admin/newsletter/drafts/" + id + "/regenerate", {
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify(current)
+                  });
+                  const d = await r.json();
+                  if (!r.ok || !d.ok) throw new Error(d.message || "Unable to regenerate newsletter.");
+                  card.querySelector('[data-field="subject"]').value = d.draft.subject || "";
+                  card.querySelector('[data-field="content"]').value = d.draft.content || "";
+                  card.querySelector('[data-field="blog_title"]').value = d.draft.blog_title || "";
+                  card.querySelector('[data-field="blog_content"]').value = d.draft.blog_content || "";
+                  card.querySelector('[data-field="special_offer"]').value = d.draft.special_offer || "";
+                } catch (e) {
+                  alert(e.message);
+                } finally {
+                  button.disabled = false;
+                  button.textContent = "Regenerate Newsletter";
+                }
+                return;
+              }
               if (action === "send") {
                 if (!confirm("Send this approved newsletter to all active subscribers now?")) return;
                 button.disabled = true;
