@@ -368,7 +368,7 @@
 >
   <div style="margin:0 0 24px;padding:18px 20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:12px;">
     <div class="label">EXPECTED DEPOSIT</div>
-    <div class="value" style="margin-top:8px;font-size:20px;font-weight:600;">
+    <div id="expected-deposit-value" class="value" style="margin-top:8px;font-size:20px;font-weight:600;">
       ${Number(item.deposit_amount || 0) > 0 ? "$" + Number(item.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : "Custom rate required — deposit not calculated"}
     </div>
   </div>
@@ -491,6 +491,12 @@ moveForwardButton.addEventListener(
           ? "Request moved forward. Expected 25% deposit: $" + Number(result.deposit_amount).toFixed(2)
           : "Request moved forward. Deposit amount could not be calculated from the selected duration.";
 
+      const expectedDepositValue = document.getElementById("expected-deposit-value");
+      if (expectedDepositValue) {
+        expectedDepositValue.textContent = Number(result.deposit_amount || 0) > 0
+          ? "$" + Number(result.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2})
+          : "Custom rate required — deposit not calculated";
+      }
       moveForwardButton.textContent =
         "Moved Forward";
       moveForwardButton.style.display = "none";
