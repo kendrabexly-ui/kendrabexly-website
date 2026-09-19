@@ -212,7 +212,7 @@ export default {
       if (idea.length > 1000) return Response.json({ ok: false, message: "Keep the idea under 1,000 characters." }, { status: 400 });
 
       try {
-        const aiResult = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+        const aiResult = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8", {
           messages: [
             {
               role: "system",
