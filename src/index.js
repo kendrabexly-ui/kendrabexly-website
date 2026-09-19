@@ -2385,6 +2385,8 @@ if (
         if(!body)return Response.json({ok:false,message:"Write or generate a follow up first."},{status:400});
         const completed=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? AND status='completed' LIMIT 1").bind(requestId,clientId).first();
         if(!completed)return Response.json({ok:false,message:"This follow up is not linked to a successfully completed date."},{status:400});
+        const previouslySent=await env.DB.prepare("SELECT id,sent_at FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' AND status='sent' LIMIT 1").bind(requestId).first();
+        if(previouslySent && data.resend!==true)return Response.json({ok:false,already_sent:true,sent_at:previouslySent.sent_at||null,message:"An After Date Follow Up has already been sent for this completed date. Use Resend Follow Up if you intentionally want to send it again."},{status:409});
         const client=await env.DB.prepare("SELECT id,first_name,email FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
         if(!client?.email)return Response.json({ok:false,message:"This client does not have an email address."},{status:400});
         body=body.replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
