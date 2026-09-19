@@ -2375,6 +2375,42 @@ if (
           .bind(depositAmount, requestId)
           .run();
 
+        if (bookingRate > 0) {
+          const depositDisplay = new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD"
+          }).format(depositAmount);
+
+          await env.DB.prepare(`
+            INSERT INTO email_drafts (
+              client_id,
+              date_request_id,
+              email_type,
+              subject,
+              body,
+              status
+            )
+            VALUES (?, ?, ?, ?, ?, 'draft')
+          `).bind(
+            existingRequest.client_id,
+            requestId,
+            "pending_final_approval",
+            "A few details before our date",
+            `Hi ${existingRequest.first_name},
+
+I'd love to move forward with your request.
+
+Date: ${existingRequest.requested_date}
+Time: ${existingRequest.requested_time}
+
+To complete final approval, please reply directly to this email with your ID attached and send your ${depositDisplay} deposit.
+
+Once I have both, I'll personally review everything and confirm our date.
+
+Kendra`
+          ).run();
+        }
+
         return Response.json({
           ok: true,
           message: "Request moved forward.",
