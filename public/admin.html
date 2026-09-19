@@ -763,6 +763,14 @@
         </div>
 
         <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div><div class="panel-title">X Content Calendar</div><div class="panel-subtitle">See upcoming scheduled posts by date.</div></div>
+            <div style="display:flex;gap:8px;align-items:center;"><button id="x-cal-prev" type="button">‹</button><strong id="x-cal-label"></strong><button id="x-cal-next" type="button">›</button></div>
+          </div>
+          <div id="x-content-calendar" style="padding:18px 24px;"><div class="empty">Loading calendar...</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header"><div><div class="panel-title">Scheduled Posts</div><div class="panel-subtitle">Review, reschedule, or cancel approved posts waiting to publish.</div></div><button id="x-refresh-scheduled" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div>
           <div id="x-scheduled"><div class="empty">Loading scheduled posts...</div></div>
         </div>
@@ -1299,9 +1307,29 @@ loadRequests();
       });
     }
 
+    let xCalendarDate=new Date();
+    let xCalendarItems=[];
+    function renderXCalendar(){
+      const box=document.getElementById("x-content-calendar"),label=document.getElementById("x-cal-label");if(!box)return;
+      const y=xCalendarDate.getFullYear(),m=xCalendarDate.getMonth();if(label)label.textContent=new Date(y,m,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+      const first=new Date(y,m,1),days=new Date(y,m+1,0).getDate(),offset=first.getDay();
+      let html='<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;font-size:12px;">';
+      ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d=>html+='<div style="font-weight:600;text-align:center;padding:5px;">'+d+'</div>');
+      for(let i=0;i<offset;i++)html+='<div></div>';
+      for(let day=1;day<=days;day++){
+        const items=xCalendarItems.filter(x=>{const d=new Date(x.scheduled_for);return d.getFullYear()===y&&d.getMonth()===m&&d.getDate()===day;});
+        html+='<div style="min-height:78px;border:1px solid var(--line);border-radius:8px;padding:7px;background:white;"><strong>'+day+'</strong>';
+        items.forEach(x=>html+='<button type="button" data-cal-id="'+x.id+'" style="display:block;width:100%;text-align:left;border:0;border-radius:6px;padding:5px;margin-top:5px;background:var(--paper);cursor:pointer;font-size:11px;">'+escapeHtml(new Date(x.scheduled_for).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}))+' · '+escapeHtml((x.content||"").slice(0,34))+'</button>');
+        html+='</div>';
+      } box.innerHTML=html+'</div>';
+      box.querySelectorAll("[data-cal-id]").forEach(b=>b.onclick=()=>{const x=xCalendarItems.find(v=>String(v.id)===b.dataset.calId);if(!x)return;alert(new Date(x.scheduled_for).toLocaleString()+"\n\n"+x.content+"\n\nUse Scheduled Posts below to reschedule or cancel.");});
+    }
+    document.getElementById("x-cal-prev")?.addEventListener("click",()=>{xCalendarDate=new Date(xCalendarDate.getFullYear(),xCalendarDate.getMonth()-1,1);renderXCalendar();});
+    document.getElementById("x-cal-next")?.addEventListener("click",()=>{xCalendarDate=new Date(xCalendarDate.getFullYear(),xCalendarDate.getMonth()+1,1);renderXCalendar();});
+
     async function loadXScheduled(){
       const box=document.getElementById("x-scheduled");if(!box)return;
-      try{const r=await fetch("/api/admin/x/scheduled"),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load scheduled posts.");
+      try{const r=await fetch("/api/admin/x/scheduled"),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load scheduled posts.");\n        xCalendarItems=d.scheduled||[];renderXCalendar();
         box.innerHTML=d.scheduled.length?d.scheduled.map(x=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+escapeHtml(new Date(x.scheduled_for).toLocaleString())+'</div><div style="white-space:pre-wrap;margin-bottom:10px;">'+escapeHtml(x.content)+'</div><button data-reschedule="'+x.id+'">Reschedule</button> <button data-cancel-schedule="'+x.id+'">Cancel Scheduled Post</button></div>').join(""):'<div class="empty">No scheduled posts.</div>';
         box.querySelectorAll("button").forEach(b=>{b.style.cssText="border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;cursor:pointer;";b.onclick=async()=>{
           if(b.dataset.cancelSchedule){if(!confirm("Cancel this scheduled post?"))return;await fetch("/api/admin/x/schedule/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.cancelSchedule)})});}
