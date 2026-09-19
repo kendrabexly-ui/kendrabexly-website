@@ -1140,15 +1140,26 @@ My journal will continue to be a place where I share a little more of that side 
 
     const data = await request.json().catch(() => ({}));
     const offer = String(data.special_offer || existing.special_offer || "").trim();
-    const experienceMatch = offer.match(/featured experience:\s*([^\n.]+)/i);
-    const bonusMatch = offer.match(/Book my\s+([^\n]+?)\s+(Classic Rendezvous|The Greek Princess)\s+at the regular\s+(\$[\d,]+)\s+rate this month and enjoy\s+([^\n.]+?)(?:\s+with me)?\./i);
-    if (!experienceMatch || !bonusMatch) {
-      return Response.json({ok:false,message:"I couldn't safely identify the current experience, regular rate, and bonus-time incentive. Keep the generated offer details intact before changing its wording."},{status:400});
+    const offers = [
+      { experience:"Classic Rendezvous", duration:"1 hour", regular:500 },
+      { experience:"Classic Rendezvous", duration:"1.5 hours", regular:650 },
+      { experience:"Classic Rendezvous", duration:"2 hours", regular:850 },
+      { experience:"The Greek Princess", duration:"1 hour", regular:650 },
+      { experience:"The Greek Princess", duration:"1.5 hours", regular:800 },
+      { experience:"The Greek Princess", duration:"2 hours", regular:1050 }
+    ];
+    const experience = ((offer.match(/featured experience:\s*([^\n.]+)/i) || [])[1] || "").trim();
+    const known = offers.filter(o => o.experience.toLowerCase() === experience.toLowerCase());
+    const durationMatch = offer.match(/(?:Book my|Book|Spend)\s+([\d.]+\s*hours?|\d+\s*minutes?)/i);
+    const duration = durationMatch ? durationMatch[1].trim() : (known[0]?.duration || "");
+    const selected = known.find(o => o.duration.toLowerCase() === duration.toLowerCase()) || known[0];
+    const regularMatch = offer.match(/(?:regular(?:\s+rate)?(?:\s+of)?\s*)(\$[\d,]+)/i);
+    const regular = regularMatch ? regularMatch[1] : (selected ? new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(selected.regular) : "");
+    const incentiveMatch = offer.match(/(?:enjoy|receive|get)\s+(\d+\s+(?:extra|additional|bonus)?\s*(?:minutes?|hours?))/i);
+    const incentive = incentiveMatch ? incentiveMatch[1].trim() : "30 extra minutes";
+    if (!experience || !duration || !regular) {
+      return Response.json({ok:false,message:"The featured experience details are incomplete. Choose a featured experience first, then change the wording."},{status:400});
     }
-    const experience = experienceMatch[1].trim();
-    const duration = bonusMatch[1].trim();
-    const regular = bonusMatch[3];
-    const incentive = bonusMatch[4].trim();
     const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
     const seed = (Date.now() + id) % 5;
     const intros = [
