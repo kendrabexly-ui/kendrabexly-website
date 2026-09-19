@@ -1070,6 +1070,12 @@ async function loadRequests() {
     }
 
     const requests = data.requests || [];
+    let savedClientProfiles = new Map();
+    try {
+      const cpResponse = await fetch("/api/admin/clients");
+      const cpData = await cpResponse.json();
+      if (cpResponse.ok && cpData.ok) (cpData.clients || []).forEach(c => savedClientProfiles.set(Number(c.id), c));
+    } catch (error) {}
 
     const clientRecords = document.getElementById("client-records");
     const clientSearch = document.getElementById("client-search");
@@ -1152,6 +1158,7 @@ async function loadRequests() {
         const followThroughRate = client.requests.length ? Math.round((completed / client.requests.length) * 100) : 0;
         const deposits = client.requests.reduce((sum, r) => sum + (Number(r.deposit_paid) ? Number(r.deposit_amount || 0) : 0), 0);
         const latest = sorted[0];
+        const savedProfile = savedClientProfiles.get(Number(client.client_id)) || {};
         const completedDates=sorted.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();});
         const lastCompleted=completedDates[0]||null;
         const upcomingDate=[...client.requests].filter(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now()).sort((a,b)=>String(a.requested_date).localeCompare(String(b.requested_date)))[0]||null;
@@ -1207,6 +1214,14 @@ async function loadRequests() {
                 <span><strong>${followThroughRate}%</strong> follow-through</span><span><strong>${escapeHtml(lastCompleted?.requested_date || "—")}</strong> last completed</span><span><strong>${escapeHtml(upcomingDate?.requested_date || "—")}</strong> upcoming date</span><span><strong>${deposits.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> recorded deposits</span>
               </div>
               <div style="margin-top:10px;font-size:13px;">Manage this client without affecting their booking history.</div>
+              <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+                <strong style="font-size:13px;">Private Notes & Preferences</strong>
+                <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Preferences</label>
+                <textarea class="client-preferences" rows="3" placeholder="Favorite details, preferences, things they enjoy, thoughtful touches to remember..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.preferences || "")}</textarea>
+                <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Private Client Notes</label>
+                <textarea class="client-private-notes" rows="3" placeholder="Private reminders and notes for future dates..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.notes || "")}</textarea>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:9px;"><button type="button" class="save-client-profile" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Save Notes & Preferences</button><span class="client-profile-save-status" style="font-size:12px;color:var(--muted);"></span></div>
+              </div>
               ${blacklistRecord ? `<div style="margin-top:12px;padding:12px;border-radius:8px;background:#f3dfdf;">
                 <strong>🚩 Active Blacklist Record</strong>
                 <div style="margin-top:6px;font-size:13px;">Added: ${escapeHtml(blacklistRecord.created_at || "—")}</div>
@@ -1260,6 +1275,22 @@ async function loadRequests() {
           const opening = controls.style.display === "none";
           controls.style.display = opening ? "block" : "none";
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
+        });
+      });
+      clientRecords.querySelectorAll(".save-client-profile").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const controls=button.closest(".client-profile-actions");
+          const status=controls.querySelector(".client-profile-save-status");
+          button.disabled=true;status.textContent="Saving...";
+          try {
+            const response=await fetch("/api/admin/clients/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId),preferences:controls.querySelector(".client-preferences")?.value||"",notes:controls.querySelector(".client-private-notes")?.value||""})});
+            const result=await response.json();
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save.");
+            const current=savedClientProfiles.get(Number(button.dataset.clientId))||{};
+            savedClientProfiles.set(Number(button.dataset.clientId),{...current,notes:result.notes,preferences:result.preferences});
+            status.textContent="Saved";
+          } catch(error){status.textContent=error.message||"Unable to save.";}
+          finally{button.disabled=false;}
         });
       });
       clientRecords.querySelectorAll(".profile-remove-blacklist").forEach((button) => {
