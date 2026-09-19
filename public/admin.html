@@ -1134,6 +1134,7 @@ loadRequests();
             <button type="button" data-newsletter-action="preview">Preview</button>
             ${item.status === "draft" ? '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
             ${item.status === "approved" ? '<button type="button" data-newsletter-action="send">Send Newsletter</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
+            ${item.status === "sent" ? '<button type="button" data-newsletter-action="delete">Delete Newsletter</button>' : ""}
           </div>
         </div>`;
     }
