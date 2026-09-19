@@ -1095,6 +1095,50 @@ My journal will continue to be a place where I share a little more of that side 
     });
   }
 
+  // Regenerate special-offer wording while preserving its required booking details
+  if (
+    /^\/api\/admin\/newsletter\/drafts\/\d+\/regenerate-offer$/.test(url.pathname) &&
+    request.method === "POST"
+  ) {
+    await ensureNewsletterTable();
+    const id = Number(url.pathname.split("/")[5]);
+    const existing = await env.DB.prepare("SELECT * FROM newsletter_drafts WHERE id = ?").bind(id).first();
+    if (!existing) return Response.json({ok:false,message:"Newsletter draft not found."},{status:404});
+    if (existing.status !== "draft") return Response.json({ok:false,message:"Only draft newsletter offers can be regenerated."},{status:400});
+
+    const data = await request.json().catch(() => ({}));
+    const offer = String(data.special_offer || existing.special_offer || "").trim();
+    const experienceMatch = offer.match(/featured experience:\s*([^\n.]+)/i);
+    const rateMatch = offer.match(/Spend\s+([^\n]+?)\s+with me for\s+(\$[\d,]+)\s+this month\s+[—-]\s+normally\s+(\$[\d,]+)/i);
+    if (!experienceMatch || !rateMatch) {
+      return Response.json({ok:false,message:"I couldn't safely identify the current experience and pricing. Keep the generated offer details intact before regenerating its wording."},{status:400});
+    }
+    const experience = experienceMatch[1].trim();
+    const duration = rateMatch[1].trim();
+    const special = rateMatch[2];
+    const regular = rateMatch[3];
+    const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
+    const seed = (Date.now() + id) % 5;
+    const intros = [
+      "A little something just for my subscribers — I saved this one especially for you. ✨",
+      "Your inbox deserves something fun this month, so here's a little subscriber-only invitation. 💋",
+      "I wanted to give my subscribers a good reason to put something special on the calendar. 😉",
+      "A new month calls for a little temptation reserved just for this list. ✨",
+      "Consider this your private invitation to make a little more time for us this month. 💋"
+    ];
+    const closers = [
+      "Consider it my excuse to steal you away for a while.",
+      "I think we can make that time feel very well spent.",
+      "The only thing missing from this offer is you.",
+      "A little anticipation makes the plans even better.",
+      "You bring yourself; I'll take care of making the time feel special."
+    ];
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nSpend ${duration} with me for ${special} this month — normally ${regular}.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+
+    await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
+    return Response.json({ok:true,special_offer:specialOffer});
+  }
+
   // Regenerate newsletter wording while preserving required offer instructions
   if (
     /^\/api\/admin\/newsletter\/drafts\/\d+\/regenerate$/.test(url.pathname) &&
