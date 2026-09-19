@@ -1241,7 +1241,7 @@ async function loadRequests() {
                   <span>Next Date: <strong>${escapeHtml(upcomingDate?.requested_date || "None scheduled")}</strong></span>
                   <span>Follow Up Needed: <strong>${followUpHistory.some(item=>!item.sent_at) ? followUpHistory.filter(item=>!item.sent_at).length : "None"}</strong></span>
                 </div>
-                ${followUpHistory.some(item=>!item.sent_at) ? `<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f7f2e9;font-weight:700;">○ After Date Follow Up pending for ${followUpHistory.filter(item=>!item.sent_at).map(item=>escapeHtml(item.date||"completed date")).join(" · ")} <button type="button" class="jump-followup-agent" style="margin-left:8px;padding:4px 8px;border:1px solid #d9cdbd;border-radius:6px;background:white;cursor:pointer;font:inherit;font-size:11px;">Open Follow Up Agent</button></div>` : followUpHistory.length ? '<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f4f7f2;font-weight:700;">✓ All completed dates have an After Date Follow Up sent.</div>' : ""}
+                ${followUpHistory.some(item=>!item.sent_at) ? `<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f7f2e9;font-weight:700;">○ After Date Follow Up pending for ${followUpHistory.filter(item=>!item.sent_at).map(item=>escapeHtml(item.date||"completed date")).join(" · ")} <button type="button" class="jump-followup-agent" data-request-id="${followUpHistory.find(item=>!item.sent_at)?.id||""}" style="margin-left:8px;padding:4px 8px;border:1px solid #d9cdbd;border-radius:6px;background:white;cursor:pointer;font:inherit;font-size:11px;">Open Follow Up Agent</button></div>` : followUpHistory.length ? '<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f4f7f2;font-weight:700;">✓ All completed dates have an After Date Follow Up sent.</div>' : ""}
               </div>
               <div style="margin-top:10px;font-size:13px;">Manage this client without affecting their booking history.</div>
               <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
@@ -1338,6 +1338,11 @@ async function loadRequests() {
         const card=button.closest(".client-record");
         const agent=card?.querySelector(".client-followup-agent");
         if(agent){
+          const requestId=button.dataset.requestId;
+          const save=agent.querySelector(".save-client-followup");
+          const send=agent.querySelector(".send-client-followup");
+          if(requestId&&save)save.dataset.requestId=requestId;
+          if(requestId&&send)send.dataset.requestId=requestId;
           agent.open=true;
           agent.scrollIntoView({behavior:"smooth",block:"start"});
           const draft=agent.querySelector(".client-followup-draft");
