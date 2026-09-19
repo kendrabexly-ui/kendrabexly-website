@@ -318,6 +318,18 @@
 
           </div>
 
+          ${String(item.notes || "").includes("Newsletter special: Newsletter #") ? `
+          <div style="margin:24px 0;padding:20px;border:1px solid #d8cbb9;background:#f6f1e8;border-radius:12px;">
+            <div class="label">✨ NEWSLETTER SPECIAL</div>
+            <div class="value" style="margin-top:8px;font-weight:600;">
+              Subscriber offer attached to this request
+            </div>
+            <div class="value" style="margin-top:8px;white-space:pre-line;">
+              ${displayValue((String(item.notes).match(/Newsletter special: Newsletter #[^\n]*(?:\nOffer: [\s\S]*?)(?=\n(?:Date type:|Appointment type:|Duration:|Request details:|Screening requirement|25% deposit)|$)/) || [""])[0])}
+            </div>
+          </div>
+          ` : ""}
+
           <div class="notes">
             <div class="label">
               Request Details
