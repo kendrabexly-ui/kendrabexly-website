@@ -389,13 +389,14 @@ export default {
       if (!env.AI) return Response.json({ ok:false, message:"Workers AI is not connected." }, { status:500 });
       const data=await request.json();
       const topic=String(data.topic||"").trim();
+      const style=String(data.style||"warm-flirty-tease");
       if(!topic) return Response.json({ok:false,message:"Add a series topic first."},{status:400});
       if(topic.length>1000) return Response.json({ok:false,message:"Keep the topic under 1,000 characters."},{status:400});
       try {
         const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{
           messages:[
-            {role:"system",content:"Create exactly 5 distinct but connected series entries for Kendra Bexly around one topic. Series entries may be longer than 280 characters and should not be truncated to the regular post limit. The entries should feel like an ongoing natural conversation, not repetitive variations. Sound warm, personable, confident, conversational, and human. Each post must stand on its own. Avoid corporate language, clickbait, excessive emojis, and unnecessary hashtags. Never invent personal facts. Return only valid JSON: an array of 5 strings, with no markdown or explanation."},
-            {role:"user",content:"Topic: "+topic}
+            {role:"system",content:"Create exactly 5 distinct but connected series entries for Kendra Bexly around one topic. Series entries may be longer than 280 characters and should not be truncated to the regular post limit. The entries should feel like an ongoing natural conversation, not repetitive variations. Each post must stand on its own. Follow the requested series writing style. For warm-flirty-tease, shape the SERIES ARC across the five entries: begin with a warm personal note, move into playful/flirty anticipation, build chemistry naturally, then finish with a subtle tease that leaves the reader wanting the next interaction. Keep it suggestive rather than explicit, human rather than scripted, and do not force every stage into every individual post. Conversational = relaxed and personal. Playful = light, witty and charming. Direct = clear, confident and concise. Avoid corporate language, clickbait, excessive emojis, and unnecessary hashtags. Never invent personal facts. Return only valid JSON: an array of 5 strings, with no markdown or explanation."},
+            {role:"user",content:"Writing style: "+style+"\nTopic: "+topic}
           ],max_tokens:1400,temperature:0.85
         });
         let raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`$/,"").trim();
