@@ -712,9 +712,11 @@
           <div style="padding:24px;">
             <textarea id="x-series-topic" maxlength="1000" placeholder="Topic for the series..." style="width:100%;min-height:80px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+              <button id="x-add-series-topic" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Add Series Topic</button>
               <button id="x-generate-series-topics" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Generate Series Topics</button>
               <button id="x-generate-series" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Generate Series</button>
             </div>
+            <div id="x-saved-series-topics" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <div id="x-series-topics" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <div id="x-series-results" style="margin-top:14px;"></div>
           </div>
@@ -1299,6 +1301,19 @@ loadRequests();
     renderXSavedTopics();
 
     const xGenerateSeries=document.getElementById("x-generate-series"),xSeriesTopic=document.getElementById("x-series-topic"),xSeriesResults=document.getElementById("x-series-results");
+    const xAddSeriesTopic=document.getElementById("x-add-series-topic"),xSavedSeriesTopics=document.getElementById("x-saved-series-topics");
+    function getSavedSeriesTopics(){try{return JSON.parse(localStorage.getItem("xSavedSeriesTopics")||"[]");}catch{return [];}}
+    function renderSavedSeriesTopics(){
+      if(!xSavedSeriesTopics)return;const topics=getSavedSeriesTopics();
+      if(!topics.length){xSavedSeriesTopics.style.display="none";return;}
+      xSavedSeriesTopics.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">My Series Topics</div>'+topics.map((t,i)=>'<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0;"><button type="button" data-use-series-topic="'+i+'" style="flex:1;text-align:left;border:0;background:white;cursor:pointer;font:inherit;">'+escapeHtml(t)+'</button><button type="button" data-remove-series-topic="'+i+'" style="border:0;background:white;cursor:pointer;color:var(--muted);">Remove</button></div>').join("");
+      xSavedSeriesTopics.style.display="block";
+      xSavedSeriesTopics.querySelectorAll("[data-use-series-topic]").forEach(b=>b.onclick=()=>{xSeriesTopic.value=getSavedSeriesTopics()[Number(b.dataset.useSeriesTopic)]||"";xSeriesTopic.focus();});
+      xSavedSeriesTopics.querySelectorAll("[data-remove-series-topic]").forEach(b=>b.onclick=()=>{const list=getSavedSeriesTopics();list.splice(Number(b.dataset.removeSeriesTopic),1);localStorage.setItem("xSavedSeriesTopics",JSON.stringify(list));renderSavedSeriesTopics();});
+    }
+    if(xAddSeriesTopic)xAddSeriesTopic.addEventListener("click",()=>{const topic=xSeriesTopic.value.trim();if(!topic)return alert("Type a series topic first.");const list=getSavedSeriesTopics();if(!list.some(t=>t.toLowerCase()===topic.toLowerCase()))list.unshift(topic);localStorage.setItem("xSavedSeriesTopics",JSON.stringify(list.slice(0,50)));renderSavedSeriesTopics();});
+    renderSavedSeriesTopics();
+
     const xGenerateSeriesTopics=document.getElementById("x-generate-series-topics"),xSeriesTopics=document.getElementById("x-series-topics");
     if(xGenerateSeriesTopics)xGenerateSeriesTopics.addEventListener("click",async()=>{
       xGenerateSeriesTopics.disabled=true;xGenerateSeriesTopics.textContent="Generating Topics...";
