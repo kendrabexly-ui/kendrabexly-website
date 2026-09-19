@@ -2710,6 +2710,11 @@ loadRequests();
               <span style="font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;${String(draft.status || "draft").toLowerCase() === "sent" ? "background:#e5f1e7;" : "background:#f3ead8;"}">${String(draft.status || "draft").toLowerCase() === "sent" ? "✓ SENT" : "DRAFT"}</span>
             </div>
             <div style="margin-top:5px;font-size:13px;">${escapeHtml(draft.email || "No email")} · Request #${escapeHtml(draft.date_request_id || "—")}</div>
+            <div style="margin-top:6px;font-size:12px;color:var(--muted);">
+              ${String(draft.status || "").toLowerCase() === "sent"
+                ? "Sent: " + escapeHtml(draft.sent_at || "—")
+                : "Created: " + escapeHtml(draft.created_at || "—")}
+            </div>
             <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">SUBJECT</label>
             <input data-email-subject value="${escapeHtml(draft.subject || "")}" style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;">
             <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">EMAIL</label>
