@@ -2380,5 +2380,38 @@ if (
     // =========================================================
 
     return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => {
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_scheduled_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,draft_id INTEGER NOT NULL UNIQUE,scheduled_for TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'scheduled',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`).run();
+      const due=await env.DB.prepare(`SELECT s.id AS schedule_id,s.draft_id,d.content,d.status AS draft_status
+        FROM x_scheduled_posts s JOIN x_post_drafts d ON d.id=s.draft_id
+        WHERE s.status='scheduled' AND s.scheduled_for<=? ORDER BY s.scheduled_for ASC LIMIT 10`).bind(new Date().toISOString()).all();
+      for(const item of (due.results||[])){
+        if(item.draft_status!=="approved"){await env.DB.prepare("UPDATE x_scheduled_posts SET status='cancelled',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(item.schedule_id).run();continue;}
+        try{
+          let row=await env.DB.prepare("SELECT access_token,refresh_token,expires_at,scope FROM x_oauth_tokens WHERE id=1").first();
+          if(!row) throw new Error("X is not connected.");
+          let accessToken=row.access_token;const now=Math.floor(Date.now()/1000);
+          if(Number(row.expires_at||0)<=now+300){
+            if(!row.refresh_token)throw new Error("X reconnect required.");
+            const body=new URLSearchParams({grant_type:"refresh_token",refresh_token:row.refresh_token,client_id:env.X_CLIENT_ID});
+            const basic=btoa(String(env.X_CLIENT_ID)+":"+String(env.X_CLIENT_SECRET));
+            const rr=await fetch("https://api.x.com/2/oauth2/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
+            if(!rr.ok)throw new Error("X token refresh failed.");
+            const tokens=await rr.json();accessToken=tokens.access_token;
+            await env.DB.prepare("UPDATE x_oauth_tokens SET access_token=?,refresh_token=?,expires_at=?,scope=?,updated_at=CURRENT_TIMESTAMP WHERE id=1").bind(accessToken,tokens.refresh_token||row.refresh_token,now+Number(tokens.expires_in||7200),tokens.scope||row.scope||null).run();
+          }
+          const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({text:item.content})});
+          const xd=await xr.json().catch(()=>({}));if(!xr.ok)throw new Error(xd?.detail||xd?.title||"X rejected scheduled post.");
+          const postId=xd?.data?.id||null;
+          await env.DB.prepare("UPDATE x_post_drafts SET status='published',x_post_id=?,published_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='approved'").bind(postId,item.draft_id).run();
+          await env.DB.prepare("UPDATE x_scheduled_posts SET status='published',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(item.schedule_id).run();
+        }catch(error){console.error("Scheduled X publish failed",item.schedule_id,error);}
+      }
+    })());
   }
 };
