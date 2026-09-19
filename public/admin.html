@@ -1200,7 +1200,7 @@ loadRequests();
           <textarea ${disabled ? "disabled" : ""} style="width:100%;min-height:110px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.content)}</textarea>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
             ${disabled ? '<button type="button" data-action="delete-tweet">Delete from X</button><button type="button" data-action="delete">Remove from History</button>' : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="regenerate">Regenerate</button><button type="button" data-action="approve">Approve</button><button type="button" data-action="delete">Delete Draft</button>'}
-            ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button><button type="button" data-action="schedule">Schedule</button>' : ""}
+            ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button>' : ""}${item.status === "draft" || item.status === "approved" ? '<button type="button" data-action="schedule">Schedule Auto Post</button>' : ""}
           </div>
         </div>`;
     }
@@ -1247,8 +1247,14 @@ loadRequests();
                   r = await fetch("/api/admin/x/publish", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
                 }
                 if (action === "schedule") {
-                  const when=await pickXScheduleTime("Schedule Post");
+                  if (!content) throw new Error("Draft cannot be empty.");
+                  if (content.length > 280) throw new Error("Regular X posts must be 280 characters or fewer before scheduling.");
+                  const when=await pickXScheduleTime("Schedule Auto Post");
                   if(!when){button.disabled=false;return;}
+                  const save=await fetch("/api/admin/x/drafts/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({content})});
+                  const sd=await save.json();if(!save.ok||!sd.ok)throw new Error(sd.message||"Unable to save draft.");
+                  const approve=await fetch("/api/admin/x/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
+                  const ad=await approve.json();if(!approve.ok||!ad.ok)throw new Error(ad.message||"Unable to approve scheduled draft.");
                   r=await fetch("/api/admin/x/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,scheduled_for:when.toISOString()})});
                 }
                 const d = await r.json();
