@@ -908,7 +908,7 @@
   </div>
   <div id="rates-services-editor"></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-    <button id="rates-save" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Save Changes</button>
+    <button id="rates-save" type="button" disabled style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:default;opacity:.5;">Save Changes</button>
     <button id="rates-reset" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Reset</button>
     <span id="rates-status" style="align-self:center;color:var(--muted);font-size:13px;"></span>
   </div>
@@ -2643,11 +2643,22 @@ loadRequests();
       const data=getRateServices();
       box.innerHTML=data.map((s,si)=>'<div class="panel" style="margin-bottom:18px;"><div class="panel-header"><div style="width:100%;"><input data-rs-name="'+si+'" value="'+escapeHtml(s.name)+'" style="width:100%;font-family:Playfair Display,serif;font-size:20px;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"><textarea data-rs-desc="'+si+'" style="width:100%;margin-top:8px;min-height:65px;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;">'+escapeHtml(s.description)+'</textarea></div></div><div class="table-wrap"><table><thead><tr><th>Duration</th><th>Rate</th></tr></thead><tbody>'+s.rates.map((r,ri)=>'<tr><td><input data-rs-duration="'+si+'-'+ri+'" value="'+escapeHtml(r[0])+'" style="border:1px solid var(--line);border-radius:7px;padding:8px;"></td><td>$ <input data-rs-rate="'+si+'-'+ri+'" type="number" min="0" step="1" value="'+Number(r[1])+'" style="width:120px;border:1px solid var(--line);border-radius:7px;padding:8px;"></td></tr>').join("")+'</tbody></table></div></div>').join("");
     }
+    const ratesEditor=document.getElementById("rates-services-editor");
+    const ratesSave=document.getElementById("rates-save");
+    function setRatesDirty(dirty){
+      if(!ratesSave)return;
+      ratesSave.disabled=!dirty;
+      ratesSave.style.opacity=dirty?"1":".5";
+      ratesSave.style.cursor=dirty?"pointer":"default";
+      const status=document.getElementById("rates-status");
+      if(status)status.textContent=dirty?"Unsaved changes":"";
+    }
+    ratesEditor?.addEventListener("input",()=>setRatesDirty(true));
     document.getElementById("rates-save")?.addEventListener("click",()=>{
       const data=getRateServices().map((s,si)=>({...s,name:document.querySelector('[data-rs-name="'+si+'"]').value.trim(),description:document.querySelector('[data-rs-desc="'+si+'"]').value.trim(),rates:s.rates.map((r,ri)=>[document.querySelector('[data-rs-duration="'+si+'-'+ri+'"]').value.trim(),Number(document.querySelector('[data-rs-rate="'+si+'-'+ri+'"]').value)])}));
-      localStorage.setItem("kendra_rate_services",JSON.stringify(data)); document.getElementById("rates-status").textContent="Saved on this dashboard."; renderRateServices();
+      localStorage.setItem("kendra_rate_services",JSON.stringify(data)); renderRateServices(); setRatesDirty(false); document.getElementById("rates-status").textContent="Saved on this dashboard.";
     });
-    document.getElementById("rates-reset")?.addEventListener("click",()=>{if(!confirm("Reset Rates & Services to the current master rates?"))return;localStorage.removeItem("kendra_rate_services");renderRateServices();document.getElementById("rates-status").textContent="Reset to master rates.";});
+    document.getElementById("rates-reset")?.addEventListener("click",()=>{if(!confirm("Reset Rates & Services to the current master rates?"))return;localStorage.removeItem("kendra_rate_services");renderRateServices();setRatesDirty(false);document.getElementById("rates-status").textContent="Reset to master rates.";});
     renderRateServices();
 
     async function loadEmailDrafts() {
