@@ -1538,6 +1538,7 @@ loadRequests();
           <textarea data-field="blog_content" ${readOnly ? "disabled" : ""} style="width:100%;min-height:120px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;margin-bottom:12px;">${escapeHtml(item.blog_content || "")}</textarea>
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">One-Time Special Rate Offer</label>
           <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
+          ${item.status === "draft" ? '<button type="button" data-newsletter-action="regenerate-offer" style="margin-top:8px;">Regenerate Special Offer</button>' : ""}
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
             <button type="button" data-newsletter-action="preview">Preview</button>
             ${item.status === "draft" ? '<button type="button" data-newsletter-action="regenerate">Regenerate Newsletter</button><button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
@@ -1564,6 +1565,28 @@ loadRequests();
             button.addEventListener("click", async () => {
               const id = Number(card.dataset.newsletterDraft);
               const action = button.dataset.newsletterAction;
+              if (action === "regenerate-offer") {
+                if (!confirm("Regenerate the special offer wording? The featured experience, duration, special price, regular price, availability note, and subscriber booking instruction will be preserved.")) return;
+                button.disabled = true;
+                button.textContent = "Regenerating...";
+                try {
+                  const offer = card.querySelector('[data-field="special_offer"]');
+                  const r = await fetch("/api/admin/newsletter/drafts/" + id + "/regenerate-offer", {
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({special_offer:offer ? offer.value.trim() : ""})
+                  });
+                  const d = await r.json();
+                  if (!r.ok || !d.ok) throw new Error(d.message || "Unable to regenerate special offer.");
+                  if (offer) offer.value = d.special_offer || "";
+                } catch (e) {
+                  alert(e.message);
+                } finally {
+                  button.disabled = false;
+                  button.textContent = "Regenerate Special Offer";
+                }
+                return;
+              }
               if (action === "regenerate") {
                 if (!confirm("Regenerate this newsletter? The current draft wording will be replaced while the monthly offer and required booking instructions stay the same.")) return;
                 button.disabled = true;
