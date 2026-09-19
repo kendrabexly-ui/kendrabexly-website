@@ -687,9 +687,11 @@
             <label for="x-ai-idea" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Topic or idea</label>
             <textarea id="x-ai-idea" maxlength="1000" placeholder="Example: Good morning post. Keep it playful, natural, and positive." style="width:100%;min-height:95px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 12px;">
+              <button id="x-add-topic" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Add Topic</button>
               <button id="x-generate-topics" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Generate Topics</button>
               <button id="x-generate-post" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Generate Post</button>
             </div>
+            <div id="x-saved-topics" style="display:none;margin:0 0 12px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <div id="x-topic-suggestions" style="display:none;margin:0 0 20px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <label for="x-new-content" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Post draft</label>
             <textarea id="x-new-content" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
@@ -1186,6 +1188,31 @@ loadRequests();
         box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
       }
     }
+
+    const xAddTopic = document.getElementById("x-add-topic");
+    const xSavedTopics = document.getElementById("x-saved-topics");
+    function getXSavedTopics() {
+      try { return JSON.parse(localStorage.getItem("xSavedTopics") || "[]"); } catch { return []; }
+    }
+    function renderXSavedTopics() {
+      if (!xSavedTopics) return;
+      const topics = getXSavedTopics();
+      if (!topics.length) { xSavedTopics.style.display = "none"; return; }
+      xSavedTopics.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:9px;">My Topics</div>' +
+        topics.map((topic,i) => '<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0;"><button type="button" data-saved-topic="' + i + '" style="flex:1;text-align:left;border:0;background:white;cursor:pointer;font:inherit;color:var(--ink);">' + escapeHtml(topic) + '</button><button type="button" data-remove-topic="' + i + '" aria-label="Remove topic" style="border:0;background:white;cursor:pointer;color:var(--muted);">Remove</button></div>').join("");
+      xSavedTopics.style.display = "block";
+      xSavedTopics.querySelectorAll("[data-saved-topic]").forEach(b => b.addEventListener("click", () => { xAiIdea.value = getXSavedTopics()[Number(b.dataset.savedTopic)] || ""; xAiIdea.focus(); }));
+      xSavedTopics.querySelectorAll("[data-remove-topic]").forEach(b => b.addEventListener("click", () => { const topics=getXSavedTopics(); topics.splice(Number(b.dataset.removeTopic),1); localStorage.setItem("xSavedTopics",JSON.stringify(topics)); renderXSavedTopics(); }));
+    }
+    if (xAddTopic) xAddTopic.addEventListener("click", () => {
+      const topic = xAiIdea.value.trim();
+      if (!topic) return alert("Type a topic or idea first.");
+      const topics = getXSavedTopics();
+      if (!topics.some(t => t.toLowerCase() === topic.toLowerCase())) topics.unshift(topic);
+      localStorage.setItem("xSavedTopics", JSON.stringify(topics.slice(0,50)));
+      renderXSavedTopics();
+    });
+    renderXSavedTopics();
 
     const xGenerateTopics = document.getElementById("x-generate-topics");
     const xTopicSuggestions = document.getElementById("x-topic-suggestions");
