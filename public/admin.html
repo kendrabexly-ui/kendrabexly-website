@@ -686,6 +686,12 @@
           <p>Review personalized client emails before they are sent.</p>
         </div>
 
+        <div id="email-drafts-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-total">—</strong><div style="font-size:12px;margin-top:2px;">Total drafts</div></div>
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-unsent">—</strong><div style="font-size:12px;margin-top:2px;">Needs review</div></div>
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-sent">—</strong><div style="font-size:12px;margin-top:2px;">Sent</div></div>
+        </div>
+
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <input id="email-drafts-search" type="search" placeholder="Search client, email, subject, or message" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
           <select id="email-drafts-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
@@ -2649,6 +2655,12 @@ loadRequests();
         const searchInput = document.getElementById("email-drafts-search");
         const statusFilter = document.getElementById("email-drafts-status-filter");
         const clearFilters = document.getElementById("email-drafts-clear-filters");
+        const totalEl = document.getElementById("email-drafts-total");
+        const unsentEl = document.getElementById("email-drafts-unsent");
+        const sentEl = document.getElementById("email-drafts-sent");
+        if (totalEl) totalEl.textContent = drafts.length;
+        if (unsentEl) unsentEl.textContent = drafts.filter((draft) => String(draft.status || "draft").toLowerCase() !== "sent").length;
+        if (sentEl) sentEl.textContent = drafts.filter((draft) => String(draft.status || "").toLowerCase() === "sent").length;
         const renderEmailDrafts = () => {
           const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
           const selectedStatus = statusFilter ? statusFilter.value : "all";
