@@ -2091,6 +2091,25 @@ if (
     }
 
 
+    if (
+      url.pathname === "/api/admin/blacklist/remove" &&
+      request.method === "POST"
+    ) {
+      try {
+        const data = await request.json();
+        const id = Number(data.id);
+        if (!Number.isInteger(id) || id <= 0) {
+          return Response.json({ ok:false, message:"A valid blacklist record is required." }, { status:400 });
+        }
+        await env.DB.prepare("DELETE FROM blacklist WHERE id = ?").bind(id).run();
+        return Response.json({ ok:true });
+      } catch (error) {
+        console.error("Remove blacklist error:", error);
+        return Response.json({ ok:false, message:"Unable to remove this client from the blacklist." }, { status:500 });
+      }
+    }
+
+
     // =========================================================
     // ADMIN EMAIL DRAFTS
     // =========================================================
