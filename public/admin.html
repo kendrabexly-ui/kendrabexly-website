@@ -3129,18 +3129,46 @@ loadRequests();
     }, 900);
 
     const calendarAvailabilityKey = "kendra_calendar_open_availability";
+    let calendarApprovedDates = [];
+
     function readCalendarAvailability() {
       try { return JSON.parse(localStorage.getItem(calendarAvailabilityKey) || "[]"); } catch { return []; }
+    }
+    function minutesFromTime(value) {
+      const match=String(value||"").match(/(\d{1,2}):(\d{2})/);
+      return match ? Number(match[1])*60+Number(match[2]) : null;
+    }
+    function bookingDurationMinutes(item) {
+      const raw=Number(item.duration_minutes || item.booking_duration_minutes || item.duration || 0);
+      if(raw>0) return raw > 12 ? raw : raw*60;
+      const service=String(item.service_name || item.service || item.booking_type || "").toLowerCase();
+      const match=service.match(/(\d+(?:\.\d+)?)\s*(?:hour|hr)/);
+      return match ? Number(match[1])*60 : 60;
+    }
+    function availabilityIsBlocked(slot, approved) {
+      const slotStart=minutesFromTime(slot.time);
+      if(slotStart===null) return false;
+      return approved.some(item=>{
+        if(String(item.requested_date||"")!==String(slot.date||"")) return false;
+        const bookedStart=minutesFromTime(item.requested_time);
+        if(bookedStart===null) return false;
+        const bookedEnd=bookedStart+bookingDurationMinutes(item);
+        return slotStart>=bookedStart && slotStart<bookedEnd;
+      });
     }
     function renderCalendarAvailability() {
       const box=document.getElementById("calendar-availability-list");
       const count=document.getElementById("calendar-availability-count");
       if(!box) return;
-      const rows=readCalendarAvailability().filter(item=>item && item.date).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+      const all=readCalendarAvailability().filter(item=>item && item.date).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+      const rows=all.filter(item=>!availabilityIsBlocked(item,calendarApprovedDates));
       if(count) count.textContent=String(rows.length);
-      box.innerHTML=rows.length ? rows.map((item,index)=>'<div style="padding:9px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;"><span style="font-size:13px;">'+escapeHtml(item.date)+(item.time?' · '+escapeHtml(item.time):'')+'</span><button type="button" data-remove-availability="'+index+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button></div>').join("") : '<div style="font-size:13px;color:var(--muted);">No open availability added yet.</div>';
+      box.innerHTML=rows.length ? rows.map(item=>{
+        const originalIndex=all.findIndex(candidate=>candidate.date===item.date && candidate.time===item.time);
+        return '<div style="padding:9px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;"><span style="font-size:13px;">'+escapeHtml(item.date)+(item.time?' · '+escapeHtml(item.time):'')+'</span><button type="button" data-remove-availability="'+originalIndex+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button></div>';
+      }).join("") : '<div style="font-size:13px;color:var(--muted);">No open availability for the current schedule.</div>';
       box.querySelectorAll("[data-remove-availability]").forEach(button=>button.addEventListener("click",()=>{
-        const current=readCalendarAvailability();
+        const current=readCalendarAvailability().filter(item=>item && item.date).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
         current.splice(Number(button.dataset.removeAvailability),1);
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
         renderCalendarAvailability();
@@ -3178,6 +3206,8 @@ loadRequests();
             return Number.isFinite(d.getTime()) && d >= today;
           })
           .sort((a,b) => String(a.requested_date||"").localeCompare(String(b.requested_date||"")) || String(a.requested_time||"").localeCompare(String(b.requested_time||"")));
+        calendarApprovedDates = rows;
+        renderCalendarAvailability();
         if (count) count.textContent = String(rows.length);
         box.innerHTML = rows.length ? rows.slice(0,6).map(item => {
           const name = [item.first_name,item.last_name].filter(Boolean).join(" ") || "Client";
