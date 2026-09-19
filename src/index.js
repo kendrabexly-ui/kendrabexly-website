@@ -1070,7 +1070,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nBook a ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience} ${monthlyOffer.duration} at ${money(monthlyOffer.regular)} this month.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. When you're ready to make plans with me, use the button below and I’ll know exactly which special caught your eye. 💋`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — 1.5 hours at $500.\n\nThe Greek Princess — 1 hour at $650.\n\nChoose the experience that catches your eye when you're ready to make plans with me.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`
       ).trim();
 
     const result = await env.DB.prepare(`
