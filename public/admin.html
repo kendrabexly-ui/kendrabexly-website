@@ -620,10 +620,10 @@
                 <option value="watch">Watch</option>
                 <option value="high">High attention</option>
                 <option value="repeat">Repeat blocked attempts</option>
-              </select>
+              </select><select id="client-value-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All activity</option><option value="repeat">Repeat clients</option><option value="recent">Seen recently</option><option value="inactive">Due for reconnect</option><option value="upcoming">Upcoming date</option></select>
             </div>
           </div>
-          <div id="client-records">
+          <div id="client-records"
             <div class="empty">Loading client profiles...</div>
           </div>
         </div>
@@ -1107,6 +1107,7 @@ async function loadRequests() {
       if (!clientRecords) return;
       const query = clientSearch ? clientSearch.value.trim().toLowerCase() : "";
       const safetyFilter = document.getElementById("client-safety-filter")?.value || "all";
+      const valueFilter = document.getElementById("client-value-filter")?.value || "all";
       const filtered = clientProfiles.filter((client) => {
         const haystack = [client.first_name, client.last_name, client.email, client.phone].filter(Boolean).join(" ").toLowerCase();
         if (query && !haystack.includes(query)) return false;
@@ -1127,6 +1128,14 @@ async function loadRequests() {
         if (safetyFilter==="high") return Boolean(blacklistRecord && high);
         if (safetyFilter==="watch") return Boolean(blacklistRecord && watch && !high);
         if (safetyFilter==="repeat") return Boolean(blacklistRecord && blocked.length>1);
+        const completedDates=client.requests.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();}).sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")));
+        const upcoming=client.requests.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now());
+        const lastSeen=completedDates[0]?.requested_date?new Date(completedDates[0].requested_date+"T00:00:00").getTime():0;
+        const daysSince=lastSeen?Math.floor((Date.now()-lastSeen)/86400000):null;
+        if(valueFilter==="repeat")return completedDates.length>=2;
+        if(valueFilter==="recent")return daysSince!==null&&daysSince<=60;
+        if(valueFilter==="inactive")return daysSince!==null&&daysSince>=90&&!upcoming;
+        if(valueFilter==="upcoming")return upcoming;
         return true;
       });
       clientRecords.innerHTML = filtered.length ? filtered.map((client) => {
@@ -1143,6 +1152,9 @@ async function loadRequests() {
         const followThroughRate = client.requests.length ? Math.round((completed / client.requests.length) * 100) : 0;
         const deposits = client.requests.reduce((sum, r) => sum + (Number(r.deposit_paid) ? Number(r.deposit_amount || 0) : 0), 0);
         const latest = sorted[0];
+        const completedDates=sorted.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();});
+        const lastCompleted=completedDates[0]||null;
+        const upcomingDate=[...client.requests].filter(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now()).sort((a,b)=>String(a.requested_date).localeCompare(String(b.requested_date)))[0]||null;
         const name = (client.first_name + " " + client.last_name).trim() || "Client";
         const blacklistRecord = findBlacklistRecord(client);
         const blockedAttempts = client.requests.filter(r => r.status === "blacklisted_submission");
@@ -1192,7 +1204,7 @@ async function loadRequests() {
               <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:8px;background:white;border:1px solid #eee7dc;font-size:13px;">
                 <span><strong>${completed}</strong> completed date${completed === 1 ? "" : "s"}</span>
                 <span><strong>${client.requests.length}</strong> booking request${client.requests.length === 1 ? "" : "s"}</span>
-                <span><strong>${followThroughRate}%</strong> follow-through</span>
+                <span><strong>${followThroughRate}%</strong> follow-through</span><span><strong>${escapeHtml(lastCompleted?.requested_date || "—")}</strong> last completed</span><span><strong>${escapeHtml(upcomingDate?.requested_date || "—")}</strong> upcoming date</span><span><strong>${deposits.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> recorded deposits</span>
               </div>
               <div style="margin-top:10px;font-size:13px;">Manage this client without affecting their booking history.</div>
               ${blacklistRecord ? `<div style="margin-top:12px;padding:12px;border-radius:8px;background:#f3dfdf;">
@@ -1320,6 +1332,8 @@ async function loadRequests() {
     if (clientSearch) clientSearch.addEventListener("input", renderClients);
     const clientSafetyFilter = document.getElementById("client-safety-filter");
     if (clientSafetyFilter) clientSafetyFilter.addEventListener("change", renderClients);
+    const clientValueFilter = document.getElementById("client-value-filter");
+    if (clientValueFilter) clientValueFilter.addEventListener("change", renderClients);
 
     if (requests.length === 0) {
       recentContainer.innerHTML = `
