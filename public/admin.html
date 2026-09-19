@@ -1238,10 +1238,8 @@ loadRequests();
                   r = await fetch("/api/admin/x/publish", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
                 }
                 if (action === "schedule") {
-                  const local=prompt("Schedule date and time (example: 2026-09-20 10:30 AM):");
-                  if(!local){button.disabled=false;return;}
-                  const when=new Date(local);
-                  if(Number.isNaN(when.getTime())) throw new Error("That date/time could not be read.");
+                  const when=await pickXScheduleTime("Schedule Post");
+                  if(!when){button.disabled=false;return;}
                   r=await fetch("/api/admin/x/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,scheduled_for:when.toISOString()})});
                 }
                 const d = await r.json();
@@ -1261,13 +1259,32 @@ loadRequests();
       }
     }
 
+    function pickXScheduleTime(title, initialDate){
+      return new Promise(resolve=>{
+        const overlay=document.createElement("div");
+        overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;";
+        const d=initialDate?new Date(initialDate):new Date(Date.now()+5*60*1000);
+        const pad=n=>String(n).padStart(2,"0");
+        const localValue=d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+        const zone=Intl.DateTimeFormat().resolvedOptions().timeZone||"Local time";
+        overlay.innerHTML='<div style="width:min(560px,100%);background:var(--paper,#fff);border-radius:18px;padding:28px;box-shadow:0 18px 60px rgba(0,0,0,.22);"><div style="display:flex;justify-content:space-between;gap:16px;align-items:center;"><h2 style="margin:0;">'+escapeHtml(title||"Schedule Post")+'</h2><button data-close type="button" style="border:0;background:transparent;font-size:28px;cursor:pointer;">×</button></div><p style="color:var(--muted);">Choose the date and time you want this post to publish.</p><label style="display:block;font-weight:600;margin-bottom:8px;">Date & time</label><input data-datetime type="datetime-local" value="'+localValue+'" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;"><div style="font-size:13px;color:var(--muted);margin-top:8px;">Timezone: '+escapeHtml(zone)+'</div><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px;"><button data-cancel type="button" style="border:1px solid var(--line);border-radius:9px;padding:10px 16px;background:white;cursor:pointer;">Cancel</button><button data-submit type="button" style="border:1px solid var(--ink);border-radius:9px;padding:10px 16px;background:var(--ink);color:white;cursor:pointer;">Schedule Post</button></div></div>';
+        document.body.appendChild(overlay);
+        const done=v=>{overlay.remove();resolve(v);};
+        overlay.querySelector("[data-close]").onclick=()=>done(null);
+        overlay.querySelector("[data-cancel]").onclick=()=>done(null);
+        overlay.addEventListener("click",e=>{if(e.target===overlay)done(null);});
+        overlay.querySelector("[data-submit]").onclick=()=>{const v=overlay.querySelector("[data-datetime]").value;if(!v)return;const when=new Date(v);if(Number.isNaN(when.getTime()))return alert("Choose a valid date and time.");done(when);};
+        overlay.querySelector("[data-datetime]").focus();
+      });
+    }
+
     async function loadXScheduled(){
       const box=document.getElementById("x-scheduled");if(!box)return;
       try{const r=await fetch("/api/admin/x/scheduled"),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load scheduled posts.");
         box.innerHTML=d.scheduled.length?d.scheduled.map(x=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+escapeHtml(new Date(x.scheduled_for).toLocaleString())+'</div><div style="white-space:pre-wrap;margin-bottom:10px;">'+escapeHtml(x.content)+'</div><button data-reschedule="'+x.id+'">Reschedule</button> <button data-cancel-schedule="'+x.id+'">Cancel</button></div>').join(""):'<div class="empty">No scheduled posts.</div>';
         box.querySelectorAll("button").forEach(b=>{b.style.cssText="border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;cursor:pointer;";b.onclick=async()=>{
           if(b.dataset.cancelSchedule){if(!confirm("Cancel this scheduled post?"))return;await fetch("/api/admin/x/schedule/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.cancelSchedule)})});}
-          else{const value=prompt("New date and time:");if(!value)return;const when=new Date(value);if(Number.isNaN(when.getTime()))return alert("That date/time could not be read.");const rr=await fetch("/api/admin/x/schedule/reschedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.reschedule),scheduled_for:when.toISOString()})}),dd=await rr.json();if(!rr.ok||!dd.ok)return alert(dd.message||"Unable to reschedule.");}
+          else{const when=await pickXScheduleTime("Reschedule Post");if(!when)return;const rr=await fetch("/api/admin/x/schedule/reschedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.reschedule),scheduled_for:when.toISOString()})}),dd=await rr.json();if(!rr.ok||!dd.ok)return alert(dd.message||"Unable to reschedule.");}
           await loadXScheduled();
         };});
       }catch(e){box.innerHTML='<div class="empty">'+escapeHtml(e.message)+'</div>';}
