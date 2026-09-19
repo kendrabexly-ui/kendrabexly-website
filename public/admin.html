@@ -705,6 +705,20 @@
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
             <div>
+              <div class="panel-title">Conversation Series</div>
+              <div class="panel-subtitle">Generate five connected post ideas around one topic. Save only the drafts you want to keep.</div>
+            </div>
+          </div>
+          <div style="padding:24px;">
+            <textarea id="x-series-topic" maxlength="1000" placeholder="Topic for the series..." style="width:100%;min-height:80px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
+            <button id="x-generate-series" type="button" style="margin-top:10px;border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Generate Series</button>
+            <div id="x-series-results" style="margin-top:14px;"></div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
               <div class="panel-title">X Home Feed</div>
               <div class="panel-subtitle">Browse recent tweets from people you follow and choose one to respond to.</div>
             </div>
@@ -1253,6 +1267,23 @@ loadRequests();
       renderXSavedTopics();
     });
     renderXSavedTopics();
+
+    const xGenerateSeries=document.getElementById("x-generate-series"),xSeriesTopic=document.getElementById("x-series-topic"),xSeriesResults=document.getElementById("x-series-results");
+    if(xGenerateSeries)xGenerateSeries.addEventListener("click",async()=>{
+      const topic=xSeriesTopic.value.trim();if(!topic)return alert("Add a series topic first.");
+      xGenerateSeries.disabled=true;xGenerateSeries.textContent="Generating...";
+      try{
+        const r=await fetch("/api/admin/x/series/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic})}),d=await r.json();
+        if(!r.ok||!d.ok)throw new Error(d.message||"Unable to generate series.");
+        xSeriesResults.innerHTML=d.posts.map((p,i)=>'<div style="padding:14px 0;border-top:1px solid var(--line);"><div style="font-size:12px;color:var(--muted);margin-bottom:6px;">SERIES POST '+(i+1)+'</div><textarea data-series-post="'+i+'" style="width:100%;min-height:105px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;">'+escapeHtml(p)+'</textarea><button type="button" data-save-series="'+i+'" style="margin-top:8px;border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Save as Draft</button></div>').join("");
+        xSeriesResults.querySelectorAll("[data-save-series]").forEach(btn=>btn.addEventListener("click",async()=>{
+          const i=btn.dataset.saveSeries,content=xSeriesResults.querySelector('[data-series-post="'+i+'"]').value.trim();if(!content)return alert("This post is empty.");
+          btn.disabled=true;
+          try{const rr=await fetch("/api/admin/x/drafts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content})}),dd=await rr.json();if(!rr.ok||!dd.ok)throw new Error(dd.message||"Unable to save draft.");btn.textContent="Saved ✓";if(typeof loadXDrafts==="function")await loadXDrafts();}catch(e){btn.disabled=false;alert(e.message);}
+        }));
+      }catch(e){xSeriesResults.innerHTML='<div class="empty">'+escapeHtml(e.message)+'</div>';}
+      finally{xGenerateSeries.disabled=false;xGenerateSeries.textContent="Generate Series";}
+    });
 
     const xLoadHomeFeed=document.getElementById("x-load-home-feed"), xHomeFeed=document.getElementById("x-home-feed");
     if(xLoadHomeFeed)xLoadHomeFeed.addEventListener("click",async()=>{
