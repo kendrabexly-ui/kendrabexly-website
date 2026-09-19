@@ -663,6 +663,10 @@
             <option value="other">Other safety concern</option>
           </select>
           <button id="blacklist-clear-filters" type="button" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear Filters</button>
+          <select id="blacklist-sort" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
         </div>
         <div class="panel">
           <div id="blacklist-records">
@@ -998,6 +1002,7 @@
     const searchInput = document.getElementById("blacklist-search");
     const safetyFilter = document.getElementById("blacklist-safety-filter");
     const clearFilters = document.getElementById("blacklist-clear-filters");
+    const sortSelect = document.getElementById("blacklist-sort");
     const parseSafetyReason = (reason) => {
       const text = String(reason || "");
       const concernsMatch = text.match(/Safety concerns:\s*([^\n]+)/i);
@@ -1016,6 +1021,7 @@
         const matchesFilter = filter === "all" || reason.includes(filter);
         return matchesSearch && matchesFilter;
       });
+      if (sortSelect && sortSelect.value === "oldest") filtered.reverse();
       const filteredCountEl = document.getElementById("blacklist-filtered-count");
       if (filteredCountEl) filteredCountEl.textContent = filtered.length;
       container.innerHTML = filtered.length ? filtered.map((item) => {
@@ -1060,6 +1066,7 @@
     renderBlacklist();
     if (searchInput) searchInput.oninput = renderBlacklist;
     if (safetyFilter) safetyFilter.onchange = renderBlacklist;
+    if (sortSelect) sortSelect.onchange = renderBlacklist;
     if (clearFilters) clearFilters.onclick = () => {
       if (searchInput) searchInput.value = "";
       if (safetyFilter) safetyFilter.value = "all";
