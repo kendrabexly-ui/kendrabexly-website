@@ -668,6 +668,7 @@
             <option value="oldest">Oldest first</option>
           </select>
         </div>
+        <div id="blacklist-active-filters" style="display:none;margin:-4px 0 14px;font-size:12px;color:var(--muted);"></div>
         <div class="panel">
           <div id="blacklist-records">
             <div class="empty">Loading blacklist...</div>
@@ -1015,6 +1016,15 @@
       const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
       const filter = safetyFilter ? safetyFilter.value : "all";
       const filtersActive = Boolean(query) || filter !== "all" || Boolean(sortSelect && sortSelect.value !== "newest");
+      const activeFilterSummary = document.getElementById("blacklist-active-filters");
+      if (activeFilterSummary) {
+        const parts = [];
+        if (query) parts.push("Search: " + (searchInput ? searchInput.value.trim() : ""));
+        if (filter !== "all") parts.push("Safety: " + (safetyFilter?.options[safetyFilter.selectedIndex]?.text || filter));
+        if (sortSelect && sortSelect.value !== "newest") parts.push("Sort: Oldest first");
+        activeFilterSummary.textContent = parts.length ? "Active: " + parts.join(" · ") : "";
+        activeFilterSummary.style.display = parts.length ? "block" : "none";
+      }
       if (clearFilters) {
         clearFilters.disabled = !filtersActive;
         clearFilters.style.opacity = filtersActive ? "1" : "0.5";
