@@ -396,6 +396,24 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/admin/x/voice/analyze" && request.method === "POST") {
+      if (!env.AI) return Response.json({ ok:false, message:"Workers AI is not connected." }, { status:500 });
+      try {
+        const data=await request.json().catch(()=>({})),samples=Array.isArray(data.samples)?data.samples.map(x=>String(x||"").trim()).filter(Boolean).slice(0,20):[];
+        if(samples.length<2) return Response.json({ok:false,message:"At least two recent posts are needed to learn your voice."},{status:400});
+        const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+          {role:"system",content:"Analyze the supplied social posts only for writing style. Do not write a new post. Return a concise reusable voice profile under 900 characters covering tone, sentence rhythm, openings, conversational habits, humor, emoji use, questions, calls to action, and patterns to preserve. Do not infer private facts, demographics, beliefs, or personality traits beyond observable writing style. Return only the profile text."},
+          {role:"user",content:samples.join("\n---\n")}
+        ],max_tokens:350,temperature:0.2});
+        const profile=String(ai?.response||ai?.result?.response||"").trim().slice(0,900);
+        if(!profile) throw new Error("Workers AI returned an empty voice profile.");
+        return Response.json({ok:true,profile});
+      } catch(error) {
+        const detail=String(error?.message||error||"Unknown Workers AI error").slice(0,500);
+        return Response.json({ok:false,message:"Voice analysis error: "+detail},{status:502});
+      }
+    }
+
     if (url.pathname === "/api/admin/x/generate" && request.method === "POST") {
       if (!env.AI) return Response.json({ ok: false, message: "Workers AI is not connected." }, { status: 500 });
       const data = await request.json();
