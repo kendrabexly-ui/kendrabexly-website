@@ -1141,14 +1141,14 @@ My journal will continue to be a place where I share a little more of that side 
     const data = await request.json().catch(() => ({}));
     const offer = String(data.special_offer || existing.special_offer || "").trim();
     const experienceMatch = offer.match(/featured experience:\s*([^\n.]+)/i);
-    const rateMatch = offer.match(/Spend\s+([^\n]+?)\s+with me for\s+(\$[\d,]+)\s+this month\s+[—-]\s+normally\s+(\$[\d,]+)/i);
-    if (!experienceMatch || !rateMatch) {
-      return Response.json({ok:false,message:"I couldn't safely identify the current experience and pricing. Keep the generated offer details intact before regenerating its wording."},{status:400});
+    const bonusMatch = offer.match(/Book my\s+([^\n]+?)\s+(Classic Rendezvous|The Greek Princess)\s+at the regular\s+(\$[\d,]+)\s+rate this month and enjoy\s+([^\n.]+?)(?:\s+with me)?\./i);
+    if (!experienceMatch || !bonusMatch) {
+      return Response.json({ok:false,message:"I couldn't safely identify the current experience, regular rate, and bonus-time incentive. Keep the generated offer details intact before changing its wording."},{status:400});
     }
     const experience = experienceMatch[1].trim();
-    const duration = rateMatch[1].trim();
-    const special = rateMatch[2];
-    const regular = rateMatch[3];
+    const duration = bonusMatch[1].trim();
+    const regular = bonusMatch[3];
+    const incentive = bonusMatch[4].trim();
     const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
     const seed = (Date.now() + id) % 5;
     const intros = [
@@ -1165,7 +1165,7 @@ My journal will continue to be a place where I share a little more of that side 
       "A little anticipation makes the plans even better.",
       "You bring yourself; I'll take care of making the time feel special."
     ];
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nSpend ${duration} with me for ${special} this month — normally ${regular}.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook my ${duration} ${experience} at the regular ${regular} rate this month and enjoy ${incentive} with me.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
