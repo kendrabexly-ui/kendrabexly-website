@@ -871,7 +871,7 @@ export default {
           <p style="line-height:1.65;">${para(draft.content)}</p>
           ${draft.blog_title ? `<h2 style="font-weight:500;">${esc(draft.blog_title)}</h2>` : ""}
           ${draft.blog_content ? `<p style="line-height:1.65;">${para(draft.blog_content)}</p>` : ""}
-          ${draft.special_offer ? `<div style="margin-top:28px;padding:20px;background:#eee7dc;"><strong>This Month's Special</strong><p style="line-height:1.65;">${para(draft.special_offer)}</p></div>` : ""}
+          ${draft.special_offer ? `<div style="margin-top:28px;padding:20px;background:#eee7dc;"><strong>This Month's Special</strong><p style="line-height:1.65;">${para(draft.special_offer)}</p><a href="https://kendrabexly.com/request?newsletter_offer=${encodeURIComponent(String(draft.id))}" style="display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff;text-decoration:none;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;">Book My Subscriber Special</a><p style="margin:12px 0 0;font:12px Arial,sans-serif;color:#77736f;">Book through this button so your subscriber special is attached to your request.</p></div>` : ""}
         </div>
       </div>
     </body></html>`;
@@ -1278,6 +1278,17 @@ My journal will continue to be a place where I share a little more of that side 
         const depositAcknowledgement =
           data.deposit_acknowledgement === "yes";
 
+        const newsletterOfferId =
+          String(data.newsletter_offer || "").trim();
+
+        let newsletterOffer = null;
+        if (/^\d+$/.test(newsletterOfferId)) {
+          await ensureNewsletterTable();
+          newsletterOffer = await env.DB.prepare(
+            "SELECT id, special_offer, status, created_at FROM newsletter_drafts WHERE id = ? LIMIT 1"
+          ).bind(Number(newsletterOfferId)).first();
+        }
+
 
         // Required fields
 
@@ -1467,6 +1478,12 @@ My journal will continue to be a place where I share a little more of that side 
           requestDetails
             ? `Request details: ${requestDetails}`
             : null,
+
+          newsletterOffer
+            ? `Newsletter special: Newsletter #${newsletterOffer.id}\nOffer: ${newsletterOffer.special_offer || "Subscriber special"}`
+            : newsletterOfferId
+              ? `Newsletter special code received but not recognized: ${newsletterOfferId}`
+              : null,
 
           screeningAcknowledgement
             ? "Screening requirement acknowledged: Yes"
