@@ -3023,6 +3023,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             if(generated)body=generated;
           }catch(e){console.error("Automatic after date draft generation error:",e);}
         }
+        body=String(body||"").trim().replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
         const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
         if(!existing)await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(item.client_id,requestId,"after_date_follow_up","A little note after our date",body).run();
         return Response.json({ok:true,status:"completed",follow_up_drafted:true,message:"Date marked successfully completed. Your after date follow up draft is ready for review."});
