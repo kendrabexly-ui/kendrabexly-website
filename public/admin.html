@@ -661,6 +661,7 @@
             <option value="harassment">Harassment / privacy</option>
             <option value="other">Other safety concern</option>
           </select>
+          <button id="blacklist-clear-filters" type="button" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear Filters</button>
         </div>
         <div class="panel">
           <div id="blacklist-records">
@@ -991,6 +992,7 @@
     if (safetyCountEl) safetyCountEl.textContent = records.filter(item => /Safety concerns:|Notes:/i.test(String(item.reason || ""))).length;
     const searchInput = document.getElementById("blacklist-search");
     const safetyFilter = document.getElementById("blacklist-safety-filter");
+    const clearFilters = document.getElementById("blacklist-clear-filters");
     const parseSafetyReason = (reason) => {
       const text = String(reason || "");
       const concernsMatch = text.match(/Safety concerns:\s*([^\n]+)/i);
@@ -1044,6 +1046,12 @@
     renderBlacklist();
     if (searchInput) searchInput.oninput = renderBlacklist;
     if (safetyFilter) safetyFilter.onchange = renderBlacklist;
+    if (clearFilters) clearFilters.onclick = () => {
+      if (searchInput) searchInput.value = "";
+      if (safetyFilter) safetyFilter.value = "all";
+      renderBlacklist();
+      if (searchInput) searchInput.focus();
+    };
   } catch (error) {
     container.innerHTML = '<div class="empty">Unable to load blacklist.</div>';
   }
