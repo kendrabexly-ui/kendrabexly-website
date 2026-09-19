@@ -1245,6 +1245,7 @@ async function loadRequests() {
                 <textarea class="client-followup-instructions" rows="2" placeholder="Optional instructions, for example: make it sweeter, keep it simple, thank him for the flowers..." style="width:100%;margin-top:8px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                   <button type="button" class="generate-client-followup" data-followup-type="after-date" data-client-id="${client.client_id}" ${lastCompleted ? "" : "disabled"} style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;">Generate After Date Follow Up</button>
+                  <button type="button" class="save-client-followup" data-client-id="${client.client_id}" data-request-id="${lastCompleted?.id || ""}" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Save Draft</button>
                   <button type="button" class="preview-client-followup" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Preview</button>
                   <button type="button" class="copy-client-followup" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Copy</button>
                   <button type="button" class="send-client-followup" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Send</button>
@@ -1321,6 +1322,19 @@ async function loadRequests() {
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
         });
       });
+      clientRecords.querySelectorAll(".save-client-followup").forEach((button)=>button.addEventListener("click",async()=>{
+        const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),status=controls?.querySelector(".client-followup-status");
+        if(!draft?.value.trim()){if(status)status.textContent="Generate or write a follow up first.";return;}
+        if(!button.dataset.requestId){if(status)status.textContent="A successfully completed date is required.";return;}
+        button.disabled=true;if(status)status.textContent="Saving draft...";
+        try{
+          const response=await fetch("/api/admin/clients/follow-up/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId),date_request_id:Number(button.dataset.requestId),subject:"A little note from me",body:draft.value.trim()})});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save draft.");
+          if(status)status.textContent="Saved to Email Drafts.";
+        }catch(error){if(status)status.textContent=error.message||"Unable to save draft.";}
+        finally{button.disabled=false;}
+      }));
       clientRecords.querySelectorAll(".send-client-followup").forEach((button)=>button.addEventListener("click",async()=>{
         const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),status=controls?.querySelector(".client-followup-status");
         if(!draft?.value.trim()){if(status)status.textContent="Generate or write a follow up first.";return;}
