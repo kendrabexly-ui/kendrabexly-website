@@ -2381,21 +2381,19 @@ if (
         const subject=String(data.subject||"A little note from me").trim().slice(0,180);
         let body=String(data.body||"").trim();
         if(!Number.isInteger(clientId)||clientId<1)return Response.json({ok:false,message:"Choose a client first."},{status:400});
+        if(!Number.isInteger(requestId)||requestId<1)return Response.json({ok:false,message:"A successfully completed date is required before sending an after date follow up."},{status:400});
         if(!body)return Response.json({ok:false,message:"Write or generate a follow up first."},{status:400});
+        const completed=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? AND status='completed' LIMIT 1").bind(requestId,clientId).first();
+        if(!completed)return Response.json({ok:false,message:"This follow up is not linked to a successfully completed date."},{status:400});
         const client=await env.DB.prepare("SELECT id,first_name,email FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
         if(!client?.email)return Response.json({ok:false,message:"This client does not have an email address."},{status:400});
         body=body.replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
         const resendResponse=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.EMAIL_FROM||"Kendra Bexly <hello@kendrabexly.com>",to:[client.email],subject,text:body})});
         const resendData=await resendResponse.json().catch(()=>({}));
         if(!resendResponse.ok)throw new Error(resendData?.message||"Email provider rejected the message.");
-        if(Number.isInteger(requestId)&&requestId>0){
-          const completed=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? AND status='completed' LIMIT 1").bind(requestId,clientId).first();
-          if(completed){
-            const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
-            if(existing) await env.DB.prepare("UPDATE email_drafts SET subject=?,body=?,status='sent',sent_at=CURRENT_TIMESTAMP WHERE id=?").bind(subject,body,existing.id).run();
-            else await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status,sent_at) VALUES (?,?,?,?,?,'sent',CURRENT_TIMESTAMP)").bind(clientId,requestId,"after_date_follow_up",subject,body).run();
-          }
-        }
+        const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
+        if(existing) await env.DB.prepare("UPDATE email_drafts SET subject=?,body=?,status='sent',sent_at=CURRENT_TIMESTAMP WHERE id=?").bind(subject,body,existing.id).run();
+        else await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status,sent_at) VALUES (?,?,?,?,?,'sent',CURRENT_TIMESTAMP)").bind(clientId,requestId,"after_date_follow_up",subject,body).run();
         return Response.json({ok:true,message:"Follow up sent.",email_id:resendData?.id||null});
       }catch(error){
         console.error("Follow up send error:",error);
