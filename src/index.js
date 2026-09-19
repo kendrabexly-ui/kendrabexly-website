@@ -2314,6 +2314,33 @@ if (
       }
     }
 
+    if (url.pathname === "/api/admin/clients/follow-up" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const clientId=Number(data.client_id);
+        const followType=String(data.type||"reconnect");
+        if(!Number.isFinite(clientId)||clientId<=0)return Response.json({ok:false,message:"Choose a client first."},{status:400});
+        const client=await env.DB.prepare("SELECT id,first_name,last_name,email,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
+        if(!client)return Response.json({ok:false,message:"Client not found."},{status:404});
+        try{await env.DB.prepare("ALTER TABLE clients ADD COLUMN preferences TEXT").run();}catch(e){}
+        const profile=await env.DB.prepare("SELECT preferences FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
+        const history=await env.DB.prepare("SELECT requested_date,status,location_name FROM date_requests WHERE client_id=? ORDER BY requested_date DESC LIMIT 5").bind(clientId).all();
+        const prompt=followType==="after-date"
+          ?"Draft a short personal follow up after spending time together. Make it warm, appreciative, lightly flirty, and natural. Do not sound like customer service and do not pressure him to book again."
+          :"Draft a short personal reconnect message for a gentleman I have seen before. Make it warm, familiar, lightly flirty, and natural. Let him know he crossed my mind without sounding automated, needy, or salesy.";
+        const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+          {role:"system",content:"You write private client messages in my first person voice as an adult independent professional companion. My voice is informal, feminine, confident, warm, personal, and lightly sensual. Use everyday language and contractions. Never refer to me by name or in third person. Do not use poetic language, hyphens, em dashes, or en dashes. Do not invent memories, preferences, gifts, or details that are not provided. Keep it discreet and concise."},
+          {role:"user",content:prompt+"\nClient first name: "+String(client.first_name||"").trim()+"\nPrivate preferences: "+String(profile?.preferences||"").trim()+"\nPrivate notes: "+String(client.notes||"").trim()+"\nRecent history: "+JSON.stringify(history.results||[])}
+        ],max_tokens:350,temperature:0.72});
+        let draft=String(ai?.response||ai?.result?.response||"").trim().replace(/^["“]|["”]$/g,"").replace(/[–—]/g,",");
+        if(!draft)throw new Error("Workers AI returned an empty message.");
+        return Response.json({ok:true,draft});
+      } catch(error) {
+        console.error("Client follow up generation error:",error);
+        return Response.json({ok:false,message:"Unable to generate follow up."},{status:502});
+      }
+    }
+
     // =========================================================
     // ADMIN PAYMENT LIST
     // =========================================================
