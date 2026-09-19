@@ -2605,10 +2605,20 @@ loadRequests();
           if (current) setTimeout(() => current.scrollIntoView({behavior:"smooth",block:"center"}), 100);
         }
       } catch (error) {
-        box.className = "empty"; box.textContent = error.message || "Unable to load email drafts.";
+        box.className = "empty";
+        box.innerHTML = '<div style="padding:22px;text-align:center;"><div style="margin-bottom:10px;">'+escapeHtml(error.message || "Unable to load email drafts.")+'</div><button type="button" id="retry-email-drafts" style="padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Try Again</button></div>';
+        document.getElementById("retry-email-drafts")?.addEventListener("click",loadEmailDrafts);
       }
     }
     loadEmailDrafts();
+
+    // Keep Email Drafts resilient: if the initial request fires before the admin
+    // session is fully ready or a transient response fails, retry once instead
+    // of leaving the section blank.
+    window.setTimeout(() => {
+      const box=document.getElementById("email-draft-records");
+      if(box && !box.querySelector("[data-email-draft]") && !String(box.textContent||"").trim()) loadEmailDrafts();
+    }, 900);
 
     const navButtons =
       document.querySelectorAll(".nav button");
@@ -2666,6 +2676,13 @@ loadRequests();
 
         if (section) {
           section.classList.add("active");
+        }
+        if (button.dataset.section === "emails") {
+          const emailBox=document.getElementById("email-draft-records");
+          if(emailBox && !emailBox.dataset.loadingEmails){
+            emailBox.dataset.loadingEmails="1";
+            loadEmailDrafts().finally(()=>{ delete emailBox.dataset.loadingEmails; });
+          }
         }
 
       });
