@@ -628,7 +628,9 @@
             </div>
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Calendar View</strong>
-              <div style="margin-top:6px;font-size:13px;color:var(--muted);">A visual calendar will be added after the core date views are stable.</div>
+              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Confirmed appointments and remaining open availability in one weekly schedule.</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;"><button id="calendar-prev-week" type="button">←</button><strong id="calendar-week-label" style="font-size:13px;"></strong><button id="calendar-next-week" type="button">→</button><button id="calendar-this-week" type="button">This Week</button></div>
+              <div id="calendar-week-view" style="display:grid;grid-template-columns:repeat(7,minmax(115px,1fr));gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:4px;"></div>
             </div>
           </div>
         </div>
@@ -3187,6 +3189,23 @@ loadRequests();
     });
     renderCalendarAvailability();
 
+    let calendarWeekOffset=0;
+    function calendarDateKey(date){return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");}
+    function renderCalendarWeek(){
+      const box=document.getElementById("calendar-week-view"), label=document.getElementById("calendar-week-label"); if(!box)return;
+      const monday=new Date(); monday.setHours(0,0,0,0); monday.setDate(monday.getDate()-((monday.getDay()+6)%7)+(calendarWeekOffset*7));
+      const end=new Date(monday); end.setDate(end.getDate()+6);
+      if(label) label.textContent=monday.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" – "+end.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+      const open=readCalendarAvailability().filter(x=>!availabilityIsBlocked(x,calendarApprovedDates));
+      box.innerHTML=Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(d.getDate()+i);const key=calendarDateKey(d);
+        const entries=[...calendarApprovedDates.filter(x=>String(x.requested_date||"")===key).map(x=>({time:x.requested_time||"",label:"Confirmed"})),...open.filter(x=>String(x.date||"")===key).map(x=>({time:x.time||"",label:"Open"}))].sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+        return '<div style="min-width:115px;border:1px solid var(--line);border-radius:10px;padding:9px;background:white;"><strong style="font-size:12px;">'+d.toLocaleDateString(undefined,{weekday:"short"})+'</strong><div style="font-size:11px;color:var(--muted);margin:2px 0 8px;">'+d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+'</div>'+(entries.length?entries.map(e=>'<div style="padding:6px;margin-top:5px;border:1px solid var(--line);border-radius:7px;font-size:11px;"><strong>'+escapeHtml(e.time||"Time TBD")+'</strong><br>'+e.label+'</div>').join(""):'<div style="font-size:11px;color:var(--muted);">No availability</div>')+'</div>';
+      }).join("");
+    }
+    document.getElementById("calendar-prev-week")?.addEventListener("click",()=>{calendarWeekOffset--;renderCalendarWeek();});
+    document.getElementById("calendar-next-week")?.addEventListener("click",()=>{calendarWeekOffset++;renderCalendarWeek();});
+    document.getElementById("calendar-this-week")?.addEventListener("click",()=>{calendarWeekOffset=0;renderCalendarWeek();});
+
     async function loadCalendarCompletedDates() {
       const box=document.getElementById("calendar-completed-dates");
       const count=document.getElementById("calendar-completed-count");
@@ -3249,6 +3268,7 @@ loadRequests();
           .sort((a,b) => String(a.requested_date||"").localeCompare(String(b.requested_date||"")) || String(a.requested_time||"").localeCompare(String(b.requested_time||"")));
         calendarApprovedDates = rows;
         renderCalendarAvailability();
+        renderCalendarWeek();
         if (count) count.textContent = String(rows.length);
         box.innerHTML = rows.length ? rows.slice(0,6).map(item => {
           const name = [item.first_name,item.last_name].filter(Boolean).join(" ") || "Client";
