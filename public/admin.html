@@ -1330,10 +1330,10 @@ async function loadRequests() {
         if(detail.style.display!=="none"){detail.style.display="none";button.textContent="View Follow Up";return;}
         button.disabled=true;button.textContent="Loading...";
         try{
-          const response=await fetch("/api/admin/emails?client_id="+encodeURIComponent(button.dataset.clientId));
+          const response=await fetch("/api/admin/email-drafts");
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load follow up.");
-          const item=(result.emails||result.drafts||result.items||[]).find(x=>Number(x.date_request_id)===Number(button.dataset.requestId)&&String(x.email_type||"")==="after_date_follow_up");
+          const item=(result.email_drafts||[]).find(x=>Number(x.client_id)===Number(button.dataset.clientId)&&Number(x.date_request_id)===Number(button.dataset.requestId)&&String(x.email_type||"")==="after_date_follow_up");
           detail.textContent=item?.body||"No saved follow up message was found for this completed date.";
           detail.style.display="block";button.textContent="Hide Follow Up";
         }catch(error){detail.textContent=error.message||"Unable to load follow up.";detail.style.display="block";button.textContent="Hide Follow Up";}
