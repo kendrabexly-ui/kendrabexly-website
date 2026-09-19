@@ -1165,7 +1165,7 @@ My journal will continue to be a place where I share a little more of that side 
       return Response.json({ok:false,message:"The featured experience details are incomplete. Choose a featured experience first, then change the wording."},{status:400});
     }
     const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
-    const seed = (Date.now() + id) % 5;
+    const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));\n    const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
     const intros = [
       "A little something just for my subscribers — I saved this one especially for you. ✨",
       "Your inbox deserves something fun this month, so here's a little subscriber-only invitation. 💋",
@@ -1180,7 +1180,7 @@ My journal will continue to be a place where I share a little more of that side 
       "A little anticipation makes the plans even better.",
       "You bring yourself; I'll take care of making the time feel special."
     ];
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+\n    const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));\n    const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
