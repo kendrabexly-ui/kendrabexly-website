@@ -2753,6 +2753,24 @@ if (
 
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
+      // Cancel requests that miss the six-hour post-deposit screening deadline.
+      const screeningPending = await env.DB.prepare(
+        "SELECT id, notes FROM date_requests WHERE status = 'screening_pending'"
+      ).all();
+      const nowMs = Date.now();
+      for (const requestItem of (screeningPending.results || [])) {
+        const deadlineMatch = String(requestItem.notes || "").match(/Screening deadline: ([^\n]+)/);
+        if (!deadlineMatch) continue;
+        const deadlineMs = new Date(deadlineMatch[1]).getTime();
+        if (Number.isFinite(deadlineMs) && deadlineMs <= nowMs) {
+          const cancellationNote = String(requestItem.notes || "") +
+            "\nAutomatically canceled: screening was not completed within 6 hours after deposit confirmation.";
+          await env.DB.prepare(
+            "UPDATE date_requests SET status = 'canceled', notes = ? WHERE id = ? AND status = 'screening_pending'"
+          ).bind(cancellationNote, requestItem.id).run();
+        }
+      }
+
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_scheduled_posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,draft_id INTEGER NOT NULL UNIQUE,scheduled_for TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'scheduled',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )`).run();
