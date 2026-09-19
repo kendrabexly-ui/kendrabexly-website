@@ -1109,7 +1109,7 @@ My journal will continue to be a place where I share a little more of that side 
     });
   }
 
-  // Change only the featured experience/package; preserve all surrounding newsletter copy.
+  // Refresh the featured monthly specials while preserving the surrounding newsletter copy.
   if (
     /^\/api\/admin\/newsletter\/drafts\/\d+\/change-offer-experience$/.test(url.pathname) &&
     request.method === "POST"
@@ -1121,42 +1121,36 @@ My journal will continue to be a place where I share a little more of that side 
     if (existing.status !== "draft") return Response.json({ok:false,message:"Only draft newsletter offers can be changed."},{status:400});
 
     const current = String(existing.special_offer || "").trim();
-    if (!current) return Response.json({ok:false,message:"Generate the subscriber offer before changing its featured experience."},{status:400});
+    if (!current) return Response.json({ok:false,message:"Generate the monthly offer before refreshing its featured experiences."},{status:400});
 
-    // Newsletter packages use whole standard packages. Thirty-minute increments are not
-    // standalone booking options; any bonus-time promotion is handled separately.
-    const packages = [
-      { experience:"Classic Rendezvous", duration:"1.5 hours", regular:500 },
-      { experience:"The Greek Princess", duration:"1.5 hours", regular:650 }
-    ];
-    const currentExperience = ((current.match(/featured experience:\s*([^\n.]+)/i) || [])[1] || "").trim();
-    const currentIndex = packages.findIndex(x => x.experience.toLowerCase() === currentExperience.toLowerCase());
-    const next = packages[(currentIndex + 1 + packages.length) % packages.length];
-    const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(next.regular);
+    // Both experiences are part of the monthly offer. This action now refreshes the
+    // offer block instead of trying to toggle a single experience that no longer exists.
+    const specialsBlock = `This month's featured experiences:\n\nClassic Rendezvous — 1.5 hours at $500.\n\nThe Greek Princess — 1.5 hours at $650.\n\nChoose the experience that catches your eye when you're ready to make plans with me.`;
 
     let specialOffer = current;
-    if (currentExperience) {
-      specialOffer = specialOffer.split(currentExperience).join(next.experience);
+    const start = specialOffer.search(/This month's featured experience(?:s)?:/i);
+    if (start >= 0) {
+      const tail = specialOffer.slice(start);
+      const endMatch = tail.match(/\n\n(?=(?:Consider it|Come make|I’ll save|I'll save|The only thing|I think we can|A little anticipation|You bring yourself))/i);
+      if (endMatch) {
+        const end = start + endMatch.index;
+        specialOffer = specialOffer.slice(0,start) + specialsBlock + specialOffer.slice(end);
+      } else {
+        specialOffer = specialOffer.slice(0,start) + specialsBlock;
+      }
     } else {
-      specialOffer = specialOffer.replace(
-        /(This month's featured experience:\s*)([^\n.]+)/i,
-        "$1" + next.experience
-      );
-    }
-
-    // Replace only the booking sentence. Intro, closing, eligibility language and the
-    // rest of the newsletter remain untouched.
-    const bookingLine = `Book a ${next.experience} ${next.duration} at ${money} this month.`;
-    const bookingPattern = /Book a [^\n.]+?\s+(?:\d+(?:\.\d+)?\s*(?:hours?|minutes?))\s+at\s+\$[\d,]+\s+this month\./i;
-    if (bookingPattern.test(specialOffer)) {
-      specialOffer = specialOffer.replace(bookingPattern, bookingLine);
-    } else {
-      const featureLine = `This month's featured experience: ${next.experience}.`;
-      specialOffer = specialOffer.replace(featureLine, featureLine + "\n\n" + bookingLine);
+      specialOffer = specialsBlock + "\n\n" + specialOffer;
     }
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(specialOffer,id).run();
-    return Response.json({ok:true,special_offer:specialOffer,featured_experience:next.experience,duration:next.duration,regular:next.regular});
+    return Response.json({
+      ok:true,
+      special_offer:specialOffer,
+      monthly_specials:[
+        {id:"classic-rendezvous",experience:"Classic Rendezvous",duration:"1.5 hours",price:500},
+        {id:"greek-princess",experience:"The Greek Princess",duration:"1.5 hours",price:650}
+      ]
+    });
   }
 
   // Regenerate special-offer wording and upgrade older single-experience drafts to both monthly specials.
