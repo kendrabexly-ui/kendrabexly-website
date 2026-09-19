@@ -694,7 +694,7 @@
             <div id="x-saved-topics" style="display:none;margin:0 0 12px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <div id="x-topic-suggestions" style="display:none;margin:0 0 20px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <label for="x-new-content" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Post draft</label>
-            <textarea id="x-new-content" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
+            <textarea id="x-new-content" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea><div style="margin-top:10px;"><label style="display:inline-block;border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Upload Image<input id="x-new-image" type="file" accept="image/jpeg,image/png,image/webp" style="display:none;"></label><button id="x-remove-new-image" type="button" style="display:none;margin-left:8px;border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Remove Image</button><div id="x-new-image-preview" style="margin-top:8px;"></div></div>
             <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;">
               <span id="x-char-count" style="color:var(--muted);font-size:13px;">0 characters</span>
               <button id="x-create-draft" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
@@ -1240,7 +1240,7 @@ loadRequests();
           <textarea ${disabled ? "disabled" : ""} style="width:100%;min-height:110px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.content)}</textarea>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
             ${disabled ? '<button type="button" data-action="delete-tweet">Delete from X</button><button type="button" data-action="delete">Remove from History</button>' : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="regenerate">Regenerate</button><button type="button" data-action="approve">Approve</button><button type="button" data-action="delete">Delete Draft</button>'}
-            ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button>' : ""}${item.status === "draft" || item.status === "approved" ? '<button type="button" data-action="schedule">Schedule Auto Post</button>' : ""}
+            ${!disabled ? '<label style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;">'+(item.has_media ? "Change Image" : "Upload Image")+'<input type="file" data-media-upload accept="image/jpeg,image/png,image/webp" style="display:none;"></label>'+(item.has_media ? '<button type="button" data-action="remove-media">Remove Image</button><span style="align-self:center;font-size:12px;color:var(--green);">Image attached ✓</span>' : "") : ""}${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button>' : ""}${item.status === "draft" || item.status === "approved" ? '<button type="button" data-action="schedule">Schedule Auto Post</button>' : ""}
           </div>
         </div>`;
     }
@@ -1254,6 +1254,7 @@ loadRequests();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load drafts.");
         box.innerHTML = d.drafts.length ? d.drafts.map(xDraftCard).join("") : '<div class="empty">No X drafts yet.</div>';
         box.querySelectorAll("[data-x-draft]").forEach(card => {
+          card.querySelector("[data-media-upload]")?.addEventListener("change",async e=>{const file=e.target.files?.[0];if(!file)return;try{const media=await prepareXImage(file);const rr=await fetch("/api/admin/x/drafts/"+card.dataset.xDraft+"/media",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(media)}),d=await rr.json();if(!rr.ok||!d.ok)throw new Error(d.message||"Unable to attach image.");await loadXDrafts();}catch(err){alert(err.message);}});
           card.querySelectorAll("button[data-action]").forEach(button => {
             button.style.cssText = "border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;";
             button.addEventListener("click", async () => {
@@ -1265,6 +1266,7 @@ loadRequests();
               button.disabled = true;
               try {
                 let r;
+                if (action === "remove-media") r = await fetch("/api/admin/x/drafts/" + id + "/media", { method:"DELETE" });
                 if (action === "delete") r = await fetch("/api/admin/x/drafts/" + id, { method:"DELETE" });
                 if (action === "delete-tweet") r = await fetch("/api/admin/x/delete-tweet", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
                 if (action === "save") r = await fetch("/api/admin/x/drafts/" + id, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
@@ -1667,6 +1669,11 @@ loadRequests();
       }
     });
 
+    let xPendingImage=null;
+    async function prepareXImage(file){if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("Use a JPG, PNG, or WebP image.");const data=await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(file);});const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=data;});let w=img.width,h=img.height,max=1600;if(w>max||h>max){const s=Math.min(max/w,max/h);w=Math.round(w*s);h=Math.round(h*s);}const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);const out=cv.toDataURL("image/jpeg",.86),base64=out.split(",")[1];if(base64.length>5500000)throw new Error("Image is too large after resizing. Choose a smaller image.");return{mime_type:"image/jpeg",file_name:file.name.replace(/\.[^.]+$/,"")+".jpg",image_base64:base64,data_url:out};}
+    const xNewImage=document.getElementById("x-new-image"),xNewImagePreview=document.getElementById("x-new-image-preview"),xRemoveNewImage=document.getElementById("x-remove-new-image");
+    xNewImage?.addEventListener("change",async()=>{const f=xNewImage.files?.[0];if(!f)return;try{xPendingImage=await prepareXImage(f);xNewImagePreview.innerHTML='<img src="'+xPendingImage.data_url+'" alt="Selected post image" style="max-width:220px;max-height:160px;border-radius:10px;object-fit:cover;">';xRemoveNewImage.style.display="inline-block";}catch(e){alert(e.message);xNewImage.value="";}});xRemoveNewImage?.addEventListener("click",()=>{xPendingImage=null;xNewImage.value="";xNewImagePreview.innerHTML="";xRemoveNewImage.style.display="none";});
+
     const xCreate = document.getElementById("x-create-draft");
     if (xCreate) xCreate.addEventListener("click", async () => {
       const content = xNewContent.value.trim();
@@ -1676,6 +1683,7 @@ loadRequests();
         const r = await fetch("/api/admin/x/drafts", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to save draft.");
+        if(xPendingImage&&d.id){const mr=await fetch("/api/admin/x/drafts/"+d.id+"/media",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(xPendingImage)}),md=await mr.json();if(!mr.ok||!md.ok)throw new Error(md.message||"Draft saved, but the image could not be attached.");xPendingImage=null;xNewImage.value="";xNewImagePreview.innerHTML="";xRemoveNewImage.style.display="none";}
         xNewContent.value = "";
         xCharCount.textContent = "0 characters";
         await loadXDrafts();
