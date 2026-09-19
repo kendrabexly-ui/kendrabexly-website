@@ -953,15 +953,27 @@
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load blacklist.");
     const records = data.blacklist || [];
-    container.innerHTML = records.length ? records.map((item) => `
+    const parseSafetyReason = (reason) => {
+      const text = String(reason || "");
+      const concernsMatch = text.match(/Safety concerns:\s*([^\n]+)/i);
+      const notesMatch = text.match(/Notes:\s*([\s\S]*)/i);
+      const concerns = concernsMatch ? concernsMatch[1].split(";").map(v => v.trim()).filter(Boolean) : [];
+      const notes = notesMatch ? notesMatch[1].trim() : "";
+      return { concerns, notes };
+    };
+    container.innerHTML = records.length ? records.map((item) => {
+      const safety = parseSafetyReason(item.reason);
+      return `
       <div style="padding:20px 22px;border-bottom:1px solid #ddd6ca;">
         <strong>${escapeHtml(item.name || "Client")}</strong>
         <div style="margin-top:6px;">${escapeHtml(item.email || "No email")} · ${escapeHtml(item.phone || "No phone")}</div>
-        <div style="margin-top:8px;"><strong>Reason:</strong> ${escapeHtml(item.reason || "No reason recorded")}</div>
-        <div style="margin-top:6px;font-size:13px;">Added: ${escapeHtml(item.created_at || "—")}</div>
+        <div style="margin-top:10px;"><strong>Safety Record</strong></div>
+        ${safety.concerns.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${safety.concerns.map(concern => `<span style="padding:5px 8px;border-radius:999px;background:#f3dfdf;font-size:12px;">⚠️ ${escapeHtml(concern)}</span>`).join("")}</div>` : ""}
+        ${safety.notes ? `<div style="margin-top:9px;padding:10px 12px;background:#faf8f4;border-radius:8px;"><strong>Private notes:</strong> ${escapeHtml(safety.notes)}</div>` : (!safety.concerns.length ? `<div style="margin-top:8px;">${escapeHtml(item.reason || "No reason recorded")}</div>` : "")}
+        <div style="margin-top:8px;font-size:13px;">Added: ${escapeHtml(item.created_at || "—")}</div>
         <button type="button" class="remove-blacklist" data-blacklist-id="${item.id}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
-      </div>`
-    ).join("") : '<div class="empty">No blacklisted clients.</div>';
+      </div>`;
+    }).join("") : '<div class="empty">No blacklisted clients.</div>';
     container.querySelectorAll(".remove-blacklist").forEach((button) => {
       button.addEventListener("click", async () => {
         if (!window.confirm("Remove this client from the blacklist? They will be able to submit new requests again.")) return;
