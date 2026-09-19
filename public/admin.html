@@ -1259,19 +1259,6 @@ async function loadRequests() {
               </div>
 
               <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
-                <strong style="font-size:13px;">Special Invitation</strong>
-                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Create a private invitation for this client. Extra time keeps your normal rate intact.</div>
-                <select class="client-invitation-type" style="width:100%;margin-top:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-                  <option value="extra-time">Extra Time, Keep Normal Rate</option>
-                  <option value="priority">Private Priority Invitation</option>
-                  <option value="custom">Custom Invitation</option>
-                </select>
-                <input class="client-invitation-details" type="text" placeholder="Optional details, for example 30 additional minutes" style="width:100%;margin-top:8px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;">
-                <button type="button" class="generate-client-invitation" data-client-id="${client.client_id}" style="margin-top:9px;padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Generate Invitation</button>
-                <textarea class="client-invitation-draft" rows="5" placeholder="Your private invitation draft will appear here..." style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
-                <div class="client-invitation-status" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
-              </div>
-              <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <strong style="font-size:13px;">Private Notes & Preferences</strong>
                 <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Preferences</label>
                 <textarea class="client-preferences" rows="3" placeholder="Favorite details, preferences, things they enjoy, thoughtful touches to remember..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.preferences || "")}</textarea>
@@ -1334,36 +1321,6 @@ async function loadRequests() {
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
         });
       });
-      clientRecords.querySelectorAll(".generate-client-invitation").forEach((button) => {
-        button.addEventListener("click", async () => {
-          const controls=button.closest(".client-profile-actions"),type=controls.querySelector(".client-invitation-type"),details=controls.querySelector(".client-invitation-details"),draft=controls.querySelector(".client-invitation-draft"),status=controls.querySelector(".client-invitation-status");
-          button.disabled=true;status.textContent="Writing invitation...";
-          try{
-            const response=await fetch("/api/admin/clients/special-invitation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId),incentive:type?.value||"extra-time",details:details?.value||""})});
-            const result=await response.json();
-            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to generate invitation.");
-            draft.value=result.draft||"";
-            const preview=controls.querySelector(".client-followup-preview"),previewBody=controls.querySelector(".client-followup-preview-body"),previewButton=controls.querySelector(".preview-client-followup");
-            if(previewBody)previewBody.textContent=draft.value.trim();
-            if(preview?.style.display==="block" && previewButton)previewButton.textContent="Close Preview";
-            status.textContent="Draft ready. Review and edit before using it.";
-          }catch(error){status.textContent=error.message||"Unable to generate invitation.";}
-          finally{button.disabled=false;}
-        });
-      });
-      clientRecords.querySelectorAll(".client-followup-draft").forEach((draft)=>draft.addEventListener("input",()=>{
-        const controls=draft.closest(".client-profile-actions"),preview=controls?.querySelector(".client-followup-preview"),body=controls?.querySelector(".client-followup-preview-body");
-        if(preview?.style.display==="block" && body)body.textContent=draft.value;
-      }));
-      clientRecords.querySelectorAll(".preview-client-followup").forEach((button)=>button.addEventListener("click",()=>{
-        const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),preview=controls?.querySelector(".client-followup-preview"),body=controls?.querySelector(".client-followup-preview-body"),status=controls?.querySelector(".client-followup-status");
-        if(!draft?.value.trim()){if(status)status.textContent="Generate or write a follow up first.";return;}
-        const opening=preview?.style.display!=="block";
-        if(body)body.textContent=draft.value.trim();
-        if(preview)preview.style.display=opening?"block":"none";
-        button.textContent=opening?"Close Preview":"Preview";
-        if(status)status.textContent=opening?"Previewing your current edited draft.":"";
-      }));
       clientRecords.querySelectorAll(".send-client-followup").forEach((button)=>button.addEventListener("click",async()=>{
         const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),status=controls?.querySelector(".client-followup-status");
         if(!draft?.value.trim()){if(status)status.textContent="Generate or write a follow up first.";return;}
