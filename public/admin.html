@@ -693,6 +693,7 @@
             <option value="draft">Drafts</option>
             <option value="sent">Sent</option>
           </select>
+          <button id="email-drafts-clear-filters" type="button" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear Filters</button>
         </div>
 
         <div class="panel">
@@ -2647,6 +2648,7 @@ loadRequests();
         }
         const searchInput = document.getElementById("email-drafts-search");
         const statusFilter = document.getElementById("email-drafts-status-filter");
+        const clearFilters = document.getElementById("email-drafts-clear-filters");
         const renderEmailDrafts = () => {
           const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
           const selectedStatus = statusFilter ? statusFilter.value : "all";
@@ -2749,6 +2751,12 @@ loadRequests();
         renderEmailDrafts();
         if (searchInput) searchInput.oninput = renderEmailDrafts;
         if (statusFilter) statusFilter.onchange = renderEmailDrafts;
+        if (clearFilters) clearFilters.onclick = () => {
+          if (searchInput) searchInput.value = "";
+          if (statusFilter) statusFilter.value = "all";
+          renderEmailDrafts();
+          if (searchInput) searchInput.focus();
+        };
       } catch (error) {
         box.className = "empty";
         box.innerHTML = '<div style="padding:22px;text-align:center;"><div style="margin-bottom:10px;">'+escapeHtml(error.message || "Unable to load email drafts.")+'</div><button type="button" id="retry-email-drafts" style="padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Try Again</button></div>';
