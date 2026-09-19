@@ -686,6 +686,10 @@
           <p>Review personalized client emails before they are sent.</p>
         </div>
 
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <input id="email-drafts-search" type="search" placeholder="Search client, email, subject, or message" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+        </div>
+
         <div class="panel">
           <div id="email-draft-records" class="empty">
             Loading email drafts...
@@ -2636,8 +2640,20 @@ loadRequests();
         if (requestId) {
           drafts = [...drafts].sort((a,b) => (Number(b.date_request_id) === requestId) - (Number(a.date_request_id) === requestId));
         }
+        const searchInput = document.getElementById("email-drafts-search");
+        const renderEmailDrafts = () => {
+          const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+          const visibleDrafts = drafts.filter((draft) => !query || [
+            draft.first_name,
+            draft.last_name,
+            draft.email,
+            draft.subject,
+            draft.body,
+            draft.email_type,
+            draft.status
+          ].filter(Boolean).join(" ").toLowerCase().includes(query));
         box.className = "";
-        box.innerHTML = drafts.length ? drafts.map((draft) => {
+        box.innerHTML = visibleDrafts.length ? visibleDrafts.map((draft) => {
           const current = requestId && Number(draft.date_request_id) === requestId;
           const name = [draft.first_name,draft.last_name].filter(Boolean).join(" ") || "Client";
           return `<div data-email-draft="${draft.id}" style="padding:20px 22px;border-bottom:1px solid var(--line);${current ? "background:#fff8e8;border-left:4px solid #b28a45;" : ""}">
@@ -2718,6 +2734,9 @@ loadRequests();
           const current = box.querySelector('[data-email-draft]');
           if (current) setTimeout(() => current.scrollIntoView({behavior:"smooth",block:"center"}), 100);
         }
+        };
+        renderEmailDrafts();
+        if (searchInput) searchInput.oninput = renderEmailDrafts;
       } catch (error) {
         box.className = "empty";
         box.innerHTML = '<div style="padding:22px;text-align:center;"><div style="margin-bottom:10px;">'+escapeHtml(error.message || "Unable to load email drafts.")+'</div><button type="button" id="retry-email-drafts" style="padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Try Again</button></div>';
