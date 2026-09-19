@@ -1021,6 +1021,17 @@
         <strong>Protect your pricing</strong>
         <div style="margin-top:5px;color:var(--muted);font-size:13px;line-height:1.5;">Retention offers should reference your master rates. Extra time and experience-based incentives can be used before reducing the rate.</div>
       </div>
+
+      <div style="margin-top:16px;">
+        <div style="font-weight:700;margin-bottom:8px;">Offer Strategy</div>
+        <label for="retention-offer-strategy" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Preferred incentive</label>
+        <select id="retention-offer-strategy" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
+          <option value="extra-time">Extra 30 Minutes</option>
+          <option value="experience-upgrade">Experience Upgrade</option>
+          <option value="special-rate">Special Rate</option>
+        </select>
+        <div id="retention-offer-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">Keeps your regular rate intact while giving returning clients something meaningful.</div>
+      </div>
     </div>
   </div>
 </section>
@@ -3043,5 +3054,20 @@ loadRequests();
     });
   </script>
 
+<script>
+  (() => {
+    const strategy = document.getElementById("retention-offer-strategy");
+    const guidance = document.getElementById("retention-offer-guidance");
+    if (!strategy || !guidance) return;
+    const messages = {
+      "extra-time": "Keeps your regular rate intact while giving returning clients something meaningful.",
+      "experience-upgrade": "Adds value through the experience instead of lowering your standard pricing.",
+      "special-rate": "Use selectively when a price incentive makes sense. Your master rates remain unchanged."
+    };
+    strategy.addEventListener("change", () => {
+      guidance.textContent = messages[strategy.value] || "";
+    });
+  })();
+</script>
 </body>
 </html>
