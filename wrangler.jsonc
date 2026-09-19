@@ -15,6 +15,10 @@
     "binding": "AI"
   },
 
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+
   "d1_databases": [
     {
       "binding": "DB",
