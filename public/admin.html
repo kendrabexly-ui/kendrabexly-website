@@ -1062,6 +1062,16 @@ async function loadRequests() {
             ${latest ? `<button type="button" class="client-profile-toggle" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">View Client Profile</button>` : ""}
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Controls</strong><div style="margin-top:6px;font-size:13px;">Manage this client without affecting their booking history.</div>
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5ddd1;">
+                <strong style="font-size:14px;">Safety Check</strong>
+                <label style="display:block;margin-top:10px;"><input type="checkbox" class="safety-boundaries"> Ignored or violated boundaries</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-threatening"> Threatening, aggressive, or intimidating behavior</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-identity"> Identity or screening information was concerning or inconsistent</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-payment"> Payment-related concern or suspicious activity</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-harassment"> Harassment, repeated unwanted contact, or privacy concern</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-other"> Other safety concern</label>
+                <textarea class="safety-notes" placeholder="Add private safety notes or details..." rows="3" style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+              </div>
               <button type="button" class="blacklist-client" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Blacklist Client</button>
             </div>
             ${latest ? `<button type="button" class="client-history-toggle" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View booking history ↓</button><div class="client-history" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee7dc;">${sorted.map(r => `<button type="button" class="client-history-request" data-request-id="${r.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 0;cursor:pointer;font:inherit;"><strong>${escapeHtml(r.requested_date || "Date not provided")}</strong> at ${escapeHtml(r.requested_time || "Time not provided")} · ${escapeHtml(String(r.status || "pending").replaceAll("_"," "))}${Number(r.deposit_paid) ? ` · Deposit ${Number(r.deposit_amount || 0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""} →</button>`).join("")}</div>` : ""}
@@ -1077,12 +1087,21 @@ async function loadRequests() {
       });
       clientRecords.querySelectorAll(".blacklist-client").forEach((button) => {
         button.addEventListener("click", async () => {
-          const reason = window.prompt("Why are you blacklisting " + (button.dataset.clientName || "this client") + "?");
-          if (reason === null) return;
-          if (!reason.trim()) {
-            window.alert("Please enter a reason before blacklisting this client.");
+          const controls = button.closest(".client-profile-actions");
+          const reasons = [
+            [".safety-boundaries","Ignored or violated boundaries"],
+            [".safety-threatening","Threatening, aggressive, or intimidating behavior"],
+            [".safety-identity","Identity or screening information was concerning or inconsistent"],
+            [".safety-payment","Payment-related concern or suspicious activity"],
+            [".safety-harassment","Harassment, repeated unwanted contact, or privacy concern"],
+            [".safety-other","Other safety concern"]
+          ].filter(([selector]) => controls.querySelector(selector)?.checked).map(([,label]) => label);
+          const safetyNotes = controls.querySelector(".safety-notes")?.value.trim() || "";
+          if (!reasons.length && !safetyNotes) {
+            window.alert("Select at least one safety concern or add a private safety note.");
             return;
           }
+          const reason = [reasons.length ? "Safety concerns: " + reasons.join("; ") : "", safetyNotes ? "Notes: " + safetyNotes : ""].filter(Boolean).join("\n");
           if (!window.confirm("Blacklist this client? Future requests using their saved email or phone will be blocked.")) return;
           button.disabled = true;
           const response = await fetch("/api/admin/blacklist/add", {
