@@ -584,8 +584,17 @@
         </div>
 
         <div class="panel">
-          <div class="empty">
-            Request records will appear here.
+          <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;flex-wrap:wrap;">
+            <select id="request-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+              <option value="all">All requests</option>
+              <option value="pending">Pending</option>
+              <option value="pending_final_approval">Pending final approval</option>
+              <option value="approved">Approved</option>
+              <option value="canceled">Canceled</option>
+            </select>
+          </div>
+          <div id="request-records">
+            <div class="empty">Loading requests...</div>
           </div>
         </div>
 
@@ -952,6 +961,10 @@
     async function loadRequests() {
   const recentContainer =
     document.getElementById("recent-requests");
+  const recordsContainer =
+    document.getElementById("request-records");
+  const statusFilter =
+    document.getElementById("request-status-filter");
 
   try {
     const response =
@@ -976,6 +989,39 @@
       `;
       return;
     }
+
+    const renderRequestCards = (items) => items.map((item) => {
+      const name = `${item.first_name || ""} ${item.last_name || ""}`.trim();
+      const status = item.status || "pending";
+      return `
+        <button type="button" class="request-card" data-request-id="${item.id}" style="width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #ddd6ca;padding:22px;cursor:pointer;font:inherit;">
+          <strong>${escapeHtml(name || "Client")}</strong>
+          <div style="margin-top:6px;">${escapeHtml(item.requested_date || "Date not provided")} at ${escapeHtml(item.requested_time || "Time not provided")}</div>
+          <div style="margin-top:4px;">${escapeHtml(item.location_name || "Location not provided")}</div>
+          <div style="margin-top:8px;">Status: ${escapeHtml(status.replaceAll("_"," "))}</div>
+          <div style="margin-top:10px;font-size:13px;text-decoration:underline;">View full request →</div>
+        </button>`;
+    }).join("");
+
+    const wireRequestCards = (container) => {
+      if (!container) return;
+      container.querySelectorAll(".request-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          window.location.href = `/admin-request?id=${encodeURIComponent(card.dataset.requestId)}`;
+        });
+      });
+    };
+
+    const renderAllRequests = () => {
+      if (!recordsContainer) return;
+      const selected = statusFilter ? statusFilter.value : "all";
+      const filtered = selected === "all" ? requests : requests.filter(item => item.status === selected);
+      recordsContainer.innerHTML = filtered.length ? renderRequestCards(filtered) : '<div class="empty">No requests match this filter.</div>';
+      wireRequestCards(recordsContainer);
+    };
+
+    renderAllRequests();
+    if (statusFilter) statusFilter.addEventListener("change", renderAllRequests);
 
     const recentRequests =
       requests.slice(0, 5);
