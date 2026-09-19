@@ -871,7 +871,7 @@ export default {
           <p style="line-height:1.65;">${para(draft.content)}</p>
           ${draft.blog_title ? `<h2 style="font-weight:500;">${esc(draft.blog_title)}</h2>` : ""}
           ${draft.blog_content ? `<p style="line-height:1.65;">${para(draft.blog_content)}</p>` : ""}
-          ${draft.special_offer ? `<div style="margin-top:28px;padding:20px;background:#eee7dc;"><strong>This Month's Special</strong><p style="line-height:1.65;">${para(draft.special_offer)}</p><a href="https://kendrabexly.com/request?newsletter_offer=${encodeURIComponent(String(draft.id))}" style="display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff;text-decoration:none;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;">Book My Subscriber Special</a><p style="margin:12px 0 0;font:12px Arial,sans-serif;color:#77736f;">Book through this button so your subscriber special is attached to your request.</p></div>` : ""}
+          ${draft.special_offer ? `<div style="margin-top:28px;padding:20px;background:#eee7dc;"><strong>This Month's Special</strong><p style="line-height:1.65;">${para(draft.special_offer)}</p><a href="https://kendrabexly.com/request?newsletter_offer=${encodeURIComponent(String(draft.id))}&subscriber_special=choose" style="display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff;text-decoration:none;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;">Book My Subscriber Special</a><p style="margin:12px 0 0;font:12px Arial,sans-serif;color:#77736f;">Book through this button so your subscriber special is attached to your request.</p></div>` : ""}
         </div>
       </div>
     </body></html>`;
@@ -946,10 +946,16 @@ export default {
       created.getUTCFullYear() !== now.getUTCFullYear() ||
       created.getUTCMonth() !== now.getUTCMonth();
 
+    const monthly_specials = [
+      { id:"classic-rendezvous", experience:"Classic Rendezvous", duration:"1.5 hours", price:500, label:"Classic Rendezvous — 1.5 hours at $500" },
+      { id:"greek-princess", experience:"The Greek Princess", duration:"1 hour", price:650, label:"The Greek Princess — 1 hour at $650" }
+    ];
+
     return Response.json({
       ok: true,
       id: offer.id,
       special_offer: offer.special_offer || "",
+      monthly_specials,
       expired
     });
   }
@@ -1490,6 +1496,14 @@ My journal will continue to be a place where I share a little more of that side 
         const newsletterOfferId =
           String(data.newsletter_offer || "").trim();
 
+        const subscriberSpecial =
+          String(data.subscriber_special || "").trim();
+        const monthlySpecials = {
+          "classic-rendezvous": { experience:"Classic Rendezvous", duration:"1.5 hours", price:500 },
+          "greek-princess": { experience:"The Greek Princess", duration:"1 hour", price:650 }
+        };
+        const selectedSubscriberSpecial = monthlySpecials[subscriberSpecial] || null;
+
         let newsletterOffer = null;
         let newsletterOfferExpired = false;
         if (/^\d+$/.test(newsletterOfferId)) {
@@ -1517,6 +1531,13 @@ My journal will continue to be a place where I share a little more of that side 
           }
         }
 
+
+        if (newsletterOffer && !selectedSubscriberSpecial) {
+          return Response.json(
+            { ok:false, message:"Please choose either the Classic Rendezvous or The Greek Princess monthly special." },
+            { status:400 }
+          );
+        }
 
         // Required fields
 
@@ -1743,7 +1764,7 @@ My journal will continue to be a place where I share a little more of that side 
             : null,
 
           newsletterOffer
-            ? `Newsletter special: Newsletter #${newsletterOffer.id}\nOffer: ${newsletterOffer.special_offer || "Subscriber special"}`
+            ? `Newsletter special: Newsletter #${newsletterOffer.id}\nSelected monthly special: ${selectedSubscriberSpecial.experience} — ${selectedSubscriberSpecial.duration} at ${selectedSubscriberSpecial.price}\nOffer: ${newsletterOffer.special_offer || "Subscriber special"}`
             : newsletterOfferId
               ? `Newsletter special code received but not recognized: ${newsletterOfferId}`
               : null,
