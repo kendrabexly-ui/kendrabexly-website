@@ -2705,8 +2705,9 @@ loadRequests();
           const name = [draft.first_name,draft.last_name].filter(Boolean).join(" ") || "Client";
           return `<div data-email-draft="${draft.id}" style="padding:20px 22px;border-bottom:1px solid var(--line);${current ? "background:#fff8e8;border-left:4px solid #b28a45;" : ""}">
             ${current ? '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:7px;">CURRENT REQUEST</div>' : ""}
-            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-              <strong>${escapeHtml(name)}</strong><span style="font-size:12px;">${escapeHtml(draft.status || "draft")}</span>
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
+              <strong>${escapeHtml(name)}</strong>
+              <span style="font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;${String(draft.status || "draft").toLowerCase() === "sent" ? "background:#e5f1e7;" : "background:#f3ead8;"}">${String(draft.status || "draft").toLowerCase() === "sent" ? "✓ SENT" : "DRAFT"}</span>
             </div>
             <div style="margin-top:5px;font-size:13px;">${escapeHtml(draft.email || "No email")} · Request #${escapeHtml(draft.date_request_id || "—")}</div>
             <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">SUBJECT</label>
