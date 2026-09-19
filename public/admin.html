@@ -630,8 +630,8 @@
         </div>
 
         <div class="panel">
-          <div class="empty">
-            Blacklisted clients will appear here.
+          <div id="blacklist-records">
+            <div class="empty">Loading blacklist...</div>
           </div>
         </div>
 
@@ -944,7 +944,30 @@
 
     loadDashboard();
 
-    async function loadRequests() {
+    async function loadBlacklist() {
+  const container = document.getElementById("blacklist-records");
+  if (!container) return;
+  try {
+    const response = await fetch("/api/admin/blacklist");
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load blacklist.");
+    const records = data.blacklist || [];
+    container.innerHTML = records.length ? records.map((item) => `
+      <div style="padding:20px 22px;border-bottom:1px solid #ddd6ca;">
+        <strong>${escapeHtml(item.name || "Client")}</strong>
+        <div style="margin-top:6px;">${escapeHtml(item.email || "No email")} · ${escapeHtml(item.phone || "No phone")}</div>
+        <div style="margin-top:8px;"><strong>Reason:</strong> ${escapeHtml(item.reason || "No reason recorded")}</div>
+        <div style="margin-top:6px;font-size:13px;">Added: ${escapeHtml(item.created_at || "—")}</div>
+      </div>`
+    ).join("") : '<div class="empty">No blacklisted clients.</div>';
+  } catch (error) {
+    container.innerHTML = '<div class="empty">Unable to load blacklist.</div>';
+  }
+}
+
+loadBlacklist();
+
+async function loadRequests() {
   const recentContainer =
     document.getElementById("recent-requests");
   const recordsContainer =
