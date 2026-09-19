@@ -2421,7 +2421,9 @@ Time: ${existingRequest.requested_time}
 
 To complete final approval, please reply directly to this email with your ID attached and send your ${depositDisplay} deposit.
 
-Once I have both, I'll personally review everything and confirm our date.
+Please note: your deposit must be received no later than 4 hours before our scheduled date and time. After that cutoff, I won't be able to confirm the deposit or complete the booking.
+
+Once I have both your ID and deposit, I'll personally review everything and confirm our date.
 
 Kendra`
           ).run();
