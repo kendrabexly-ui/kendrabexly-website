@@ -253,7 +253,7 @@
             </div>
 
             <div class="status">
-              ${displayValue(item.status, "Pending")}
+              ${displayValue(item.status, "Pending").replaceAll("_", " ").replace(/\b\w/g, ch => ch.toUpperCase())}
             </div>
 
           </div>
@@ -319,7 +319,7 @@
             <div class="detail">
               <div class="label">Expected Deposit</div>
               <div class="value">
-                ${Number(item.deposit_amount || 0) > 0 ? "$" + Number(item.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : "Calculated when request moves forward"}
+                ${Number(item.deposit_amount || 0) > 0 ? "$" + Number(item.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : (item.status === "pending_final_approval" ? "Custom rate required — deposit not calculated" : "Calculated when request moves forward")}
               </div>
             </div>
 
@@ -495,6 +495,9 @@ const idReceivedCheckbox =
 
 const depositPaidCheckbox =
   document.getElementById("deposit-paid-checkbox");
+
+idReceivedCheckbox.checked = Boolean(item.id_received);
+depositPaidCheckbox.checked = Boolean(item.deposit_paid);
 
 const newsletterSpecialApprovalCheckbox =
   document.getElementById("newsletter-special-approval-checkbox");
