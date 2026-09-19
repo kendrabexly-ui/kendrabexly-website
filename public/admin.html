@@ -692,9 +692,9 @@
             </div>
             <div id="x-topic-suggestions" style="display:none;margin:0 0 20px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <label for="x-new-content" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Post draft</label>
-            <textarea id="x-new-content" maxlength="280" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
+            <textarea id="x-new-content" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
             <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;">
-              <span id="x-char-count" style="color:var(--muted);font-size:13px;">0 / 280</span>
+              <span id="x-char-count" style="color:var(--muted);font-size:13px;">0 characters</span>
               <button id="x-create-draft" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
             </div>
           </div>
@@ -944,7 +944,7 @@ loadRequests();
     const xCharCount = document.getElementById("x-char-count");
     if (xNewContent) {
       xNewContent.addEventListener("input", () => {
-        xCharCount.textContent = xNewContent.value.length + " / 280";
+        xCharCount.textContent = xNewContent.value.length + " characters";
       });
     }
 
@@ -1229,7 +1229,7 @@ loadRequests();
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to generate post.");
         xNewContent.value = d.content || "";
-        xCharCount.textContent = xNewContent.value.length + " / 280";
+        xCharCount.textContent = xNewContent.value.length + " characters";
         xAiIdea.value = "";
         await loadXDrafts();
       } catch (e) {
@@ -1250,7 +1250,7 @@ loadRequests();
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to save draft.");
         xNewContent.value = "";
-        xCharCount.textContent = "0 / 280";
+        xCharCount.textContent = "0 characters";
         await loadXDrafts();
       } catch (e) {
         alert(e.message);
