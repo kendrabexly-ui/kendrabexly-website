@@ -2404,7 +2404,7 @@ if (
 
         const existingRequest = await env.DB
           .prepare(`
-            SELECT id, status
+            SELECT id, status, notes
             FROM date_requests
             WHERE id = ?
           `)
@@ -2429,6 +2429,27 @@ if (
             },
             { status: 400 }
           );
+        }
+
+        const hasNewsletterSpecial =
+          String(existingRequest.notes || "").includes("Newsletter special: Newsletter #");
+
+        if (hasNewsletterSpecial && data.newsletter_special_approved !== true) {
+          return Response.json(
+            {
+              ok: false,
+              message: "Approve the attached newsletter special before final approval."
+            },
+            { status: 400 }
+          );
+        }
+
+        if (hasNewsletterSpecial) {
+          const updatedNotes =
+            String(existingRequest.notes || "") + "\nNewsletter special approved: Yes";
+          await env.DB.prepare(
+            "UPDATE date_requests SET notes = ? WHERE id = ?"
+          ).bind(updatedNotes, requestId).run();
         }
 
         await env.DB
