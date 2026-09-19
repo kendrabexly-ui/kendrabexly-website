@@ -1045,6 +1045,18 @@
         </select>
         <div id="retention-eligibility-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">A client becomes eligible after their first date has been marked successfully completed.</div>
       </div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+        <div style="font-weight:700;margin-bottom:5px;">Offer Frequency</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Set a default limit so retention offers stay intentional instead of becoming an expected discount.</div>
+        <label for="retention-offer-frequency" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Default frequency</label>
+        <select id="retention-offer-frequency" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
+          <option value="quarterly">No more than once every 90 days</option>
+          <option value="monthly">No more than once every 30 days</option>
+          <option value="manual">No automatic frequency — decide manually</option>
+        </select>
+        <div id="retention-frequency-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">Keeps special offers occasional so they continue to feel valuable.</div>
+      </div>
     </div>
   </div>
 </section>
@@ -3093,6 +3105,20 @@ loadRequests();
     };
     eligibility.addEventListener("change", () => {
       guidance.textContent = messages[eligibility.value] || "";
+    });
+  })();
+
+  (() => {
+    const frequency = document.getElementById("retention-offer-frequency");
+    const guidance = document.getElementById("retention-frequency-guidance");
+    if (!frequency || !guidance) return;
+    const messages = {
+      "quarterly": "Keeps special offers occasional so they continue to feel valuable.",
+      "monthly": "Allows a more active retention cadence while limiting clients to one offer per 30 days.",
+      "manual": "No frequency is assumed. You decide when a client should receive another offer."
+    };
+    frequency.addEventListener("change", () => {
+      guidance.textContent = messages[frequency.value] || "";
     });
   })();
 </script>
