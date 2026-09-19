@@ -705,6 +705,17 @@
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
             <div>
+              <div class="panel-title">My X Timeline</div>
+              <div class="panel-subtitle">Choose one of your recent tweets, then view its replies and generate responses.</div>
+            </div>
+            <button id="x-load-timeline" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Timeline</button>
+          </div>
+          <div id="x-timeline"><div class="empty">Press Load Timeline to view your recent tweets.</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
               <div class="panel-title">Tweet Replies</div>
               <div class="panel-subtitle">Load replies to your recent X posts, generate a response, edit it, approve it, then send.</div>
             </div>
@@ -1224,6 +1235,40 @@ loadRequests();
       renderXSavedTopics();
     });
     renderXSavedTopics();
+
+    const xLoadTimeline = document.getElementById("x-load-timeline");
+    const xTimeline = document.getElementById("x-timeline");
+    if (xLoadTimeline) xLoadTimeline.addEventListener("click", async () => {
+      xLoadTimeline.disabled=true; xLoadTimeline.textContent="Loading...";
+      try {
+        const r=await fetch("/api/admin/x/timeline"), d=await r.json();
+        if(!r.ok||!d.ok) throw new Error(d.message||"Unable to load timeline.");
+        if(!d.tweets.length){xTimeline.innerHTML='<div class="empty">No recent tweets found.</div>';return;}
+        xTimeline.innerHTML=d.tweets.map(t=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:7px;">@'+escapeHtml(d.username)+' · '+escapeHtml(t.created_at?new Date(t.created_at).toLocaleString():"")+'</div><div style="margin-bottom:12px;white-space:pre-wrap;">'+escapeHtml(t.text)+'</div><button type="button" data-view-tweet-replies="'+escapeHtml(t.id)+'" data-parent-content="'+encodeURIComponent(t.text)+'" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">View Replies</button></div>').join("");
+        xTimeline.querySelectorAll("[data-view-tweet-replies]").forEach(btn=>btn.addEventListener("click",async()=>{
+          const tweetId=btn.dataset.viewTweetReplies,parentContent=decodeURIComponent(btn.dataset.parentContent||"");
+          btn.disabled=true;btn.textContent="Loading Replies...";
+          try{
+            const rr=await fetch("/api/admin/x/tweet-replies?tweet_id="+encodeURIComponent(tweetId)),dd=await rr.json();
+            if(!rr.ok||!dd.ok)throw new Error(dd.message||"Unable to load replies.");
+            const target=document.getElementById("x-replies");
+            if(!dd.replies.length){target.innerHTML='<div class="empty">No recent replies found for that tweet.</div>';}
+            else{
+              target.innerHTML=dd.replies.map((item,i)=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">@'+escapeHtml(item.author_username||"user")+'</div><div style="margin-bottom:12px;">'+escapeHtml(item.text)+'</div><button type="button" data-selected-generate="'+i+'" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Generate Reply</button><div data-selected-editor="'+i+'" style="display:none;margin-top:12px;"><textarea style="width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;"></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button type="button" data-selected-approve="'+i+'">Approve Reply</button><button type="button" data-selected-send="'+i+'" style="display:none;">Send Reply on X</button></div></div></div>').join("");
+              dd.replies.forEach((item,i)=>{
+                const gen=target.querySelector('[data-selected-generate="'+i+'"]'),editor=target.querySelector('[data-selected-editor="'+i+'"]'),ta=editor.querySelector("textarea"),approve=target.querySelector('[data-selected-approve="'+i+'"]'),send=target.querySelector('[data-selected-send="'+i+'"]');let draftId=null;
+                [approve,send].forEach(b=>b.style.cssText="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;");
+                gen.onclick=async()=>{gen.disabled=true;gen.textContent="Generating...";try{const x=await fetch("/api/admin/x/reply/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tweet_id:item.tweet_id,text:item.text,parent_content:parentContent})}),y=await x.json();if(!x.ok||!y.ok)throw new Error(y.message||"Unable to generate reply.");draftId=y.id;ta.value=y.content;editor.style.display="block";}catch(e){alert(e.message);}finally{gen.disabled=false;gen.textContent="Generate Reply";}};
+                approve.onclick=async()=>{if(!draftId)return alert("Generate a reply first.");const x=await fetch("/api/admin/x/reply/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:draftId,content:ta.value.trim()})}),y=await x.json();if(!x.ok||!y.ok)return alert(y.message||"Unable to approve reply.");approve.textContent="Approved";send.style.display="inline-block";};
+                send.onclick=async()=>{if(!confirm("Send this approved reply on X?"))return;send.disabled=true;const x=await fetch("/api/admin/x/reply/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:draftId})}),y=await x.json();if(!x.ok||!y.ok){send.disabled=false;return alert(y.message||"Unable to send reply.");}send.textContent="Sent";ta.disabled=true;approve.disabled=true;};
+              });
+            }
+            target.scrollIntoView({behavior:"smooth",block:"start"});
+          }catch(e){alert(e.message);}finally{btn.disabled=false;btn.textContent="View Replies";}
+        }));
+      } catch(e){xTimeline.innerHTML='<div class="empty">'+escapeHtml(e.message)+'</div>';}
+      finally{xLoadTimeline.disabled=false;xLoadTimeline.textContent="Load Timeline";}
+    });
 
     const xLoadReplies = document.getElementById("x-load-replies");
     const xReplies = document.getElementById("x-replies");
