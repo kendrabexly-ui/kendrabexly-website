@@ -595,7 +595,7 @@
           </div>
           <div class="stat">
             <div class="stat-label">Completed Dates</div>
-            <div class="stat-number">—</div>
+            <div class="stat-number" id="calendar-completed-count">—</div>
           </div>
           <div class="stat">
             <div class="stat-label">Calendar View</div>
@@ -3187,6 +3187,47 @@ loadRequests();
     });
     renderCalendarAvailability();
 
+    async function loadCalendarCompletedDates() {
+      const box=document.getElementById("calendar-completed-dates");
+      const count=document.getElementById("calendar-completed-count");
+      if(!box || box.dataset.loading==="1") return;
+      box.dataset.loading="1";
+      box.innerHTML='<div style="font-size:13px;color:var(--muted);">Loading completed dates...</div>';
+      try {
+        const response=await fetch("/api/admin/requests");
+        const data=await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.message || "Unable to load completed dates.");
+        const rows=(data.requests || data.items || [])
+          .filter(item=>String(item.status||"").toLowerCase()==="completed")
+          .sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")) || String(b.requested_time||"").localeCompare(String(a.requested_time||"")));
+        if(count) count.textContent=String(rows.length);
+        box.innerHTML=rows.length ? rows.slice(0,8).map(item=>{
+          const name=[item.first_name,item.last_name].filter(Boolean).join(" ") || "Client";
+          return '<div style="padding:11px 0;border-top:1px solid var(--line);">'+
+            '<div style="font-weight:600;">'+escapeHtml(name)+'</div>'+
+            '<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(item.requested_date||"Date unavailable")+
+            (item.requested_time?' · '+escapeHtml(item.requested_time):'')+
+            (item.location_name?' · '+escapeHtml(item.location_name):'')+'</div>'+
+            '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">'+
+            '<button type="button" data-completed-view-client="'+escapeHtml(item.email||"")+'" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">View Client</button>'+
+            '</div></div>';
+        }).join("") : '<div style="font-size:13px;color:var(--muted);">No successfully completed dates yet.</div>';
+        box.querySelectorAll("[data-completed-view-client]").forEach(button=>button.addEventListener("click",()=>{
+          const email=button.dataset.completedViewClient||"";
+          openSection("clients");
+          const search=document.getElementById("client-search");
+          if(search && email){
+            search.value=email;
+            search.dispatchEvent(new Event("input",{bubbles:true}));
+            window.setTimeout(()=>document.querySelector("#client-records .client-profile-toggle")?.click(),60);
+          }
+        }));
+      } catch(error) {
+        if(count) count.textContent="—";
+        box.innerHTML='<div style="font-size:13px;color:var(--red);">'+escapeHtml(error.message||"Unable to load completed dates.")+'</div>';
+      } finally { delete box.dataset.loading; }
+    }
+
     async function loadCalendarUpcomingDates() {
       const box = document.getElementById("calendar-upcoming-dates");
       const count = document.getElementById("calendar-upcoming-count");
@@ -3307,6 +3348,7 @@ loadRequests();
         }
         if (button.dataset.section === "calendar") {
           loadCalendarUpcomingDates();
+          loadCalendarCompletedDates();
         }
                 if (button.dataset.section === "emails") {
           const emailBox=document.getElementById("email-draft-records");
