@@ -2536,19 +2536,9 @@ Kendra`
           );
         }
 
-        if (data.id_received !== true || data.deposit_paid !== true) {
-          return Response.json(
-            {
-              ok: false,
-              message: "ID screening and deposit must both be confirmed."
-            },
-            { status: 400 }
-          );
-        }
-
         const existingRequest = await env.DB
           .prepare(`
-            SELECT id, status, notes, deposit_paid
+            SELECT id, status, notes, deposit_paid, id_received, final_approval
             FROM date_requests
             WHERE id = ?
           `)
@@ -2581,6 +2571,13 @@ Kendra`
         if (!existingRequest.deposit_paid) {
           return Response.json(
             { ok:false, message:"Deposit must be confirmed before final approval." },
+            { status:400 }
+          );
+        }
+
+        if (!existingRequest.id_received && data.id_received !== true) {
+          return Response.json(
+            { ok:false, message:"ID screening must be completed before final approval." },
             { status:400 }
           );
         }
