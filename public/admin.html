@@ -2290,8 +2290,31 @@ loadRequests();
       section.classList.add("active");
     };
 
-    const requestedSection = new URLSearchParams(window.location.search).get("section");
+    const pageParams = new URLSearchParams(window.location.search);
+    const requestedSection = pageParams.get("section");
     if (requestedSection) openSection(requestedSection);
+    if (requestedSection === "clients") {
+      const requestedClientId = pageParams.get("client_id");
+      const requestedEmail = pageParams.get("email");
+      if (clientSearch && requestedEmail) {
+        clientSearch.value = requestedEmail;
+        renderClients();
+      }
+      setTimeout(() => {
+        const cards = Array.from(document.querySelectorAll("#client-records > div"));
+        const target = cards.find((card) => {
+          const toggle = card.querySelector(".client-profile-toggle");
+          if (!toggle) return false;
+          if (requestedEmail && card.textContent.toLowerCase().includes(requestedEmail.toLowerCase())) return true;
+          return false;
+        });
+        if (target) {
+          const actions = target.querySelector(".client-profile-actions");
+          if (actions) actions.style.display = "block";
+          target.scrollIntoView({behavior:"smooth",block:"center"});
+        }
+      }, 250);
+    }
 
     navButtons.forEach((button) => {
 
