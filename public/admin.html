@@ -1033,10 +1033,18 @@
               <span><strong>${deposits.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> deposits recorded</span>
               <span>Latest: <strong>${escapeHtml(latest?.requested_date || "—")}</strong></span>
             </div>
-            ${latest ? `<button type="button" class="client-latest-request" data-request-id="${latest.id}" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View latest request →</button>` : ""}
+            ${latest ? `<button type="button" class="client-history-toggle" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View booking history ↓</button><div class="client-history" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee7dc;">${sorted.map(r => `<button type="button" class="client-history-request" data-request-id="${r.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 0;cursor:pointer;font:inherit;"><strong>${escapeHtml(r.requested_date || "Date not provided")}</strong> at ${escapeHtml(r.requested_time || "Time not provided")} · ${escapeHtml(String(r.status || "pending").replaceAll("_"," "))} →</button>`).join("")}</div>` : ""}
           </div>`;
       }).join("") : '<div class="empty">No client profiles match your search.</div>';
-      clientRecords.querySelectorAll(".client-latest-request").forEach((button) => {
+      clientRecords.querySelectorAll(".client-history-toggle").forEach((button) => {
+        button.addEventListener("click", () => {
+          const history = button.nextElementSibling;
+          const opening = history.style.display === "none";
+          history.style.display = opening ? "block" : "none";
+          button.textContent = opening ? "Hide booking history ↑" : "View booking history ↓";
+        });
+      });
+      clientRecords.querySelectorAll(".client-history-request").forEach((button) => {
         button.addEventListener("click", () => {
           window.location.href = `/admin-request?id=${encodeURIComponent(button.dataset.requestId)}`;
         });
