@@ -1334,7 +1334,11 @@ async function loadRequests() {
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load follow up.");
           const item=(result.email_drafts||[]).find(x=>Number(x.client_id)===Number(button.dataset.clientId)&&Number(x.date_request_id)===Number(button.dataset.requestId)&&String(x.email_type||"")==="after_date_follow_up");
-          detail.textContent=item?.body||"No saved follow up message was found for this completed date.";
+          if(item){
+            detail.innerHTML='<div style="font-weight:700;margin-bottom:5px;">'+escapeHtml(item.subject||"After Date Follow Up")+'</div><div style="white-space:pre-wrap;">'+escapeHtml(item.body||"")+'</div><div style="margin-top:7px;padding-top:6px;border-top:1px solid #e5ddd1;color:var(--muted);font-size:11px;">Status: '+escapeHtml(String(item.status||"draft").replaceAll("_"," "))+(item.sent_at?' · Sent '+escapeHtml(item.sent_at):"")+'</div>';
+          }else{
+            detail.textContent="No saved follow up message was found for this completed date.";
+          }
           detail.style.display="block";button.textContent="Hide Follow Up";
         }catch(error){detail.textContent=error.message||"Unable to load follow up.";detail.style.display="block";button.textContent="Hide Follow Up";}
         finally{button.disabled=false;}
