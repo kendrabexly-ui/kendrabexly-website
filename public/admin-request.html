@@ -387,7 +387,7 @@
       ${Number(item.deposit_amount || 0) > 0 ? "$" + (Number(item.deposit_amount) * 3).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}
     </div>
     <div class="value" style="margin-top:12px;font-size:14px;">
-      Deposit must be received no later than 4 hours before the scheduled date. After the deposit is confirmed, screening must be completed within 6 hours or the request will be canceled.
+      Deposit must be received no later than 4 hours before the scheduled date.
     </div>
   </div>
 
@@ -526,8 +526,7 @@ confirmDepositButton.addEventListener("click", async function () {
     postDepositSummary.style.display = "block";
     postDepositSummary.querySelector(".value").textContent =
       "$" + Number(result.remaining_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-    const deadline = new Date(result.screening_deadline);
-    depositStatus.textContent = "Screening deadline: " + deadline.toLocaleString();
+    depositStatus.textContent = "Deposit payment confirmed.";
   } catch (error) {
     depositStatus.textContent = error.message || "Unable to confirm deposit.";
     confirmDepositButton.disabled = false;
