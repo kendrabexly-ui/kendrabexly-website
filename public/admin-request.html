@@ -374,13 +374,22 @@
     ID received and screening completed
   </label>
 
-  <label style="display: block; margin-bottom: 20px;">
-    <input
-      type="checkbox"
-      id="deposit-paid-checkbox"
-    >
-    25% deposit received
-  </label>
+  <div style="margin-bottom:20px;">
+    <button type="button" id="confirm-deposit-button" style="background:#25252d;color:white;border:none;padding:12px 20px;border-radius:999px;font-family:inherit;cursor:pointer;">
+      ${item.deposit_paid ? "Deposit Confirmed" : "Confirm Deposit Paid"}
+    </button>
+    <div id="deposit-status" style="margin-top:10px;"></div>
+  </div>
+
+  <div id="post-deposit-summary" style="${item.deposit_paid ? "" : "display:none;"}margin-bottom:22px;padding:18px 20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:12px;">
+    <div class="label">REMAINING BALANCE</div>
+    <div class="value" style="margin-top:8px;font-size:20px;font-weight:600;">
+      ${Number(item.deposit_amount || 0) > 0 ? "$" + (Number(item.deposit_amount) * 3).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}
+    </div>
+    <div class="value" style="margin-top:12px;font-size:14px;">
+      Screening must be completed within 6 hours after the deposit is confirmed or the request will be canceled.
+    </div>
+  </div>
 
   ${String(item.notes || "").includes("Newsletter special: Newsletter #") ? `
   <label style="display:block;margin-bottom:20px;padding:14px 16px;background:#f6f1e8;border:1px solid #d8cbb9;border-radius:10px;">
@@ -423,7 +432,7 @@
 const moveForwardButton =
   document.getElementById("move-forward-button");
 
-if (item.status === "pending_final_approval") {
+if (["pending_final_approval", "screening_pending"].includes(item.status)) {
  moveForwardButton.style.display = "none";
 finalApprovalControls.style.display = "block";
 }
@@ -492,11 +501,38 @@ const finalApprovalStatus =
 const idReceivedCheckbox =
   document.getElementById("id-received-checkbox");
 
-const depositPaidCheckbox =
-  document.getElementById("deposit-paid-checkbox");
+const confirmDepositButton =
+  document.getElementById("confirm-deposit-button");
+const depositStatus = document.getElementById("deposit-status");
+const postDepositSummary = document.getElementById("post-deposit-summary");
 
 idReceivedCheckbox.checked = Boolean(item.id_received);
-depositPaidCheckbox.checked = Boolean(item.deposit_paid);
+if (item.deposit_paid) {
+  confirmDepositButton.disabled = true;
+}
+
+confirmDepositButton.addEventListener("click", async function () {
+  confirmDepositButton.disabled = true;
+  depositStatus.textContent = "Confirming deposit...";
+  try {
+    const response = await fetch("/api/admin/request/confirm-deposit", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({id:Number(id)})
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.message || "Unable to confirm deposit.");
+    confirmDepositButton.textContent = "Deposit Confirmed";
+    postDepositSummary.style.display = "block";
+    postDepositSummary.querySelector(".value").textContent =
+      "$" + Number(result.remaining_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+    const deadline = new Date(result.screening_deadline);
+    depositStatus.textContent = "Screening deadline: " + deadline.toLocaleString();
+  } catch (error) {
+    depositStatus.textContent = error.message || "Unable to confirm deposit.";
+    confirmDepositButton.disabled = false;
+  }
+});
 
 const newsletterSpecialApprovalCheckbox =
   document.getElementById("newsletter-special-approval-checkbox");
@@ -506,7 +542,7 @@ const newsletterSpecialApprovalCheckbox =
 
     if (
       !idReceivedCheckbox.checked ||
-      !depositPaidCheckbox.checked
+      !item.deposit_paid && confirmDepositButton.textContent !== "Deposit Confirmed"
     ) {
       finalApprovalStatus.textContent =
         "Please confirm both the ID screening and deposit before final approval.";
