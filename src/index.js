@@ -371,6 +371,20 @@ export default {
       }catch(error){return Response.json({ok:false,message:"Workers AI error: "+String(error?.message||error).slice(0,600)},{status:502});}
     }
 
+    if (url.pathname === "/api/admin/x/series/drafts" && request.method === "GET") {
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS x_series_drafts (id INTEGER PRIMARY KEY AUTOINCREMENT, topic TEXT NOT NULL, posts_json TEXT NOT NULL, action TEXT NOT NULL DEFAULT 'draft', scheduled_for TEXT, spacing_minutes INTEGER NOT NULL DEFAULT 60, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)").run();
+      const rows=await env.DB.prepare("SELECT * FROM x_series_drafts ORDER BY updated_at DESC LIMIT 50").all();
+      return Response.json({ok:true,items:(rows.results||[]).map(x=>({...x,posts:JSON.parse(x.posts_json||"[]")}))});
+    }
+    if (url.pathname === "/api/admin/x/series/drafts" && request.method === "POST") {
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS x_series_drafts (id INTEGER PRIMARY KEY AUTOINCREMENT, topic TEXT NOT NULL, posts_json TEXT NOT NULL, action TEXT NOT NULL DEFAULT 'draft', scheduled_for TEXT, spacing_minutes INTEGER NOT NULL DEFAULT 60, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)").run();
+      const data=await request.json(),topic=String(data.topic||"").trim(),posts=Array.isArray(data.posts)?data.posts.map(x=>String(x||"").trim()).filter(Boolean):[];
+      if(!topic||!posts.length)return Response.json({ok:false,message:"A topic and at least one series entry are required."},{status:400});
+      const action=data.action==="schedule"?"schedule":"draft",scheduledFor=data.scheduled_for?String(data.scheduled_for):null,spacing=Math.max(1,Number(data.spacing_minutes)||60);
+      const result=await env.DB.prepare("INSERT INTO x_series_drafts (topic,posts_json,action,scheduled_for,spacing_minutes) VALUES (?,?,?,?,?)").bind(topic,JSON.stringify(posts),action,scheduledFor,spacing).run();
+      return Response.json({ok:true,id:result.meta?.last_row_id});
+    }
+
     if (url.pathname === "/api/admin/x/series/generate" && request.method === "POST") {
       if (!env.AI) return Response.json({ ok:false, message:"Workers AI is not connected." }, { status:500 });
       const data=await request.json();
