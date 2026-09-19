@@ -921,6 +921,39 @@ export default {
     return Response.json({ ok: true, message: `Newsletter sent to ${sent} subscriber(s).`, sent });
   }
 
+  // Public lookup for a newsletter offer attached to a booking link
+  if (
+    url.pathname === "/api/newsletter/offer" &&
+    request.method === "GET"
+  ) {
+    await ensureNewsletterTable();
+    const id = Number(url.searchParams.get("id"));
+    if (!Number.isInteger(id) || id < 1) {
+      return Response.json({ ok: false, message: "Invalid newsletter offer." }, { status: 400 });
+    }
+
+    const offer = await env.DB.prepare(
+      "SELECT id, special_offer, created_at FROM newsletter_drafts WHERE id = ? LIMIT 1"
+    ).bind(id).first();
+
+    if (!offer) {
+      return Response.json({ ok: false, message: "Newsletter offer not found." }, { status: 404 });
+    }
+
+    const created = new Date(offer.created_at);
+    const now = new Date();
+    const expired =
+      created.getUTCFullYear() !== now.getUTCFullYear() ||
+      created.getUTCMonth() !== now.getUTCMonth();
+
+    return Response.json({
+      ok: true,
+      id: offer.id,
+      special_offer: offer.special_offer || "",
+      expired
+    });
+  }
+
   // Get newsletter drafts
   if (
     url.pathname === "/api/admin/newsletter/drafts" &&
