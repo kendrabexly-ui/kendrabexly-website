@@ -702,6 +702,17 @@
           </div>
         </div>
 
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Tweet Replies</div>
+              <div class="panel-subtitle">Load replies to your recent X posts, generate a response, edit it, approve it, then send.</div>
+            </div>
+            <button id="x-load-replies" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Replies</button>
+          </div>
+          <div id="x-replies"><div class="empty">Press Load Replies to check your recent conversations.</div></div>
+        </div>
+
         <div class="panel">
           <div class="panel-header">
             <div>
@@ -1213,6 +1224,28 @@ loadRequests();
       renderXSavedTopics();
     });
     renderXSavedTopics();
+
+    const xLoadReplies = document.getElementById("x-load-replies");
+    const xReplies = document.getElementById("x-replies");
+    if (xLoadReplies) xLoadReplies.addEventListener("click", async () => {
+      xLoadReplies.disabled = true; xLoadReplies.textContent = "Loading...";
+      try {
+        await loadXStatus();
+        const r = await fetch("/api/admin/x/replies"), d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load replies.");
+        if (!d.replies.length) { xReplies.innerHTML = '<div class="empty">No recent replies found.</div>'; return; }
+        xReplies.innerHTML = d.replies.map((item,i) => '<div data-x-reply="'+i+'" style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">@'+escapeHtml(item.author_username || "user")+'</div><div style="margin-bottom:12px;">'+escapeHtml(item.text)+'</div><button type="button" data-generate-reply style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Generate Reply</button><div data-reply-editor style="display:none;margin-top:12px;"><textarea style="width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;"></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button type="button" data-approve-reply>Approve Reply</button><button type="button" data-send-reply style="display:none;">Send Reply on X</button></div></div></div>').join("");
+        xReplies.querySelectorAll("[data-x-reply]").forEach(card => {
+          const item=d.replies[Number(card.dataset.xReply)], gen=card.querySelector("[data-generate-reply]"), editor=card.querySelector("[data-reply-editor]"), ta=editor.querySelector("textarea"), approve=card.querySelector("[data-approve-reply]"), send=card.querySelector("[data-send-reply]");
+          [approve,send].forEach(b=>b.style.cssText="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;");
+          let replyDraftId=null;
+          gen.addEventListener("click",async()=>{gen.disabled=true;gen.textContent="Generating...";try{const rr=await fetch("/api/admin/x/reply/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tweet_id:item.tweet_id,text:item.text,parent_content:item.parent_content})}),dd=await rr.json();if(!rr.ok||!dd.ok)throw new Error(dd.message||"Unable to generate reply.");replyDraftId=dd.id;ta.value=dd.content;editor.style.display="block";}catch(e){alert(e.message);}finally{gen.disabled=false;gen.textContent="Generate Reply";}});
+          approve.addEventListener("click",async()=>{if(!replyDraftId)return alert("Generate a reply first.");const rr=await fetch("/api/admin/x/reply/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:replyDraftId,content:ta.value.trim()})}),dd=await rr.json();if(!rr.ok||!dd.ok)return alert(dd.message||"Unable to approve reply.");send.style.display="inline-block";approve.textContent="Approved";});
+          send.addEventListener("click",async()=>{if(!confirm("Send this approved reply on X?"))return;send.disabled=true;const rr=await fetch("/api/admin/x/reply/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:replyDraftId})}),dd=await rr.json();if(!rr.ok||!dd.ok){send.disabled=false;return alert(dd.message||"Unable to send reply.");}send.textContent="Sent";ta.disabled=true;approve.disabled=true;});
+        });
+      } catch(e) { xReplies.innerHTML='<div class="empty">'+escapeHtml(e.message)+'</div>'; }
+      finally { xLoadReplies.disabled=false; xLoadReplies.textContent="Load Replies"; }
+    });
 
     const xGenerateTopics = document.getElementById("x-generate-topics");
     const xTopicSuggestions = document.getElementById("x-topic-suggestions");
