@@ -708,7 +708,7 @@
             <div id="x-topic-suggestions" style="display:none;margin:0 0 20px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <label for="x-new-content" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Post draft</label>
             <textarea id="x-new-content" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea><div style="margin-top:10px;"><label style="display:inline-block;border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Upload Image<input id="x-new-image" type="file" accept="image/jpeg,image/png,image/webp" style="display:none;"></label><button id="x-remove-new-image" type="button" style="display:none;margin-left:8px;border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Remove Image</button><div id="x-new-image-preview" style="margin-top:8px;"></div></div>
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;">
+            <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--cream);"><div style="font-size:13px;font-weight:600;margin-bottom:8px;">Post Settings</div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"><label style="font-size:12px;color:var(--muted);">Action<select id="x-new-action" style="display:block;margin-top:4px;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"><option value="draft">Save as Draft</option><option value="schedule">Approve & Schedule</option></select></label><label style="font-size:12px;color:var(--muted);">Schedule date & time<input id="x-new-schedule-at" type="datetime-local" style="display:block;margin-top:4px;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"></label></div><div style="font-size:12px;color:var(--muted);margin-top:7px;">Review and edit the post above before saving. Scheduling still requires your confirmation.</div></div><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;">
               <span id="x-char-count" style="color:var(--muted);font-size:13px;">0 characters</span>
               <button id="x-create-draft" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
             </div>
@@ -1729,6 +1729,8 @@ loadRequests();
     xNewImage?.addEventListener("change",async()=>{const f=xNewImage.files?.[0];if(!f)return;try{xPendingImage=await prepareXImage(f);xNewImagePreview.innerHTML='<img src="'+xPendingImage.data_url+'" alt="Selected post image" style="max-width:220px;max-height:160px;border-radius:10px;object-fit:cover;">';xRemoveNewImage.style.display="inline-block";}catch(e){alert(e.message);xNewImage.value="";}});xRemoveNewImage?.addEventListener("click",()=>{xPendingImage=null;xNewImage.value="";xNewImagePreview.innerHTML="";xRemoveNewImage.style.display="none";});
 
     const xCreate = document.getElementById("x-create-draft");
+    const xNewAction=document.getElementById("x-new-action"),xNewScheduleAt=document.getElementById("x-new-schedule-at");function syncXNewAction(){if(!xCreate)return;const scheduled=xNewAction?.value==="schedule";xCreate.textContent=scheduled?"Approve & Schedule":"Save Draft";if(xNewScheduleAt)xNewScheduleAt.disabled=!scheduled;}xNewAction?.addEventListener("change",syncXNewAction);
+
     if (xCreate) xCreate.addEventListener("click", async () => {
       const content = xNewContent.value.trim();
       if (!content) return alert("Write a draft first.");
@@ -1738,6 +1740,7 @@ loadRequests();
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to save draft.");
         if(xPendingImage&&d.id){const mr=await fetch("/api/admin/x/drafts/"+d.id+"/media",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(xPendingImage)}),md=await mr.json();if(!mr.ok||!md.ok)throw new Error(md.message||"Draft saved, but the image could not be attached.");xPendingImage=null;xNewImage.value="";xNewImagePreview.innerHTML="";xRemoveNewImage.style.display="none";}
+        if(xNewAction?.value==="schedule"){const when=xNewScheduleAt?.value;if(!when)throw new Error("Choose a date and time before scheduling.");if(!confirm("Approve and schedule this post for "+new Date(when).toLocaleString()+"?"))throw new Error("Scheduling canceled.");let ar=await fetch("/api/admin/x/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(d.id)})}),ad=await ar.json();if(!ar.ok||!ad.ok)throw new Error(ad.message||"Unable to approve draft.");let sr=await fetch("/api/admin/x/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(d.id),scheduled_for:new Date(when).toISOString()})}),sd=await sr.json();if(!sr.ok||!sd.ok)throw new Error(sd.message||"Unable to schedule draft.");}
         xNewContent.value = "";
         xCharCount.textContent = "0 characters";
         await loadXDrafts();
@@ -1748,6 +1751,7 @@ loadRequests();
       }
     });
 
+    syncXNewAction();
     loadXStatus();
     loadXDrafts();
 
