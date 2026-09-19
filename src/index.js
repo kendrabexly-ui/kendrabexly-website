@@ -1144,9 +1144,10 @@ My journal will continue to be a place where I share a little more of that side 
     const data = await request.json().catch(() => ({}));
     const offer = String(data.special_offer || existing.special_offer || "").trim();
     const offers = [
-      { experience:"Classic Rendezvous", duration:"1 hour", regular:500 },
-      { experience:"Classic Rendezvous", duration:"1.5 hours", regular:650 },
-      { experience:"Classic Rendezvous", duration:"2 hours", regular:850 },
+      { experience:"Classic Rendezvous", duration:"1.5 hours", regular:500 },
+      { experience:"Classic Rendezvous", duration:"2 hours", regular:750 },
+      { experience:"Classic Rendezvous", duration:"3 hours", regular:1000 },
+      { experience:"Classic Rendezvous", duration:"4 hours", regular:1250 },
       { experience:"The Greek Princess", duration:"1 hour", regular:650 },
       { experience:"The Greek Princess", duration:"1.5 hours", regular:800 },
       { experience:"The Greek Princess", duration:"2 hours", regular:1050 }
@@ -1179,7 +1180,7 @@ My journal will continue to be a place where I share a little more of that side 
       "A little anticipation makes the plans even better.",
       "You bring yourself; I'll take care of making the time feel special."
     ];
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month and enjoy ${incentive} with me.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\nEnjoy ${incentive} with me as your subscriber bonus.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
