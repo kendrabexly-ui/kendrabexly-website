@@ -1059,6 +1059,19 @@
       </div>
 
       <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+        <div style="font-weight:700;margin-bottom:5px;">Offer Expiration</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Set how long a retention offer stays available after it is sent.</div>
+        <label for="retention-offer-expiration" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Offer window</label>
+        <select id="retention-offer-expiration" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
+          <option value="7">7 days</option>
+          <option value="14">14 days</option>
+          <option value="30">30 days</option>
+          <option value="manual">No automatic expiration</option>
+        </select>
+        <div id="retention-expiration-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">Creates a short, clear window without changing your regular rates.</div>
+      </div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
         <div style="font-weight:700;margin-bottom:5px;">Current Retention Plan</div>
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Preview the rules you have selected before we use them for future retention tools.</div>
         <div id="retention-plan-summary" style="padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--cream);font-size:13px;line-height:1.7;"></div>
@@ -3135,43 +3148,62 @@ loadRequests();
     const strategy = document.getElementById("retention-offer-strategy");
     const eligibility = document.getElementById("retention-offer-eligibility");
     const frequency = document.getElementById("retention-offer-frequency");
+    const expiration = document.getElementById("retention-offer-expiration");
     const summary = document.getElementById("retention-plan-summary");
-    if (!strategy || !eligibility || !frequency || !summary) return;
+    if (!strategy || !eligibility || !frequency || !expiration || !summary) return;
     const update = () => {
       const selectedText = select => select.options[select.selectedIndex]?.text || "";
       summary.innerHTML =
         "<strong>Incentive:</strong> " + escapeHtml(selectedText(strategy)) + "<br>" +
         "<strong>Eligibility:</strong> " + escapeHtml(selectedText(eligibility)) + "<br>" +
-        "<strong>Frequency:</strong> " + escapeHtml(selectedText(frequency));
+        "<strong>Frequency:</strong> " + escapeHtml(selectedText(frequency)) + "<br>" +
+        "<strong>Expiration:</strong> " + escapeHtml(selectedText(expiration));
     };
-    [strategy, eligibility, frequency].forEach(select => select.addEventListener("change", update));
+    [strategy, eligibility, frequency, expiration].forEach(select => select.addEventListener("change", update));
     update();
   })();
   (() => {
     const strategy = document.getElementById("retention-offer-strategy");
     const eligibility = document.getElementById("retention-offer-eligibility");
     const frequency = document.getElementById("retention-offer-frequency");
+    const expiration = document.getElementById("retention-offer-expiration");
     const save = document.getElementById("retention-save-settings");
     const status = document.getElementById("retention-save-status");
-    if (!strategy || !eligibility || !frequency || !save) return;
+    if (!strategy || !eligibility || !frequency || !expiration || !save) return;
     const key = "kendra_retention_settings";
     try {
       const saved = JSON.parse(localStorage.getItem(key) || "{}");
       if (saved.strategy) strategy.value = saved.strategy;
       if (saved.eligibility) eligibility.value = saved.eligibility;
       if (saved.frequency) frequency.value = saved.frequency;
-      [strategy, eligibility, frequency].forEach(el => el.dispatchEvent(new Event("change")));
+      if (saved.expiration) expiration.value = saved.expiration;
+      [strategy, eligibility, frequency, expiration].forEach(el => el.dispatchEvent(new Event("change")));
     } catch {}
     save.addEventListener("click", () => {
       localStorage.setItem(key, JSON.stringify({
         strategy: strategy.value,
         eligibility: eligibility.value,
-        frequency: frequency.value
+        frequency: frequency.value,
+        expiration: expiration.value
       }));
       if (status) {
         status.textContent = "Saved";
         setTimeout(() => { if (status.textContent === "Saved") status.textContent = ""; }, 2000);
       }
+    });
+  })();
+  (() => {
+    const expiration = document.getElementById("retention-offer-expiration");
+    const guidance = document.getElementById("retention-expiration-guidance");
+    if (!expiration || !guidance) return;
+    const messages = {
+      "7": "Creates a short, clear window without changing your regular rates.",
+      "14": "Gives the client two weeks to use the offer while keeping it time-limited.",
+      "30": "Keeps the offer available for a full month before it expires.",
+      "manual": "The offer remains available until you decide to close it."
+    };
+    expiration.addEventListener("change", () => {
+      guidance.textContent = messages[expiration.value] || "";
     });
   })();
 </script>
