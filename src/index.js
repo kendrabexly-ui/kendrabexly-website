@@ -1282,11 +1282,30 @@ My journal will continue to be a place where I share a little more of that side 
           String(data.newsletter_offer || "").trim();
 
         let newsletterOffer = null;
+        let newsletterOfferExpired = false;
         if (/^\d+$/.test(newsletterOfferId)) {
           await ensureNewsletterTable();
           newsletterOffer = await env.DB.prepare(
             "SELECT id, special_offer, status, created_at FROM newsletter_drafts WHERE id = ? LIMIT 1"
           ).bind(Number(newsletterOfferId)).first();
+
+          if (newsletterOffer?.created_at) {
+            const created = new Date(newsletterOffer.created_at);
+            const now = new Date();
+            newsletterOfferExpired =
+              created.getUTCFullYear() !== now.getUTCFullYear() ||
+              created.getUTCMonth() !== now.getUTCMonth();
+          }
+
+          if (newsletterOfferExpired) {
+            return Response.json(
+              {
+                ok: false,
+                message: "That newsletter special has expired. Please use the current newsletter offer or submit a standard private request."
+              },
+              { status: 400 }
+            );
+          }
         }
 
 
