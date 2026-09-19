@@ -987,6 +987,11 @@
         <option value="approved">Approved</option>
         <option value="sent">Sent</option>
       </select>
+      <label for="newsletter-draft-sort" style="font-size:13px;color:var(--muted);">Sort</label>
+      <select id="newsletter-draft-sort" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+      </select>
     </div>
     <div id="newsletter-drafts">
       <div class="empty">
@@ -1861,9 +1866,11 @@ loadRequests();
           summary.innerHTML = "<strong>" + drafts.length + "</strong> total · <strong>" + draftCount + "</strong> draft" + (draftCount === 1 ? "" : "s") + " · <strong>" + approvedCount + "</strong> approved · <strong>" + sentCount + "</strong> sent";
         }
         const statusFilter = document.getElementById("newsletter-draft-status-filter");
+        const sortSelect = document.getElementById("newsletter-draft-sort");
         const renderNewsletterDrafts = () => {
           const selectedStatus = statusFilter ? statusFilter.value : "all";
           const visible = drafts.filter(item => selectedStatus === "all" || String(item.status || "").toLowerCase() === selectedStatus);
+          if (sortSelect && sortSelect.value === "oldest") visible.reverse();
           box.innerHTML = visible.length ? visible.map(newsletterDraftCard).join("") : '<div class="empty">' + (drafts.length ? "No newsletters match this status." : "No newsletter drafts yet.") + '</div>';
           bindNewsletterDraftCards();
         };
@@ -2074,6 +2081,10 @@ loadRequests();
         if (statusFilter && !statusFilter.dataset.bound) {
           statusFilter.dataset.bound = "1";
           statusFilter.addEventListener("change", renderNewsletterDrafts);
+        }
+        if (sortSelect && !sortSelect.dataset.bound) {
+          sortSelect.dataset.bound = "1";
+          sortSelect.addEventListener("change", renderNewsletterDrafts);
         }
       } catch (e) {
         box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
