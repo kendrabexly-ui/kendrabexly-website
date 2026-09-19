@@ -1064,7 +1064,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nBook a ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience} ${monthlyOffer.duration} at ${money(monthlyOffer.regular)} this month.\n\n${flirtyOfferClosers[flirtyIndex]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nBook a ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience} ${monthlyOffer.duration} at ${money(monthlyOffer.regular)} this month.\n\n${flirtyOfferClosers[flirtyIndex]} This special is just for this month and is subject to availability. Use the button below when you're ready to see me, and your ${month} special will be attached to your request.`
       ).trim();
 
     const result = await env.DB.prepare(`
@@ -1167,11 +1167,11 @@ My journal will continue to be a place where I share a little more of that side 
     const regular = booking[3].trim();
     const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
     const intros = [
-      "A little something just for my subscribers — I saved this one especially for you. ✨",
-      "Your inbox deserves something fun this month, so here's a little subscriber-only invitation. 💋",
-      "I wanted to give my subscribers a good reason to put something special on the calendar. 😉",
-      "A new month calls for a little temptation reserved just for this list. ✨",
-      "Consider this your private invitation to make a little more time for us this month. 💋"
+      "I saved a little something especially for you this month. ✨",
+      "I thought you might enjoy a little something special from me this month. 💋",
+      "I wanted to give you a good reason to put something special on your calendar this month. 😉",
+      "A new month feels like the perfect excuse for us to make a little more time for each other. ✨",
+      "Consider this a little invitation from me to you to make some time for us this month. 💋"
     ];
     const closers = [
       "Consider it my excuse to steal you away for a while.",
@@ -1182,7 +1182,7 @@ My journal will continue to be a place where I share a little more of that side 
     ];
     const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));
     const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} This special is just for this month and is subject to availability. Use the button below when you're ready to see me, and your ${month} special will be attached to your request.`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
