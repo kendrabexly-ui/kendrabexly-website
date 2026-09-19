@@ -843,17 +843,13 @@
 <section id="rates-services" class="section">
   <div class="section-heading">
     <h2>Rates & Services</h2>
-    <p>Your master service menu. These rates will be the source of truth for website offers and future newsletter date packages.</p>
+    <p>Your master service menu. Edit your rates here before using them for website offers or newsletter packages.</p>
   </div>
-
-  <div class="panel" style="margin-bottom:18px;">
-    <div class="panel-header"><div><div class="panel-title">Signature Private Companionship Experience</div><div class="panel-subtitle">Kendra’s signature private companionship experience—romantic, flirtatious, relaxed, and intentionally unhurried.</div></div></div>
-    <div class="table-wrap"><table><thead><tr><th>Duration</th><th>Rate</th></tr></thead><tbody><tr><td>1 Hour</td><td>$500</td></tr><tr><td>2 Hours</td><td>$750</td></tr><tr><td>3 Hours</td><td>$1,000</td></tr><tr><td>4 Hours</td><td>$1,250</td></tr></tbody></table></div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-header"><div><div class="panel-title">The Greek Princess</div><div class="panel-subtitle">The more adventurous and elevated rendezvous, described discreetly rather than as an explicit menu of activities.</div></div></div>
-    <div class="table-wrap"><table><thead><tr><th>Duration</th><th>Rate</th></tr></thead><tbody><tr><td>1 Hour</td><td>$650</td></tr><tr><td>1.5 Hours</td><td>$800</td></tr><tr><td>2 Hours</td><td>$1,050</td></tr></tbody></table></div>
+  <div id="rates-services-editor"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+    <button id="rates-save" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Save Changes</button>
+    <button id="rates-reset" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Reset</button>
+    <span id="rates-status" style="align-self:center;color:var(--muted);font-size:13px;"></span>
   </div>
 </section>
 
@@ -1793,6 +1789,24 @@ loadRequests();
     document.getElementById("x-library-save")?.addEventListener("click",async()=>{const content=document.getElementById("x-library-content").value.trim();if(!content)return alert("Add content first.");const payload={title:document.getElementById("x-library-title").value.trim(),content,content_style:document.getElementById("x-library-style").value,...(xLibraryImage||{})};const r=await fetch("/api/admin/x/library",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok||!d.ok)return alert(d.message||"Unable to save.");document.getElementById("x-library-title").value="";document.getElementById("x-library-content").value="";document.getElementById("x-library-image-name").textContent="";xLibraryImage=null;xLibraryFile.value="";loadXLibrary();});document.getElementById("x-refresh-library")?.addEventListener("click",loadXLibrary);
 
     const xSectionNav=document.getElementById("x-section-nav");if(xSectionNav){const xFlowButtons=[...xSectionNav.querySelectorAll("button")],setXFlowActive=key=>xFlowButtons.forEach(btn=>{const active=btn.dataset.xJump===key;btn.style.background=active?"var(--ink)":"white";btn.style.color=active?"white":"var(--ink)";btn.setAttribute("aria-current",active?"step":"false");});xFlowButtons.forEach(b=>{b.style.cssText="border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:white;color:var(--ink);cursor:pointer;font-size:12px;transition:.15s ease;";b.addEventListener("click",()=>{const key=b.dataset.xJump;setXFlowActive(key);if(key==="drafts")loadXDrafts();if(key==="schedule")loadXScheduled();if(key==="library")loadXLibrary();const target=document.querySelector('[data-x-anchor="'+key+'"]');target?.closest(".panel")?.scrollIntoView({behavior:"smooth",block:"start"});});});setXFlowActive("create");const anchors=[...document.querySelectorAll("[data-x-anchor]")];if("IntersectionObserver"in window){const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(visible)setXFlowActive(visible.target.dataset.xAnchor);},{rootMargin:"-18% 0px -65% 0px",threshold:[0,.2,.5]});anchors.forEach(a=>observer.observe(a));}}
+
+
+    const defaultRateServices = [
+      {name:"Signature Private Companionship Experience",description:"Kendra’s signature private companionship experience—romantic, flirtatious, relaxed, and intentionally unhurried.",rates:[["1 Hour",500],["2 Hours",750],["3 Hours",1000],["4 Hours",1250]]},
+      {name:"The Greek Princess",description:"The more adventurous and elevated rendezvous, described discreetly rather than as an explicit menu of activities.",rates:[["1 Hour",650],["1.5 Hours",800],["2 Hours",1050]]}
+    ];
+    function getRateServices(){try{return JSON.parse(localStorage.getItem("kendra_rate_services"))||structuredClone(defaultRateServices);}catch{return structuredClone(defaultRateServices);}}
+    function renderRateServices(){
+      const box=document.getElementById("rates-services-editor"); if(!box)return;
+      const data=getRateServices();
+      box.innerHTML=data.map((s,si)=>'<div class="panel" style="margin-bottom:18px;"><div class="panel-header"><div style="width:100%;"><input data-rs-name="'+si+'" value="'+escapeHtml(s.name)+'" style="width:100%;font-family:Playfair Display,serif;font-size:20px;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"><textarea data-rs-desc="'+si+'" style="width:100%;margin-top:8px;min-height:65px;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;">'+escapeHtml(s.description)+'</textarea></div></div><div class="table-wrap"><table><thead><tr><th>Duration</th><th>Rate</th></tr></thead><tbody>'+s.rates.map((r,ri)=>'<tr><td><input data-rs-duration="'+si+'-'+ri+'" value="'+escapeHtml(r[0])+'" style="border:1px solid var(--line);border-radius:7px;padding:8px;"></td><td>$ <input data-rs-rate="'+si+'-'+ri+'" type="number" min="0" step="1" value="'+Number(r[1])+'" style="width:120px;border:1px solid var(--line);border-radius:7px;padding:8px;"></td></tr>').join("")+'</tbody></table></div></div>').join("");
+    }
+    document.getElementById("rates-save")?.addEventListener("click",()=>{
+      const data=getRateServices().map((s,si)=>({...s,name:document.querySelector('[data-rs-name="'+si+'"]').value.trim(),description:document.querySelector('[data-rs-desc="'+si+'"]').value.trim(),rates:s.rates.map((r,ri)=>[document.querySelector('[data-rs-duration="'+si+'-'+ri+'"]').value.trim(),Number(document.querySelector('[data-rs-rate="'+si+'-'+ri+'"]').value)])}));
+      localStorage.setItem("kendra_rate_services",JSON.stringify(data)); document.getElementById("rates-status").textContent="Saved on this dashboard."; renderRateServices();
+    });
+    document.getElementById("rates-reset")?.addEventListener("click",()=>{if(!confirm("Reset Rates & Services to the current master rates?"))return;localStorage.removeItem("kendra_rate_services");renderRateServices();document.getElementById("rates-status").textContent="Reset to master rates.";});
+    renderRateServices();
 
     const navButtons =
       document.querySelectorAll(".nav button");
