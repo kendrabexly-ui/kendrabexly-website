@@ -776,6 +776,15 @@
         </div>
 
         <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header"><div><div class="panel-title">Fill My Schedule</div><div class="panel-subtitle">Assign drafts to open posting slots, then confirm the schedule.</div></div></div>
+          <div style="padding:18px 24px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;"><label style="font-size:13px;">Date<input id="x-fill-date" type="date" style="display:block;margin-top:5px;border:1px solid var(--line);border-radius:8px;padding:9px;"></label><button id="x-load-fill" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Load Open Slots</button></div>
+            <div id="x-fill-slots" style="margin-top:14px;"></div>
+            <button id="x-confirm-fill" type="button" style="display:none;margin-top:14px;border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Confirm Schedule</button>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
             <div><div class="panel-title">X Content Calendar</div><div class="panel-subtitle">See upcoming scheduled posts by date.</div></div>
             <div style="display:flex;gap:8px;align-items:center;"><button id="x-cal-prev" type="button">‹</button><strong id="x-cal-label"></strong><button id="x-cal-next" type="button">›</button></div>
@@ -1327,6 +1336,22 @@ loadRequests();
     }
     document.getElementById("x-save-slots")?.addEventListener("click",()=>{const slots=[...document.querySelectorAll("[data-x-slot]")].map(x=>x.value);if(slots.length!==10||slots.some(x=>!x))return alert("Choose all ten posting times.");localStorage.setItem("xDailyPostingSlots",JSON.stringify(slots));alert("Ten daily posting times saved.");});
     loadXDailySlots();
+
+    let xFillDrafts=[];
+    function getXSlots(){let s=xDefaultSlots;try{const v=JSON.parse(localStorage.getItem("xDailyPostingSlots")||"null");if(Array.isArray(v)&&v.length===10)s=v;}catch(e){}return s;}
+    const fillDate=document.getElementById("x-fill-date");if(fillDate){const d=new Date();fillDate.value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+    document.getElementById("x-load-fill")?.addEventListener("click",async()=>{
+      const date=fillDate?.value;if(!date)return alert("Choose a date.");
+      const rr=await fetch("/api/admin/x/drafts"),dd=await rr.json();if(!rr.ok||!dd.ok)return alert(dd.message||"Unable to load drafts.");xFillDrafts=(dd.drafts||[]).filter(x=>x.status!=="published");
+      const slots=getXSlots(),box=document.getElementById("x-fill-slots");box.innerHTML=slots.map((s,i)=>{const when=new Date(date+"T"+s),taken=(xCalendarItems||[]).some(x=>Math.abs(new Date(x.scheduled_for)-when)<60000);const opts=xFillDrafts.map(d=>'<option value="'+d.id+'">Draft #'+d.id+' · '+escapeHtml((d.content||"").slice(0,55))+'</option>').join("");return '<div data-fill-row data-time="'+s+'" style="display:grid;grid-template-columns:90px 1fr;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);"><strong>'+when.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+'</strong>'+(taken?'<span class="status">Scheduled</span>':'<select data-fill-draft style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"><option value="">Open — choose a draft</option>'+opts+'</select>')+'</div>';}).join("");document.getElementById("x-confirm-fill").style.display="inline-block";
+    });
+    document.getElementById("x-confirm-fill")?.addEventListener("click",async()=>{
+      const date=fillDate?.value,choices=[...document.querySelectorAll("[data-fill-row]")].map(r=>({time:r.dataset.time,id:Number(r.querySelector("[data-fill-draft]")?.value||0)})).filter(x=>x.id);if(!choices.length)return alert("Choose at least one draft for an open slot.");
+      if(!confirm("Schedule "+choices.length+" selected post"+(choices.length===1?"":"s")+"? This confirms approval for those posts at the selected times."))return;
+      const ids=choices.map(x=>x.id);if(new Set(ids).size!==ids.length)return alert("Choose each draft only once.");
+      for(const x of choices){const d=xFillDrafts.find(v=>Number(v.id)===x.id);if(!d||!d.content||d.content.length>280){alert("Draft #"+x.id+" must be 280 characters or fewer.");return;}const when=new Date(date+"T"+x.time);if(when<=Date.now()+30000){alert("One selected slot is not in the future.");return;}let rr=await fetch("/api/admin/x/drafts/"+x.id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:d.content})}),z=await rr.json();if(!rr.ok||!z.ok){alert(z.message||"Unable to save draft.");return;}rr=await fetch("/api/admin/x/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:x.id})});z=await rr.json();if(!rr.ok||!z.ok){alert(z.message||"Unable to approve draft.");return;}rr=await fetch("/api/admin/x/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:x.id,scheduled_for:when.toISOString()})});z=await rr.json();if(!rr.ok||!z.ok){alert(z.message||"Unable to schedule draft.");return;}}
+      alert("Selected posts scheduled.");await loadXScheduled();await loadXDrafts();document.getElementById("x-load-fill").click();
+    });
 
     let xCalendarDate=new Date();
     let xCalendarItems=[];
