@@ -1442,13 +1442,41 @@ My journal will continue to be a place where I share a little more of that side 
             .first();
 
         if (blacklisted) {
+          const flagNotes = [
+            "BLACKLISTED CLIENT SUBMISSION",
+            "Submitted name: " + firstName + " " + lastName,
+            "Submitted email: " + email,
+            "Submitted phone: " + phone,
+            "Requested date: " + requestedDate,
+            "Requested time: " + requestedTime,
+            dateType ? "Date type: " + dateType : null,
+            appointmentType ? "Appointment type: " + appointmentType : null,
+            duration ? "Duration: " + duration : null,
+            locationName ? "Location: " + locationName : null,
+            requestDetails ? "Request details: " + requestDetails : null
+          ].filter(Boolean).join("\n");
+
+          const flaggedClient = await env.DB.prepare(
+            "SELECT id FROM clients WHERE LOWER(email) = LOWER(?) OR phone = ? ORDER BY id DESC LIMIT 1"
+          ).bind(email, phone).first();
+
+          let flaggedClientId = flaggedClient?.id;
+          if (!flaggedClientId) {
+            const created = await env.DB.prepare(
+              "INSERT INTO clients (first_name, last_name, email, phone, status) VALUES (?, ?, ?, ?, 'blacklisted')"
+            ).bind(firstName, lastName, email, phone).run();
+            flaggedClientId = created.meta.last_row_id;
+          }
+
+          await env.DB.prepare(
+            `INSERT INTO date_requests
+              (client_id, requested_date, requested_time, location_name, status, deposit_amount, deposit_paid, id_received, final_approval, notes)
+             VALUES (?, ?, ?, ?, 'blacklisted_submission', 0, 0, 0, 0, ?)`
+          ).bind(flaggedClientId, requestedDate, requestedTime, locationName, flagNotes).run();
+
           return Response.json(
-            {
-              ok: false,
-              message:
-                "This request cannot be accepted."
-            },
-            { status: 403 }
+            { ok:false, message:"This request cannot be accepted." },
+            { status:403 }
           );
         }
 
