@@ -1213,10 +1213,10 @@ My journal will continue to be a place where I share a little more of that side 
       `${month} Notes, a New Journal Entry & Something for You`
     ];
     const intros = [
-      `Hi there,\n\nI wanted to send you a little note for ${month}. I have been thinking about how much the smallest details can change the feel of a moment, and I am making more room for the experiences that feel easy, intentional, and memorable.\n\nI also have a fresh journal entry for you below, plus this month's subscriber-only special.\n\nUntil next time,\nKendra`,
-      `Hi there,\n\nA new month felt like the perfect excuse to check in. Lately I have been enjoying slower moments, better conversations, and plans that give us something to look forward to.\n\nKeep reading for this month's journal note and the private subscriber offer I saved for this list.\n\nSee you soon,\nKendra`,
-      `Hi there,\n\nWelcome to my ${month} note. I wanted this one to feel like a personal catch-up — a little of what has been on my mind, something new from my journal, and a special invitation for my subscribers.\n\nI hope you find something here that makes your month a little more interesting.\n\nKendra`,
-      `Hi there,\n\nI am dropping into your inbox with a fresh ${month} update. This month I am leaning into thoughtful plans, good energy, and making time for experiences that do not feel rushed.\n\nThere is a new journal feature below and, of course, something special reserved for subscribers.\n\nKendra`
+      `Hi there,\n\nI wanted to send you a little note for ${month}. I have been thinking about how much the smallest details can change the feel of a moment, and I am making more room for the experiences that feel easy, intentional, and memorable.\n\nI also have a fresh journal entry for you below, plus a little something I saved especially for you this month.\n\nUntil next time,\nKendra`,
+      `Hi there,\n\nA new month felt like the perfect excuse to check in. Lately I have been enjoying slower moments, better conversations, and plans that give us something to look forward to.\n\nKeep reading for this month's journal note and a private invitation I saved especially for you.\n\nSee you soon,\nKendra`,
+      `Hi there,\n\nWelcome to my ${month} note. I wanted this one to feel like a personal catch-up — a little of what has been on my mind, something new from my journal, and a special invitation from me to you.\n\nI hope you find something here that makes your month a little more interesting.\n\nKendra`,
+      `Hi there,\n\nI am dropping into your inbox with a fresh ${month} update. This month I am leaning into thoughtful plans, good energy, and making time for experiences that do not feel rushed.\n\nThere is a new journal feature below and, of course, a little something special from me to you.\n\nKendra`
     ];
     const blogTitles = [
       `${month} ${year}: Making Room for the Good Stuff`,
@@ -1231,10 +1231,11 @@ My journal will continue to be a place where I share a little more of that side 
       `Anticipation is part of the fun. Having something on the calendar that you are genuinely looking forward to can change the whole rhythm of a week.\n\nThis month I am appreciating the plans, conversations, and little escapes that give us that feeling. They do not have to be complicated — they just need to feel worth showing up for.\n\nI hope ${month} gives you a few of those moments too.`
     ];
 
-    const specialOffer = String(data.special_offer || existing.special_offer || "").trim();
-    const requiredInstruction = "Book through the subscriber button below";
-    if (!specialOffer || !specialOffer.toLowerCase().includes(requiredInstruction.toLowerCase())) {
-      return Response.json({ok:false,message:"The newsletter's required subscriber booking instructions are missing. Save or restore the monthly offer before regenerating."},{status:400});
+    // Full newsletter regeneration never rewrites the special offer.
+    // Preserve the saved offer exactly so its experience, duration, price and client-facing wording stay locked.
+    const specialOffer = String(existing.special_offer || "").trim();
+    if (!specialOffer) {
+      return Response.json({ok:false,message:"Create the monthly special offer before regenerating the newsletter."},{status:400});
     }
 
     const draft = {
