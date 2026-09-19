@@ -978,6 +978,15 @@
       </div>
     </div>
 
+    <div style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <label for="newsletter-draft-status-filter" style="font-size:13px;color:var(--muted);">Show</label>
+      <select id="newsletter-draft-status-filter" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;">
+        <option value="all">All newsletters</option>
+        <option value="draft">Drafts</option>
+        <option value="approved">Approved</option>
+        <option value="sent">Sent</option>
+      </select>
+    </div>
     <div id="newsletter-drafts">
       <div class="empty">
         No newsletter drafts yet.
@@ -1842,8 +1851,15 @@ loadRequests();
         const r = await fetch("/api/admin/newsletter/drafts");
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load newsletter drafts.");
-        box.innerHTML = d.drafts.length ? d.drafts.map(newsletterDraftCard).join("") : '<div class="empty">No newsletter drafts yet.</div>';
-        box.querySelectorAll("[data-newsletter-draft]").forEach(card => {
+        const drafts = d.drafts || [];
+        const statusFilter = document.getElementById("newsletter-draft-status-filter");
+        const renderNewsletterDrafts = () => {
+          const selectedStatus = statusFilter ? statusFilter.value : "all";
+          const visible = drafts.filter(item => selectedStatus === "all" || String(item.status || "").toLowerCase() === selectedStatus);
+          box.innerHTML = visible.length ? visible.map(newsletterDraftCard).join("") : '<div class="empty">' + (drafts.length ? "No newsletters match this status." : "No newsletter drafts yet.") + '</div>';
+          bindNewsletterDraftCards();
+        };
+        const bindNewsletterDraftCards = () => box.querySelectorAll("[data-newsletter-draft]").forEach(card => {
           const imageInput=card.querySelector("[data-newsletter-image-input]"), imageButton=card.querySelector("[data-newsletter-image-button]"), imageName=card.querySelector("[data-newsletter-image-name]"), imagePreview=card.querySelector("[data-newsletter-image-preview]");
           if(imageButton&&imageInput){imageButton.style.cssText="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;";imageButton.addEventListener("click",()=>imageInput.click());imageInput.addEventListener("change",()=>{const file=imageInput.files&&imageInput.files[0];if(!file)return;if(!file.type.startsWith("image/")){alert("Please choose an image file.");imageInput.value="";return;}if(file.size>5*1024*1024){alert("Please choose an image smaller than 5 MB.");imageInput.value="";return;}imageName.textContent=file.name;const reader=new FileReader();reader.onload=()=>{card.dataset.newsletterImage=String(reader.result||"");imagePreview.querySelector("img").src=card.dataset.newsletterImage;imagePreview.style.display="block";};reader.readAsDataURL(file);});}
 
@@ -1921,7 +1937,12 @@ loadRequests();
                       picker.remove();
                     } catch(e) { alert(e.message); apply.disabled=false; apply.textContent="Apply Offers"; }
                   };
-                } catch (e) {
+                  renderNewsletterDrafts();
+        if (statusFilter && !statusFilter.dataset.bound) {
+          statusFilter.dataset.bound = "1";
+          statusFilter.addEventListener("change", renderNewsletterDrafts);
+        }
+      } catch (e) {
                   alert(e.message);
                 } finally {
                   button.disabled = false;
