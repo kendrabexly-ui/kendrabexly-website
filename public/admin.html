@@ -673,8 +673,8 @@
         </div>
 
         <div class="panel">
-          <div class="empty">
-            Generated email drafts will appear here.
+          <div id="email-draft-records" class="empty">
+            Loading email drafts...
           </div>
         </div>
 
@@ -2223,6 +2223,56 @@ loadRequests();
     });
     document.getElementById("rates-reset")?.addEventListener("click",()=>{if(!confirm("Reset Rates & Services to the current master rates?"))return;localStorage.removeItem("kendra_rate_services");renderRateServices();document.getElementById("rates-status").textContent="Reset to master rates.";});
     renderRateServices();
+
+    async function loadEmailDrafts() {
+      const box = document.getElementById("email-draft-records");
+      if (!box) return;
+      try {
+        const response = await fetch("/api/admin/email-drafts");
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load email drafts.");
+        const requestId = Number(new URLSearchParams(window.location.search).get("request_id") || 0);
+        let drafts = data.email_drafts || [];
+        if (requestId) {
+          drafts = [...drafts].sort((a,b) => (Number(b.date_request_id) === requestId) - (Number(a.date_request_id) === requestId));
+        }
+        box.className = "";
+        box.innerHTML = drafts.length ? drafts.map((draft) => {
+          const current = requestId && Number(draft.date_request_id) === requestId;
+          const name = [draft.first_name,draft.last_name].filter(Boolean).join(" ") || "Client";
+          return `<div data-email-draft="${draft.id}" style="padding:20px 22px;border-bottom:1px solid var(--line);${current ? "background:#fff8e8;border-left:4px solid #b28a45;" : ""}">
+            ${current ? '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:7px;">CURRENT REQUEST</div>' : ""}
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+              <strong>${escapeHtml(name)}</strong><span style="font-size:12px;">${escapeHtml(draft.status || "draft")}</span>
+            </div>
+            <div style="margin-top:5px;font-size:13px;">${escapeHtml(draft.email || "No email")} · Request #${escapeHtml(draft.date_request_id || "—")}</div>
+            <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">SUBJECT</label>
+            <input data-email-subject value="${escapeHtml(draft.subject || "")}" style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;">
+            <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">EMAIL</label>
+            <textarea data-email-body rows="12" style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;resize:vertical;">${escapeHtml(draft.body || "")}</textarea>
+            <button type="button" data-save-email="${draft.id}" style="margin-top:10px;padding:9px 14px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
+            <span data-email-status style="margin-left:9px;font-size:12px;"></span>
+          </div>`;
+        }).join("") : '<div class="empty">No email drafts yet.</div>';
+        box.querySelectorAll("[data-save-email]").forEach((button) => button.addEventListener("click", async () => {
+          const card = button.closest("[data-email-draft]");
+          const status = card.querySelector("[data-email-status]");
+          button.disabled = true; status.textContent = "Saving...";
+          try {
+            const r = await fetch("/api/admin/email-drafts/" + button.dataset.saveEmail, {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject:card.querySelector("[data-email-subject]").value.trim(),body:card.querySelector("[data-email-body]").value.trim()})});
+            const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.message || "Unable to save.");
+            status.textContent = "Saved.";
+          } catch(e) { status.textContent = e.message; } finally { button.disabled = false; }
+        }));
+        if (requestId) {
+          const current = box.querySelector('[data-email-draft]');
+          if (current) setTimeout(() => current.scrollIntoView({behavior:"smooth",block:"center"}), 100);
+        }
+      } catch (error) {
+        box.className = "empty"; box.textContent = error.message || "Unable to load email drafts.";
+      }
+    }
+    loadEmailDrafts();
 
     const navButtons =
       document.querySelectorAll(".nav button");
