@@ -998,6 +998,9 @@
           const status =
             item.status || "pending";
 
+          const isNewsletterSpecial =
+            String(item.notes || "").includes("Newsletter special: Newsletter #");
+
           return `
             <button
               type="button"
@@ -1017,6 +1020,7 @@
               <strong>
                 ${escapeHtml(name || "Client")}
               </strong>
+              ${isNewsletterSpecial ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#eee7dc;font-size:11px;font-weight:600;letter-spacing:.04em;">✨ Newsletter Special</span>' : ""}
 
               <div style="margin-top:6px;">
                 ${escapeHtml(date)}
