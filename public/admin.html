@@ -665,6 +665,15 @@
           <h2>X Agent</h2>
           <p>Draft, review, approve, and publish to your connected X account.</p>
         </div>
+        <div id="x-section-nav" style="position:sticky;top:0;z-index:20;background:var(--cream);padding:8px 0 14px;margin-bottom:4px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);">
+          <button type="button" data-x-jump="create">Create</button>
+          <button type="button" data-x-jump="planner">Weekly Planner</button>
+          <button type="button" data-x-jump="drafts">Drafts</button>
+          <button type="button" data-x-jump="schedule">Schedule & Calendar</button>
+          <button type="button" data-x-jump="social">Replies & Timeline</button>
+          <button type="button" data-x-jump="library">Content Library</button>
+        </div>
+        <div id="x-content-library-note" style="display:none;" data-x-anchor="library"></div>
 
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
@@ -679,7 +688,7 @@
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
             <div>
-              <div class="panel-title">New Post Draft</div>
+              <div class="panel-title" data-x-anchor="create">New Post Draft</div>
               <div class="panel-subtitle">Nothing publishes until you approve it and press Publish.</div>
             </div>
           </div>
@@ -725,7 +734,7 @@
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
             <div>
-              <div class="panel-title">X Home Feed</div>
+              <div class="panel-title" data-x-anchor="social">X Home Feed</div>
               <div class="panel-subtitle">Browse recent tweets from people you follow and choose one to respond to.</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -776,7 +785,7 @@
         </div>
 
         <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header"><div><div class="panel-title">Weekly Content Planner</div><div class="panel-subtitle">Plan themes for the week, then send any day into Generate My Day for review. Nothing is scheduled automatically.</div></div></div>
+          <div class="panel-header"><div><div class="panel-title" data-x-anchor="planner">Weekly Content Planner</div><div class="panel-subtitle">Plan themes for the week, then send any day into Generate My Day for review. Nothing is scheduled automatically.</div></div></div>
           <div style="padding:18px 24px;"><label style="font-size:13px;font-weight:600;">Week starting</label><input id="x-week-start" type="date" style="display:block;margin:6px 0 14px;border:1px solid var(--line);border-radius:8px;padding:9px;"><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Monday</strong><input data-week-theme="0" placeholder="Monday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Tuesday</strong><input data-week-theme="1" placeholder="Tuesday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Wednesday</strong><input data-week-theme="2" placeholder="Wednesday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Thursday</strong><input data-week-theme="3" placeholder="Thursday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Friday</strong><input data-week-theme="4" placeholder="Friday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Saturday</strong><input data-week-theme="5" placeholder="Saturday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Sunday</strong><input data-week-theme="6" placeholder="Sunday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);"><div style="font-weight:700;">Weekly Content Balance</div><div style="font-size:12px;color:var(--muted);margin:4px 0 10px;">Assign a different voice or purpose to each of your 10 daily posting slots. These styles guide Generate My Day.</div><div id="x-content-balance" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;"></div><button id="x-reset-balance" type="button" style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;cursor:pointer;">Reset Mix</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"><button id="x-save-week" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Save Weekly Plan</button><button id="x-clear-week" type="button" style="border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Clear</button></div><div id="x-week-actions" style="margin-top:14px;"></div><div style="margin-top:18px;"><div style="font-weight:700;margin-bottom:8px;">Weekly Calendar Preview</div><div id="x-week-preview" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;"></div></div></div>
         </div>
 
@@ -796,7 +805,7 @@
 
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
-            <div><div class="panel-title">X Content Calendar</div><div class="panel-subtitle">See upcoming scheduled posts by date.</div></div>
+            <div><div class="panel-title" data-x-anchor="schedule">X Content Calendar</div><div class="panel-subtitle">See upcoming scheduled posts by date.</div></div>
             <div style="display:flex;gap:8px;align-items:center;"><button id="x-cal-prev" type="button">‹</button><strong id="x-cal-label"></strong><button id="x-cal-next" type="button">›</button></div>
           </div>
           <div id="x-content-calendar" style="padding:18px 24px;"><div class="empty">Loading calendar...</div></div>
@@ -810,7 +819,7 @@
         <div class="panel">
           <div class="panel-header">
             <div>
-              <div class="panel-title">Post Drafts</div>
+              <div class="panel-title" data-x-anchor="drafts">Post Drafts</div>
               <div class="panel-subtitle">Edit drafts, approve them, then publish when you are ready.</div>
             </div>
           </div>
@@ -1704,6 +1713,8 @@ loadRequests();
 
     loadXStatus();
     loadXDrafts();
+
+    const xSectionNav=document.getElementById("x-section-nav");if(xSectionNav){xSectionNav.querySelectorAll("button").forEach(b=>{b.style.cssText="border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:white;color:var(--ink);cursor:pointer;font-size:12px;";b.addEventListener("click",()=>{const key=b.dataset.xJump;if(key==="library"){alert("Content Library is the next section we’ll build. Nothing is published automatically.");return;}const target=document.querySelector('[data-x-anchor="'+key+'"]');target?.closest(".panel")?.scrollIntoView({behavior:"smooth",block:"start"});});});}
 
     const navButtons =
       document.querySelectorAll(".nav button");
