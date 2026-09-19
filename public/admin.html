@@ -742,7 +742,7 @@
             </div>
           </div>
           <div style="padding:24px;">
-            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">1. TOPIC</div><textarea id="x-series-topic" maxlength="1000" placeholder="Topic for the series..." style="width:100%;min-height:80px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
+            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">1. TOPIC</div><label for="x-series-topic-select" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Choose a topic</label><select id="x-series-topic-select" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Generate topics to choose from...</option></select><textarea id="x-series-topic" maxlength="1000" placeholder="Or type your own topic..." style="width:100%;min-height:70px;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
               <button id="x-add-series-topic" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Add Series Topic</button>
               <button id="x-generate-series-topics" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Generate Series Topics</button>
@@ -2092,18 +2092,18 @@ loadRequests();
     if(xAddSeriesTopic)xAddSeriesTopic.addEventListener("click",()=>{const topic=xSeriesTopic.value.trim();if(!topic)return alert("Type a series topic first.");const list=getSavedSeriesTopics();if(!list.some(t=>t.toLowerCase()===topic.toLowerCase()))list.unshift(topic);localStorage.setItem("xSavedSeriesTopics",JSON.stringify(list.slice(0,50)));renderSavedSeriesTopics();});
     renderSavedSeriesTopics();
 
-    const xGenerateSeriesTopics=document.getElementById("x-generate-series-topics"),xSeriesTopics=document.getElementById("x-series-topics");
+    const xGenerateSeriesTopics=document.getElementById("x-generate-series-topics"),xSeriesTopics=document.getElementById("x-series-topics"),xSeriesTopicSelect=document.getElementById("x-series-topic-select");
     if(xGenerateSeriesTopics)xGenerateSeriesTopics.addEventListener("click",async()=>{
       xGenerateSeriesTopics.disabled=true;xGenerateSeriesTopics.textContent="Generating Topics...";
       try{
         const r=await fetch("/api/admin/x/series/topics",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:document.getElementById("x-series-style")?.value||"warm-flirty-tease",include_suggestive:true})}),d=await r.json();
         if(!r.ok||!d.ok)throw new Error(d.message||"Unable to generate series topics.");
-        xSeriesTopics.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Choose a topic that matches your selected series style</div>'+d.topics.map((t,i)=>'<button type="button" data-series-topic="'+i+'" style="display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:white;padding:10px 4px;cursor:pointer;font:inherit;">'+escapeHtml(t)+'</button>').join("");
-        xSeriesTopics.style.display="block";
-        xSeriesTopics.querySelectorAll("[data-series-topic]").forEach(b=>b.onclick=()=>{xSeriesTopic.value=d.topics[Number(b.dataset.seriesTopic)]||"";xSeriesTopic.focus();});
+        xSeriesTopicSelect.innerHTML='<option value="">Choose a topic...</option>'+d.topics.map(t=>'<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>').join("");
+        xSeriesTopics.style.display="none";
       }catch(e){alert(e.message);}
       finally{xGenerateSeriesTopics.disabled=false;xGenerateSeriesTopics.textContent="Generate Series Topics";}
     });
+    xSeriesTopicSelect?.addEventListener("change",()=>{const topic=xSeriesTopicSelect.value.trim();if(!topic)return;xSeriesTopic.value=topic;xGenerateSeries?.click();});
     const xSeriesStyle=document.getElementById("x-series-style"),xSeriesStyleNote=document.getElementById("x-series-style-note");
     const xSeriesStyleButtons=[...document.querySelectorAll("[data-series-style]")];
     const xSeriesStyleNotes={ "warm-flirty-tease":"Warm → Flirty → Chemistry → Tease", conversational:"Conversational", playful:"Playful", direct:"Direct", fun:"Fun", funny:"Funny", sarcastic:"Sarcastic", sexual:"Sexual" };
