@@ -2450,11 +2450,23 @@ Kendra`
         }
 
         const item = await env.DB.prepare(
-          "SELECT id, status, deposit_amount, deposit_paid, notes FROM date_requests WHERE id = ? LIMIT 1"
+          "SELECT id, status, deposit_amount, deposit_paid, requested_date, requested_time, notes FROM date_requests WHERE id = ? LIMIT 1"
         ).bind(requestId).first();
         if (!item) return Response.json({ ok:false, message:"Request not found." }, { status:404 });
         if (Number(item.deposit_amount || 0) <= 0) {
           return Response.json({ ok:false, message:"Expected deposit must be calculated before confirming payment." }, { status:400 });
+        }
+
+        const appointmentLocal = new Date(String(item.requested_date || "") + "T" + String(item.requested_time || "") + ":00-07:00");
+        const depositCutoff = new Date(appointmentLocal.getTime() - 4 * 60 * 60 * 1000);
+        if (Number.isFinite(depositCutoff.getTime()) && Date.now() > depositCutoff.getTime()) {
+          return Response.json(
+            {
+              ok:false,
+              message:"The deposit deadline has passed. Deposits must be received no later than 4 hours before the scheduled date."
+            },
+            { status:400 }
+          );
         }
 
         const existingStamp = String(item.notes || "").match(/Deposit received at: ([^\n]+)/);
