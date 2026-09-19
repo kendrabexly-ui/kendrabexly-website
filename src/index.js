@@ -346,6 +346,45 @@ export default {
       return Response.json({ ok: true, status: "approved" });
     }
 
+    if (url.pathname === "/api/admin/x/delete-tweet" && request.method === "POST") {
+      const data = await request.json();
+      const id = Number(data.id);
+      if (!Number.isInteger(id) || id < 1) return Response.json({ ok:false, message:"Invalid post ID." }, { status:400 });
+
+      const draft = await env.DB.prepare("SELECT id, status, x_post_id FROM x_post_drafts WHERE id = ?").bind(id).first();
+      if (!draft) return Response.json({ ok:false, message:"Post not found." }, { status:404 });
+      if (draft.status !== "published" || !draft.x_post_id) return Response.json({ ok:false, message:"This item does not have a published X post to delete." }, { status:400 });
+
+      let row = await env.DB.prepare("SELECT access_token, refresh_token, expires_at, scope FROM x_oauth_tokens WHERE id = 1").first();
+      if (!row) return Response.json({ ok:false, message:"X is not connected." }, { status:400 });
+      let accessToken = row.access_token;
+      const now = Math.floor(Date.now() / 1000);
+      if (Number(row.expires_at || 0) <= now + 300) {
+        if (!row.refresh_token) return Response.json({ ok:false, message:"Reconnect X before deleting this tweet." }, { status:401 });
+        const refreshBody = new URLSearchParams({ grant_type:"refresh_token", refresh_token:row.refresh_token, client_id:env.X_CLIENT_ID });
+        const basic = btoa(String(env.X_CLIENT_ID) + ":" + String(env.X_CLIENT_SECRET));
+        const rr = await fetch("https://api.x.com/2/oauth2/token", { method:"POST", headers:{ Authorization:"Basic " + basic, "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" }, body:refreshBody.toString() });
+        if (!rr.ok) return Response.json({ ok:false, message:"X connection expired. Please reconnect." }, { status:401 });
+        const tokens = await rr.json();
+        accessToken = tokens.access_token;
+        await env.DB.prepare("UPDATE x_oauth_tokens SET access_token=?, refresh_token=?, expires_at=?, scope=?, updated_at=CURRENT_TIMESTAMP WHERE id=1")
+          .bind(accessToken, tokens.refresh_token || row.refresh_token, now + Number(tokens.expires_in || 7200), tokens.scope || row.scope || null).run();
+      }
+
+      const xr = await fetch("https://api.x.com/2/tweets/" + encodeURIComponent(draft.x_post_id), {
+        method:"DELETE",
+        headers:{ Authorization:"Bearer " + accessToken }
+      });
+      const xdata = await xr.json().catch(() => ({}));
+      if (!xr.ok) {
+        console.error("X delete failed:", xr.status, xdata);
+        return Response.json({ ok:false, message:xdata?.detail || xdata?.title || "X could not delete the tweet." }, { status:xr.status });
+      }
+
+      await env.DB.prepare("DELETE FROM x_post_drafts WHERE id = ?").bind(id).run();
+      return Response.json({ ok:true, deleted:true });
+    }
+
     if (url.pathname === "/api/admin/x/publish" && request.method === "POST") {
       const data = await request.json();
       const id = Number(data.id);
