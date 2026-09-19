@@ -1179,7 +1179,7 @@ My journal will continue to be a place where I share a little more of that side 
       "A little anticipation makes the plans even better.",
       "You bring yourself; I'll take care of making the time feel special."
     ];
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook my ${duration} ${experience} at the regular ${regular} rate this month and enjoy ${incentive} with me.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month and enjoy ${incentive} with me.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
