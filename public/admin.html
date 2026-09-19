@@ -612,7 +612,16 @@
 
         <div class="panel">
           <div style="padding:18px 22px;border-bottom:1px solid var(--line);">
-            <input id="client-search" type="search" placeholder="Search clients by name, email, or phone" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <input id="client-search" type="search" placeholder="Search clients by name, email, or phone" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+              <select id="client-safety-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                <option value="all">All clients</option>
+                <option value="blacklisted">Blacklisted</option>
+                <option value="watch">Watch</option>
+                <option value="high">High attention</option>
+                <option value="repeat">Repeat blocked attempts</option>
+              </select>
+            </div>
           </div>
           <div id="client-records">
             <div class="empty">Loading client profiles...</div>
@@ -1097,9 +1106,28 @@ async function loadRequests() {
     const renderClients = () => {
       if (!clientRecords) return;
       const query = clientSearch ? clientSearch.value.trim().toLowerCase() : "";
+      const safetyFilter = document.getElementById("client-safety-filter")?.value || "all";
       const filtered = clientProfiles.filter((client) => {
         const haystack = [client.first_name, client.last_name, client.email, client.phone].filter(Boolean).join(" ").toLowerCase();
-        return !query || haystack.includes(query);
+        if (query && !haystack.includes(query)) return false;
+        const blacklistRecord = findBlacklistRecord(client);
+        const blocked = client.requests.filter(r => r.status === "blacklisted_submission");
+        const names = new Set(), emails = new Set(), phones = new Set();
+        if (client.first_name || client.last_name) names.add((client.first_name + " " + client.last_name).trim());
+        if (client.email) emails.add(client.email);
+        if (client.phone) phones.add(client.phone);
+        blocked.forEach(r => {
+          const notes = String(r.notes || "");
+          const n=notes.match(/Submitted name:\s*([^\n]+)/i), e=notes.match(/Submitted email:\s*([^\n]+)/i), p=notes.match(/Submitted phone:\s*([^\n]+)/i);
+          if(n?.[1]) names.add(n[1].trim()); if(e?.[1]) emails.add(e[1].trim()); if(p?.[1]) phones.add(p[1].trim());
+        });
+        const variations=Math.max(0,names.size-1)+Math.max(0,emails.size-1)+Math.max(0,phones.size-1);
+        const high=blocked.length>=3||variations>=3, watch=blocked.length>=2||variations>=1;
+        if (safetyFilter==="blacklisted") return Boolean(blacklistRecord);
+        if (safetyFilter==="high") return Boolean(blacklistRecord && high);
+        if (safetyFilter==="watch") return Boolean(blacklistRecord && watch && !high);
+        if (safetyFilter==="repeat") return Boolean(blacklistRecord && blocked.length>1);
+        return true;
       });
       clientRecords.innerHTML = filtered.length ? filtered.map((client) => {
         const sorted = [...client.requests].sort((a,b) => String(b.requested_date || "").localeCompare(String(a.requested_date || "")));
@@ -1274,6 +1302,8 @@ async function loadRequests() {
     };
     renderClients();
     if (clientSearch) clientSearch.addEventListener("input", renderClients);
+    const clientSafetyFilter = document.getElementById("client-safety-filter");
+    if (clientSafetyFilter) clientSafetyFilter.addEventListener("change", renderClients);
 
     if (requests.length === 0) {
       recentContainer.innerHTML = `
