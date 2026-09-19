@@ -1,3 +1,6 @@
+async function ensureXDraftMedia(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_draft_media (draft_id INTEGER PRIMARY KEY,mime_type TEXT NOT NULL,file_name TEXT,image_base64 TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`).run();}
+async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env);const m=await env.DB.prepare("SELECT mime_type,image_base64 FROM x_draft_media WHERE draft_id=?").bind(draftId).first();if(!m)return null;const rr=await fetch("https://api.x.com/2/media/upload",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({media:m.image_base64,media_category:"tweet_image"})});const d=await rr.json().catch(()=>({}));if(!rr.ok)throw new Error(d?.detail||d?.title||d?.message||"X rejected the image upload.");return d?.data?.id||d?.data?.media_id_string||d?.media_id_string||null;}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -444,8 +447,8 @@ export default {
         )
       `).run();
       const result = await env.DB.prepare(`
-        SELECT id, content, status, x_post_id, created_at, updated_at, published_at
-        FROM x_post_drafts ORDER BY id DESC LIMIT 50
+        SELECT d.id, d.content, d.status, d.x_post_id, d.created_at, d.updated_at, d.published_at, CASE WHEN m.draft_id IS NULL THEN 0 ELSE 1 END AS has_media
+        FROM x_post_drafts d LEFT JOIN x_draft_media m ON m.draft_id=d.id ORDER BY d.id DESC LIMIT 50
       `).all();
       return Response.json({ ok: true, drafts: result.results || [] });
     }
@@ -475,6 +478,13 @@ export default {
         INSERT INTO x_post_drafts (content, status) VALUES (?, 'draft')
       `).bind(content).run();
       return Response.json({ ok: true, id: result.meta.last_row_id, content, status: "draft" });
+    }
+
+    if (/^\/api\/admin\/x\/drafts\/\d+\/media$/.test(url.pathname)) {
+      const id=Number(url.pathname.split("/")[5]);await ensureXDraftMedia(env);const draft=await env.DB.prepare("SELECT id,status FROM x_post_drafts WHERE id=?").bind(id).first();if(!draft)return Response.json({ok:false,message:"Draft not found."},{status:404});
+      if(request.method==="GET"){const m=await env.DB.prepare("SELECT mime_type,file_name,image_base64 FROM x_draft_media WHERE draft_id=?").bind(id).first();return Response.json({ok:true,media:m?{mime_type:m.mime_type,file_name:m.file_name,data_url:"data:"+m.mime_type+";base64,"+m.image_base64}:null});}
+      if(request.method==="DELETE"){await env.DB.prepare("DELETE FROM x_draft_media WHERE draft_id=?").bind(id).run();return Response.json({ok:true});}
+      if(request.method==="POST"){if(draft.status==="published")return Response.json({ok:false,message:"Published posts cannot be changed."},{status:400});const d=await request.json(),mime=String(d.mime_type||""),name=String(d.file_name||"image").slice(0,150),base64=String(d.image_base64||"").replace(/^data:[^;]+;base64,/,"");if(!["image/jpeg","image/png","image/webp"].includes(mime))return Response.json({ok:false,message:"Use a JPG, PNG, or WebP image."},{status:400});if(!base64||base64.length>5500000)return Response.json({ok:false,message:"Image is too large. Please use an image under about 4 MB."},{status:400});await env.DB.prepare("INSERT INTO x_draft_media(draft_id,mime_type,file_name,image_base64,updated_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(draft_id) DO UPDATE SET mime_type=excluded.mime_type,file_name=excluded.file_name,image_base64=excluded.image_base64,updated_at=CURRENT_TIMESTAMP").bind(id,mime,name,base64).run();return Response.json({ok:true});}
     }
 
     if (url.pathname.startsWith("/api/admin/x/drafts/") && request.method === "PUT") {
@@ -629,7 +639,7 @@ export default {
       const xr = await fetch("https://api.x.com/2/tweets", {
         method: "POST",
         headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-        body: JSON.stringify({ text: draft.content })
+        body: JSON.stringify(await (async()=>{const mediaId=await uploadXImage(env,id,accessToken);return mediaId?{text:draft.content,media:{media_ids:[mediaId]}}:{text:draft.content};})())
       });
       const xdata = await xr.json().catch(() => ({}));
       if (!xr.ok) {
@@ -2422,7 +2432,7 @@ if (
             const tokens=await rr.json();accessToken=tokens.access_token;
             await env.DB.prepare("UPDATE x_oauth_tokens SET access_token=?,refresh_token=?,expires_at=?,scope=?,updated_at=CURRENT_TIMESTAMP WHERE id=1").bind(accessToken,tokens.refresh_token||row.refresh_token,now+Number(tokens.expires_in||7200),tokens.scope||row.scope||null).run();
           }
-          const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({text:item.content})});
+          const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify(await (async()=>{const mediaId=await uploadXImage(env,item.draft_id,accessToken);return mediaId?{text:item.content,media:{media_ids:[mediaId]}}:{text:item.content};})())});
           const xd=await xr.json().catch(()=>({}));if(!xr.ok)throw new Error(xd?.detail||xd?.title||"X rejected scheduled post.");
           const postId=xd?.data?.id||null;
           await env.DB.prepare("UPDATE x_post_drafts SET status='published',x_post_id=?,published_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='approved'").bind(postId,item.draft_id).run();
