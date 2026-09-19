@@ -228,21 +228,9 @@ export default {
         if (!content) throw new Error("Workers AI returned an empty response.");
         if (content.length > 280) content = content.slice(0, 277).trimEnd() + "...";
 
-        await env.DB.prepare(`
-          CREATE TABLE IF NOT EXISTS x_post_drafts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            content TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'draft',
-            x_post_id TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            published_at TEXT
-          )
-        `).run();
-        const result = await env.DB.prepare(
-          "INSERT INTO x_post_drafts (content, status) VALUES (?, 'draft')"
-        ).bind(content).run();
-        return Response.json({ ok: true, id: result.meta.last_row_id, content, status: "draft" });
+        // Generation only previews the post. The user explicitly saves it
+        // through the existing Save Draft action after reviewing/editing.
+        return Response.json({ ok: true, content });
       } catch (error) {
         console.error("X AI generation failed:", error);
         const detail = String(error?.message || error?.cause?.message || error || "Unknown Workers AI error").slice(0, 600);
