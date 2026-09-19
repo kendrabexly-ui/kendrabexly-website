@@ -2105,12 +2105,17 @@ loadRequests();
       finally{xGenerateSeriesTopics.disabled=false;xGenerateSeriesTopics.textContent="Generate Series Topics";}
     });
     const xSeriesStyle=document.getElementById("x-series-style"),xSeriesStyleNote=document.getElementById("x-series-style-note");
-    document.querySelectorAll("[data-series-style]").forEach(btn=>btn.addEventListener("click",()=>{
-      const notes={ "warm-flirty-tease":"Starts warm and personal, builds playful/flirty anticipation and chemistry, then ends with a natural tease. Keep it human and connected.", conversational:"Natural, relaxed and personal, like an ongoing real conversation.", playful:"Light, witty and playful with personality, without forcing the flirt.", direct:"Clear, confident and concise with minimal buildup." };
-      xSeriesStyle.value=btn.dataset.seriesStyle;
-      if(xSeriesStyleNote)xSeriesStyleNote.textContent=notes[btn.dataset.seriesStyle]||"";
-      document.querySelectorAll("[data-series-style]").forEach(b=>{const on=b===btn;b.style.background=on?"var(--ink)":"white";b.style.color=on?"white":"var(--ink)";b.style.borderColor=on?"var(--ink)":"var(--line)";});
-    }));
+    const xSeriesStyleButtons=[...document.querySelectorAll("[data-series-style]")];
+    const xSeriesStyleNotes={ "warm-flirty-tease":"Warm → Flirty → Chemistry → Tease", conversational:"Conversational", playful:"Playful", direct:"Direct" };
+    const syncSeriesStyles=()=>{
+      const selected=xSeriesStyleButtons.filter(b=>b.dataset.selected==="true").map(b=>b.dataset.seriesStyle);
+      if(!selected.length){xSeriesStyleButtons[0].dataset.selected="true";selected.push(xSeriesStyleButtons[0].dataset.seriesStyle);}
+      xSeriesStyle.value=selected.join(",");
+      xSeriesStyleButtons.forEach(b=>{const on=b.dataset.selected==="true";b.style.background=on?"var(--ink)":"white";b.style.color=on?"white":"var(--ink)";b.style.borderColor=on?"var(--ink)":"var(--line)";b.setAttribute("aria-pressed",on?"true":"false");});
+      if(xSeriesStyleNote)xSeriesStyleNote.textContent="Selected: "+selected.map(s=>xSeriesStyleNotes[s]||s).join(" + ")+". The generator will blend these styles across the series.";
+    };
+    xSeriesStyleButtons.forEach((btn,i)=>{btn.dataset.selected=i===0?"true":"false";btn.addEventListener("click",()=>{const selectedCount=xSeriesStyleButtons.filter(b=>b.dataset.selected==="true").length;if(btn.dataset.selected==="true"&&selectedCount===1)return;btn.dataset.selected=btn.dataset.selected==="true"?"false":"true";syncSeriesStyles();});});
+    syncSeriesStyles();
     if(xGenerateSeries)xGenerateSeries.addEventListener("click",async()=>{
       const topic=xSeriesTopic.value.trim();if(!topic)return alert("Add a series topic first.");
       xGenerateSeries.disabled=true;xGenerateSeries.textContent="Generating...";
