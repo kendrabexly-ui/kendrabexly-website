@@ -1029,13 +1029,13 @@ My journal will continue to be a place where I share a little more of that side 
       ).trim();
 
     const monthlySubscriberOffers = [
-      { experience: "Signature Private Companionship Experience", duration: "1 hour", special: 450, regular: 500 },
-      { experience: "Signature Private Companionship Experience", duration: "2 hours", special: 650, regular: 750 },
-      { experience: "Signature Private Companionship Experience", duration: "3 hours", special: 850, regular: 1000 },
-      { experience: "Signature Private Companionship Experience", duration: "4 hours", special: 1050, regular: 1250 },
-      { experience: "The Greek Princess", duration: "1 hour", special: 575, regular: 650 },
-      { experience: "The Greek Princess", duration: "1.5 hours", special: 700, regular: 800 },
-      { experience: "The Greek Princess", duration: "2 hours", special: 900, regular: 1050 }
+      { experience: "Signature Private Companionship Experience", duration: "1 hour", regular: 500, incentive: "30 extra minutes" },
+      { experience: "Signature Private Companionship Experience", duration: "2 hours", regular: 750, incentive: "30 extra minutes" },
+      { experience: "Signature Private Companionship Experience", duration: "3 hours", regular: 1000, incentive: "30 extra minutes" },
+      { experience: "Signature Private Companionship Experience", duration: "4 hours", regular: 1250, incentive: "30 extra minutes" },
+      { experience: "The Greek Princess", duration: "1 hour", regular: 650, incentive: "30 extra minutes" },
+      { experience: "The Greek Princess", duration: "1.5 hours", regular: 800, incentive: "30 extra minutes" },
+      { experience: "The Greek Princess", duration: "2 hours", regular: 1050, incentive: "30 extra minutes" }
     ];
     const offerIndex = (now.getFullYear() * 12 + now.getMonth()) % monthlySubscriberOffers.length;
     const monthlyOffer = monthlySubscriberOffers[offerIndex];
@@ -1064,7 +1064,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nSpend ${monthlyOffer.duration} with me for ${money(monthlyOffer.special)} this month — normally ${money(monthlyOffer.regular)}.\n\n${flirtyOfferClosers[flirtyIndex]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nBook my ${monthlyOffer.duration} ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience} at the regular ${money(monthlyOffer.regular)} rate this month and enjoy ${monthlyOffer.incentive} with me.\n\n${flirtyOfferClosers[flirtyIndex]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`
       ).trim();
 
     const result = await env.DB.prepare(`
