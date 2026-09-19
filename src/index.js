@@ -204,6 +204,31 @@ export default {
     // X AGENT DRAFTS + APPROVAL/PUBLISH
     // =========================================================
 
+    if (url.pathname === "/api/admin/x/topics" && request.method === "POST") {
+      if (!env.AI) return Response.json({ ok: false, message: "Workers AI is not connected." }, { status: 500 });
+      try {
+        const aiResult = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8", {
+          messages: [
+            {
+              role: "system",
+              content: "Generate 5 fresh topic ideas for Kendra Bexly's X account. Ideas should feel warm, personable, playful, confident, conversational, and human. Mix everyday thoughts, light conversation starters, positive energy, lifestyle, and tasteful flirty personality. Do not invent personal facts, dates, locations, events, or experiences. No hashtags. Return exactly 5 short ideas, one per line, with no numbering or bullets."
+            },
+            { role: "user", content: "Give me five new X post topics." }
+          ],
+          max_tokens: 220,
+          temperature: 0.95
+        });
+        const raw = String(aiResult?.response || aiResult?.result?.response || "").trim();
+        const topics = raw.split(/\n+/).map(x => x.replace(/^[-*•\d.)\s]+/, "").trim()).filter(Boolean).slice(0, 5);
+        if (!topics.length) throw new Error("Workers AI returned no topic ideas.");
+        return Response.json({ ok: true, topics });
+      } catch (error) {
+        console.error("X topic generation failed:", error);
+        const detail = String(error?.message || error?.cause?.message || error || "Unknown Workers AI error").slice(0, 600);
+        return Response.json({ ok: false, message: "Workers AI error: " + detail, error: detail }, { status: 502 });
+      }
+    }
+
     if (url.pathname === "/api/admin/x/generate" && request.method === "POST") {
       if (!env.AI) return Response.json({ ok: false, message: "Workers AI is not connected." }, { status: 500 });
       const data = await request.json();
