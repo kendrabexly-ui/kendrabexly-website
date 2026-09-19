@@ -764,6 +764,19 @@
 
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
+            <div><div class="panel-title">Daily Posting Schedule</div><div class="panel-subtitle">Six daily posting slots. These times are used as planning shortcuts; posts still require your explicit scheduling approval.</div></div>
+          </div>
+          <div style="padding:18px 24px;">
+            <div id="x-daily-slots" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;"></div>
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+              <span id="x-slot-zone" style="font-size:13px;color:var(--muted);"></span>
+              <button id="x-save-slots" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Save Posting Times</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
             <div><div class="panel-title">X Content Calendar</div><div class="panel-subtitle">See upcoming scheduled posts by date.</div></div>
             <div style="display:flex;gap:8px;align-items:center;"><button id="x-cal-prev" type="button">‹</button><strong id="x-cal-label"></strong><button id="x-cal-next" type="button">›</button></div>
           </div>
@@ -1306,6 +1319,15 @@ loadRequests();
         overlay.querySelector("[data-datetime]").focus();
       });
     }
+
+    const xDefaultSlots=["08:00","10:30","13:00","15:30","18:00","20:30"];
+    function loadXDailySlots(){
+      let slots=xDefaultSlots;try{const saved=JSON.parse(localStorage.getItem("xDailyPostingSlots")||"null");if(Array.isArray(saved)&&saved.length===6)slots=saved;}catch(e){}
+      const box=document.getElementById("x-daily-slots");if(box)box.innerHTML=slots.map((v,i)=>'<label style="font-size:13px;">Post '+(i+1)+'<input data-x-slot type="time" value="'+v+'" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;"></label>').join("");
+      const zone=Intl.DateTimeFormat().resolvedOptions().timeZone||"Local time";const z=document.getElementById("x-slot-zone");if(z)z.textContent="Timezone: "+zone;
+    }
+    document.getElementById("x-save-slots")?.addEventListener("click",()=>{const slots=[...document.querySelectorAll("[data-x-slot]")].map(x=>x.value);if(slots.length!==6||slots.some(x=>!x))return alert("Choose all six posting times.");localStorage.setItem("xDailyPostingSlots",JSON.stringify(slots));alert("Six daily posting times saved.");});
+    loadXDailySlots();
 
     let xCalendarDate=new Date();
     let xCalendarItems=[];
