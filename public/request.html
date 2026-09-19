@@ -293,6 +293,9 @@
               type="time"
               required
             >
+            <small>
+              Same-day requests must be scheduled at least 1 hour from the time you submit.
+            </small>
 
           </div>
 
@@ -537,12 +540,47 @@
     const submitButton =
       document.getElementById("submit-request");
 
+    const requestedDate = document.getElementById("requested-date");
+    const requestedTime = document.getElementById("requested-time");
+
+    function localDateValue(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + d;
+    }
+
+    requestedDate.min = localDateValue(new Date());
+
+    function validateMinimumNotice() {
+      requestedTime.setCustomValidity("");
+      if (!requestedDate.value || !requestedTime.value) return true;
+      const selected = new Date(requestedDate.value + "T" + requestedTime.value);
+      const earliest = new Date(Date.now() + 60 * 60 * 1000);
+      if (selected.getTime() < earliest.getTime()) {
+        requestedTime.setCustomValidity(
+          "Please choose a start time at least 1 hour from now."
+        );
+        requestedTime.reportValidity();
+        return false;
+      }
+      return true;
+    }
+
+    requestedDate.addEventListener("change", validateMinimumNotice);
+    requestedTime.addEventListener("change", validateMinimumNotice);
+
 
     form.addEventListener(
       "submit",
       async function (event) {
 
         event.preventDefault();
+
+        if (!validateMinimumNotice()) {
+          status.textContent = "Please choose a start time at least 1 hour from now.";
+          return;
+        }
 
 
         status.textContent =
