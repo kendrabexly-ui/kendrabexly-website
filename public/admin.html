@@ -3152,8 +3152,31 @@ loadRequests();
             '<div style="font-weight:600;">' + escapeHtml(name) + '</div>' +
             '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
             escapeHtml(item.requested_date || "Date pending") + (item.requested_time ? " · " + escapeHtml(item.requested_time) : "") +
-            (item.location_name ? " · " + escapeHtml(item.location_name) : "") + '</div></div>';
+            (item.location_name ? " · " + escapeHtml(item.location_name) : "") + '</div>' +
+            '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">' +
+            '<button type="button" data-calendar-view-client="' + escapeHtml(item.email || "") + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">View Client</button>' +
+            '<button type="button" data-calendar-view-date="' + escapeHtml(String(item.id || "")) + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">Date Details</button>' +
+            '</div></div>';
         }).join("") : '<div style="font-size:13px;color:var(--muted);">No upcoming approved dates.</div>';
+        box.querySelectorAll("[data-calendar-view-client]").forEach(button => button.addEventListener("click", () => {
+          const email = button.dataset.calendarViewClient || "";
+          openSection("clients");
+          const search = document.getElementById("client-search");
+          if (search && email) {
+            search.value = email;
+            search.dispatchEvent(new Event("input", {bubbles:true}));
+            window.setTimeout(() => document.querySelector("#client-records .client-profile-toggle")?.click(), 60);
+          }
+        }));
+        box.querySelectorAll("[data-calendar-view-date]").forEach(button => button.addEventListener("click", () => {
+          const requestId = button.dataset.calendarViewDate || "";
+          openSection("requests");
+          const search = document.getElementById("request-search");
+          if (search && requestId) {
+            search.value = requestId;
+            search.dispatchEvent(new Event("input", {bubbles:true}));
+          }
+        }));
       } catch (error) {
         if (count) count.textContent = "—";
         box.innerHTML = '<div style="font-size:13px;color:var(--red);">' + escapeHtml(error.message || "Unable to load upcoming dates.") + '</div>';
