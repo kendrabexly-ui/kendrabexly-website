@@ -2251,14 +2251,7 @@ loadRequests();
             <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">EMAIL</label>
             <textarea data-email-body rows="12" style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;resize:vertical;">${escapeHtml(draft.body || "")}</textarea>
             <button type="button" data-save-email="${draft.id}" style="margin-top:10px;padding:9px 14px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
-            <button type="button" data-regenerate-email="${draft.id}" ${draft.status === "sent" ? "disabled" : ""} style="margin-top:10px;margin-left:8px;padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Regenerate</button>
-            <button type="button" data-preview-email="${draft.id}" style="margin-top:10px;margin-left:8px;padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Preview</button>
             <button type="button" data-send-email="${draft.id}" ${draft.status === "sent" ? "disabled" : ""} style="margin-top:10px;margin-left:8px;padding:9px 14px;border:1px solid var(--ink);border-radius:999px;background:white;color:var(--ink);cursor:pointer;">${draft.status === "sent" ? "✓ Sent" : "Send Email"}</button>
-            <div data-email-preview style="display:none;margin-top:14px;padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
-              <div style="font-size:12px;margin-bottom:8px;"><strong>TO:</strong> ${escapeHtml(draft.email || "No email")}</div>
-              <div style="font-size:12px;margin-bottom:14px;"><strong>SUBJECT:</strong> <span data-preview-subject></span></div>
-              <div data-preview-body style="white-space:pre-wrap;line-height:1.6;"></div>
-            </div>
             <span data-email-status style="margin-left:9px;font-size:12px;"></span>
           </div>`;
         }).join("") : '<div class="empty">No email drafts yet.</div>';
@@ -2273,35 +2266,11 @@ loadRequests();
           } catch(e) { status.textContent = e.message; } finally { button.disabled = false; }
         }));
         box.onclick = async (event) => {
-          const card = event.target.closest("[data-email-draft]");
-          if (!card) return;
-          const status = card.querySelector("[data-email-status]");
-          const previewButton = event.target.closest("[data-preview-email]");
-          if (previewButton) {
-            const preview = card.querySelector("[data-email-preview]");
-            const opening = preview.style.display === "none";
-            if (opening) {
-              card.querySelector("[data-preview-subject]").textContent = card.querySelector("[data-email-subject]").value;
-              card.querySelector("[data-preview-body]").textContent = card.querySelector("[data-email-body]").value;
-            }
-            preview.style.display = opening ? "block" : "none";
-            previewButton.textContent = opening ? "Close Preview" : "Preview";
-            return;
-          }
-          const regenerateButton = event.target.closest("[data-regenerate-email]");
-          if (regenerateButton && !regenerateButton.disabled) {
-            if (!confirm("Regenerate this email? Your unsaved edits will be replaced.")) return;
-            const original = (data.email_drafts || []).find(d => String(d.id) === String(regenerateButton.dataset.regenerateEmail));
-            if (original) {
-              card.querySelector("[data-email-subject]").value = original.subject || "";
-              card.querySelector("[data-email-body]").value = original.body || "";
-              status.textContent = "Draft regenerated from the original.";
-            }
-            return;
-          }
           const button = event.target.closest("[data-send-email]");
           if (!button || button.disabled) return;
-          if (!confirm("Final send: send this email now?")) return;
+          const card = button.closest("[data-email-draft]");
+          const status = card.querySelector("[data-email-status]");
+          if (!confirm("Send this email now?")) return;
           button.disabled = true;
           status.textContent = "Sending...";
           try {
