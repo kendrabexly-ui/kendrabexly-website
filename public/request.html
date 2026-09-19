@@ -499,8 +499,33 @@
     const offerParams = new URLSearchParams(window.location.search);
     const newsletterOffer = offerParams.get("newsletter_offer");
     if (newsletterOffer && /^\d+$/.test(newsletterOffer)) {
-      document.getElementById("newsletter-offer").value = newsletterOffer;
-      document.getElementById("newsletter-special-banner").style.display = "block";
+      const offerInput = document.getElementById("newsletter-offer");
+      const offerBanner = document.getElementById("newsletter-special-banner");
+      offerInput.value = newsletterOffer;
+      offerBanner.style.display = "block";
+
+      fetch("/api/newsletter/offer?id=" + encodeURIComponent(newsletterOffer))
+        .then(response => response.json())
+        .then(data => {
+          if (!data.ok) return;
+          if (data.expired) {
+            offerInput.value = "";
+            offerBanner.innerHTML =
+              '<div class="eyebrow">NEWSLETTER SPECIAL</div>' +
+              '<strong>This subscriber special has expired.</strong>' +
+              '<p style="margin:6px 0 0;">You can still submit a standard private request below or use the booking button in the current newsletter.</p>';
+            return;
+          }
+          if (data.special_offer) {
+            offerBanner.innerHTML =
+              '<div class="eyebrow">NEWSLETTER SPECIAL</div>' +
+              '<strong>Your subscriber offer is attached 💋</strong>' +
+              '<p style="margin:6px 0 0;white-space:pre-line;">' +
+              data.special_offer.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) +
+              '</p>';
+          }
+        })
+        .catch(() => {});
     }
 
     const form =
