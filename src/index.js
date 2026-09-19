@@ -1151,7 +1151,7 @@ My journal will continue to be a place where I share a little more of that side 
     return Response.json({ok:true,special_offer:specialOffer,featured_experience:next.experience,duration:next.duration,regular:next.regular});
   }
 
-  // Regenerate special-offer wording while preserving the current experience, duration and price.
+  // Regenerate special-offer wording and upgrade older single-experience drafts to both monthly specials.
   if (
     /^\/api\/admin\/newsletter\/drafts\/\d+\/regenerate-offer$/.test(url.pathname) &&
     request.method === "POST"
@@ -1164,13 +1164,6 @@ My journal will continue to be a place where I share a little more of that side 
 
     const data = await request.json().catch(() => ({}));
     const offer = String(data.special_offer || existing.special_offer || "").trim();
-    const experience = ((offer.match(/featured experience:\s*([^\n.]+)/i) || [])[1] || "").trim();
-    const booking = offer.match(/Book a ([^\n.]+?)\s+(\d+(?:\.\d+)?\s*(?:hours?|minutes?))\s+at\s+(\$[\d,]+)\s+this month\./i);
-    if (!experience || !booking) {
-      return Response.json({ok:false,message:"The featured experience details are incomplete. Choose a featured experience first, then change the wording."},{status:400});
-    }
-    const duration = booking[2].trim();
-    const regular = booking[3].trim();
     const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
     const intros = [
       "I saved a little something especially for you this month. ✨",
@@ -1188,7 +1181,7 @@ My journal will continue to be a place where I share a little more of that side 
     ];
     const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));
     const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. When you're ready to make plans with me, use the button below and I’ll know exactly which special caught your eye. 💋`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — 1.5 hours at $500.\n\nThe Greek Princess — 1 hour at $650.\n\nChoose the experience that catches your eye when you're ready to make plans with me.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
