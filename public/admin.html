@@ -998,12 +998,8 @@
         <button type="button" class="remove-blacklist" data-blacklist-id="${item.id}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
       </div>`;
       }).join("") : '<div class="empty">No blacklist records match your search or filter.</div>';
-    };
-    renderBlacklist();
-    if (searchInput) searchInput.oninput = renderBlacklist;
-    if (safetyFilter) safetyFilter.onchange = renderBlacklist;
-    container.querySelectorAll(".remove-blacklist").forEach((button) => {
-      button.addEventListener("click", async () => {
+      container.querySelectorAll(".remove-blacklist").forEach((button) => {
+        button.addEventListener("click", async () => {
         if (!window.confirm("Remove this client from the blacklist? They will be able to submit new requests again.")) return;
         button.disabled = true;
         const response = await fetch("/api/admin/blacklist/remove", {
@@ -1017,9 +1013,13 @@
           window.alert(result.message || "Unable to remove this client.");
           return;
         }
-        loadBlacklist();
+          loadBlacklist();
+        });
       });
-    });
+    };
+    renderBlacklist();
+    if (searchInput) searchInput.oninput = renderBlacklist;
+    if (safetyFilter) safetyFilter.onchange = renderBlacklist;
   } catch (error) {
     container.innerHTML = '<div class="empty">Unable to load blacklist.</div>';
   }
