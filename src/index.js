@@ -2341,6 +2341,31 @@ if (
       }
     }
 
+    if (url.pathname === "/api/admin/clients/special-invitation" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const clientId=Number(data.client_id);
+        const incentive=String(data.incentive||"extra-time");
+        const details=String(data.details||"").trim().slice(0,500);
+        if(!Number.isFinite(clientId)||clientId<=0)return Response.json({ok:false,message:"Choose a client first."},{status:400});
+        const client=await env.DB.prepare("SELECT id,first_name,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
+        if(!client)return Response.json({ok:false,message:"Client not found."},{status:404});
+        try{await env.DB.prepare("ALTER TABLE clients ADD COLUMN preferences TEXT").run();}catch(e){}
+        const profile=await env.DB.prepare("SELECT preferences FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
+        const incentiveText=incentive==="extra-time"?"additional time added to a future date, with the normal rate preserved":incentive==="priority"?"a private priority invitation based on my availability":incentive==="custom"?(details||"a private invitation I selected for him"):"a private invitation";
+        const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+          {role:"system",content:"Write a private invitation in my first person voice as an adult independent professional companion. It is for an existing client I selected personally. Sound warm, feminine, confident, informal, personal, and lightly flirty. Make the invitation feel exclusive without sounding like a coupon, promotion, receipt, or mass marketing email. Never imply a sexual act is included, purchased, promised, or guaranteed. Do not lower or invent a rate. Do not invent memories or personal details. Never refer to me by name or in third person. Avoid poetic language. Do not use hyphens, em dashes, or en dashes. Keep it concise."},
+          {role:"user",content:"Client first name: "+String(client.first_name||"").trim()+"\nInvitation incentive: "+incentiveText+"\nOptional details: "+details+"\nKnown preferences: "+String(profile?.preferences||"").trim()+"\nPrivate notes: "+String(client.notes||"").trim()}
+        ],max_tokens:350,temperature:0.72});
+        let draft=String(ai?.response||ai?.result?.response||"").trim().replace(/^["“]|["”]$/g,"").replace(/[–—]/g,",");
+        if(!draft)throw new Error("Workers AI returned an empty invitation.");
+        return Response.json({ok:true,draft});
+      } catch(error) {
+        console.error("Special invitation generation error:",error);
+        return Response.json({ok:false,message:"Unable to generate special invitation."},{status:502});
+      }
+    }
+
     // =========================================================
     // ADMIN PAYMENT LIST
     // =========================================================
