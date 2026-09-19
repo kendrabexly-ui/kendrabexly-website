@@ -1014,6 +1014,12 @@
     const renderBlacklist = () => {
       const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
       const filter = safetyFilter ? safetyFilter.value : "all";
+      const filtersActive = Boolean(query) || filter !== "all" || Boolean(sortSelect && sortSelect.value !== "newest");
+      if (clearFilters) {
+        clearFilters.disabled = !filtersActive;
+        clearFilters.style.opacity = filtersActive ? "1" : "0.5";
+        clearFilters.style.cursor = filtersActive ? "pointer" : "default";
+      }
       const filtered = records.filter((item) => {
         const reason = String(item.reason || "").toLowerCase();
         const haystack = [item.name,item.email,item.phone,item.reason].filter(Boolean).join(" ").toLowerCase();
