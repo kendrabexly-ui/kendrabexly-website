@@ -496,6 +496,7 @@
 
       <nav class="nav">
         <button class="active" data-section="dashboard">Dashboard</button>
+        <button data-section="calendar">Calendar</button>
         <button data-section="requests">Requests</button>
         <button data-section="clients">Clients</button>
         <button data-section="blacklist">Blacklist</button>
@@ -570,6 +571,63 @@
     </div>
 </div>
 
+        </div>
+
+      </section>
+
+      <!-- CALENDAR & DATE MANAGEMENT -->
+
+      <section id="calendar" class="section">
+
+        <div class="section-heading">
+          <h2>Calendar &amp; Date Management</h2>
+          <p>One dedicated place to manage upcoming dates, open availability, completed dates, and date-related actions.</p>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Upcoming Dates</div>
+            <div class="stat-number">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Open Availability</div>
+            <div class="stat-number">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Completed Dates</div>
+            <div class="stat-number">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Calendar View</div>
+            <div class="stat-number" style="font-size:22px;">Ready</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Calendar</div>
+              <div class="panel-subtitle">The section shell is isolated. Date records and actions will be connected in the next step.</div>
+            </div>
+          </div>
+          <div style="padding:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+            <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
+              <strong>Upcoming Dates</strong>
+              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Confirmed dates will appear here.</div>
+            </div>
+            <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
+              <strong>Open Availability</strong>
+              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Available date and time windows will live here.</div>
+            </div>
+            <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
+              <strong>Completed Dates</strong>
+              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Successfully completed dates will be organized here.</div>
+            </div>
+            <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
+              <strong>Calendar View</strong>
+              <div style="margin-top:6px;font-size:13px;color:var(--muted);">A visual calendar will be added after the core date views are stable.</div>
+            </div>
+          </div>
         </div>
 
       </section>
