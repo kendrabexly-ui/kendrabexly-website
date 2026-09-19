@@ -1145,7 +1145,7 @@ My journal will continue to be a place where I share a little more of that side 
     return Response.json({ok:true,special_offer:specialOffer,featured_experience:next.experience,duration:next.duration,regular:next.regular});
   }
 
-  // Regenerate special-offer wording while preserving its required booking details
+  // Regenerate special-offer wording while preserving the current experience, duration and price.
   if (
     /^\/api\/admin\/newsletter\/drafts\/\d+\/regenerate-offer$/.test(url.pathname) &&
     request.method === "POST"
@@ -1158,29 +1158,14 @@ My journal will continue to be a place where I share a little more of that side 
 
     const data = await request.json().catch(() => ({}));
     const offer = String(data.special_offer || existing.special_offer || "").trim();
-    const offers = [
-      { experience:"Classic Rendezvous", duration:"1.5 hours", regular:500 },
-      { experience:"Classic Rendezvous", duration:"2 hours", regular:750 },
-      { experience:"Classic Rendezvous", duration:"3 hours", regular:1000 },
-      { experience:"Classic Rendezvous", duration:"4 hours", regular:1250 },
-      { experience:"The Greek Princess", duration:"1 hour", regular:650 },
-      { experience:"The Greek Princess", duration:"1.5 hours", regular:800 },
-      { experience:"The Greek Princess", duration:"2 hours", regular:1050 }
-    ];
     const experience = ((offer.match(/featured experience:\s*([^\n.]+)/i) || [])[1] || "").trim();
-    const known = offers.filter(o => o.experience.toLowerCase() === experience.toLowerCase());
-    const durationMatch = offer.match(/(?:Book my|Book|Spend)\s+([\d.]+\s*hours?|\d+\s*minutes?)/i);
-    const duration = durationMatch ? durationMatch[1].trim() : (known[0]?.duration || "");
-    const selected = known.find(o => o.duration.toLowerCase() === duration.toLowerCase()) || known[0];
-    const regularMatch = offer.match(/(?:regular(?:\s+rate)?(?:\s+of)?\s*)(\$[\d,]+)/i);
-    const regular = regularMatch ? regularMatch[1] : (selected ? new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(selected.regular) : "");
-    const incentiveMatch = offer.match(/(?:enjoy|receive|get)\s+(\d+\s+(?:extra|additional|bonus)?\s*(?:minutes?|hours?))/i);
-    const incentive = incentiveMatch ? incentiveMatch[1].trim() : "30 extra minutes";
-    if (!experience || !duration || !regular) {
+    const booking = offer.match(/Book a ([^\n.]+?)\s+(\d+(?:\.\d+)?\s*(?:hours?|minutes?))\s+at\s+(\$[\d,]+)\s+this month\./i);
+    if (!experience || !booking) {
       return Response.json({ok:false,message:"The featured experience details are incomplete. Choose a featured experience first, then change the wording."},{status:400});
     }
+    const duration = booking[2].trim();
+    const regular = booking[3].trim();
     const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
-    const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));\n    const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
     const intros = [
       "A little something just for my subscribers — I saved this one especially for you. ✨",
       "Your inbox deserves something fun this month, so here's a little subscriber-only invitation. 💋",
@@ -1195,7 +1180,9 @@ My journal will continue to be a place where I share a little more of that side 
       "A little anticipation makes the plans even better.",
       "You bring yourself; I'll take care of making the time feel special."
     ];
-\n    const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));\n    const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+    const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));
+    const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experience: ${experience}.\n\nBook a ${experience} ${duration} at ${regular} this month.\n\n${closers[seed]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
