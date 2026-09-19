@@ -2352,6 +2352,29 @@ if (
       }
     }
 
+    if (url.pathname === "/api/admin/clients/follow-up/save" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const clientId=Number(data.client_id),requestId=Number(data.date_request_id);
+        const body=String(data.body||"").trim();
+        const subject=String(data.subject||"A little note from me").trim().slice(0,180);
+        if(!Number.isInteger(clientId)||clientId<1||!Number.isInteger(requestId)||requestId<1)return Response.json({ok:false,message:"A completed date is required."},{status:400});
+        if(!body)return Response.json({ok:false,message:"Generate or write a follow up first."},{status:400});
+        const completed=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? AND status='completed' LIMIT 1").bind(requestId,clientId).first();
+        if(!completed)return Response.json({ok:false,message:"This follow up must belong to a successfully completed date."},{status:400});
+        const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
+        if(existing){
+          await env.DB.prepare("UPDATE email_drafts SET subject=?,body=?,status='draft' WHERE id=?").bind(subject,body,existing.id).run();
+          return Response.json({ok:true,draft_id:existing.id,message:"Follow up draft saved."});
+        }
+        const result=await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,requestId,"after_date_follow_up",subject,body).run();
+        return Response.json({ok:true,draft_id:result.meta?.last_row_id||null,message:"Follow up draft saved."});
+      }catch(error){
+        console.error("Save follow up draft error:",error);
+        return Response.json({ok:false,message:"Unable to save follow up draft."},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/admin/clients/follow-up/send" && request.method === "POST") {
       try {
         if(!env.RESEND_API_KEY)return Response.json({ok:false,message:"Email delivery is not configured."},{status:500});
