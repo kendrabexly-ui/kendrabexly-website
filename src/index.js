@@ -486,8 +486,8 @@ export default {
         )
       `).run();
       const result = await env.DB.prepare(`
-        SELECT d.id, d.content, d.status, d.x_post_id, d.created_at, d.updated_at, d.published_at, CASE WHEN m.draft_id IS NULL THEN 0 ELSE 1 END AS has_media
-        FROM x_post_drafts d LEFT JOIN x_draft_media m ON m.draft_id=d.id ORDER BY d.id DESC LIMIT 50
+        SELECT d.id, d.content, d.status, d.x_post_id, d.created_at, d.updated_at, d.published_at, CASE WHEN m.draft_id IS NULL THEN 0 ELSE 1 END AS has_media, CASE WHEN s.draft_id IS NULL THEN 0 ELSE 1 END AS is_scheduled
+        FROM x_post_drafts d LEFT JOIN x_draft_media m ON m.draft_id=d.id LEFT JOIN x_scheduled_posts s ON s.draft_id=d.id AND s.status='scheduled' ORDER BY d.id DESC LIMIT 50
       `).all();
       return Response.json({ ok: true, drafts: result.results || [] });
     }
