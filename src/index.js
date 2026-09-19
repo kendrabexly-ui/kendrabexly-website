@@ -2346,6 +2346,7 @@ if (
         draft=draft.replace(/^\s*(?:here(?:'|’)s|here is)\s+(?:a|the|your)?\s*(?:draft\s+)?(?:follow\s*up\s+)?message\s*:?\s*/i,"").trim();
         draft=draft.replace(/^\s*(?:draft|message)\s*:?\s*/i,"").trim();
         if(!draft)throw new Error("Workers AI returned an empty message.");
+        draft=draft.replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
         return Response.json({ok:true,draft});
       } catch(error) {
         console.error("Client follow up generation error:",error);
