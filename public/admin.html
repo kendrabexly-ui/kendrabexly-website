@@ -700,6 +700,10 @@
             <option value="sent">Sent</option>
           </select>
           <button id="email-drafts-clear-filters" type="button" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear Filters</button>
+          <select id="email-drafts-sort" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
         </div>
 
         <div class="panel">
@@ -2655,6 +2659,7 @@ loadRequests();
         const searchInput = document.getElementById("email-drafts-search");
         const statusFilter = document.getElementById("email-drafts-status-filter");
         const clearFilters = document.getElementById("email-drafts-clear-filters");
+        const sortSelect = document.getElementById("email-drafts-sort");
         const totalEl = document.getElementById("email-drafts-total");
         const unsentEl = document.getElementById("email-drafts-unsent");
         const sentEl = document.getElementById("email-drafts-sent");
@@ -2677,6 +2682,7 @@ loadRequests();
             const matchesStatus = selectedStatus === "all" || String(draft.status || "draft").toLowerCase() === selectedStatus;
             return matchesSearch && matchesStatus;
           });
+          if (sortSelect && sortSelect.value === "oldest") visibleDrafts.reverse();
         box.className = "";
         box.innerHTML = visibleDrafts.length ? visibleDrafts.map((draft) => {
           const current = requestId && Number(draft.date_request_id) === requestId;
@@ -2763,9 +2769,11 @@ loadRequests();
         renderEmailDrafts();
         if (searchInput) searchInput.oninput = renderEmailDrafts;
         if (statusFilter) statusFilter.onchange = renderEmailDrafts;
+        if (sortSelect) sortSelect.onchange = renderEmailDrafts;
         if (clearFilters) clearFilters.onclick = () => {
           if (searchInput) searchInput.value = "";
           if (statusFilter) statusFilter.value = "all";
+          if (sortSelect) sortSelect.value = "newest";
           renderEmailDrafts();
           if (searchInput) searchInput.focus();
         };
