@@ -2092,6 +2092,34 @@ if (
 
 
     if (
+      url.pathname === "/api/admin/blacklist/add" &&
+      request.method === "POST"
+    ) {
+      try {
+        const data = await request.json();
+        const clientId = Number(data.client_id);
+        const reason = String(data.reason || "").trim();
+        if (!Number.isInteger(clientId) || clientId <= 0) {
+          return Response.json({ ok:false, message:"A valid client is required." }, { status:400 });
+        }
+        if (!reason) {
+          return Response.json({ ok:false, message:"Please enter a reason for blacklisting this client." }, { status:400 });
+        }
+        const client = await env.DB.prepare("SELECT id, first_name, last_name, email, phone FROM clients WHERE id = ?").bind(clientId).first();
+        if (!client) return Response.json({ ok:false, message:"Client not found." }, { status:404 });
+        const existing = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id = ? OR LOWER(email) = LOWER(?) OR phone = ? LIMIT 1").bind(clientId, client.email || "", client.phone || "").first();
+        if (existing) return Response.json({ ok:false, message:"This client is already blacklisted." }, { status:409 });
+        const name = [client.first_name, client.last_name].filter(Boolean).join(" ").trim();
+        await env.DB.prepare("INSERT INTO blacklist (client_id, name, email, phone, reason) VALUES (?, ?, ?, ?, ?)").bind(clientId, name, client.email || "", client.phone || "", reason).run();
+        return Response.json({ ok:true });
+      } catch (error) {
+        console.error("Add blacklist error:", error);
+        return Response.json({ ok:false, message:"Unable to blacklist this client." }, { status:500 });
+      }
+    }
+
+
+    if (
       url.pathname === "/api/admin/blacklist/remove" &&
       request.method === "POST"
     ) {
