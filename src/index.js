@@ -443,6 +443,8 @@ export default {
       if (!env.AI) return Response.json({ ok: false, message: "Workers AI is not connected." }, { status: 500 });
       const data = await request.json();
       const idea = String(data.idea || "").trim();
+      const style = String(data.style || "warm-flirty-tease");
+      const selectedStyles = style.split(",").map(x=>x.trim()).filter(Boolean);
       if (!idea) return Response.json({ ok: false, message: "Add a topic or idea first." }, { status: 400 });
       if (idea.length > 1000) return Response.json({ ok: false, message: "Keep the idea under 1,000 characters." }, { status: 400 });
 
@@ -451,7 +453,7 @@ export default {
           messages: [
             {
               role: "system",
-              content: "Write one natural X post for Kendra Bexly. Sound warm, personable, confident, conversational, and human. Avoid corporate language, clickbait, hashtags unless clearly useful, and excessive emojis. Never claim facts not supplied by the user. Return only the finished post, with no labels, quotation marks, explanations, or alternatives. Write a complete, natural thought in 280 characters or fewer. The topic or idea supplied by the user may be longer than 280 characters; summarize it into one finished post within the 280-character limit."
+              content: "Write one natural X post for Kendra Bexly. Brand direction: subtly attract men who enjoy being attentive, generous, chivalrous, and making a woman feel cared for, admired, catered to, and spoiled. Express this through feminine luxury, standards, reciprocity, anticipation, thoughtful gestures, being well looked after, chemistry, and appreciation — never blunt demands or transactional language. Kendra does NOT offer cooking dates; never suggest cooking together, cooking for a client, kitchen dates, chef-at-home dates, or food-preparation activities. Requested writing styles: "+selectedStyles.join(", ")+". Blend all selected styles naturally. Warm-flirty-tease means warm and personal with playful anticipation, chemistry, and a subtle tease; conversational means relaxed and human; playful means witty and charming; direct means clear and confident. Optimize for genuine engagement through relatable observations, easy opinions, curiosity, or natural reply opportunities without engagement bait. Sound personable, confident, conversational, and human. Avoid corporate language, clickbait, hashtags unless clearly useful, and excessive emojis. Never claim facts not supplied by the user. Return only the finished post, with no labels, quotation marks, explanations, or alternatives. Write a complete, natural thought in 280 characters or fewer. The topic or idea supplied by the user may be longer than 280 characters; summarize it into one finished post within the 280-character limit."
             },
             { role: "user", content: idea }
           ],
