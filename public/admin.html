@@ -1228,22 +1228,16 @@ async function loadRequests() {
             ${latest ? `<button type="button" class="client-profile-toggle" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">View Client Profile</button>` : ""}
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Profile</strong>
-              <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:8px;background:white;border:1px solid #eee7dc;font-size:13px;">
-                <span><strong>${completed}</strong> completed date${completed === 1 ? "" : "s"}</span>
-                <span><strong>${client.requests.length}</strong> booking request${client.requests.length === 1 ? "" : "s"}</span>
-                <span><strong>${followThroughRate}%</strong> follow-through</span><span><strong>${escapeHtml(lastCompleted?.requested_date || "—")}</strong> last completed</span><span><strong>${escapeHtml(upcomingDate?.requested_date || "—")}</strong> upcoming date</span><span><strong>${deposits.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> recorded deposits</span>
-              </div>
               <div style="margin-top:10px;padding:10px 12px;border:1px solid #eee7dc;border-radius:8px;background:white;font-size:12px;">
                 <strong>Client Activity</strong>
                 <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;">
-                  <span>After Date Follow Ups: <strong>${followUpHistory.filter(item=>item.sent_at).length}/${followUpHistory.length}</strong> sent</span>
-                  <span>Last Follow Up: <strong>${escapeHtml(followUpHistory.find(item=>item.sent_at)?.sent_at || "None sent")}</strong></span>
+                  <span>Last Completed: <strong>${escapeHtml(lastCompleted?.requested_date || "None")}</strong></span>
                   <span>Next Date: <strong>${escapeHtml(upcomingDate?.requested_date || "None scheduled")}</strong></span>
+                  <span>After Date Follow Ups: <strong>${followUpHistory.filter(item=>item.sent_at).length}/${followUpHistory.length}</strong> sent</span>
                   <span>Follow Up Needed: <strong>${followUpHistory.some(item=>!item.sent_at) ? followUpHistory.filter(item=>!item.sent_at).length : "None"}</strong></span>
                 </div>
                 ${followUpHistory.some(item=>!item.sent_at) ? `<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f7f2e9;font-weight:700;">○ After Date Follow Up pending for ${followUpHistory.filter(item=>!item.sent_at).map(item=>escapeHtml(item.date||"completed date")).join(" · ")} <button type="button" class="jump-followup-agent" data-request-id="${followUpHistory.find(item=>!item.sent_at)?.id||""}" style="margin-left:8px;padding:4px 8px;border:1px solid #d9cdbd;border-radius:6px;background:white;cursor:pointer;font:inherit;font-size:11px;">Open Follow Up Agent</button></div>` : followUpHistory.length ? '<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f4f7f2;font-weight:700;">✓ All completed dates have an After Date Follow Up sent.</div>' : ""}
               </div>
-              <div style="margin-top:10px;font-size:13px;">Manage this client without affecting their booking history.</div>
               <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <strong style="font-size:13px;">Follow Up Agent</strong>
                 <div style="font-size:12px;color:var(--muted);margin-top:4px;">Create an after date message for the most recent date marked successfully completed. Nothing is sent automatically.</div>
