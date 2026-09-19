@@ -756,6 +756,11 @@
           <div id="x-replies"><div class="empty">Press Load Replies to check your recent conversations.</div></div>
         </div>
 
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header"><div><div class="panel-title">Scheduled Posts</div><div class="panel-subtitle">Review, reschedule, or cancel approved posts waiting to publish.</div></div><button id="x-refresh-scheduled" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div>
+          <div id="x-scheduled"><div class="empty">Loading scheduled posts...</div></div>
+        </div>
+
         <div class="panel">
           <div class="panel-header">
             <div>
@@ -1186,10 +1191,10 @@ loadRequests();
             <strong>Draft #${item.id}</strong>
             <span class="status">${escapeHtml(item.status)}</span>
           </div>
-          <textarea maxlength="280" ${disabled ? "disabled" : ""} style="width:100%;min-height:110px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.content)}</textarea>
+          <textarea ${disabled ? "disabled" : ""} style="width:100%;min-height:110px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.content)}</textarea>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
             ${disabled ? '<button type="button" data-action="delete-tweet">Delete from X</button><button type="button" data-action="delete">Remove from History</button>' : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="approve">Approve</button><button type="button" data-action="delete">Delete Draft</button>'}
-            ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button>' : ""}
+            ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button><button type="button" data-action="schedule">Schedule</button>' : ""}
           </div>
         </div>`;
     }
@@ -1226,6 +1231,13 @@ loadRequests();
                   if (!confirm("Publish this approved post to X now?")) return;
                   r = await fetch("/api/admin/x/publish", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
                 }
+                if (action === "schedule") {
+                  const local=prompt("Schedule date and time (example: 2026-09-20 10:30 AM):");
+                  if(!local){button.disabled=false;return;}
+                  const when=new Date(local);
+                  if(Number.isNaN(when.getTime())) throw new Error("That date/time could not be read.");
+                  r=await fetch("/api/admin/x/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,scheduled_for:when.toISOString()})});
+                }
                 const d = await r.json();
                 if (!r.ok || !d.ok) throw new Error(d.message || "Action failed.");
                 await loadXDrafts();
@@ -1242,6 +1254,20 @@ loadRequests();
         box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
       }
     }
+
+    async function loadXScheduled(){
+      const box=document.getElementById("x-scheduled");if(!box)return;
+      try{const r=await fetch("/api/admin/x/scheduled"),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load scheduled posts.");
+        box.innerHTML=d.scheduled.length?d.scheduled.map(x=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+escapeHtml(new Date(x.scheduled_for).toLocaleString())+'</div><div style="white-space:pre-wrap;margin-bottom:10px;">'+escapeHtml(x.content)+'</div><button data-reschedule="'+x.id+'">Reschedule</button> <button data-cancel-schedule="'+x.id+'">Cancel</button></div>').join(""):'<div class="empty">No scheduled posts.</div>';
+        box.querySelectorAll("button").forEach(b=>{b.style.cssText="border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;cursor:pointer;";b.onclick=async()=>{
+          if(b.dataset.cancelSchedule){if(!confirm("Cancel this scheduled post?"))return;await fetch("/api/admin/x/schedule/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.cancelSchedule)})});}
+          else{const value=prompt("New date and time:");if(!value)return;const when=new Date(value);if(Number.isNaN(when.getTime()))return alert("That date/time could not be read.");const rr=await fetch("/api/admin/x/schedule/reschedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.reschedule),scheduled_for:when.toISOString()})}),dd=await rr.json();if(!rr.ok||!dd.ok)return alert(dd.message||"Unable to reschedule.");}
+          await loadXScheduled();
+        };});
+      }catch(e){box.innerHTML='<div class="empty">'+escapeHtml(e.message)+'</div>';}
+    }
+    document.getElementById("x-refresh-scheduled")?.addEventListener("click",loadXScheduled);
+    loadXScheduled();
 
     const xAddTopic = document.getElementById("x-add-topic");
     const xSavedTopics = document.getElementById("x-saved-topics");
