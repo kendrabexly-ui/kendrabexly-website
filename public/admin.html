@@ -1072,6 +1072,18 @@
       </div>
 
       <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+        <div style="font-weight:700;margin-bottom:5px;">Offer Delivery</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Choose how retention offers should be prepared. Nothing will be sent automatically.</div>
+        <label for="retention-offer-delivery" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Default delivery</label>
+        <select id="retention-offer-delivery" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
+          <option value="email-draft">Create an email draft for my review</option>
+          <option value="newsletter">Include in a newsletter when appropriate</option>
+          <option value="manual">Manual — I will decide each time</option>
+        </select>
+        <div id="retention-delivery-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">Creates a personal email draft for you to review before anything is sent.</div>
+      </div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
         <div style="font-weight:700;margin-bottom:5px;">Current Retention Plan</div>
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Preview the rules you have selected before we use them for future retention tools.</div>
         <div id="retention-plan-summary" style="padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--cream);font-size:13px;line-height:1.7;"></div>
@@ -3149,17 +3161,19 @@ loadRequests();
     const eligibility = document.getElementById("retention-offer-eligibility");
     const frequency = document.getElementById("retention-offer-frequency");
     const expiration = document.getElementById("retention-offer-expiration");
+    const delivery = document.getElementById("retention-offer-delivery");
     const summary = document.getElementById("retention-plan-summary");
-    if (!strategy || !eligibility || !frequency || !expiration || !summary) return;
+    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !summary) return;
     const update = () => {
       const selectedText = select => select.options[select.selectedIndex]?.text || "";
       summary.innerHTML =
         "<strong>Incentive:</strong> " + escapeHtml(selectedText(strategy)) + "<br>" +
         "<strong>Eligibility:</strong> " + escapeHtml(selectedText(eligibility)) + "<br>" +
         "<strong>Frequency:</strong> " + escapeHtml(selectedText(frequency)) + "<br>" +
-        "<strong>Expiration:</strong> " + escapeHtml(selectedText(expiration));
+        "<strong>Expiration:</strong> " + escapeHtml(selectedText(expiration)) + "<br>" +
+        "<strong>Delivery:</strong> " + escapeHtml(selectedText(delivery));
     };
-    [strategy, eligibility, frequency, expiration].forEach(select => select.addEventListener("change", update));
+    [strategy, eligibility, frequency, expiration, delivery].forEach(select => select.addEventListener("change", update));
     update();
   })();
   (() => {
@@ -3167,9 +3181,10 @@ loadRequests();
     const eligibility = document.getElementById("retention-offer-eligibility");
     const frequency = document.getElementById("retention-offer-frequency");
     const expiration = document.getElementById("retention-offer-expiration");
+    const delivery = document.getElementById("retention-offer-delivery");
     const save = document.getElementById("retention-save-settings");
     const status = document.getElementById("retention-save-status");
-    if (!strategy || !eligibility || !frequency || !expiration || !save) return;
+    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !save) return;
     const key = "kendra_retention_settings";
     try {
       const saved = JSON.parse(localStorage.getItem(key) || "{}");
@@ -3177,14 +3192,16 @@ loadRequests();
       if (saved.eligibility) eligibility.value = saved.eligibility;
       if (saved.frequency) frequency.value = saved.frequency;
       if (saved.expiration) expiration.value = saved.expiration;
-      [strategy, eligibility, frequency, expiration].forEach(el => el.dispatchEvent(new Event("change")));
+      if (saved.delivery) delivery.value = saved.delivery;
+      [strategy, eligibility, frequency, expiration, delivery].forEach(el => el.dispatchEvent(new Event("change")));
     } catch {}
     save.addEventListener("click", () => {
       localStorage.setItem(key, JSON.stringify({
         strategy: strategy.value,
         eligibility: eligibility.value,
         frequency: frequency.value,
-        expiration: expiration.value
+        expiration: expiration.value,
+        delivery: delivery.value
       }));
       if (status) {
         status.textContent = "Saved";
@@ -3204,6 +3221,19 @@ loadRequests();
     };
     expiration.addEventListener("change", () => {
       guidance.textContent = messages[expiration.value] || "";
+    });
+  })();
+  (() => {
+    const delivery = document.getElementById("retention-offer-delivery");
+    const guidance = document.getElementById("retention-delivery-guidance");
+    if (!delivery || !guidance) return;
+    const messages = {
+      "email-draft": "Creates a personal email draft for you to review before anything is sent.",
+      "newsletter": "Makes the offer available for newsletter use when it fits the campaign.",
+      "manual": "No delivery method is assumed. You choose how to share each offer."
+    };
+    delivery.addEventListener("change", () => {
+      guidance.textContent = messages[delivery.value] || "";
     });
   })();
 </script>
