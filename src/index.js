@@ -998,7 +998,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${month} Newsletter Special: A limited one-time special rate is available to newsletter subscribers this month. Contact me and mention the ${month} newsletter for details. Available for a limited time and subject to availability.`
+        `${month} Subscriber Rate: Enjoy 2 hours of my Signature Private Companionship Experience for $650 this month (normally $750). This private newsletter rate is available once per subscriber during ${month}, subject to availability. Mention the ${month} newsletter when requesting time.`
       ).trim();
 
     const result = await env.DB.prepare(`
