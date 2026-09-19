@@ -1538,7 +1538,7 @@ loadRequests();
           <textarea data-field="blog_content" ${readOnly ? "disabled" : ""} style="width:100%;min-height:120px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;margin-bottom:12px;">${escapeHtml(item.blog_content || "")}</textarea>
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">One-Time Special Rate Offer</label>
           <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
-          ${item.status === "draft" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button type="button" data-newsletter-action="regenerate-offer">Change Offer Wording</button><button type="button" data-newsletter-action="change-offer-experience">Change Featured Experience</button></div>' : ""}
+          ${item.status === "draft" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button type="button" data-newsletter-action="regenerate-offer">Change Offer Wording</button><button type="button" data-newsletter-action="change-offer-experience">Choose Monthly Offers</button></div>' : ""}
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
             <button type="button" data-newsletter-action="preview">Preview</button>
             ${item.status === "draft" ? '<button type="button" data-newsletter-action="regenerate">Regenerate Newsletter</button><button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
@@ -1566,9 +1566,8 @@ loadRequests();
               const id = Number(card.dataset.newsletterDraft);
               const action = button.dataset.newsletterAction;
               if (action === "change-offer-experience") {
-                if (!confirm("Change the featured experience? A different subscriber offer will be selected with its matching duration and prices.")) return;
                 button.disabled = true;
-                button.textContent = "Changing...";
+                button.textContent = "Loading Offers...";
                 try {
                   const offer = card.querySelector('[data-field="special_offer"]');
                   const r = await fetch("/api/admin/newsletter/drafts/" + id + "/change-offer-experience", {
@@ -1577,13 +1576,47 @@ loadRequests();
                     body:JSON.stringify({special_offer:offer ? offer.value.trim() : ""})
                   });
                   const d = await r.json();
-                  if (!r.ok || !d.ok) throw new Error(d.message || "Unable to change featured experience.");
-                  if (offer) offer.value = d.special_offer || "";
+                  if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load monthly offers.");
+
+                  const oldPicker = card.querySelector("[data-monthly-offer-picker]");
+                  if (oldPicker) oldPicker.remove();
+                  const picker = document.createElement("div");
+                  picker.dataset.monthlyOfferPicker = "1";
+                  picker.style.cssText = "margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fff;";
+                  const optionHtml = (items) => items.map(x => '<option value="' + escapeHtml(x.id) + '">' + escapeHtml(x.label) + '</option>').join("");
+                  picker.innerHTML =
+                    '<div style="font-weight:700;margin-bottom:10px;">Choose this month\'s offers</div>' +
+                    '<label style="display:block;font-size:13px;color:var(--muted);margin-bottom:5px;">Classic Rendezvous</label>' +
+                    '<select data-classic-offer style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:12px;">' + optionHtml(d.classic_options || []) + '</select>' +
+                    '<label style="display:block;font-size:13px;color:var(--muted);margin-bottom:5px;">The Greek Princess</label>' +
+                    '<select data-greek-offer style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:12px;">' + optionHtml(d.greek_options || []) + '</select>' +
+                    '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" data-apply-monthly-offers>Apply Offers</button><button type="button" data-cancel-monthly-offers>Cancel</button></div>';
+                  button.parentElement.insertAdjacentElement("afterend", picker);
+                  picker.querySelectorAll("button").forEach(b => b.style.cssText="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;");
+                  picker.querySelector("[data-cancel-monthly-offers]").onclick = () => picker.remove();
+                  picker.querySelector("[data-apply-monthly-offers]").onclick = async () => {
+                    const apply = picker.querySelector("[data-apply-monthly-offers]");
+                    apply.disabled = true; apply.textContent = "Applying...";
+                    try {
+                      const rr = await fetch("/api/admin/newsletter/drafts/" + id + "/change-offer-experience", {
+                        method:"POST", headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({
+                          special_offer:offer ? offer.value.trim() : "",
+                          classic_offer:picker.querySelector("[data-classic-offer]").value,
+                          greek_offer:picker.querySelector("[data-greek-offer]").value
+                        })
+                      });
+                      const dd = await rr.json();
+                      if (!rr.ok || !dd.ok) throw new Error(dd.message || "Unable to apply monthly offers.");
+                      if (offer) offer.value = dd.special_offer || "";
+                      picker.remove();
+                    } catch(e) { alert(e.message); apply.disabled=false; apply.textContent="Apply Offers"; }
+                  };
                 } catch (e) {
                   alert(e.message);
                 } finally {
                   button.disabled = false;
-                  button.textContent = "Change Featured Experience";
+                  button.textContent = "Choose Monthly Offers";
                 }
                 return;
               }
