@@ -630,6 +630,18 @@
           <p>Manage clients you no longer wish to accept.</p>
         </div>
 
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <input id="blacklist-search" type="search" placeholder="Search name, email, phone, or safety reason" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+          <select id="blacklist-safety-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+            <option value="all">All safety concerns</option>
+            <option value="boundaries">Boundary concerns</option>
+            <option value="threatening">Threatening / aggressive</option>
+            <option value="identity">Identity / screening</option>
+            <option value="payment">Payment concern</option>
+            <option value="harassment">Harassment / privacy</option>
+            <option value="other">Other safety concern</option>
+          </select>
+        </div>
         <div class="panel">
           <div id="blacklist-records">
             <div class="empty">Loading blacklist...</div>
@@ -953,6 +965,8 @@
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load blacklist.");
     const records = data.blacklist || [];
+    const searchInput = document.getElementById("blacklist-search");
+    const safetyFilter = document.getElementById("blacklist-safety-filter");
     const parseSafetyReason = (reason) => {
       const text = String(reason || "");
       const concernsMatch = text.match(/Safety concerns:\s*([^\n]+)/i);
@@ -961,7 +975,17 @@
       const notes = notesMatch ? notesMatch[1].trim() : "";
       return { concerns, notes };
     };
-    container.innerHTML = records.length ? records.map((item) => {
+    const renderBlacklist = () => {
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+      const filter = safetyFilter ? safetyFilter.value : "all";
+      const filtered = records.filter((item) => {
+        const reason = String(item.reason || "").toLowerCase();
+        const haystack = [item.name,item.email,item.phone,item.reason].filter(Boolean).join(" ").toLowerCase();
+        const matchesSearch = !query || haystack.includes(query);
+        const matchesFilter = filter === "all" || reason.includes(filter);
+        return matchesSearch && matchesFilter;
+      });
+      container.innerHTML = filtered.length ? filtered.map((item) => {
       const safety = parseSafetyReason(item.reason);
       return `
       <div style="padding:20px 22px;border-bottom:1px solid #ddd6ca;">
@@ -973,7 +997,11 @@
         <div style="margin-top:8px;font-size:13px;">Added: ${escapeHtml(item.created_at || "—")}</div>
         <button type="button" class="remove-blacklist" data-blacklist-id="${item.id}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
       </div>`;
-    }).join("") : '<div class="empty">No blacklisted clients.</div>';
+      }).join("") : '<div class="empty">No blacklist records match your search or filter.</div>';
+    };
+    renderBlacklist();
+    if (searchInput) searchInput.oninput = renderBlacklist;
+    if (safetyFilter) safetyFilter.onchange = renderBlacklist;
     container.querySelectorAll(".remove-blacklist").forEach((button) => {
       button.addEventListener("click", async () => {
         if (!window.confirm("Remove this client from the blacklist? They will be able to submit new requests again.")) return;
