@@ -1070,6 +1070,7 @@
     if (clearFilters) clearFilters.onclick = () => {
       if (searchInput) searchInput.value = "";
       if (safetyFilter) safetyFilter.value = "all";
+      if (sortSelect) sortSelect.value = "newest";
       renderBlacklist();
       if (searchInput) searchInput.focus();
     };
