@@ -204,6 +204,51 @@ export default {
     // X AGENT DRAFTS + APPROVAL/PUBLISH
     // =========================================================
 
+    if (url.pathname === "/api/admin/x/generate" && request.method === "POST") {
+      if (!env.AI) return Response.json({ ok: false, message: "Workers AI is not connected." }, { status: 500 });
+      const data = await request.json();
+      const idea = String(data.idea || "").trim();
+      if (!idea) return Response.json({ ok: false, message: "Add a topic or idea first." }, { status: 400 });
+      if (idea.length > 1000) return Response.json({ ok: false, message: "Keep the idea under 1,000 characters." }, { status: 400 });
+
+      try {
+        const aiResult = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+          messages: [
+            {
+              role: "system",
+              content: "Write one natural X post for Kendra Bexly. Sound warm, personable, confident, conversational, and human. Avoid corporate language, clickbait, hashtags unless clearly useful, and excessive emojis. Never claim facts not supplied by the user. Return only the finished post, with no labels, quotation marks, explanations, or alternatives. Maximum 260 characters."
+            },
+            { role: "user", content: idea }
+          ],
+          max_tokens: 160,
+          temperature: 0.8
+        });
+        let content = String(aiResult?.response || aiResult?.result?.response || "").trim();
+        content = content.replace(/^["“]|["”]$/g, "").trim();
+        if (!content) throw new Error("Workers AI returned an empty response.");
+        if (content.length > 280) content = content.slice(0, 277).trimEnd() + "...";
+
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS x_post_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft',
+            x_post_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            published_at TEXT
+          )
+        `).run();
+        const result = await env.DB.prepare(
+          "INSERT INTO x_post_drafts (content, status) VALUES (?, 'draft')"
+        ).bind(content).run();
+        return Response.json({ ok: true, id: result.meta.last_row_id, content, status: "draft" });
+      } catch (error) {
+        console.error("X AI generation failed:", error);
+        return Response.json({ ok: false, message: "Unable to generate the post right now." }, { status: 502 });
+      }
+    }
+
     if (url.pathname === "/api/admin/x/drafts" && request.method === "GET") {
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS x_post_drafts (
