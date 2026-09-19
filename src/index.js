@@ -2423,6 +2423,10 @@ To complete final approval, please reply directly to this email with your ID att
 
 Please note: your deposit must be received no later than 4 hours before our scheduled date and time. After that cutoff, I won't be able to confirm the deposit or complete the booking.
 
+Payment options:
+• Gift Card — payment button coming soon
+• Crypto — payment button coming soon
+
 Once I have both your ID and deposit, I'll personally review everything and confirm our date.
 
 Kendra`
