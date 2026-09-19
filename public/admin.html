@@ -2303,8 +2303,16 @@ loadRequests();
       section.classList.add("active");
     };
 
-    const requestedSection = new URLSearchParams(window.location.search).get("section");
+    const pageParams = new URLSearchParams(window.location.search);
+    const requestedSection = pageParams.get("section");
     if (requestedSection) openSection(requestedSection);
+
+    if (requestedSection === "clients" && pageParams.get("email") && clientSearch) {
+      clientSearch.value = pageParams.get("email");
+      renderClients();
+      const profileButton = clientRecords.querySelector(".client-profile-toggle");
+      if (profileButton) profileButton.click();
+    }
 
     navButtons.forEach((button) => {
 
