@@ -1120,7 +1120,7 @@ My journal will continue to be a place where I share a little more of that side 
     });
   }
 
-  // Refresh the featured monthly specials while preserving the surrounding newsletter copy.
+  // Choose the monthly offer independently for both fixed experiences.
   if (
     /^\/api\/admin\/newsletter\/drafts\/\d+\/change-offer-experience$/.test(url.pathname) &&
     request.method === "POST"
@@ -1132,36 +1132,46 @@ My journal will continue to be a place where I share a little more of that side 
     if (existing.status !== "draft") return Response.json({ok:false,message:"Only draft newsletter offers can be changed."},{status:400});
 
     const current = String(existing.special_offer || "").trim();
-    if (!current) return Response.json({ok:false,message:"Generate the monthly offer before refreshing its featured experiences."},{status:400});
+    if (!current) return Response.json({ok:false,message:"Generate the monthly offer before choosing its specials."},{status:400});
+    const data = await request.json().catch(() => ({}));
 
-    // Both experiences are part of the monthly offer. This action now refreshes the
-    // offer block instead of trying to toggle a single experience that no longer exists.
-    const specialsBlock = `This month's featured experiences:\n\nClassic Rendezvous — 1.5 hours at $500.\n\nThe Greek Princess — 1.5 hours at $650.\n\nChoose the experience that catches your eye when you're ready to make plans with me.`;
+    const classicOptions = [
+      {id:"classic-1",base:"1 hour",special:"1.5 hours",price:500,label:"Book 1 hour at $500 · enjoy 1.5 hours"},
+      {id:"classic-2",base:"2 hours",special:"2.5 hours",price:750,label:"Book 2 hours at $750 · enjoy 2.5 hours"},
+      {id:"classic-3",base:"3 hours",special:"3.5 hours",price:1000,label:"Book 3 hours at $1,000 · enjoy 3.5 hours"},
+      {id:"classic-4",base:"4 hours",special:"4.5 hours",price:1250,label:"Book 4 hours at $1,250 · enjoy 4.5 hours"}
+    ];
+    const greekOptions = [
+      {id:"greek-1",base:"1 hour",special:"1.5 hours",price:650,label:"Book 1 hour at $650 · enjoy 1.5 hours"},
+      {id:"greek-15",base:"1.5 hours",special:"2 hours",price:800,label:"Book 1.5 hours at $800 · enjoy 2 hours"},
+      {id:"greek-2",base:"2 hours",special:"2.5 hours",price:1050,label:"Book 2 hours at $1,050 · enjoy 2.5 hours"},
+      {id:"greek-3",base:"3 hours",special:"3.5 hours",price:1300,label:"Book 3 hours at $1,300 · enjoy 3.5 hours"},
+      {id:"greek-4",base:"4 hours",special:"4.5 hours",price:1550,label:"Book 4 hours at $1,550 · enjoy 4.5 hours"}
+    ];
+
+    // With no selections, return the choices so the dashboard can render a picker.
+    if (!data.classic_offer || !data.greek_offer) {
+      return Response.json({ok:true,choose_offer:true,classic_options:classicOptions,greek_options:greekOptions});
+    }
+    const classic = classicOptions.find(x => x.id === String(data.classic_offer));
+    const greek = greekOptions.find(x => x.id === String(data.greek_offer));
+    if (!classic || !greek) return Response.json({ok:false,message:"Choose one valid offer for each experience."},{status:400});
+
+    const dollars = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
+    const specialsBlock = `This month's featured experiences:\n\nClassic Rendezvous — book ${classic.base} at ${dollars(classic.price)} and enjoy ${classic.special}.\n\nThe Greek Princess — book ${greek.base} at ${dollars(greek.price)} and enjoy ${greek.special}.\n\nThe experiences stay the same; you chose this month's little extra for each one. Choose the experience that catches your eye when you're ready to make plans with me.`;
 
     let specialOffer = current;
     const start = specialOffer.search(/This month's featured experience(?:s)?:/i);
     if (start >= 0) {
       const tail = specialOffer.slice(start);
       const endMatch = tail.match(/\n\n(?=(?:Consider it|Come make|I’ll save|I'll save|The only thing|I think we can|A little anticipation|You bring yourself))/i);
-      if (endMatch) {
-        const end = start + endMatch.index;
-        specialOffer = specialOffer.slice(0,start) + specialsBlock + specialOffer.slice(end);
-      } else {
-        specialOffer = specialOffer.slice(0,start) + specialsBlock;
-      }
+      const end = endMatch ? start + endMatch.index : specialOffer.length;
+      specialOffer = specialOffer.slice(0,start) + specialsBlock + specialOffer.slice(end);
     } else {
       specialOffer = specialsBlock + "\n\n" + specialOffer;
     }
-
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(specialOffer,id).run();
-    return Response.json({
-      ok:true,
-      special_offer:specialOffer,
-      monthly_specials:[
-        {id:"classic-rendezvous",experience:"Classic Rendezvous",duration:"1.5 hours",price:500},
-        {id:"greek-princess",experience:"The Greek Princess",duration:"1.5 hours",price:650}
-      ]
-    });
+    return Response.json({ok:true,special_offer:specialOffer,classic_offer:classic,greek_offer:greek});
   }
 
   // Regenerate special-offer wording and upgrade older single-experience drafts to both monthly specials.
