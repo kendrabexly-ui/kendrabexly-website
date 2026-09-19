@@ -1150,6 +1150,21 @@ async function loadRequests() {
                   <div style="margin-top:5px;font-size:13px;"><strong>Names used:</strong> ${escapeHtml(Array.from(identityNames).filter(Boolean).join(" · ") || "—")}</div>
                   <div style="margin-top:5px;font-size:13px;"><strong>Emails used:</strong> ${escapeHtml(Array.from(identityEmails).filter(Boolean).join(" · ") || "—")}</div>
                   <div style="margin-top:5px;font-size:13px;"><strong>Phones used:</strong> ${escapeHtml(Array.from(identityPhones).filter(Boolean).join(" · ") || "—")}</div>
+                  ${blockedAttempts.length ? `<details style="margin-top:10px;">
+                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">View blocked-attempt timeline</summary>
+                    <div style="margin-top:8px;">${[...blockedAttempts].sort((a,b) => Number(b.id || 0)-Number(a.id || 0)).map((attempt,index) => {
+                      const notes = String(attempt.notes || "");
+                      const get = (label) => {
+                        const match = notes.match(new RegExp(label + ":\\\\s*([^\\\\n]+)", "i"));
+                        return match?.[1]?.trim() || "";
+                      };
+                      return `<div style="padding:9px 0;border-top:1px solid rgba(0,0,0,.08);font-size:12px;">
+                        <strong>Attempt #${blockedAttempts.length-index}</strong> · ${escapeHtml(attempt.requested_date || "Date unavailable")} ${escapeHtml(attempt.requested_time || "")}
+                        <div style="margin-top:4px;">${escapeHtml(get("Submitted name") || "Name unavailable")} · ${escapeHtml(get("Submitted email") || "No email")} · ${escapeHtml(get("Submitted phone") || "No phone")}</div>
+                        ${attempt.location_name ? `<div style="margin-top:3px;">Location: ${escapeHtml(attempt.location_name)}</div>` : ""}
+                      </div>`;
+                    }).join("")}</div>
+                  </details>` : ""}
                 </div>
                 <button type="button" class="profile-remove-blacklist" data-blacklist-id="${blacklistRecord.id}" style="margin-top:10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
               </div>` : `
