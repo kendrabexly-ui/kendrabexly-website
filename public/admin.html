@@ -1238,7 +1238,7 @@ async function loadRequests() {
                 <strong style="font-size:13px;">Follow Up Agent</strong>
                 <div style="font-size:12px;color:var(--muted);margin-top:4px;">Create an after date message for the most recent date marked successfully completed. Nothing is sent automatically.</div>
                 ${lastCompleted ? `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Follow up for:</strong> ${escapeHtml(lastCompleted.requested_date || "Completed date")}${lastCompleted.requested_time ? " at "+escapeHtml(lastCompleted.requested_time) : ""} <span style="margin-left:6px;">✓ Successfully Completed</span><div class="client-followup-context-status" style="margin-top:6px;font-weight:700;">${lastCompleted.after_date_follow_up_sent_at ? "✓ After Date Follow Up Sent" : "○ After Date Follow Up Not Sent"}</div>${lastCompleted.after_date_follow_up_sent_at ? `<div style="margin-top:2px;color:var(--muted);">Sent ${escapeHtml(lastCompleted.after_date_follow_up_sent_at)}</div>` : ""}</div>` : `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>No successfully completed date yet.</strong> Mark a date successfully completed before generating an after date follow up.</div>`}
-                ${followUpHistory.length ? `<details style="margin-top:9px;padding:9px 11px;border:1px solid #eee7dc;border-radius:8px;background:#fffdf9;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">Follow Up History (${followUpHistory.length})</summary><div style="margin-top:8px;">${followUpHistory.map((item,index)=>`<div style="padding:7px 0;${index ? "border-top:1px solid #eee7dc;" : ""}font-size:12px;"><strong>${escapeHtml(item.date || "Completed date")}</strong>${item.time ? " at "+escapeHtml(item.time) : ""}<div style="margin-top:3px;font-weight:700;">${item.sent_at ? "✓ Sent" : "○ Not Sent"}</div>${item.sent_at ? `<div style="margin-top:2px;color:var(--muted);">Sent ${escapeHtml(item.sent_at)}</div>` : ""}</div>`).join("")}</div></details>` : ""}
+                ${followUpHistory.length ? `<details style="margin-top:9px;padding:9px 11px;border:1px solid #eee7dc;border-radius:8px;background:#fffdf9;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">Follow Up History (${followUpHistory.length})</summary><div style="margin-top:8px;">${followUpHistory.map((item,index)=>`<div style="padding:7px 0;${index ? "border-top:1px solid #eee7dc;" : ""}font-size:12px;"><strong>${escapeHtml(item.date || "Completed date")}</strong>${item.time ? " at "+escapeHtml(item.time) : ""}<div style="margin-top:3px;font-weight:700;">${item.sent_at ? "✓ Sent" : "○ Not Sent"}</div>${item.sent_at ? `<div style="margin-top:2px;color:var(--muted);">Sent ${escapeHtml(item.sent_at)}</div>` : ""}<button type="button" class="view-followup-history" data-request-id="${item.id}" data-client-id="${client.client_id}" style="margin-top:5px;padding:0;border:0;background:transparent;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">View Follow Up</button><div class="followup-history-detail" style="display:none;margin-top:7px;padding:8px 10px;border-radius:7px;background:#f7f2e9;white-space:pre-wrap;line-height:1.5;"></div></div>`).join("")}</div></details>` : ""}
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:10px;">
                   <label style="font-size:11px;font-weight:700;">TONE<select class="client-followup-tone" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="warm">Warm</option><option value="flirty">Flirty</option><option value="playful">Playful</option><option value="soft-sensual">Soft & Sensual</option><option value="direct">Direct</option></select></label>
                   <label style="font-size:11px;font-weight:700;">LENGTH<select class="client-followup-length" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="short">Short</option><option value="medium">Medium</option></select></label>
@@ -1324,6 +1324,21 @@ async function loadRequests() {
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
         });
       });
+      clientRecords.querySelectorAll(".view-followup-history").forEach((button)=>button.addEventListener("click",async()=>{
+        const detail=button.nextElementSibling;
+        if(!detail)return;
+        if(detail.style.display!=="none"){detail.style.display="none";button.textContent="View Follow Up";return;}
+        button.disabled=true;button.textContent="Loading...";
+        try{
+          const response=await fetch("/api/admin/emails?client_id="+encodeURIComponent(button.dataset.clientId));
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load follow up.");
+          const item=(result.emails||result.drafts||result.items||[]).find(x=>Number(x.date_request_id)===Number(button.dataset.requestId)&&String(x.email_type||"")==="after_date_follow_up");
+          detail.textContent=item?.body||"No saved follow up message was found for this completed date.";
+          detail.style.display="block";button.textContent="Hide Follow Up";
+        }catch(error){detail.textContent=error.message||"Unable to load follow up.";detail.style.display="block";button.textContent="Hide Follow Up";}
+        finally{button.disabled=false;}
+      }));
       clientRecords.querySelectorAll(".save-client-followup").forEach((button)=>button.addEventListener("click",async()=>{
         const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),status=controls?.querySelector(".client-followup-status");
         if(!draft?.value.trim()){if(status)status.textContent="Generate or write a follow up first.";return;}
