@@ -1342,11 +1342,19 @@ async function loadRequests() {
             const response=await fetch("/api/admin/clients/special-invitation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId),incentive:type?.value||"extra-time",details:details?.value||""})});
             const result=await response.json();
             if(!response.ok||!result.ok)throw new Error(result.message||"Unable to generate invitation.");
-            draft.value=result.draft||"";status.textContent="Draft ready. Review and edit before using it.";
+            draft.value=result.draft||"";
+            const preview=controls.querySelector(".client-followup-preview"),previewBody=controls.querySelector(".client-followup-preview-body"),previewButton=controls.querySelector(".preview-client-followup");
+            if(previewBody)previewBody.textContent=draft.value.trim();
+            if(preview?.style.display==="block" && previewButton)previewButton.textContent="Close Preview";
+            status.textContent="Draft ready. Review and edit before using it.";
           }catch(error){status.textContent=error.message||"Unable to generate invitation.";}
           finally{button.disabled=false;}
         });
       });
+      clientRecords.querySelectorAll(".client-followup-draft").forEach((draft)=>draft.addEventListener("input",()=>{
+        const controls=draft.closest(".client-profile-actions"),preview=controls?.querySelector(".client-followup-preview"),body=controls?.querySelector(".client-followup-preview-body");
+        if(preview?.style.display==="block" && body)body.textContent=draft.value;
+      }));
       clientRecords.querySelectorAll(".preview-client-followup").forEach((button)=>button.addEventListener("click",()=>{
         const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),preview=controls?.querySelector(".client-followup-preview"),body=controls?.querySelector(".client-followup-preview-body"),status=controls?.querySelector(".client-followup-status");
         if(!draft?.value.trim()){if(status)status.textContent="Generate or write a follow up first.";return;}
