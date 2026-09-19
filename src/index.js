@@ -1008,10 +1008,30 @@ My journal will continue to be a place where I share a little more of that side 
     const monthlyOffer = monthlySubscriberOffers[offerIndex];
     const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 
+    const flirtyOfferIntros = [
+      "A little something just for my subscribers… because I think we deserve a little more time together. 😉",
+      "I saved a little temptation for your inbox this month. ✨",
+      "Consider this your invitation to disappear with me for a little while. 💋",
+      "I have a feeling a little extra time together would look good on us. 😉",
+      "Your inbox deserves something more exciting than the usual… so I saved this one for you. ✨",
+      "Maybe this is the sign you needed to finally make some time for me. 💋",
+      "I’m giving my subscribers a very good reason to put something fun on the calendar. 😉"
+    ];
+    const flirtyOfferClosers = [
+      "Consider it my excuse to steal you away for a while.",
+      "Come make a little time for me — I promise the calendar can wait.",
+      "I’ll save the flirting for when we’re together. 😉",
+      "The only thing missing from this offer is you.",
+      "I think we can make those hours feel very well spent.",
+      "A little anticipation never hurt anybody. 💋",
+      "You bring yourself. I’ll take care of making the time feel special."
+    ];
+    const flirtyIndex = offerIndex % flirtyOfferIntros.length;
+
     const specialOffer =
       String(
         data.special_offer ||
-        `${month} Subscriber Rate: Enjoy ${monthlyOffer.duration} of my ${monthlyOffer.experience} for ${money(monthlyOffer.special)} this month (normally ${money(monthlyOffer.regular)}). This private newsletter rate is available once per subscriber during ${month}, subject to availability. Mention the ${month} newsletter when requesting time.`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nSpend ${monthlyOffer.duration} with me for ${money(monthlyOffer.special)} this month — normally ${money(monthlyOffer.regular)}.\n\n${flirtyOfferClosers[flirtyIndex]} One-time subscriber special, subject to availability. Mention the ${month} newsletter when you request our time together.`
       ).trim();
 
     const result = await env.DB.prepare(`
