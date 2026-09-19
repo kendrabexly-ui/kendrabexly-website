@@ -2436,7 +2436,7 @@ Kendra`
     }
 
         // ============================================================
-    // CONFIRM DEPOSIT + START 6-HOUR SCREENING WINDOW
+    // CONFIRM DEPOSIT
     // ============================================================
     if (
       url.pathname === "/api/admin/request/confirm-deposit" &&
@@ -2471,21 +2471,18 @@ Kendra`
 
         const existingStamp = String(item.notes || "").match(/Deposit received at: ([^\n]+)/);
         const paidAt = existingStamp?.[1] || new Date().toISOString();
-        const deadline = new Date(new Date(paidAt).getTime() + 6 * 60 * 60 * 1000).toISOString();
         let notes = String(item.notes || "");
         if (!existingStamp) notes += (notes ? "\n" : "") + "Deposit received at: " + paidAt;
-        if (!/Screening deadline: /.test(notes)) notes += "\nScreening deadline: " + deadline;
 
         await env.DB.prepare(
-          "UPDATE date_requests SET deposit_paid = 1, status = 'screening_pending', notes = ? WHERE id = ?"
+          "UPDATE date_requests SET deposit_paid = 1, notes = ? WHERE id = ?"
         ).bind(notes, requestId).run();
 
         return Response.json({
           ok:true,
-          status:"screening_pending",
+          status:item.status,
           deposit_amount:Number(item.deposit_amount),
-          remaining_balance:Math.round(Number(item.deposit_amount) * 3 * 100) / 100,
-          screening_deadline:deadline
+          remaining_balance:Math.round(Number(item.deposit_amount) * 3 * 100) / 100
         });
       } catch (error) {
         console.error("Confirm deposit error:", error);
@@ -2765,24 +2762,6 @@ if (
 
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
-      // Cancel requests that miss the six-hour post-deposit screening deadline.
-      const screeningPending = await env.DB.prepare(
-        "SELECT id, notes FROM date_requests WHERE status = 'screening_pending'"
-      ).all();
-      const nowMs = Date.now();
-      for (const requestItem of (screeningPending.results || [])) {
-        const deadlineMatch = String(requestItem.notes || "").match(/Screening deadline: ([^\n]+)/);
-        if (!deadlineMatch) continue;
-        const deadlineMs = new Date(deadlineMatch[1]).getTime();
-        if (Number.isFinite(deadlineMs) && deadlineMs <= nowMs) {
-          const cancellationNote = String(requestItem.notes || "") +
-            "\nAutomatically canceled: screening was not completed within 6 hours after deposit confirmation.";
-          await env.DB.prepare(
-            "UPDATE date_requests SET status = 'canceled', notes = ? WHERE id = ? AND status = 'screening_pending'"
-          ).bind(cancellationNote, requestItem.id).run();
-        }
-      }
-
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_scheduled_posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,draft_id INTEGER NOT NULL UNIQUE,scheduled_for TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'scheduled',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )`).run();
