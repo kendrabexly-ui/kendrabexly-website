@@ -705,6 +705,7 @@
             <option value="oldest">Oldest first</option>
           </select>
         </div>
+        <div id="email-drafts-active-filters" style="display:none;margin:-4px 0 14px;font-size:12px;color:var(--muted);"></div>
 
         <div class="panel">
           <div id="email-draft-records" class="empty">
@@ -2669,6 +2670,21 @@ loadRequests();
         const renderEmailDrafts = () => {
           const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
           const selectedStatus = statusFilter ? statusFilter.value : "all";
+          const activeSummary = document.getElementById("email-drafts-active-filters");
+          const filtersActive = Boolean(query) || selectedStatus !== "all" || Boolean(sortSelect && sortSelect.value !== "newest");
+          if (clearFilters) {
+            clearFilters.disabled = !filtersActive;
+            clearFilters.style.opacity = filtersActive ? "1" : "0.5";
+            clearFilters.style.cursor = filtersActive ? "pointer" : "default";
+          }
+          if (activeSummary) {
+            const parts = [];
+            if (query) parts.push("Search: " + (searchInput ? searchInput.value.trim() : ""));
+            if (selectedStatus !== "all") parts.push("Status: " + (statusFilter?.options[statusFilter.selectedIndex]?.text || selectedStatus));
+            if (sortSelect && sortSelect.value !== "newest") parts.push("Sort: Oldest first");
+            activeSummary.textContent = parts.length ? "Active: " + parts.join(" · ") : "";
+            activeSummary.style.display = parts.length ? "block" : "none";
+          }
           const visibleDrafts = drafts.filter((draft) => {
             const matchesSearch = !query || [
               draft.first_name,
