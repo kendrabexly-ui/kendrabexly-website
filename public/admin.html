@@ -630,6 +630,10 @@
           <p>Manage clients you no longer wish to accept.</p>
         </div>
 
+        <div id="blacklist-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="blacklist-total">—</strong><div style="font-size:12px;margin-top:2px;">Blacklisted clients</div></div>
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="blacklist-safety-count">—</strong><div style="font-size:12px;margin-top:2px;">Safety records</div></div>
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <input id="blacklist-search" type="search" placeholder="Search name, email, phone, or safety reason" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
           <select id="blacklist-safety-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
@@ -965,6 +969,10 @@
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load blacklist.");
     const records = data.blacklist || [];
+    const totalEl = document.getElementById("blacklist-total");
+    const safetyCountEl = document.getElementById("blacklist-safety-count");
+    if (totalEl) totalEl.textContent = records.length;
+    if (safetyCountEl) safetyCountEl.textContent = records.filter(item => /Safety concerns:|Notes:/i.test(String(item.reason || ""))).length;
     const searchInput = document.getElementById("blacklist-search");
     const safetyFilter = document.getElementById("blacklist-safety-filter");
     const parseSafetyReason = (reason) => {
