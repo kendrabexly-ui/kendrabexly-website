@@ -2214,6 +2214,19 @@ loadRequests();
     const sections =
       document.querySelectorAll(".section");
 
+    const openSection = (sectionName) => {
+      const button = Array.from(navButtons).find((item) => item.dataset.section === sectionName);
+      const section = document.getElementById(sectionName);
+      if (!button || !section) return;
+      navButtons.forEach((item) => item.classList.remove("active"));
+      sections.forEach((item) => item.classList.remove("active"));
+      button.classList.add("active");
+      section.classList.add("active");
+    };
+
+    const requestedSection = new URLSearchParams(window.location.search).get("section");
+    if (requestedSection) openSection(requestedSection);
+
     navButtons.forEach((button) => {
 
       button.addEventListener("click", () => {
