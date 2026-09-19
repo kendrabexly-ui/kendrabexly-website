@@ -714,7 +714,7 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
               <button id="x-add-series-topic" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Add Series Topic</button>
               <button id="x-generate-series-topics" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Generate Series Topics</button>
-              <button id="x-generate-series" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Generate Series</button>
+              <button id="x-generate-series" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Generate Series</button><button id="x-cancel-series" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Cancel Series</button>
             </div>
             <div id="x-saved-series-topics" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <div id="x-series-topics" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
@@ -1302,7 +1302,7 @@ loadRequests();
     async function loadXScheduled(){
       const box=document.getElementById("x-scheduled");if(!box)return;
       try{const r=await fetch("/api/admin/x/scheduled"),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load scheduled posts.");
-        box.innerHTML=d.scheduled.length?d.scheduled.map(x=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+escapeHtml(new Date(x.scheduled_for).toLocaleString())+'</div><div style="white-space:pre-wrap;margin-bottom:10px;">'+escapeHtml(x.content)+'</div><button data-reschedule="'+x.id+'">Reschedule</button> <button data-cancel-schedule="'+x.id+'">Cancel</button></div>').join(""):'<div class="empty">No scheduled posts.</div>';
+        box.innerHTML=d.scheduled.length?d.scheduled.map(x=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+escapeHtml(new Date(x.scheduled_for).toLocaleString())+'</div><div style="white-space:pre-wrap;margin-bottom:10px;">'+escapeHtml(x.content)+'</div><button data-reschedule="'+x.id+'">Reschedule</button> <button data-cancel-schedule="'+x.id+'">Cancel Scheduled Post</button></div>').join(""):'<div class="empty">No scheduled posts.</div>';
         box.querySelectorAll("button").forEach(b=>{b.style.cssText="border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;cursor:pointer;";b.onclick=async()=>{
           if(b.dataset.cancelSchedule){if(!confirm("Cancel this scheduled post?"))return;await fetch("/api/admin/x/schedule/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.cancelSchedule)})});}
           else{const when=await pickXScheduleTime("Reschedule Post");if(!when)return;const rr=await fetch("/api/admin/x/schedule/reschedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(b.dataset.reschedule),scheduled_for:when.toISOString()})}),dd=await rr.json();if(!rr.ok||!dd.ok)return alert(dd.message||"Unable to reschedule.");}
@@ -1389,6 +1389,13 @@ loadRequests();
         }));
       }catch(e){xSeriesResults.innerHTML='<div class="empty">'+escapeHtml(e.message)+'</div>';}
       finally{xGenerateSeries.disabled=false;xGenerateSeries.textContent="Generate Series";}
+    });
+
+    document.getElementById("x-cancel-series")?.addEventListener("click",()=>{
+      const results=document.getElementById("x-series-results");
+      if(!results||!results.innerHTML.trim())return;
+      if(!confirm("Cancel this conversation series? The generated series entries will be cleared."))return;
+      results.innerHTML="";
     });
 
     const xLoadHomeFeed=document.getElementById("x-load-home-feed"), xHomeFeed=document.getElementById("x-home-feed");
