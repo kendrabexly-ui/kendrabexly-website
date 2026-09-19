@@ -1125,11 +1125,21 @@ async function loadRequests() {
           if (emailMatch?.[1]) identityEmails.add(emailMatch[1].trim());
           if (phoneMatch?.[1]) identityPhones.add(phoneMatch[1].trim());
         });
+        const identityVariationCount =
+          Math.max(0, identityNames.size - 1) +
+          Math.max(0, identityEmails.size - 1) +
+          Math.max(0, identityPhones.size - 1);
+        const riskLabel = blockedAttempts.length >= 3 || identityVariationCount >= 3
+          ? "HIGH ATTENTION"
+          : blockedAttempts.length >= 2 || identityVariationCount >= 1
+            ? "WATCH"
+            : "BLOCKED";
         return `
           <div style="padding:22px;border-bottom:1px solid #ddd6ca;${blacklistRecord ? "border-left:4px solid #8f3d3d;" : ""}">
             <strong style="font-size:18px;">${escapeHtml(name)}</strong>
             ${blacklistRecord ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED</span>' : ""}
-            ${blacklistRecord && blockedAttempts.length > 1 ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">⚠️ ${blockedAttempts.length} BLOCKED ATTEMPTS</span>` : ""}
+            ${blacklistRecord ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">⚠️ ${riskLabel}</span>` : ""}
+            ${blacklistRecord && blockedAttempts.length > 1 ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">${blockedAttempts.length} BLOCKED ATTEMPTS</span>` : ""}
             <div style="margin-top:6px;">${escapeHtml(client.email || "No email")} · ${escapeHtml(client.phone || "No phone")}</div>
             <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:14px;">
               <span><strong>${client.requests.length}</strong> total request${client.requests.length === 1 ? "" : "s"}</span>
@@ -1147,7 +1157,9 @@ async function loadRequests() {
                 <div style="margin-top:6px;font-size:13px;"><strong>Safety reason:</strong> ${escapeHtml(blacklistRecord.reason || "No reason recorded")}</div>
                 <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(0,0,0,.1);">
                   <strong style="font-size:13px;">Connected Identity History</strong>
-                  <div style="margin-top:6px;font-size:13px;"><strong>Blocked attempts:</strong> ${blockedAttempts.length}</div>
+                  <div style="margin-top:6px;font-size:13px;"><strong>Attention level:</strong> ${riskLabel}</div>
+                  <div style="margin-top:5px;font-size:13px;"><strong>Identity changes detected:</strong> ${identityVariationCount}</div>
+                  <div style="margin-top:5px;font-size:13px;"><strong>Blocked attempts:</strong> ${blockedAttempts.length}</div>
                   ${blockedAttempts.length > 1 ? '<div style="margin-top:7px;padding:7px 9px;border-radius:7px;background:#8f3d3d;color:white;font-size:12px;font-weight:700;">⚠️ REPEAT BLACKLIST ATTEMPTS</div>' : ""}
                   <div style="margin-top:5px;font-size:13px;"><strong>Names used:</strong> ${escapeHtml(Array.from(identityNames).filter(Boolean).join(" · ") || "—")}</div>
                   <div style="margin-top:5px;font-size:13px;"><strong>Emails used:</strong> ${escapeHtml(Array.from(identityEmails).filter(Boolean).join(" · ") || "—")}</div>
