@@ -241,17 +241,16 @@ export default {
           messages: [
             {
               role: "system",
-              content: "Write one natural X post for Kendra Bexly. Sound warm, personable, confident, conversational, and human. Avoid corporate language, clickbait, hashtags unless clearly useful, and excessive emojis. Never claim facts not supplied by the user. Return only the finished post, with no labels, quotation marks, explanations, or alternatives. Maximum 260 characters."
+              content: "Write one natural X post for Kendra Bexly. Sound warm, personable, confident, conversational, and human. Avoid corporate language, clickbait, hashtags unless clearly useful, and excessive emojis. Never claim facts not supplied by the user. Return only the finished post, with no labels, quotation marks, explanations, or alternatives. Write a complete, natural thought. It may be longer than 280 characters when needed, but stay concise and avoid filler."
             },
             { role: "user", content: idea }
           ],
-          max_tokens: 160,
+          max_tokens: 500,
           temperature: 0.8
         });
         let content = String(aiResult?.response || aiResult?.result?.response || "").trim();
         content = content.replace(/^["“]|["”]$/g, "").trim();
         if (!content) throw new Error("Workers AI returned an empty response.");
-        if (content.length > 280) content = content.slice(0, 277).trimEnd() + "...";
 
         // Generation only previews the post. The user explicitly saves it
         // through the existing Save Draft action after reviewing/editing.
@@ -295,7 +294,6 @@ export default {
         content = details ? `${topic}\n\n${details}` : topic;
       }
       if (!content) return Response.json({ ok: false, message: "Add a topic or draft first." }, { status: 400 });
-      if (content.length > 280) return Response.json({ ok: false, message: "X posts must be 280 characters or fewer." }, { status: 400 });
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS x_post_drafts (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -318,7 +316,7 @@ export default {
       const data = await request.json();
       const content = String(data.content || "").trim();
       if (!Number.isInteger(id) || id < 1) return Response.json({ ok: false, message: "Invalid draft ID." }, { status: 400 });
-      if (!content || content.length > 280) return Response.json({ ok: false, message: "Draft must be 1–280 characters." }, { status: 400 });
+      if (!content) return Response.json({ ok: false, message: "Draft cannot be empty." }, { status: 400 });
       const row = await env.DB.prepare("SELECT status FROM x_post_drafts WHERE id = ?").bind(id).first();
       if (!row) return Response.json({ ok: false, message: "Draft not found." }, { status: 404 });
       if (row.status === "published") return Response.json({ ok: false, message: "Published posts cannot be edited here." }, { status: 400 });
