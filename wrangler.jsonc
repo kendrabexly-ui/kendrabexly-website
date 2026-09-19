@@ -11,7 +11,7 @@
   "not_found_handling": "single-page-application"
 },
 
-  "d1_databases": [
+  "ai": {\n    "binding": "AI"\n  },\n\n  "d1_databases": [
     {
       "binding": "DB",
       "database_name": "kendrabexly-db",
