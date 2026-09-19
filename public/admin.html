@@ -1945,12 +1945,7 @@ loadRequests();
                       picker.remove();
                     } catch(e) { alert(e.message); apply.disabled=false; apply.textContent="Apply Offers"; }
                   };
-                  renderNewsletterDrafts();
-        if (statusFilter && !statusFilter.dataset.bound) {
-          statusFilter.dataset.bound = "1";
-          statusFilter.addEventListener("change", renderNewsletterDrafts);
-        }
-      } catch (e) {
+                } catch (e) {
                   alert(e.message);
                 } finally {
                   button.disabled = false;
@@ -2075,6 +2070,11 @@ loadRequests();
             });
           });
         });
+        renderNewsletterDrafts();
+        if (statusFilter && !statusFilter.dataset.bound) {
+          statusFilter.dataset.bound = "1";
+          statusFilter.addEventListener("change", renderNewsletterDrafts);
+        }
       } catch (e) {
         box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
       }
