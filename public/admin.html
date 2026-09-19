@@ -978,6 +978,7 @@
       </div>
     </div>
 
+    <div id="newsletter-draft-summary" style="padding:14px 24px 0;color:var(--muted);font-size:13px;">Loading newsletter summary...</div>
     <div style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <label for="newsletter-draft-status-filter" style="font-size:13px;color:var(--muted);">Show</label>
       <select id="newsletter-draft-status-filter" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;">
@@ -1852,6 +1853,13 @@ loadRequests();
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load newsletter drafts.");
         const drafts = d.drafts || [];
+        const summary = document.getElementById("newsletter-draft-summary");
+        if (summary) {
+          const draftCount = drafts.filter(item => String(item.status || "").toLowerCase() === "draft").length;
+          const approvedCount = drafts.filter(item => String(item.status || "").toLowerCase() === "approved").length;
+          const sentCount = drafts.filter(item => String(item.status || "").toLowerCase() === "sent").length;
+          summary.innerHTML = "<strong>" + drafts.length + "</strong> total · <strong>" + draftCount + "</strong> draft" + (draftCount === 1 ? "" : "s") + " · <strong>" + approvedCount + "</strong> approved · <strong>" + sentCount + "</strong> sent";
+        }
         const statusFilter = document.getElementById("newsletter-draft-status-filter");
         const renderNewsletterDrafts = () => {
           const selectedStatus = statusFilter ? statusFilter.value : "all";
