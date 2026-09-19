@@ -1135,18 +1135,29 @@ My journal will continue to be a place where I share a little more of that side 
     if (!current) return Response.json({ok:false,message:"Generate the monthly offer before choosing its specials."},{status:400});
     const data = await request.json().catch(() => ({}));
 
+    // Margin-protected choices: price-only discounts stay under 10%; combination
+    // offers use about 5% off because they also include extra time.
     const classicOptions = [
-      {id:"classic-1",base:"1 hour",special:"1.5 hours",price:500,label:"Book 1 hour at $500 · enjoy 1.5 hours"},
-      {id:"classic-2",base:"2 hours",special:"2.5 hours",price:750,label:"Book 2 hours at $750 · enjoy 2.5 hours"},
-      {id:"classic-3",base:"3 hours",special:"3.5 hours",price:1000,label:"Book 3 hours at $1,000 · enjoy 3.5 hours"},
-      {id:"classic-4",base:"4 hours",special:"4.5 hours",price:1250,label:"Book 4 hours at $1,250 · enjoy 4.5 hours"}
+      {id:"classic-time-1",base:"1 hour",special:"1.5 hours",price:500,type:"Extra Time",label:"Extra Time · $500 for 1 hour · enjoy 1.5 hours"},
+      {id:"classic-time-2",base:"2 hours",special:"2.5 hours",price:750,type:"Extra Time",label:"Extra Time · $750 for 2 hours · enjoy 2.5 hours"},
+      {id:"classic-time-3",base:"3 hours",special:"3.5 hours",price:1000,type:"Extra Time",label:"Extra Time · $1,000 for 3 hours · enjoy 3.5 hours"},
+      {id:"classic-time-4",base:"4 hours",special:"4.5 hours",price:1250,type:"Extra Time",label:"Extra Time · $1,250 for 4 hours · enjoy 4.5 hours"},
+      {id:"classic-price-2",base:"2 hours",special:"2 hours",price:700,regular:750,type:"Special Price",label:"Special Price · 2 hours $700 · normally $750 · save $50"},
+      {id:"classic-price-3",base:"3 hours",special:"3 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · 3 hours $925 · normally $1,000 · save $75"},
+      {id:"classic-price-4",base:"4 hours",special:"4 hours",price:1125,regular:1250,type:"Special Price",label:"Special Price · 4 hours $1,125 · normally $1,250 · save $125"},
+      {id:"classic-combo-3",base:"3 hours",special:"3.5 hours",price:950,regular:1000,type:"Price + Extra Time",label:"Combo · $950 + 30 extra minutes · normally $1,000"}
     ];
     const greekOptions = [
-      {id:"greek-1",base:"1 hour",special:"1.5 hours",price:650,label:"Book 1 hour at $650 · enjoy 1.5 hours"},
-      {id:"greek-15",base:"1.5 hours",special:"2 hours",price:800,label:"Book 1.5 hours at $800 · enjoy 2 hours"},
-      {id:"greek-2",base:"2 hours",special:"2.5 hours",price:1050,label:"Book 2 hours at $1,050 · enjoy 2.5 hours"},
-      {id:"greek-3",base:"3 hours",special:"3.5 hours",price:1300,label:"Book 3 hours at $1,300 · enjoy 3.5 hours"},
-      {id:"greek-4",base:"4 hours",special:"4.5 hours",price:1550,label:"Book 4 hours at $1,550 · enjoy 4.5 hours"}
+      {id:"greek-time-1",base:"1 hour",special:"1.5 hours",price:650,type:"Extra Time",label:"Extra Time · $650 for 1 hour · enjoy 1.5 hours"},
+      {id:"greek-time-15",base:"1.5 hours",special:"2 hours",price:800,type:"Extra Time",label:"Extra Time · $800 for 1.5 hours · enjoy 2 hours"},
+      {id:"greek-time-2",base:"2 hours",special:"2.5 hours",price:1050,type:"Extra Time",label:"Extra Time · $1,050 for 2 hours · enjoy 2.5 hours"},
+      {id:"greek-time-3",base:"3 hours",special:"3.5 hours",price:1300,type:"Extra Time",label:"Extra Time · $1,300 for 3 hours · enjoy 3.5 hours"},
+      {id:"greek-time-4",base:"4 hours",special:"4.5 hours",price:1550,type:"Extra Time",label:"Extra Time · $1,550 for 4 hours · enjoy 4.5 hours"},
+      {id:"greek-price-15",base:"1.5 hours",special:"1.5 hours",price:750,regular:800,type:"Special Price",label:"Special Price · 1.5 hours $750 · normally $800 · save $50"},
+      {id:"greek-price-2",base:"2 hours",special:"2 hours",price:975,regular:1050,type:"Special Price",label:"Special Price · 2 hours $975 · normally $1,050 · save $75"},
+      {id:"greek-price-3",base:"3 hours",special:"3 hours",price:1200,regular:1300,type:"Special Price",label:"Special Price · 3 hours $1,200 · normally $1,300 · save $100"},
+      {id:"greek-price-4",base:"4 hours",special:"4 hours",price:1400,regular:1550,type:"Special Price",label:"Special Price · 4 hours $1,400 · normally $1,550 · save $150"},
+      {id:"greek-combo-3",base:"3 hours",special:"3.5 hours",price:1235,regular:1300,type:"Price + Extra Time",label:"Combo · $1,235 + 30 extra minutes · normally $1,300"}
     ];
 
     // With no selections, return the choices so the dashboard can render a picker.
@@ -1158,7 +1169,12 @@ My journal will continue to be a place where I share a little more of that side 
     if (!classic || !greek) return Response.json({ok:false,message:"Choose one valid offer for each experience."},{status:400});
 
     const dollars = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
-    const specialsBlock = `This month's featured experiences:\n\nClassic Rendezvous — book ${classic.base} at ${dollars(classic.price)} and enjoy ${classic.special}.\n\nThe Greek Princess — book ${greek.base} at ${dollars(greek.price)} and enjoy ${greek.special}.\n\nThe experiences stay the same; you chose this month's little extra for each one. Choose the experience that catches your eye when you're ready to make plans with me.`;
+    const offerCopy = (name,x) => x.type === "Special Price"
+      ? `${name} — ${x.special} at ${dollars(x.price)} this month (normally ${dollars(x.regular)}).`
+      : x.type === "Price + Extra Time"
+        ? `${name} — book ${x.base} at ${dollars(x.price)} and enjoy ${x.special} with me.`
+        : `${name} — book ${x.base} at ${dollars(x.price)} and enjoy ${x.special}.`;
+    const specialsBlock = `This month's featured experiences:\n\n${offerCopy("Classic Rendezvous",classic)}\n\n${offerCopy("The Greek Princess",greek)}\n\nChoose the experience that catches your eye when you're ready to make plans with me.`;
 
     let specialOffer = current;
     const start = specialOffer.search(/This month's featured experience(?:s)?:/i);
