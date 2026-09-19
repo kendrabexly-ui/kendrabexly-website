@@ -1062,6 +1062,10 @@
         <div style="font-weight:700;margin-bottom:5px;">Current Retention Plan</div>
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Preview the rules you have selected before we use them for future retention tools.</div>
         <div id="retention-plan-summary" style="padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--cream);font-size:13px;line-height:1.7;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button id="retention-save-settings" type="button" style="border:0;border-radius:8px;padding:10px 14px;background:var(--ink);color:white;cursor:pointer;">Save Retention Settings</button>
+          <span id="retention-save-status" style="align-self:center;font-size:13px;color:var(--muted);"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -3142,6 +3146,33 @@ loadRequests();
     };
     [strategy, eligibility, frequency].forEach(select => select.addEventListener("change", update));
     update();
+  })();
+  (() => {
+    const strategy = document.getElementById("retention-offer-strategy");
+    const eligibility = document.getElementById("retention-offer-eligibility");
+    const frequency = document.getElementById("retention-offer-frequency");
+    const save = document.getElementById("retention-save-settings");
+    const status = document.getElementById("retention-save-status");
+    if (!strategy || !eligibility || !frequency || !save) return;
+    const key = "kendra_retention_settings";
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "{}");
+      if (saved.strategy) strategy.value = saved.strategy;
+      if (saved.eligibility) eligibility.value = saved.eligibility;
+      if (saved.frequency) frequency.value = saved.frequency;
+      [strategy, eligibility, frequency].forEach(el => el.dispatchEvent(new Event("change")));
+    } catch {}
+    save.addEventListener("click", () => {
+      localStorage.setItem(key, JSON.stringify({
+        strategy: strategy.value,
+        eligibility: eligibility.value,
+        frequency: frequency.value
+      }));
+      if (status) {
+        status.textContent = "Saved";
+        setTimeout(() => { if (status.textContent === "Saved") status.textContent = ""; }, 2000);
+      }
+    });
   })();
 </script>
 </body>
