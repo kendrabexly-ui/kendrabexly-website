@@ -204,6 +204,20 @@ export default {
     // X TIMELINE
     // =========================================================
 
+    if (url.pathname === "/api/admin/x/home-timeline" && request.method === "GET") {
+      const token = await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id = 1").first();
+      if (!token) return Response.json({ ok:false, message:"X is not connected." }, { status:400 });
+      const meResponse = await fetch("https://api.x.com/2/users/me?user.fields=username,name", { headers:{ Authorization:"Bearer " + token.access_token } });
+      if (!meResponse.ok) return Response.json({ ok:false, message:"Reconnect X before loading your feed." }, { status:401 });
+      const me = await meResponse.json();
+      const feedResponse = await fetch("https://api.x.com/2/users/" + encodeURIComponent(me.data.id) + "/timelines/reverse_chronological?max_results=30&tweet.fields=author_id,created_at,conversation_id,public_metrics&expansions=author_id&user.fields=username,name", { headers:{ Authorization:"Bearer " + token.access_token } });
+      const feed = await feedResponse.json().catch(()=>({}));
+      if (!feedResponse.ok) return Response.json({ ok:false, message:feed?.detail || feed?.title || "Your current X API access could not load the home timeline." }, { status:feedResponse.status });
+      const users=Object.fromEntries((feed.includes?.users||[]).map(u=>[u.id,u]));
+      const tweets=(feed.data||[]).filter(t=>t.author_id!==me.data.id).map(t=>({id:t.id,text:t.text,created_at:t.created_at,author_name:users[t.author_id]?.name||"",author_username:users[t.author_id]?.username||"",public_metrics:t.public_metrics||{}}));
+      return Response.json({ok:true,tweets});
+    }
+
     if (url.pathname === "/api/admin/x/timeline" && request.method === "GET") {
       const token = await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id = 1").first();
       if (!token) return Response.json({ ok:false, message:"X is not connected." }, { status:400 });
