@@ -1199,7 +1199,7 @@ loadRequests();
           </div>
           <textarea ${disabled ? "disabled" : ""} style="width:100%;min-height:110px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.content)}</textarea>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
-            ${disabled ? '<button type="button" data-action="delete-tweet">Delete from X</button><button type="button" data-action="delete">Remove from History</button>' : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="approve">Approve</button><button type="button" data-action="delete">Delete Draft</button>'}
+            ${disabled ? '<button type="button" data-action="delete-tweet">Delete from X</button><button type="button" data-action="delete">Remove from History</button>' : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="regenerate">Regenerate</button><button type="button" data-action="approve">Approve</button><button type="button" data-action="delete">Delete Draft</button>'}
             ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button><button type="button" data-action="schedule">Schedule</button>' : ""}
           </div>
         </div>`;
@@ -1228,6 +1228,15 @@ loadRequests();
                 if (action === "delete") r = await fetch("/api/admin/x/drafts/" + id, { method:"DELETE" });
                 if (action === "delete-tweet") r = await fetch("/api/admin/x/delete-tweet", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
                 if (action === "save") r = await fetch("/api/admin/x/drafts/" + id, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
+                if (action === "regenerate") {
+                  if (!content) throw new Error("Draft cannot be empty.");
+                  const gr = await fetch("/api/admin/x/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({idea:"Rewrite this X post with a fresh variation. Keep the same general meaning and tone, but use different wording. Keep the final post within 280 characters. Draft: "+content}) });
+                  const gd = await gr.json();
+                  if (!gr.ok || !gd.ok) throw new Error(gd.message || "Unable to regenerate draft.");
+                  card.querySelector("textarea").value = gd.content || "";
+                  button.disabled = false;
+                  return;
+                }
                 if (action === "approve") {
                   const save = await fetch("/api/admin/x/drafts/" + id, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
                   if (!save.ok) r = save;
