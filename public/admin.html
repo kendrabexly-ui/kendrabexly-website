@@ -1350,6 +1350,7 @@ loadRequests();
     }
 
     const xDefaultSlots=["07:00","08:30","10:00","11:30","13:00","14:30","16:00","17:30","19:00","20:30"];
+    let xCalendarItems=[];
     function loadXDailySlots(){
       let slots=xDefaultSlots;try{const saved=JSON.parse(localStorage.getItem("xDailyPostingSlots")||"null");if(Array.isArray(saved)&&saved.length===10)slots=saved;}catch(e){}
       const box=document.getElementById("x-daily-slots");if(box)box.innerHTML=slots.map((v,i)=>'<label style="font-size:13px;">Post '+(i+1)+'<input data-x-slot type="time" value="'+v+'" style="display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;"></label>').join("");
@@ -1416,7 +1417,6 @@ loadRequests();
     });
 
     let xCalendarDate=new Date();
-    let xCalendarItems=[];
     function renderXCalendar(){
       const box=document.getElementById("x-content-calendar"),label=document.getElementById("x-cal-label");if(!box)return;
       const y=xCalendarDate.getFullYear(),m=xCalendarDate.getMonth();if(label)label.textContent=new Date(y,m,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
