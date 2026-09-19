@@ -1088,6 +1088,12 @@ async function loadRequests() {
             ${latest ? `<button type="button" class="client-profile-toggle" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">View Client Profile</button>` : ""}
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Controls</strong><div style="margin-top:6px;font-size:13px;">Manage this client without affecting their booking history.</div>
+              ${blacklistRecord ? `<div style="margin-top:12px;padding:12px;border-radius:8px;background:#f3dfdf;">
+                <strong>🚩 Active Blacklist Record</strong>
+                <div style="margin-top:6px;font-size:13px;">Added: ${escapeHtml(blacklistRecord.created_at || "—")}</div>
+                <div style="margin-top:6px;font-size:13px;"><strong>Safety reason:</strong> ${escapeHtml(blacklistRecord.reason || "No reason recorded")}</div>
+                <button type="button" class="profile-remove-blacklist" data-blacklist-id="${blacklistRecord.id}" style="margin-top:10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
+              </div>` : `
               <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5ddd1;">
                 <strong style="font-size:14px;">Safety Check</strong>
                 <label style="display:block;margin-top:10px;"><input type="checkbox" class="safety-boundaries"> Ignored or violated boundaries</label>
@@ -1099,6 +1105,7 @@ async function loadRequests() {
                 <textarea class="safety-notes" placeholder="Add private safety notes or details..." rows="3" style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
               </div>
               <button type="button" class="blacklist-client" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Blacklist Client</button>
+              </div>`}
             </div>
             ${latest ? `<button type="button" class="client-history-toggle" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View booking history ↓</button><div class="client-history" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee7dc;">${sorted.map(r => `<button type="button" class="client-history-request" data-request-id="${r.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 0;cursor:pointer;font:inherit;"><strong>${escapeHtml(r.requested_date || "Date not provided")}</strong> at ${escapeHtml(r.requested_time || "Time not provided")} · ${escapeHtml(String(r.status || "pending").replaceAll("_"," "))}${Number(r.deposit_paid) ? ` · Deposit ${Number(r.deposit_amount || 0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""} →</button>`).join("")}</div>` : ""}
           </div>`;
@@ -1109,6 +1116,24 @@ async function loadRequests() {
           const opening = controls.style.display === "none";
           controls.style.display = opening ? "block" : "none";
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
+        });
+      });
+      clientRecords.querySelectorAll(".profile-remove-blacklist").forEach((button) => {
+        button.addEventListener("click", async () => {
+          if (!window.confirm("Remove this client from the blacklist? They will be able to submit new requests again.")) return;
+          button.disabled = true;
+          const response = await fetch("/api/admin/blacklist/remove", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({id:Number(button.dataset.blacklistId)})
+          });
+          const result = await response.json();
+          if (!response.ok || !result.ok) {
+            button.disabled = false;
+            window.alert(result.message || "Unable to remove this client.");
+            return;
+          }
+          loadBlacklist();
+          loadRequests();
         });
       });
       clientRecords.querySelectorAll(".blacklist-client").forEach((button) => {
