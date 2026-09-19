@@ -444,7 +444,7 @@ if (viewClientProfileButton) {
     const params = new URLSearchParams({
       section: "clients",
       client_id: String(item.client_id || ""),
-      email: String(item.email || "")
+      client_email: String(item.email || "")
     });
     window.location.href = "/admin?" + params.toString();
   });
