@@ -649,6 +649,7 @@
         <div id="blacklist-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="blacklist-total">—</strong><div style="font-size:12px;margin-top:2px;">Blacklisted clients</div></div>
           <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="blacklist-safety-count">—</strong><div style="font-size:12px;margin-top:2px;">Safety records</div></div>
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="blacklist-filtered-count">—</strong><div style="font-size:12px;margin-top:2px;">Showing</div></div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <input id="blacklist-search" type="search" placeholder="Search name, email, phone, or safety reason" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
@@ -1011,6 +1012,8 @@
         const matchesFilter = filter === "all" || reason.includes(filter);
         return matchesSearch && matchesFilter;
       });
+      const filteredCountEl = document.getElementById("blacklist-filtered-count");
+      if (filteredCountEl) filteredCountEl.textContent = filtered.length;
       container.innerHTML = filtered.length ? filtered.map((item) => {
       const safety = parseSafetyReason(item.reason);
       return `
