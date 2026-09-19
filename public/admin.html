@@ -1132,7 +1132,7 @@ loadRequests();
           </div>
           <textarea maxlength="280" ${disabled ? "disabled" : ""} style="width:100%;min-height:110px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.content)}</textarea>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
-            ${disabled ? '<button type="button" data-action="delete">Remove from History</button>' : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="approve">Approve</button><button type="button" data-action="delete">Delete Draft</button>'}
+            ${disabled ? '<button type="button" data-action="delete-tweet">Delete from X</button><button type="button" data-action="delete">Remove from History</button>' : '<button type="button" data-action="save">Save Changes</button><button type="button" data-action="approve">Approve</button><button type="button" data-action="delete">Delete Draft</button>'}
             ${item.status === "approved" ? '<button type="button" data-action="publish">Publish to X</button>' : ""}
           </div>
         </div>`;
@@ -1154,10 +1154,12 @@ loadRequests();
               const content = card.querySelector("textarea").value.trim();
               const action = button.dataset.action;
               if (action === "delete" && !confirm("Remove this item from the dashboard? If it was already published, this will not delete the post from X.")) return;
+              if (action === "delete-tweet" && !confirm("Delete this tweet from X? This cannot be undone.")) return;
               button.disabled = true;
               try {
                 let r;
                 if (action === "delete") r = await fetch("/api/admin/x/drafts/" + id, { method:"DELETE" });
+                if (action === "delete-tweet") r = await fetch("/api/admin/x/delete-tweet", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) });
                 if (action === "save") r = await fetch("/api/admin/x/drafts/" + id, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
                 if (action === "approve") {
                   const save = await fetch("/api/admin/x/drafts/" + id, { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({content}) });
