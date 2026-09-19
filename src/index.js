@@ -1305,6 +1305,22 @@ My journal will continue to be a place where I share a little more of that side 
         const requestDetails =
           String(data.request_details || "").trim();
 
+        const requestedStart =
+          new Date(requestedDate + "T" + requestedTime);
+
+        if (
+          !Number.isFinite(requestedStart.getTime()) ||
+          requestedStart.getTime() < Date.now() + 60 * 60 * 1000
+        ) {
+          return Response.json(
+            {
+              ok: false,
+              message: "Please choose a start time at least 1 hour from the time you submit your request."
+            },
+            { status: 400 }
+          );
+        }
+
         const screeningAcknowledgement =
           data.screening_acknowledgement === "yes";
 
