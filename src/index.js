@@ -2999,6 +2999,39 @@ Kendra`
       }
     }
 
+    if (url.pathname === "/api/admin/request/complete" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const requestId=Number(data.id);
+        if(!Number.isInteger(requestId)||requestId<1)return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        const item=await env.DB.prepare(`SELECT dr.id,dr.client_id,dr.status,dr.requested_date,dr.requested_time,c.first_name,c.notes FROM date_requests dr JOIN clients c ON c.id=dr.client_id WHERE dr.id=? LIMIT 1`).bind(requestId).first();
+        if(!item)return Response.json({ok:false,message:"Request not found."},{status:404});
+        if(item.status!=="approved")return Response.json({ok:false,message:"Only an approved date can be marked successfully completed."},{status:400});
+        await env.DB.prepare("UPDATE date_requests SET status='completed' WHERE id=?").bind(requestId).run();
+        let body=`Hi ${item.first_name || ""},
+
+I just wanted to say I really enjoyed our time together. Thank you for making it such an easy, enjoyable date. I hope you made it home safely. 💋`;
+        if(env.AI){
+          try{
+            try{await env.DB.prepare("ALTER TABLE clients ADD COLUMN preferences TEXT").run();}catch(e){}
+            const profile=await env.DB.prepare("SELECT preferences FROM clients WHERE id=? LIMIT 1").bind(item.client_id).first();
+            const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+              {role:"system",content:"Write a short private follow up immediately after a successfully completed date. Write in my first person voice as an adult independent professional companion. Sound informal, feminine, warm, appreciative, personal, and lightly flirty. Do not sound like customer service. Do not pressure him to book again. Never invent memories or details. Never refer to me by name or in third person. Avoid poetic language. Do not use hyphens, em dashes, or en dashes."},
+              {role:"user",content:"Client first name: "+String(item.first_name||"")+"\nKnown preferences: "+String(profile?.preferences||"")+"\nPrivate notes: "+String(item.notes||"")}
+            ],max_tokens:300,temperature:0.72});
+            const generated=String(ai?.response||ai?.result?.response||"").trim().replace(/^["“]|["”]$/g,"").replace(/[–—]/g,",");
+            if(generated)body=generated;
+          }catch(e){console.error("Automatic after date draft generation error:",e);}
+        }
+        const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
+        if(!existing)await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(item.client_id,requestId,"after_date_follow_up","A little note after our date",body).run();
+        return Response.json({ok:true,status:"completed",follow_up_drafted:true,message:"Date marked successfully completed. Your after date follow up draft is ready for review."});
+      } catch(error){
+        console.error("Complete date error:",error);
+        return Response.json({ok:false,message:"Unable to mark this date completed."},{status:500});
+      }
+    }
+
     // ============================================================
     // FINAL APPROVE REQUEST
     // ============================================================
