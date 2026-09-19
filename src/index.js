@@ -1095,6 +1095,38 @@ My journal will continue to be a place where I share a little more of that side 
     });
   }
 
+  // Change newsletter featured experience and its matching subscriber rate
+  if (
+    /^\/api\/admin\/newsletter\/drafts\/\d+\/change-offer-experience$/.test(url.pathname) &&
+    request.method === "POST"
+  ) {
+    await ensureNewsletterTable();
+    const id = Number(url.pathname.split("/")[5]);
+    const existing = await env.DB.prepare("SELECT * FROM newsletter_drafts WHERE id = ?").bind(id).first();
+    if (!existing) return Response.json({ok:false,message:"Newsletter draft not found."},{status:404});
+    if (existing.status !== "draft") return Response.json({ok:false,message:"Only draft newsletter offers can be changed."},{status:400});
+
+    const offers = [
+      { experience:"Classic Rendezvous", duration:"1 hour", special:450, regular:500 },
+      { experience:"Classic Rendezvous", duration:"2 hours", special:650, regular:750 },
+      { experience:"Classic Rendezvous", duration:"3 hours", special:850, regular:1000 },
+      { experience:"Classic Rendezvous", duration:"4 hours", special:1050, regular:1250 },
+      { experience:"The Greek Princess", duration:"1 hour", special:575, regular:650 },
+      { experience:"The Greek Princess", duration:"1.5 hours", special:700, regular:800 },
+      { experience:"The Greek Princess", duration:"2 hours", special:900, regular:1050 }
+    ];
+    const current = String(existing.special_offer || "");
+    const currentExperience = (current.match(/featured experience:\s*([^\n.]+)/i) || [])[1] || "";
+    const currentDuration = (current.match(/Spend\s+([^\n]+?)\s+with me for/i) || [])[1] || "";
+    const currentIndex = offers.findIndex(o => o.experience.toLowerCase() === currentExperience.trim().toLowerCase() && o.duration.toLowerCase() === currentDuration.trim().toLowerCase());
+    const next = offers[(currentIndex + 1 + offers.length) % offers.length];
+    const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
+    const money = v => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(v);
+    const specialOffer = `A little something just for my subscribers — I saved this one especially for you. ✨\n\nThis month's featured experience: ${next.experience}.\n\nSpend ${next.duration} with me for ${money(next.special)} this month — normally ${money(next.regular)}.\n\nThe only thing missing from this offer is you. One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`;
+    await env.DB.prepare("UPDATE newsletter_drafts SET special_offer=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(specialOffer,id).run();
+    return Response.json({ok:true,special_offer:specialOffer});
+  }
+
   // Regenerate special-offer wording while preserving its required booking details
   if (
     /^\/api\/admin\/newsletter\/drafts\/\d+\/regenerate-offer$/.test(url.pathname) &&
