@@ -1067,13 +1067,13 @@ My journal will continue to be a place where I share a little more of that side 
     const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 
     const flirtyOfferIntros = [
-      "A little something just for my subscribers… because I think we deserve a little more time together. 😉",
+      "I saved a little something for you this month… because I think we deserve a little more time together. 😉",
       "I saved a little temptation for your inbox this month. ✨",
       "Consider this your invitation to disappear with me for a little while. 💋",
       "I have a feeling a little extra time together would look good on us. 😉",
       "Your inbox deserves something more exciting than the usual… so I saved this one for you. ✨",
       "Maybe this is the sign you needed to finally make some time for me. 💋",
-      "I’m giving my subscribers a very good reason to put something fun on the calendar. 😉"
+      "I’m giving you a very good reason to put something fun on the calendar. 😉"
     ];
     const flirtyOfferClosers = [
       "Consider it my excuse to steal you away for a while.",
@@ -1267,11 +1267,13 @@ My journal will continue to be a place where I share a little more of that side 
       `Kendra's ${month} Note — Something Special Inside`,
       `${month} Notes, a New Journal Entry & Something for You`
     ];
+    // Keep the newsletter personal and conversational: a warm check-in first,
+    // then naturally lead into the journal and invitation without sounding like a sales blast.
     const intros = [
-      `Hi there,\n\nI wanted to send you a little note for ${month}. I have been thinking about how much the smallest details can change the feel of a moment, and I am making more room for the experiences that feel easy, intentional, and memorable.\n\nI also have a fresh journal entry for you below, plus a little something I saved especially for you this month.\n\nUntil next time,\nKendra`,
-      `Hi there,\n\nA new month felt like the perfect excuse to check in. Lately I have been enjoying slower moments, better conversations, and plans that give us something to look forward to.\n\nKeep reading for this month's journal note and a private invitation I saved especially for you.\n\nSee you soon,\nKendra`,
-      `Hi there,\n\nWelcome to my ${month} note. I wanted this one to feel like a personal catch-up — a little of what has been on my mind, something new from my journal, and a special invitation from me to you.\n\nI hope you find something here that makes your month a little more interesting.\n\nKendra`,
-      `Hi there,\n\nI am dropping into your inbox with a fresh ${month} update. This month I am leaning into thoughtful plans, good energy, and making time for experiences that do not feel rushed.\n\nThere is a new journal feature below and, of course, a little something special from me to you.\n\nKendra`
+      `Hi there,\n\nI hope ${month} is treating you well. I wanted to slip into your inbox with a little note because I have been thinking about how nice it is to have something genuinely good to look forward to. The right plans, the right company, and enough time to actually enjoy them can change the whole feel of a week.\n\nI have a new journal entry for you below, and I tucked in a little invitation for us too. If it feels like your kind of escape, I would love to see you.\n\nTalk soon,\nKendra`,
+      `Hi there,\n\nI have been meaning to check in. ${month} feels like a good month to make a little room for ourselves — good conversation, an easy atmosphere, and plans that feel exciting without feeling rushed.\n\nI wrote a new journal note for you, and there is something special waiting a little farther down. I picked this month's invitation with one thought in mind: giving you a good reason to finally put our time together on the calendar.\n\nHope to see you soon,\nKendra`,
+      `Hi there,\n\nHow have you been? I wanted this month's note to feel less like a newsletter and more like me checking in with you. I have been thinking about the little things that make time together memorable — being present, laughing, settling in, and not feeling like we have to watch the clock.\n\nThere is a fresh journal entry below and a little ${month} invitation from me. Take a look, and if one of the plans feels right, maybe it is time we gave ourselves something to look forward to.\n\nKendra 💋`,
+      `Hi there,\n\nJust a little note from me to you. I hope life has been giving you a few good moments lately. I am making ${month} about being more intentional with my time and leaving space for the people and experiences I genuinely enjoy.\n\nI have something new from my journal to share, along with a special invitation for this month. No hard sell — just a little nudge in case you have been thinking about seeing me. I would be happy to have you on my calendar.\n\nSee you soon,\nKendra`
     ];
     const blogTitles = [
       `${month} ${year}: Making Room for the Good Stuff`,
