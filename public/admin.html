@@ -2096,7 +2096,7 @@ loadRequests();
     if(xGenerateSeriesTopics)xGenerateSeriesTopics.addEventListener("click",async()=>{
       xGenerateSeriesTopics.disabled=true;xGenerateSeriesTopics.textContent="Generating Topics...";
       try{
-        const r=await fetch("/api/admin/x/series/topics",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:document.getElementById("x-series-style")?.value||"warm-flirty-tease"})}),d=await r.json();
+        const r=await fetch("/api/admin/x/series/topics",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:document.getElementById("x-series-style")?.value||"warm-flirty-tease",include_suggestive:true})}),d=await r.json();
         if(!r.ok||!d.ok)throw new Error(d.message||"Unable to generate series topics.");
         xSeriesTopics.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Choose a topic that matches your selected series style</div>'+d.topics.map((t,i)=>'<button type="button" data-series-topic="'+i+'" style="display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:white;padding:10px 4px;cursor:pointer;font:inherit;">'+escapeHtml(t)+'</button>').join("");
         xSeriesTopics.style.display="block";
@@ -2254,7 +2254,7 @@ loadRequests();
       xGenerateTopics.disabled = true;
       xGenerateTopics.textContent = "Generating...";
       try {
-        const r = await fetch("/api/admin/x/topics", { method:"POST" });
+        const r = await fetch("/api/admin/x/topics", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({style:document.getElementById("x-post-style")?.value||"warm-flirty-tease",include_suggestive:true}) });
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to generate topics.");
         xTopicSuggestions.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:9px;">Choose a topic:</div>' +
