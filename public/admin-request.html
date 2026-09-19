@@ -376,6 +376,13 @@
     25% deposit received
   </label>
 
+  ${String(item.notes || "").includes("Newsletter special: Newsletter #") ? `
+  <label style="display:block;margin-bottom:20px;padding:14px 16px;background:#f6f1e8;border:1px solid #d8cbb9;border-radius:10px;">
+    <input type="checkbox" id="newsletter-special-approval-checkbox">
+    Approve the attached newsletter special for this date
+  </label>
+  ` : ""}
+
   <button
     type="button"
     id="final-approve-button"
@@ -479,6 +486,9 @@ const idReceivedCheckbox =
 
 const depositPaidCheckbox =
   document.getElementById("deposit-paid-checkbox");
+
+const newsletterSpecialApprovalCheckbox =
+  document.getElementById("newsletter-special-approval-checkbox");
         finalApproveButton.addEventListener(
   "click",
   async function () {
@@ -489,6 +499,15 @@ const depositPaidCheckbox =
     ) {
       finalApprovalStatus.textContent =
         "Please confirm both the ID screening and deposit before final approval.";
+      return;
+    }
+
+    if (
+      newsletterSpecialApprovalCheckbox &&
+      !newsletterSpecialApprovalCheckbox.checked
+    ) {
+      finalApprovalStatus.textContent =
+        "Please approve the attached newsletter special before final approval.";
       return;
     }
 
@@ -507,7 +526,8 @@ const depositPaidCheckbox =
       body: JSON.stringify({
         id: Number(id),
         id_received: true,
-        deposit_paid: true
+        deposit_paid: true,
+        newsletter_special_approved: newsletterSpecialApprovalCheckbox ? newsletterSpecialApprovalCheckbox.checked : false
       })
     }
   );
