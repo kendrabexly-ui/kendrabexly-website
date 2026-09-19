@@ -705,6 +705,17 @@
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
             <div>
+              <div class="panel-title">X Home Feed</div>
+              <div class="panel-subtitle">Browse recent tweets from people you follow and choose one to respond to.</div>
+            </div>
+            <button id="x-load-home-feed" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Home Feed</button>
+          </div>
+          <div id="x-home-feed"><div class="empty">Press Load Home Feed to browse tweets from other accounts.</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
               <div class="panel-title">My X Timeline</div>
               <div class="panel-subtitle">Choose one of your recent tweets, then view its replies and generate responses.</div>
             </div>
@@ -1235,6 +1246,25 @@ loadRequests();
       renderXSavedTopics();
     });
     renderXSavedTopics();
+
+    const xLoadHomeFeed=document.getElementById("x-load-home-feed"), xHomeFeed=document.getElementById("x-home-feed");
+    if(xLoadHomeFeed)xLoadHomeFeed.addEventListener("click",async()=>{
+      xLoadHomeFeed.disabled=true;xLoadHomeFeed.textContent="Loading...";
+      try{
+        const r=await fetch("/api/admin/x/home-timeline"),d=await r.json();
+        if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load your X home feed.");
+        if(!d.tweets.length){xHomeFeed.innerHTML='<div class="empty">No tweets from other accounts were returned.</div>';return;}
+        xHomeFeed.innerHTML=d.tweets.map((t,i)=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+escapeHtml(t.author_name||"")+' @'+escapeHtml(t.author_username||"")+' · '+escapeHtml(t.created_at?new Date(t.created_at).toLocaleString():"")+'</div><div style="margin-bottom:12px;white-space:pre-wrap;">'+escapeHtml(t.text)+'</div><button type="button" data-home-generate="'+i+'" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Generate Reply</button><div data-home-editor="'+i+'" style="display:none;margin-top:12px;"><textarea style="width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;"></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button type="button" data-home-approve="'+i+'">Approve Reply</button><button type="button" data-home-send="'+i+'" style="display:none;">Send Reply on X</button></div></div></div>').join("");
+        d.tweets.forEach((t,i)=>{
+          const gen=xHomeFeed.querySelector('[data-home-generate="'+i+'"]'),editor=xHomeFeed.querySelector('[data-home-editor="'+i+'"]'),ta=editor.querySelector("textarea"),approve=xHomeFeed.querySelector('[data-home-approve="'+i+'"]'),send=xHomeFeed.querySelector('[data-home-send="'+i+'"]');let draftId=null;
+          [approve,send].forEach(b=>b.style.cssText="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;");
+          gen.onclick=async()=>{gen.disabled=true;gen.textContent="Generating...";try{const rr=await fetch("/api/admin/x/reply/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tweet_id:t.id,text:t.text,parent_content:""})}),dd=await rr.json();if(!rr.ok||!dd.ok)throw new Error(dd.message||"Unable to generate reply.");draftId=dd.id;ta.value=dd.content;editor.style.display="block";}catch(e){alert(e.message);}finally{gen.disabled=false;gen.textContent="Generate Reply";}};
+          approve.onclick=async()=>{if(!draftId)return alert("Generate a reply first.");const rr=await fetch("/api/admin/x/reply/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:draftId,content:ta.value.trim()})}),dd=await rr.json();if(!rr.ok||!dd.ok)return alert(dd.message||"Unable to approve reply.");approve.textContent="Approved";send.style.display="inline-block";};
+          send.onclick=async()=>{if(!confirm("Send this approved reply on X?"))return;send.disabled=true;const rr=await fetch("/api/admin/x/reply/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:draftId})}),dd=await rr.json();if(!rr.ok||!dd.ok){send.disabled=false;return alert(dd.message||"Unable to send reply.");}send.textContent="Sent";ta.disabled=true;approve.disabled=true;};
+        });
+      }catch(e){xHomeFeed.innerHTML='<div class="empty">'+escapeHtml(e.message)+'</div>';}
+      finally{xLoadHomeFeed.disabled=false;xLoadHomeFeed.textContent="Load Home Feed";}
+    });
 
     const xLoadTimeline = document.getElementById("x-load-timeline");
     const xTimeline = document.getElementById("x-timeline");
