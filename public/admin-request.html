@@ -596,7 +596,7 @@ finalApproveButton.textContent =
 finalApproveButton.disabled = true;
 
 idReceivedCheckbox.disabled = true;
-depositPaidCheckbox.disabled = true;
+confirmDepositButton.disabled = true;
 
       } catch (error) {
   console.error(
@@ -605,7 +605,7 @@ depositPaidCheckbox.disabled = true;
   );
 
   finalApprovalStatus.textContent =
-    "Unable to complete final approval.";
+    error.message || "Unable to complete final approval.";
 
    finalApproveButton.disabled = false;
 }
