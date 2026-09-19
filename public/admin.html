@@ -1033,7 +1033,9 @@
         ${safety.concerns.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${safety.concerns.map(concern => `<span style="padding:5px 8px;border-radius:999px;background:#f3dfdf;font-size:12px;">⚠️ ${escapeHtml(concern)}</span>`).join("")}</div>` : ""}
         ${safety.notes ? `<details style="margin-top:9px;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">View private safety notes</summary><div style="margin-top:7px;padding:10px 12px;background:#faf8f4;border-radius:8px;">${escapeHtml(safety.notes)}</div></details>` : (!safety.concerns.length ? `<div style="margin-top:8px;">${escapeHtml(item.reason || "No reason recorded")}</div>` : "")}
         <div style="margin-top:8px;font-size:13px;">Added: ${escapeHtml(item.created_at || "—")}</div>
-        <button type="button" class="remove-blacklist" data-blacklist-id="${item.id}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #eee7dc;">
+          <button type="button" class="remove-blacklist" data-blacklist-id="${item.id}" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
+        </div>
       </div>`;
       }).join("") : '<div class="empty">No blacklist records match your search or filter.</div>';
       container.querySelectorAll(".remove-blacklist").forEach((button) => {
