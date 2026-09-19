@@ -2307,11 +2307,19 @@ loadRequests();
     const requestedSection = pageParams.get("section");
     if (requestedSection) openSection(requestedSection);
 
-    if (requestedSection === "clients" && pageParams.get("email") && clientSearch) {
-      clientSearch.value = pageParams.get("email");
-      renderClients();
-      const profileButton = clientRecords.querySelector(".client-profile-toggle");
-      if (profileButton) profileButton.click();
+    const requestedClientEmail = pageParams.get("client_email");
+    if (requestedSection === "clients" && requestedClientEmail) {
+      window.setTimeout(() => {
+        const search = document.getElementById("client-search");
+        const records = document.getElementById("client-records");
+        if (!search || !records) return;
+        search.value = requestedClientEmail;
+        search.dispatchEvent(new Event("input", {bubbles:true}));
+        window.setTimeout(() => {
+          const firstProfile = records.querySelector(".client-profile-toggle");
+          if (firstProfile) firstProfile.click();
+        }, 50);
+      }, 50);
     }
 
     navButtons.forEach((button) => {
