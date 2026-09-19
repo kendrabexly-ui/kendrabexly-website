@@ -995,10 +995,23 @@ This month, I am focusing on being more present — enjoying good conversation, 
 My journal will continue to be a place where I share a little more of that side of me: what I am enjoying, what I am learning, and what is inspiring me lately.`
       ).trim();
 
+    const monthlySubscriberOffers = [
+      { experience: "Signature Private Companionship Experience", duration: "1 hour", special: 450, regular: 500 },
+      { experience: "Signature Private Companionship Experience", duration: "2 hours", special: 650, regular: 750 },
+      { experience: "Signature Private Companionship Experience", duration: "3 hours", special: 850, regular: 1000 },
+      { experience: "Signature Private Companionship Experience", duration: "4 hours", special: 1050, regular: 1250 },
+      { experience: "The Greek Princess", duration: "1 hour", special: 575, regular: 650 },
+      { experience: "The Greek Princess", duration: "1.5 hours", special: 700, regular: 800 },
+      { experience: "The Greek Princess", duration: "2 hours", special: 900, regular: 1050 }
+    ];
+    const offerIndex = (now.getFullYear() * 12 + now.getMonth()) % monthlySubscriberOffers.length;
+    const monthlyOffer = monthlySubscriberOffers[offerIndex];
+    const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+
     const specialOffer =
       String(
         data.special_offer ||
-        `${month} Subscriber Rate: Enjoy 2 hours of my Signature Private Companionship Experience for $650 this month (normally $750). This private newsletter rate is available once per subscriber during ${month}, subject to availability. Mention the ${month} newsletter when requesting time.`
+        `${month} Subscriber Rate: Enjoy ${monthlyOffer.duration} of my ${monthlyOffer.experience} for ${money(monthlyOffer.special)} this month (normally ${money(monthlyOffer.regular)}). This private newsletter rate is available once per subscriber during ${month}, subject to availability. Mention the ${month} newsletter when requesting time.`
       ).trim();
 
     const result = await env.DB.prepare(`
