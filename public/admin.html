@@ -610,6 +610,13 @@
           <p>Your client directory — one profile per person with their complete booking history.</p>
         </div>
 
+        <div id="client-retention-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:14px;">
+          <button type="button" data-client-retention="repeat" style="text-align:left;padding:13px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="retention-repeat">—</strong><div style="font-size:12px;margin-top:3px;">Repeat Clients</div></button>
+          <button type="button" data-client-retention="recent" style="text-align:left;padding:13px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="retention-recent">—</strong><div style="font-size:12px;margin-top:3px;">Seen Recently</div></button>
+          <button type="button" data-client-retention="inactive" style="text-align:left;padding:13px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="retention-reconnect">—</strong><div style="font-size:12px;margin-top:3px;">Due for Reconnect</div></button>
+          <button type="button" data-client-retention="upcoming" style="text-align:left;padding:13px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="retention-upcoming">—</strong><div style="font-size:12px;margin-top:3px;">Upcoming Dates</div></button>
+        </div>
+
         <div class="panel">
           <div style="padding:18px 22px;border-bottom:1px solid var(--line);">
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1096,6 +1103,18 @@ async function loadRequests() {
       clientsByKey.get(key).requests.push(item);
     });
     const clientProfiles = Array.from(clientsByKey.values());
+    const retentionSnapshot=clientProfiles.map(client=>{
+      const completed=client.requests.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();}).sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")));
+      const upcoming=client.requests.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now());
+      const last=completed[0]?.requested_date?new Date(completed[0].requested_date+"T00:00:00").getTime():0;
+      const days=last?Math.floor((Date.now()-last)/86400000):null;
+      return {completed:completed.length,upcoming,days};
+    });
+    const setRetention=(id,n)=>{const el=document.getElementById(id);if(el)el.textContent=String(n);};
+    setRetention("retention-repeat",retentionSnapshot.filter(x=>x.completed>=2).length);
+    setRetention("retention-recent",retentionSnapshot.filter(x=>x.days!==null&&x.days<=60).length);
+    setRetention("retention-reconnect",retentionSnapshot.filter(x=>x.days!==null&&x.days>=90&&!x.upcoming).length);
+    setRetention("retention-upcoming",retentionSnapshot.filter(x=>x.upcoming).length);
     let blacklistIndex = [];
     try {
       const blacklistResponse = await fetch("/api/admin/blacklist");
@@ -1365,6 +1384,12 @@ async function loadRequests() {
     if (clientSafetyFilter) clientSafetyFilter.addEventListener("change", renderClients);
     const clientValueFilter = document.getElementById("client-value-filter");
     if (clientValueFilter) clientValueFilter.addEventListener("change", renderClients);
+    document.querySelectorAll("[data-client-retention]").forEach(button=>button.addEventListener("click",()=>{
+      if(!clientValueFilter)return;
+      clientValueFilter.value=button.dataset.clientRetention||"all";
+      renderClients();
+      document.getElementById("client-records")?.scrollIntoView({behavior:"smooth",block:"start"});
+    }));
 
     if (requests.length === 0) {
       recentContainer.innerHTML = `
