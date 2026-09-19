@@ -360,14 +360,22 @@ export default {
     if (url.pathname === "/api/admin/x/series/topics" && request.method === "POST") {
       if (!env.AI) return Response.json({ok:false,message:"Workers AI is not connected."},{status:500});
       try{
+        const data=await request.json().catch(()=>({}));
+        const style=String(data.style||"warm-flirty-tease");
+        const styleGuides={
+          "warm-flirty-tease":"Topics should naturally support a five-post emotional arc: warm personal opening, playful/flirty anticipation, growing chemistry, then a subtle natural tease. Favor themes like anticipation, chemistry, little escapes, lingering moments, what makes a date memorable, getting to know each other, plans worth looking forward to, playful what-if questions, and the tension between curiosity and finally making plans. Keep it suggestive, tasteful, and human rather than explicit or salesy.",
+          conversational:"Topics should invite relaxed, personal conversation and easy back-and-forth. Favor everyday observations, preferences, small pleasures, questions, and relatable lifestyle moments.",
+          playful:"Topics should create room for wit, charm, playful questions, light flirting, and personality without sounding forced or explicit.",
+          direct:"Topics should support clear, confident observations or questions with little buildup and a strong conversational point."
+        };
         const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
-          {role:"system",content:"Generate exactly 5 interesting X conversation-series topic ideas for Kendra Bexly. Each topic should be broad enough to support five related standalone posts. Keep them natural, engaging, conversational, lifestyle-friendly, and not repetitive. Do not invent personal facts. Return one topic per line with no explanations."},
-          {role:"user",content:"Give me five fresh conversation-series topics."}
-        ],max_tokens:350,temperature:0.9});
+          {role:"system",content:"Generate exactly 5 interesting X conversation-series topic ideas for Kendra Bexly. Each topic must be broad enough to support five connected standalone posts and must reflect the requested writing style from the beginning. "+(styleGuides[style]||styleGuides["warm-flirty-tease"])+" Do not invent personal facts. Avoid corporate language and generic marketing topics. Make each idea meaningfully different. Return one topic per line with no explanations."},
+          {role:"user",content:"Writing style: "+style+"\nGive me five fresh conversation-series topics that naturally fit this style."}
+        ],max_tokens:420,temperature:0.9});
         const raw=String(ai?.response||ai?.result?.response||"").trim();
         const topics=raw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)-]?|[-*])\s*/,"").trim()).filter(Boolean).slice(0,5);
         if(!topics.length)throw new Error("Workers AI returned no series topics.");
-        return Response.json({ok:true,topics});
+        return Response.json({ok:true,style,topics});
       }catch(error){return Response.json({ok:false,message:"Workers AI error: "+String(error?.message||error).slice(0,600)},{status:502});}
     }
 
