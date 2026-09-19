@@ -1031,7 +1031,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nSpend ${monthlyOffer.duration} with me for ${money(monthlyOffer.special)} this month — normally ${money(monthlyOffer.regular)}.\n\n${flirtyOfferClosers[flirtyIndex]} One-time subscriber special, subject to availability. Mention the ${month} newsletter when you request our time together.`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experience: ${monthlyOffer.experience === "Signature Private Companionship Experience" ? "Classic Rendezvous" : monthlyOffer.experience}.\n\nSpend ${monthlyOffer.duration} with me for ${money(monthlyOffer.special)} this month — normally ${money(monthlyOffer.regular)}.\n\n${flirtyOfferClosers[flirtyIndex]} One-time subscriber special, subject to availability. Book through the subscriber button below so your ${month} special is automatically attached to your request.`
       ).trim();
 
     const result = await env.DB.prepare(`
