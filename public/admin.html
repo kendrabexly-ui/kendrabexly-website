@@ -827,11 +827,7 @@
             <div style="display:flex;gap:8px;align-items:center;"><button id="x-cal-prev" type="button">‹</button><strong id="x-cal-label"></strong><button id="x-cal-next" type="button">›</button></div>
           </div>
           <div style="padding:16px 24px 0;"><div style="font-size:13px;font-weight:700;margin-bottom:8px;">Upcoming Queue</div><div id="x-upcoming-queue"><div class="empty">Upcoming posts load with the schedule.</div></div></div><div id="x-content-calendar" style="padding:18px 24px;"><div class="empty">Calendar loads with the schedule.</div></div>
-        </div>
-
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header"><div><div class="panel-title">Scheduled Posts</div><div class="panel-subtitle">Review, reschedule, or cancel approved posts waiting to publish.</div></div><button id="x-refresh-scheduled" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div>
-          <div id="x-scheduled"><div class="empty">Scheduled posts load when you open this section.</div></div>
+          <div style="padding:0 24px 18px;"><button id="x-toggle-all-scheduled" type="button" aria-expanded="false" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">View All Scheduled</button><button id="x-refresh-scheduled" type="button" style="margin-left:7px;border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button><div id="x-all-scheduled-wrap" style="display:none;margin-top:12px;border-top:1px solid var(--line);"><div id="x-scheduled"><div class="empty">Scheduled posts load when you open this section.</div></div></div></div>
         </div>
 
         <div class="panel">
@@ -1493,7 +1489,7 @@ loadRequests();
         };});
       }catch(e){box.innerHTML='<div class="empty">'+escapeHtml(e.message)+' <button type="button" onclick="loadXScheduled()">Retry</button></div>';}finally{xLoadBusy.scheduled=false;}
     }
-    document.getElementById("x-refresh-scheduled")?.addEventListener("click",loadXScheduled);
+    document.getElementById("x-refresh-scheduled")?.addEventListener("click",loadXScheduled);document.getElementById("x-toggle-all-scheduled")?.addEventListener("click",e=>{const wrap=document.getElementById("x-all-scheduled-wrap"),open=wrap.style.display==="none";wrap.style.display=open?"block":"none";e.currentTarget.textContent=open?"Hide Scheduled Posts":"View All Scheduled";e.currentTarget.setAttribute("aria-expanded",open?"true":"false");if(open)loadXScheduled();});
 
     const xAddTopic = document.getElementById("x-add-topic");
     const xSavedTopics = document.getElementById("x-saved-topics");
