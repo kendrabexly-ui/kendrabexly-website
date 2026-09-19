@@ -630,6 +630,28 @@ export default {
       return Response.json({ok:true});
     }
 
+    if (url.pathname === "/api/admin/x/weekly-plan/remove" && request.method === "POST") {
+      await ensureXWeeklyPlanTable();
+      const data=await request.json().catch(()=>({})),draftId=Number(data.draft_id);
+      if(!Number.isInteger(draftId)||draftId<1) return Response.json({ok:false,message:"Choose a valid planned post."},{status:400});
+      const scheduled=await env.DB.prepare("SELECT id FROM x_scheduled_posts WHERE draft_id=? AND status='scheduled'").bind(draftId).first().catch(()=>null);
+      if(scheduled) return Response.json({ok:false,message:"Cancel this post's schedule before removing it from the weekly plan."},{status:400});
+      await env.DB.prepare("DELETE FROM x_weekly_plan_items WHERE draft_id=?").bind(draftId).run();
+      return Response.json({ok:true});
+    }
+
+    if (url.pathname === "/api/admin/x/weekly-plan/move" && request.method === "POST") {
+      await ensureXWeeklyPlanTable();
+      const data=await request.json().catch(()=>({})),draftId=Number(data.draft_id),weekStart=String(data.week_start||"").trim(),plannedFor=String(data.planned_for||"").trim(),slotIndex=Number(data.slot_index);
+      if(!Number.isInteger(draftId)||draftId<1||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(weekStart)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(plannedFor)||!Number.isInteger(slotIndex)||slotIndex<0||slotIndex>9) return Response.json({ok:false,message:"Choose a valid weekly-plan destination."},{status:400});
+      const scheduled=await env.DB.prepare("SELECT id FROM x_scheduled_posts WHERE draft_id=? AND status='scheduled'").bind(draftId).first().catch(()=>null);
+      if(scheduled) return Response.json({ok:false,message:"Cancel this post's schedule before moving it."},{status:400});
+      const occupied=await env.DB.prepare("SELECT draft_id FROM x_weekly_plan_items WHERE week_start=? AND planned_for=? AND slot_index=? AND draft_id<>?").bind(weekStart,plannedFor,slotIndex,draftId).first();
+      if(occupied) return Response.json({ok:false,message:"That weekly slot already has a post."},{status:409});
+      await env.DB.prepare("UPDATE x_weekly_plan_items SET week_start=?,planned_for=?,slot_index=?,updated_at=CURRENT_TIMESTAMP WHERE draft_id=?").bind(weekStart,plannedFor,slotIndex,draftId).run();
+      return Response.json({ok:true});
+    }
+
     async function ensureXScheduledTable() {
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS x_scheduled_posts (
