@@ -2436,6 +2436,52 @@ Kendra`
     }
 
         // ============================================================
+    // CONFIRM DEPOSIT + START 6-HOUR SCREENING WINDOW
+    // ============================================================
+    if (
+      url.pathname === "/api/admin/request/confirm-deposit" &&
+      request.method === "POST"
+    ) {
+      try {
+        const data = await request.json();
+        const requestId = Number(data.id);
+        if (!Number.isInteger(requestId) || requestId < 1) {
+          return Response.json({ ok:false, message:"Invalid request ID." }, { status:400 });
+        }
+
+        const item = await env.DB.prepare(
+          "SELECT id, status, deposit_amount, deposit_paid, notes FROM date_requests WHERE id = ? LIMIT 1"
+        ).bind(requestId).first();
+        if (!item) return Response.json({ ok:false, message:"Request not found." }, { status:404 });
+        if (Number(item.deposit_amount || 0) <= 0) {
+          return Response.json({ ok:false, message:"Expected deposit must be calculated before confirming payment." }, { status:400 });
+        }
+
+        const existingStamp = String(item.notes || "").match(/Deposit received at: ([^\n]+)/);
+        const paidAt = existingStamp?.[1] || new Date().toISOString();
+        const deadline = new Date(new Date(paidAt).getTime() + 6 * 60 * 60 * 1000).toISOString();
+        let notes = String(item.notes || "");
+        if (!existingStamp) notes += (notes ? "\n" : "") + "Deposit received at: " + paidAt;
+        if (!/Screening deadline: /.test(notes)) notes += "\nScreening deadline: " + deadline;
+
+        await env.DB.prepare(
+          "UPDATE date_requests SET deposit_paid = 1, status = 'screening_pending', notes = ? WHERE id = ?"
+        ).bind(notes, requestId).run();
+
+        return Response.json({
+          ok:true,
+          status:"screening_pending",
+          deposit_amount:Number(item.deposit_amount),
+          remaining_balance:Math.round(Number(item.deposit_amount) * 3 * 100) / 100,
+          screening_deadline:deadline
+        });
+      } catch (error) {
+        console.error("Confirm deposit error:", error);
+        return Response.json({ ok:false, message:"Unable to confirm deposit." }, { status:500 });
+      }
+    }
+
+    // ============================================================
     // FINAL APPROVE REQUEST
     // ============================================================
 
@@ -2469,7 +2515,7 @@ Kendra`
 
         const existingRequest = await env.DB
           .prepare(`
-            SELECT id, status, notes
+            SELECT id, status, notes, deposit_paid
             FROM date_requests
             WHERE id = ?
           `)
@@ -2486,7 +2532,7 @@ Kendra`
           );
         }
 
-        if (existingRequest.status !== "pending_final_approval") {
+        if (!["pending_final_approval", "screening_pending"].includes(existingRequest.status)) {
           return Response.json(
             {
               ok: false,
@@ -2498,6 +2544,13 @@ Kendra`
 
         const hasNewsletterSpecial =
           String(existingRequest.notes || "").includes("Newsletter special: Newsletter #");
+
+        if (!existingRequest.deposit_paid) {
+          return Response.json(
+            { ok:false, message:"Deposit must be confirmed before final approval." },
+            { status:400 }
+          );
+        }
 
         if (hasNewsletterSpecial && data.newsletter_special_approved !== true) {
           return Response.json(
