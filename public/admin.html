@@ -2321,8 +2321,28 @@ loadRequests();
       section.classList.add("active");
     };
 
-    const requestedSection = new URLSearchParams(window.location.search).get("section");
+    const pageParams = new URLSearchParams(window.location.search);
+    const requestedSection = pageParams.get("section");
     if (requestedSection) openSection(requestedSection);
+
+    if (requestedSection === "clients" && pageParams.get("email")) {
+      const requestedEmail = pageParams.get("email").trim().toLowerCase();
+      if (clientSearch) {
+        clientSearch.value = requestedEmail;
+        renderClients();
+        requestAnimationFrame(() => {
+          const card = Array.from(clientRecords.children).find((item) =>
+            item.textContent.toLowerCase().includes(requestedEmail)
+          );
+          if (!card) return;
+          const controls = card.querySelector(".client-profile-actions");
+          const toggle = card.querySelector(".client-profile-toggle");
+          if (controls) controls.style.display = "block";
+          if (toggle) toggle.textContent = "Hide Client Profile";
+          card.scrollIntoView({behavior:"smooth",block:"start"});
+        });
+      }
+    }
 
     navButtons.forEach((button) => {
 
