@@ -1119,6 +1119,9 @@ loadRequests();
           </div>
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Subject</label>
           <input data-field="subject" ${readOnly ? "disabled" : ""} value="${escapeHtml(item.subject || "")}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:12px;">
+          <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Newsletter Image</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;"><input type="file" accept="image/*" data-newsletter-image-input style="display:none;" ${readOnly ? "disabled" : ""}><button type="button" data-newsletter-image-button ${readOnly ? "disabled" : ""}>Upload Image</button><span data-newsletter-image-name style="font-size:13px;color:var(--muted);">No image selected</span></div>
+          <div data-newsletter-image-preview style="display:none;margin-bottom:14px;"><img alt="Newsletter preview" style="display:block;max-width:100%;max-height:360px;border-radius:10px;object-fit:cover;"></div>
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Newsletter</label>
           <textarea data-field="content" ${readOnly ? "disabled" : ""} style="width:100%;min-height:150px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;margin-bottom:12px;">${escapeHtml(item.content || "")}</textarea>
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Featured Blog Post Title</label>
@@ -1144,6 +1147,9 @@ loadRequests();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load newsletter drafts.");
         box.innerHTML = d.drafts.length ? d.drafts.map(newsletterDraftCard).join("") : '<div class="empty">No newsletter drafts yet.</div>';
         box.querySelectorAll("[data-newsletter-draft]").forEach(card => {
+          const imageInput=card.querySelector("[data-newsletter-image-input]"), imageButton=card.querySelector("[data-newsletter-image-button]"), imageName=card.querySelector("[data-newsletter-image-name]"), imagePreview=card.querySelector("[data-newsletter-image-preview]");
+          if(imageButton&&imageInput){imageButton.style.cssText="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;";imageButton.addEventListener("click",()=>imageInput.click());imageInput.addEventListener("change",()=>{const file=imageInput.files&&imageInput.files[0];if(!file)return;if(!file.type.startsWith("image/")){alert("Please choose an image file.");imageInput.value="";return;}if(file.size>5*1024*1024){alert("Please choose an image smaller than 5 MB.");imageInput.value="";return;}imageName.textContent=file.name;const reader=new FileReader();reader.onload=()=>{card.dataset.newsletterImage=String(reader.result||"");imagePreview.querySelector("img").src=card.dataset.newsletterImage;imagePreview.style.display="block";};reader.readAsDataURL(file);});}
+
           card.querySelectorAll("button[data-newsletter-action]").forEach(button => {
             button.style.cssText = "border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:var(--white);cursor:pointer;";
             button.addEventListener("click", async () => {
@@ -1173,9 +1179,10 @@ loadRequests();
                 const blogTitle = card.querySelector('[data-field="blog_title"]').value;
                 const blogContent = card.querySelector('[data-field="blog_content"]').value;
                 const specialOffer = card.querySelector('[data-field="special_offer"]').value;
+                const newsletterImage = card.dataset.newsletterImage || "";
                 const w = window.open("", "_blank");
                 if (w) {
-                  w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1><p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p></div></main></body></html>`);
+                  w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1>${newsletterImage ? `<img src="${newsletterImage}" alt="" style="display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin:0 0 24px;">` : ""}<p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p></div></main></body></html>`);
                   w.document.close();
                 }
                 return;
