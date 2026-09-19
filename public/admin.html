@@ -1021,6 +1021,7 @@ async function loadRequests() {
       const key = String(item.client_id || item.email || item.phone || (item.first_name + "|" + item.last_name)).toLowerCase();
       if (!clientsByKey.has(key)) {
         clientsByKey.set(key, {
+          client_id:item.client_id || "",
           first_name:item.first_name || "",
           last_name:item.last_name || "",
           email:item.email || "",
@@ -1057,9 +1058,35 @@ async function loadRequests() {
               <span><strong>${deposits.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> deposits paid</span>
               <span>Latest: <strong>${escapeHtml(latest?.requested_date || "—")}</strong></span>
             </div>
+            <button type="button" class="blacklist-client" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Blacklist Client</button>
             ${latest ? `<button type="button" class="client-history-toggle" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View booking history ↓</button><div class="client-history" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee7dc;">${sorted.map(r => `<button type="button" class="client-history-request" data-request-id="${r.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 0;cursor:pointer;font:inherit;"><strong>${escapeHtml(r.requested_date || "Date not provided")}</strong> at ${escapeHtml(r.requested_time || "Time not provided")} · ${escapeHtml(String(r.status || "pending").replaceAll("_"," "))}${Number(r.deposit_paid) ? ` · Deposit ${Number(r.deposit_amount || 0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""} →</button>`).join("")}</div>` : ""}
           </div>`;
       }).join("") : '<div class="empty">No client profiles match your search.</div>';
+      clientRecords.querySelectorAll(".blacklist-client").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const reason = window.prompt("Why are you blacklisting " + (button.dataset.clientName || "this client") + "?");
+          if (reason === null) return;
+          if (!reason.trim()) {
+            window.alert("Please enter a reason before blacklisting this client.");
+            return;
+          }
+          if (!window.confirm("Blacklist this client? Future requests using their saved email or phone will be blocked.")) return;
+          button.disabled = true;
+          const response = await fetch("/api/admin/blacklist/add", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({client_id:Number(button.dataset.clientId), reason:reason.trim()})
+          });
+          const result = await response.json();
+          if (!response.ok || !result.ok) {
+            button.disabled = false;
+            window.alert(result.message || "Unable to blacklist this client.");
+            return;
+          }
+          button.textContent = "Blacklisted";
+          loadBlacklist();
+        });
+      });
       clientRecords.querySelectorAll(".client-history-toggle").forEach((button) => {
         button.addEventListener("click", () => {
           const history = button.nextElementSibling;
