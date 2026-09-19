@@ -1245,9 +1245,15 @@ async function loadRequests() {
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                   <button type="button" class="generate-client-followup" data-followup-type="reconnect" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Reconnect</button>
                   <button type="button" class="generate-client-followup" data-followup-type="after-date" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">After Date</button>
+                  <button type="button" class="preview-client-followup" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Preview</button>
+                  <button type="button" class="copy-client-followup" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Copy</button>
                   <button type="button" class="clear-client-followup" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear</button>
                 </div>
                 <textarea class="client-followup-draft" rows="5" placeholder="Your follow up draft will appear here..." style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                <div class="client-followup-preview" style="display:none;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:9px;background:#fffdf9;">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:.06em;margin-bottom:8px;">MESSAGE PREVIEW</div>
+                  <div class="client-followup-preview-body" style="white-space:pre-wrap;line-height:1.6;"></div>
+                </div>
                 <div class="client-followup-status" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
               </div>
 
@@ -1340,7 +1346,21 @@ async function loadRequests() {
           finally{button.disabled=false;}
         });
       });
-      clientRecords.querySelectorAll(".clear-client-followup").forEach((button)=>button.addEventListener("click",()=>{const controls=button.closest(".client-profile-actions");const draft=controls?.querySelector(".client-followup-draft");const status=controls?.querySelector(".client-followup-status");if(draft)draft.value="";if(status)status.textContent="";}));
+      clientRecords.querySelectorAll(".preview-client-followup").forEach((button)=>button.addEventListener("click",()=>{
+        const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),preview=controls?.querySelector(".client-followup-preview"),body=controls?.querySelector(".client-followup-preview-body"),status=controls?.querySelector(".client-followup-status");
+        if(!draft?.value.trim()){if(status)status.textContent="Generate or write a follow up first.";return;}
+        const opening=preview?.style.display!=="block";
+        if(body)body.textContent=draft.value.trim();
+        if(preview)preview.style.display=opening?"block":"none";
+        button.textContent=opening?"Close Preview":"Preview";
+        if(status)status.textContent=opening?"Previewing your current edited draft.":"";
+      }));
+      clientRecords.querySelectorAll(".copy-client-followup").forEach((button)=>button.addEventListener("click",async()=>{
+        const controls=button.closest(".client-profile-actions"),draft=controls?.querySelector(".client-followup-draft"),status=controls?.querySelector(".client-followup-status");
+        if(!draft?.value.trim()){if(status)status.textContent="Nothing to copy yet.";return;}
+        try{await navigator.clipboard.writeText(draft.value.trim());if(status)status.textContent="Copied.";}catch(e){draft.select();document.execCommand("copy");if(status)status.textContent="Copied.";}
+      }));
+      clientRecords.querySelectorAll(".clear-client-followup").forEach((button)=>button.addEventListener("click",()=>{const controls=button.closest(".client-profile-actions");const draft=controls?.querySelector(".client-followup-draft");const status=controls?.querySelector(".client-followup-status");if(draft)draft.value="";const preview=controls?.querySelector(".client-followup-preview");const previewButton=controls?.querySelector(".preview-client-followup");if(preview)preview.style.display="none";if(previewButton)previewButton.textContent="Preview";if(status)status.textContent="";}));
       clientRecords.querySelectorAll(".generate-client-followup").forEach((button) => {
         button.addEventListener("click", async () => {
           const controls=button.closest(".client-profile-actions");
