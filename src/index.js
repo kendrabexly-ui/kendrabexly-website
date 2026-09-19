@@ -533,6 +533,58 @@ export default {
       return Response.json({ ok:true, deleted:true });
     }
 
+    async function ensureXScheduledTable() {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS x_scheduled_posts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          draft_id INTEGER NOT NULL UNIQUE,
+          scheduled_for TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'scheduled',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+    }
+
+    if (url.pathname === "/api/admin/x/scheduled" && request.method === "GET") {
+      await ensureXScheduledTable();
+      const rows=await env.DB.prepare(`
+        SELECT s.id,s.draft_id,s.scheduled_for,s.status,s.created_at,d.content
+        FROM x_scheduled_posts s JOIN x_post_drafts d ON d.id=s.draft_id
+        WHERE s.status='scheduled' ORDER BY s.scheduled_for ASC
+      `).all();
+      return Response.json({ok:true,scheduled:rows.results||[]});
+    }
+
+    if (url.pathname === "/api/admin/x/schedule" && request.method === "POST") {
+      await ensureXScheduledTable();
+      const data=await request.json(),draftId=Number(data.id),scheduledFor=String(data.scheduled_for||"").trim();
+      if(!Number.isInteger(draftId)||draftId<1||!scheduledFor) return Response.json({ok:false,message:"Choose a valid date and time."},{status:400});
+      const when=Date.parse(scheduledFor);
+      if(!Number.isFinite(when)||when<=Date.now()+30000) return Response.json({ok:false,message:"Schedule the post for a future time."},{status:400});
+      const draft=await env.DB.prepare("SELECT id,status FROM x_post_drafts WHERE id=?").bind(draftId).first();
+      if(!draft) return Response.json({ok:false,message:"Draft not found."},{status:404});
+      if(draft.status!=="approved") return Response.json({ok:false,message:"Approve this draft before scheduling it."},{status:400});
+      await env.DB.prepare(`INSERT INTO x_scheduled_posts(draft_id,scheduled_for,status,updated_at) VALUES(?,?,'scheduled',CURRENT_TIMESTAMP)
+        ON CONFLICT(draft_id) DO UPDATE SET scheduled_for=excluded.scheduled_for,status='scheduled',updated_at=CURRENT_TIMESTAMP`).bind(draftId,new Date(when).toISOString()).run();
+      return Response.json({ok:true,status:"scheduled",scheduled_for:new Date(when).toISOString()});
+    }
+
+    if (url.pathname === "/api/admin/x/schedule/cancel" && request.method === "POST") {
+      await ensureXScheduledTable();
+      const data=await request.json(),id=Number(data.id);
+      await env.DB.prepare("UPDATE x_scheduled_posts SET status='cancelled',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='scheduled'").bind(id).run();
+      return Response.json({ok:true});
+    }
+
+    if (url.pathname === "/api/admin/x/schedule/reschedule" && request.method === "POST") {
+      await ensureXScheduledTable();
+      const data=await request.json(),id=Number(data.id),when=Date.parse(String(data.scheduled_for||""));
+      if(!Number.isInteger(id)||id<1||!Number.isFinite(when)||when<=Date.now()+30000) return Response.json({ok:false,message:"Choose a valid future date and time."},{status:400});
+      await env.DB.prepare("UPDATE x_scheduled_posts SET scheduled_for=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='scheduled'").bind(new Date(when).toISOString(),id).run();
+      return Response.json({ok:true,scheduled_for:new Date(when).toISOString()});
+    }
+
     if (url.pathname === "/api/admin/x/publish" && request.method === "POST") {
       const data = await request.json();
       const id = Number(data.id);
