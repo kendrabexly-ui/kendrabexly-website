@@ -2425,7 +2425,9 @@ Please note: your deposit must be received no later than 4 hours before our sche
 
 Payment options:
 • Gift Card — payment button coming soon
-• Crypto — payment button coming soon
+• Crypto — payment button coming soon (15% conversion fee applies)
+
+If you choose crypto, the payment amount will be your deposit plus a 15% conversion fee.
 
 Once I have both your ID and deposit, I'll personally review everything and confirm our date.
 
