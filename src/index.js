@@ -1058,9 +1058,6 @@ My journal will continue to be a place where I share a little more of that side 
     if (!existing) {
       return Response.json({ ok: false, message: "Newsletter draft not found." }, { status: 404 });
     }
-    if (existing.status === "sent") {
-      return Response.json({ ok: false, message: "Sent newsletters cannot be deleted." }, { status: 400 });
-    }
     await env.DB.prepare("DELETE FROM newsletter_drafts WHERE id = ?").bind(id).run();
     return Response.json({ ok: true });
   }
@@ -1176,9 +1173,6 @@ My journal will continue to be a place where I share a little more of that side 
     ).bind(id).first();
     if (!existing) {
       return Response.json({ ok: false, message: "Newsletter draft not found." }, { status: 404 });
-    }
-    if (existing.status === "sent") {
-      return Response.json({ ok: false, message: "Sent newsletters cannot be deleted." }, { status: 400 });
     }
     await env.DB.prepare("DELETE FROM newsletter_drafts WHERE id = ?").bind(id).run();
     return Response.json({ ok: true });
