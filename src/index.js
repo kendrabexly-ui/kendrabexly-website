@@ -2327,6 +2327,56 @@ if (
 }
 
     // =========================================================
+    // SEND CLIENT EMAIL DRAFT
+    // =========================================================
+    if (
+      url.pathname.match(/^\/api\/admin\/email-drafts\/\d+\/send$/) &&
+      request.method === "POST"
+    ) {
+      try {
+        if (!env.RESEND_API_KEY) {
+          return Response.json({ ok:false, message:"Email delivery is not configured." }, { status:500 });
+        }
+        const draftId = Number(url.pathname.split("/").slice(-2, -1)[0]);
+        const draft = await env.DB.prepare(`
+          SELECT ed.id, ed.subject, ed.body, ed.status, c.email, c.first_name
+          FROM email_drafts ed
+          LEFT JOIN clients c ON c.id = ed.client_id
+          WHERE ed.id = ?
+        `).bind(draftId).first();
+        if (!draft) return Response.json({ ok:false, message:"Email draft not found." }, { status:404 });
+        if (!draft.email) return Response.json({ ok:false, message:"This client does not have an email address." }, { status:400 });
+        if (draft.status === "sent") return Response.json({ ok:false, message:"This email has already been sent." }, { status:400 });
+
+        const esc = (value) => String(value || "")
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+        const html = '<div style="font-family:Arial,sans-serif;line-height:1.65;color:#29282d;white-space:normal;">' +
+          esc(draft.body).replace(/\n/g,"<br>") + "</div>";
+        const sendResponse = await fetch("https://api.resend.com/emails", {
+          method:"POST",
+          headers:{"Authorization":"Bearer " + env.RESEND_API_KEY,"Content-Type":"application/json"},
+          body:JSON.stringify({
+            from:"Kendra Bexly <hello@kendrabexly.com>",
+            to:[draft.email],
+            subject:draft.subject,
+            html
+          })
+        });
+        if (!sendResponse.ok) {
+          console.error("Client email delivery failed:", sendResponse.status, await sendResponse.text());
+          return Response.json({ ok:false, message:"Email delivery failed. The draft was not marked sent." }, { status:502 });
+        }
+        await env.DB.prepare("UPDATE email_drafts SET status = 'sent', sent_at = CURRENT_TIMESTAMP WHERE id = ?")
+          .bind(draftId).run();
+        return Response.json({ ok:true, message:"Email sent to " + draft.email + ".", status:"sent" });
+      } catch (error) {
+        console.error("Client email send error:", error);
+        return Response.json({ ok:false, message:"Unable to send this email." }, { status:500 });
+      }
+    }
+
+    // =========================================================
     // ADMIN NEWSLETTERS
     // =========================================================
 
