@@ -587,7 +587,7 @@
         <div class="stats">
           <div class="stat">
             <div class="stat-label">Upcoming Dates</div>
-            <div class="stat-number">—</div>
+            <div class="stat-number" id="calendar-upcoming-count">—</div>
           </div>
           <div class="stat">
             <div class="stat-label">Open Availability</div>
@@ -614,6 +614,7 @@
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Upcoming Dates</strong>
               <div style="margin-top:6px;font-size:13px;color:var(--muted);">Confirmed dates will appear here.</div>
+              <div id="calendar-upcoming-dates" style="margin-top:14px;"><div style="font-size:13px;color:var(--muted);">Open Calendar to load upcoming dates.</div></div>
             </div>
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Open Availability</strong>
@@ -3125,6 +3126,42 @@ loadRequests();
       if(box && !box.querySelector("[data-email-draft]") && !String(box.textContent||"").trim()) loadEmailDrafts();
     }, 900);
 
+    async function loadCalendarUpcomingDates() {
+      const box = document.getElementById("calendar-upcoming-dates");
+      const count = document.getElementById("calendar-upcoming-count");
+      if (!box || box.dataset.loading === "1") return;
+      box.dataset.loading = "1";
+      box.innerHTML = '<div style="font-size:13px;color:var(--muted);">Loading upcoming dates...</div>';
+      try {
+        const response = await fetch("/api/admin/requests");
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load dates.");
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const rows = (data.requests || data.items || [])
+          .filter(item => String(item.status || "").toLowerCase() === "approved")
+          .filter(item => {
+            const d = new Date(String(item.requested_date || "") + "T00:00:00");
+            return Number.isFinite(d.getTime()) && d >= today;
+          })
+          .sort((a,b) => String(a.requested_date||"").localeCompare(String(b.requested_date||"")) || String(a.requested_time||"").localeCompare(String(b.requested_time||"")));
+        if (count) count.textContent = String(rows.length);
+        box.innerHTML = rows.length ? rows.slice(0,6).map(item => {
+          const name = [item.first_name,item.last_name].filter(Boolean).join(" ") || "Client";
+          return '<div style="padding:11px 0;border-top:1px solid var(--line);">' +
+            '<div style="font-weight:600;">' + escapeHtml(name) + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
+            escapeHtml(item.requested_date || "Date pending") + (item.requested_time ? " · " + escapeHtml(item.requested_time) : "") +
+            (item.location_name ? " · " + escapeHtml(item.location_name) : "") + '</div></div>';
+        }).join("") : '<div style="font-size:13px;color:var(--muted);">No upcoming approved dates.</div>';
+      } catch (error) {
+        if (count) count.textContent = "—";
+        box.innerHTML = '<div style="font-size:13px;color:var(--red);">' + escapeHtml(error.message || "Unable to load upcoming dates.") + '</div>';
+      } finally {
+        delete box.dataset.loading;
+      }
+    }
+
     const navButtons =
       document.querySelectorAll(".nav button");
 
@@ -3182,7 +3219,10 @@ loadRequests();
         if (section) {
           section.classList.add("active");
         }
-        if (button.dataset.section === "emails") {
+        if (button.dataset.section === "calendar") {
+          loadCalendarUpcomingDates();
+        }
+                if (button.dataset.section === "emails") {
           const emailBox=document.getElementById("email-draft-records");
           if(emailBox && !emailBox.dataset.loadingEmails){
             emailBox.dataset.loadingEmails="1";
