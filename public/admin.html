@@ -631,8 +631,12 @@
         </div>
 
         <div class="panel">
-          <div class="empty">
-            Payment records will appear here.
+          <div id="payment-summary" style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:28px;flex-wrap:wrap;">
+            <span><strong id="payments-total">$0.00</strong><br><small>Deposits recorded</small></span>
+            <span><strong id="payments-count">0</strong><br><small>Paid bookings</small></span>
+          </div>
+          <div id="payment-records">
+            <div class="empty">Loading payment records...</div>
           </div>
         </div>
 
@@ -988,6 +992,24 @@
     }
 
     const requests = data.requests || [];
+
+    const paymentRecords = document.getElementById("payment-records");
+    const paymentsTotal = document.getElementById("payments-total");
+    const paymentsCount = document.getElementById("payments-count");
+    const paidRequests = requests.filter((item) => Number(item.deposit_paid));
+    const paidTotal = paidRequests.reduce((sum, item) => sum + Number(item.deposit_amount || 0), 0);
+    if (paymentsTotal) paymentsTotal.textContent = "$" + paidTotal.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+    if (paymentsCount) paymentsCount.textContent = String(paidRequests.length);
+    if (paymentRecords) {
+      paymentRecords.innerHTML = paidRequests.length ? paidRequests.map((item) => {
+        const name = (String(item.first_name || "") + " " + String(item.last_name || "")).trim() || "Client";
+        const amount = Number(item.deposit_amount || 0);
+        return `<button type="button" class="payment-request" data-request-id="${item.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #ddd6ca;padding:18px 22px;cursor:pointer;font:inherit;"><strong>${escapeHtml(name)}</strong><div style="margin-top:5px;">Deposit: <strong>${amount.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div><div style="margin-top:4px;">${escapeHtml(item.requested_date || "Date not provided")} · ${escapeHtml(String(item.status || "").replaceAll("_"," "))}</div></button>`;
+      }).join("") : '<div class="empty">No confirmed deposits yet.</div>';
+      paymentRecords.querySelectorAll(".payment-request").forEach((button) => button.addEventListener("click", () => {
+        window.location.href = `/admin-request?id=${encodeURIComponent(button.dataset.requestId)}`;
+      }));
+    }
 
     const clientRecords = document.getElementById("client-records");
     const clientSearch = document.getElementById("client-search");
