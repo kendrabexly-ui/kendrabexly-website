@@ -708,7 +708,14 @@
               <div class="panel-title">X Home Feed</div>
               <div class="panel-subtitle">Browse recent tweets from people you follow and choose one to respond to.</div>
             </div>
-            <button id="x-load-home-feed" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Home Feed</button>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="x-home-sort" aria-label="Sort X home feed" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;font:inherit;">
+                <option value="latest">Latest</option>
+                <option value="engaged">Most Engaged</option>
+                <option value="oldest">Oldest</option>
+              </select>
+              <button id="x-load-home-feed" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Home Feed</button>
+            </div>
           </div>
           <div id="x-home-feed"><div class="empty">Press Load Home Feed to browse tweets from other accounts.</div></div>
         </div>
@@ -1254,6 +1261,15 @@ loadRequests();
         const r=await fetch("/api/admin/x/home-timeline"),d=await r.json();
         if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load your X home feed.");
         if(!d.tweets.length){xHomeFeed.innerHTML='<div class="empty">No tweets from other accounts were returned.</div>';return;}
+        const sortMode=document.getElementById("x-home-sort")?.value||"latest";
+        d.tweets.sort((a,b)=>{
+          if(sortMode==="oldest") return new Date(a.created_at||0)-new Date(b.created_at||0);
+          if(sortMode==="engaged"){
+            const score=x=>Number(x.public_metrics?.like_count||0)+Number(x.public_metrics?.reply_count||0)+Number(x.public_metrics?.retweet_count||0)+Number(x.public_metrics?.quote_count||0);
+            return score(b)-score(a);
+          }
+          return new Date(b.created_at||0)-new Date(a.created_at||0);
+        });
         xHomeFeed.innerHTML=d.tweets.map((t,i)=>'<div style="padding:18px 24px;border-top:1px solid var(--line);"><div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+escapeHtml(t.author_name||"")+' @'+escapeHtml(t.author_username||"")+' · '+escapeHtml(t.created_at?new Date(t.created_at).toLocaleString():"")+'</div><div style="margin-bottom:12px;white-space:pre-wrap;">'+escapeHtml(t.text)+'</div><button type="button" data-home-generate="'+i+'" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Generate Reply</button><div data-home-editor="'+i+'" style="display:none;margin-top:12px;"><textarea style="width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;"></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button type="button" data-home-approve="'+i+'">Approve Reply</button><button type="button" data-home-send="'+i+'" style="display:none;">Quote & Send on X</button></div></div></div>').join("");
         d.tweets.forEach((t,i)=>{
           const gen=xHomeFeed.querySelector('[data-home-generate="'+i+'"]'),editor=xHomeFeed.querySelector('[data-home-editor="'+i+'"]'),ta=editor.querySelector("textarea"),approve=xHomeFeed.querySelector('[data-home-approve="'+i+'"]'),send=xHomeFeed.querySelector('[data-home-send="'+i+'"]');let draftId=null;
