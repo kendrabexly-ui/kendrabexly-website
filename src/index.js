@@ -1043,15 +1043,26 @@ My journal will continue to be a place where I share a little more of that side 
       { experience: "The Greek Princess", duration: "1.5 hours", regular: 800, incentive: "30 extra minutes" },
       { experience: "The Greek Princess", duration: "2 hours", regular: 1050, incentive: "30 extra minutes" }
     ];
-    // Build each experience's monthly special from its normal package ladder:
-    // charge the regular price of the shorter package and include the next 30 minutes.
-    const monthlySpecialByExperience = {
-      classic: { id:"classic-rendezvous", experience:"Classic Rendezvous", duration:"1.5 hours", price:500 },
-      greek: { id:"greek-princess", experience:"The Greek Princess", duration:"1.5 hours", price:650 }
-    };
-    const classicMonthlySpecial = monthlySpecialByExperience.classic;
-    const greekMonthlySpecial = monthlySpecialByExperience.greek;
-    const offerIndex = (now.getFullYear() * 12 + now.getMonth()) % monthlySubscriberOffers.length;
+    // The experiences stay fixed; the monthly incentive rotates.
+    // Each month selects a base duration from 1–4 hours and adds 30 bonus minutes,
+    // creating specials from 1.5 through 4.5 hours without discounting the base rate.
+    const classicRates = [
+      { base:"1 hour", special:"1.5 hours", price:500 },
+      { base:"2 hours", special:"2.5 hours", price:750 },
+      { base:"3 hours", special:"3.5 hours", price:1000 },
+      { base:"4 hours", special:"4.5 hours", price:1250 }
+    ];
+    const greekRates = [
+      { base:"1 hour", special:"1.5 hours", price:650 },
+      { base:"1.5 hours", special:"2 hours", price:800 },
+      { base:"2 hours", special:"2.5 hours", price:1050 },
+      { base:"3 hours", special:"3.5 hours", price:1300 },
+      { base:"4 hours", special:"4.5 hours", price:1550 }
+    ];
+    const monthIndex = now.getFullYear() * 12 + now.getMonth();
+    const classicMonthlySpecial = classicRates[monthIndex % classicRates.length];
+    const greekMonthlySpecial = greekRates[monthIndex % greekRates.length];
+    const offerIndex = monthIndex % monthlySubscriberOffers.length;
     const monthlyOffer = monthlySubscriberOffers[offerIndex];
     const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 
@@ -1078,7 +1089,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — 1.5 hours at $500.\n\nThe Greek Princess — 1.5 hours at $650.\n\nChoose the experience that catches your eye when you're ready to make plans with me.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — book ${classicMonthlySpecial.base} at ${money(classicMonthlySpecial.price)} and enjoy ${classicMonthlySpecial.special}.\n\nThe Greek Princess — book ${greekMonthlySpecial.base} at ${money(greekMonthlySpecial.price)} and enjoy ${greekMonthlySpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`
       ).trim();
 
     const result = await env.DB.prepare(`
@@ -1166,7 +1177,24 @@ My journal will continue to be a place where I share a little more of that side 
 
     const data = await request.json().catch(() => ({}));
     const offer = String(data.special_offer || existing.special_offer || "").trim();
-    const month = new Date().toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
+    const offerNow = new Date();
+    const month = offerNow.toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
+    const offerMonthIndex = offerNow.getFullYear() * 12 + offerNow.getMonth();
+    const classicOptions = [
+      {base:"1 hour",special:"1.5 hours",price:500},
+      {base:"2 hours",special:"2.5 hours",price:750},
+      {base:"3 hours",special:"3.5 hours",price:1000},
+      {base:"4 hours",special:"4.5 hours",price:1250}
+    ];
+    const greekOptions = [
+      {base:"1 hour",special:"1.5 hours",price:650},
+      {base:"1.5 hours",special:"2 hours",price:800},
+      {base:"2 hours",special:"2.5 hours",price:1050},
+      {base:"3 hours",special:"3.5 hours",price:1300},
+      {base:"4 hours",special:"4.5 hours",price:1550}
+    ];
+    const classicSpecial = classicOptions[offerMonthIndex % classicOptions.length];
+    const greekSpecial = greekOptions[offerMonthIndex % greekOptions.length];
     const intros = [
       "I saved a little something especially for you this month. ✨",
       "I thought you might enjoy a little something special from me this month. 💋",
@@ -1183,7 +1211,7 @@ My journal will continue to be a place where I share a little more of that side 
     ];
     const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));
     const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — 1.5 hours at $500.\n\nThe Greek Princess — 1.5 hours at $650.\n\nChoose the experience that catches your eye when you're ready to make plans with me.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — book ${classicSpecial.base} at ${classicSpecial.price} and enjoy ${classicSpecial.special}.\n\nThe Greek Princess — book ${greekSpecial.base} at ${greekSpecial.price} and enjoy ${greekSpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
