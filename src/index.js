@@ -1424,26 +1424,43 @@ My journal will continue to be a place where I share a little more of that side 
         }
 
 
-        // Check blacklist by email or phone
+        // Check the blacklist using any identity information already connected
+        // to a blocked profile. Prior blocked submissions remain linked to the
+        // same client_id, so newly submitted email/phone aliases become matchable
+        // on later attempts.
 
-        const blacklisted =
-          await env.DB
-            .prepare(
-              `
-              SELECT id
-              FROM blacklist
-              WHERE
-                LOWER(email) = LOWER(?)
-                OR phone = ?
-              LIMIT 1
-              `
-            )
-            .bind(email, phone)
-            .first();
+        const blacklisted = await env.DB.prepare(
+          `SELECT b.id AS blacklist_id, b.client_id
+           FROM blacklist b
+           WHERE LOWER(b.email) = LOWER(?) OR b.phone = ?
+              OR EXISTS (
+                SELECT 1 FROM clients c
+                WHERE c.id = b.client_id
+                  AND (LOWER(c.email) = LOWER(?) OR c.phone = ?)
+              )
+              OR EXISTS (
+                SELECT 1 FROM date_requests dr
+                WHERE dr.client_id = b.client_id
+                  AND dr.status = 'blacklisted_submission'
+                  AND (
+                    LOWER(COALESCE(dr.notes,'')) LIKE ?
+                    OR COALESCE(dr.notes,'') LIKE ?
+                  )
+              )
+           ORDER BY b.id DESC
+           LIMIT 1`
+        ).bind(
+          email, phone,
+          email, phone,
+          "%submitted email: " + email.toLowerCase() + "%",
+          "%Submitted phone: " + phone + "%"
+        ).first();
 
         if (blacklisted) {
+          const flaggedClientId = blacklisted.client_id;
           const flagNotes = [
             "BLACKLISTED CLIENT SUBMISSION",
+            "Linked blacklist record: #" + blacklisted.blacklist_id,
             "Submitted name: " + firstName + " " + lastName,
             "Submitted email: " + email,
             "Submitted phone: " + phone,
@@ -1456,18 +1473,8 @@ My journal will continue to be a place where I share a little more of that side 
             requestDetails ? "Request details: " + requestDetails : null
           ].filter(Boolean).join("\n");
 
-          const flaggedClient = await env.DB.prepare(
-            "SELECT id FROM clients WHERE LOWER(email) = LOWER(?) OR phone = ? ORDER BY id DESC LIMIT 1"
-          ).bind(email, phone).first();
-
-          let flaggedClientId = flaggedClient?.id;
-          if (!flaggedClientId) {
-            const created = await env.DB.prepare(
-              "INSERT INTO clients (first_name, last_name, email, phone, status) VALUES (?, ?, ?, ?, 'blacklisted')"
-            ).bind(firstName, lastName, email, phone).run();
-            flaggedClientId = created.meta.last_row_id;
-          }
-
+          // Preserve the original blocked profile. The attempt is attached to
+          // that profile rather than creating a second client record.
           await env.DB.prepare(
             `INSERT INTO date_requests
               (client_id, requested_date, requested_time, location_name, status, deposit_amount, deposit_paid, id_received, final_approval, notes)
