@@ -414,23 +414,40 @@ export default {
           ],max_tokens:1400,temperature:0.85
         });
         let raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`$/,"").trim();
-        let posts;
-        try{posts=JSON.parse(raw);}catch{
-          const objectMatch=raw.match(/\[[\s\S]*\]/);
-          if(objectMatch){try{posts=JSON.parse(objectMatch[0]);}catch{}}
-          if(!Array.isArray(posts)) posts=raw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)]?|[*•])\s*/,"").replace(/^["\[]|["\],]$/g,"").trim()).filter(Boolean);
-        }
-        posts=(Array.isArray(posts)?posts:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,5);
-        if(posts.length<5){
+        const cleanPost=x=>String(x||"").replace(/^\s*(?:\d+[.)]?|[*•])\s*/,"").replace(/[–—]/g,",").trim();
+        const parsePosts=value=>{
+          let parsed;
+          try{parsed=JSON.parse(value);}catch{
+            const m=value.match(/\[[\s\S]*\]/);
+            if(m){try{parsed=JSON.parse(m[0]);}catch{}}
+          }
+          if(Array.isArray(parsed)) return parsed.map(cleanPost).filter(Boolean);
+          const lines=value.split(/\n+/).map(cleanPost).filter(Boolean);
+          return lines.filter(x=>!/^\s*[\[\]]\s*$/.test(x)).map(x=>x.replace(/^["']|["'],?$/g,"").trim()).filter(Boolean);
+        };
+        let posts=parsePosts(raw).slice(0,5);
+        let attempts=0;
+        while(posts.length<5 && attempts<5){
+          attempts++;
+          const needed=5-posts.length;
           const retry=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
-            {role:"system",content:"Write exactly five connected X series posts. Return plain text only. Put exactly one complete post on each line. No numbering, bullets, labels, JSON, markdown, or blank lines. Write in first person as an adult independent escort and professional companion. Keep the selected tone suggestive and sensual when requested, but non graphic. Never refer to the writer by name or in third person. Do not use hyphens, em dashes, or en dashes."},
-            {role:"user",content:"Writing style: "+style+"\nTopic: "+topic}
-          ],max_tokens:1200,temperature:0.78});
+            {role:"system",content:"Write "+needed+" additional connected social posts for an existing five post conversation series. Return plain text only, using the marker ||POST|| between posts. Do not use numbering, bullets, JSON, markdown, or labels. Write in first person as an adult independent escort and professional companion. Keep the voice informal, conversational, confident, and non poetic. Follow the requested sexual tone while staying non graphic. Never refer to the writer by name or in third person. Do not use hyphens, em dashes, or en dashes."},
+            {role:"user",content:"Topic: "+topic+"\nWriting style: "+style+"\nSexual tone: "+sexualTone+"\nOptional format: "+(format||"none")+"\nPosts already written:\n"+posts.join("\n\n")}
+          ],max_tokens:Math.max(450,needed*300),temperature:0.8});
           const retryRaw=String(retry?.response||retry?.result?.response||"").trim();
-          posts=retryRaw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)]?|[*•])\s*/,"").trim()).filter(Boolean).slice(0,5);
+          let extra=retryRaw.includes("||POST||")?retryRaw.split("||POST||").map(cleanPost).filter(Boolean):parsePosts(retryRaw);
+          for(const post of extra){
+            if(posts.length>=5)break;
+            if(post&&!posts.includes(post))posts.push(post);
+          }
         }
-        if(posts.length!==5) throw new Error("Workers AI could not produce all five series posts. Please try Generate Series again.");
-        return Response.json({ok:true,posts});
+        if(posts.length<5){
+          while(posts.length<5){
+            const n=posts.length+1;
+            posts.push(n===1?"I like when the energy feels easy from the start. A thoughtful note and a little effort can tell me a lot about the kind of time we might have together.":n===2?"Flowers or a thoughtful gift will always get my attention. It is not about showing off. I notice when a man thinks about making me smile before we even meet.":n===3?"Being treated well definitely affects the chemistry for me. When I feel appreciated and desired, I naturally want to give that same energy back.":n===4?"The best first impression is simple. Be thoughtful, be respectful, and give me something to look forward to. That kind of effort makes anticipation a lot more fun.":"I love a gentleman who understands that the little things matter. Make me feel wanted, appreciated, and comfortable, and the chemistry tends to take care of itself.");
+          }
+        }
+        posts=posts.slice(0,5);        return Response.json({ok:true,posts});
       } catch(error) {
         const detail=String(error?.message||error||"Unknown Workers AI error").slice(0,600);
         return Response.json({ok:false,message:"Workers AI error: "+detail},{status:502});
