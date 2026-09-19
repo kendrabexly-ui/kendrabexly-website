@@ -1095,6 +1095,72 @@ My journal will continue to be a place where I share a little more of that side 
     });
   }
 
+  // Regenerate newsletter wording while preserving required offer instructions
+  if (
+    /^\/api\/admin\/newsletter\/drafts\/\d+\/regenerate$/.test(url.pathname) &&
+    request.method === "POST"
+  ) {
+    await ensureNewsletterTable();
+    const id = Number(url.pathname.split("/")[5]);
+    const existing = await env.DB.prepare(
+      "SELECT * FROM newsletter_drafts WHERE id = ?"
+    ).bind(id).first();
+    if (!existing) return Response.json({ok:false,message:"Newsletter draft not found."},{status:404});
+    if (existing.status !== "draft") return Response.json({ok:false,message:"Only draft newsletters can be regenerated."},{status:400});
+
+    const data = await request.json().catch(() => ({}));
+    const now = new Date();
+    const month = now.toLocaleString("en-US",{month:"long",timeZone:"America/Los_Angeles"});
+    const year = now.toLocaleString("en-US",{year:"numeric",timeZone:"America/Los_Angeles"});
+    const seed = (Date.now() + id) % 4;
+    const subjects = [
+      `${month} with Kendra — A Note Just for You`,
+      `A Little ${month} Update from Kendra`,
+      `Kendra's ${month} Note — Something Special Inside`,
+      `${month} Notes, a New Journal Entry & Something for You`
+    ];
+    const intros = [
+      `Hi there,\n\nI wanted to send you a little note for ${month}. I have been thinking about how much the smallest details can change the feel of a moment, and I am making more room for the experiences that feel easy, intentional, and memorable.\n\nI also have a fresh journal entry for you below, plus this month's subscriber-only special.\n\nUntil next time,\nKendra`,
+      `Hi there,\n\nA new month felt like the perfect excuse to check in. Lately I have been enjoying slower moments, better conversations, and plans that give us something to look forward to.\n\nKeep reading for this month's journal note and the private subscriber offer I saved for this list.\n\nSee you soon,\nKendra`,
+      `Hi there,\n\nWelcome to my ${month} note. I wanted this one to feel like a personal catch-up — a little of what has been on my mind, something new from my journal, and a special invitation for my subscribers.\n\nI hope you find something here that makes your month a little more interesting.\n\nKendra`,
+      `Hi there,\n\nI am dropping into your inbox with a fresh ${month} update. This month I am leaning into thoughtful plans, good energy, and making time for experiences that do not feel rushed.\n\nThere is a new journal feature below and, of course, something special reserved for subscribers.\n\nKendra`
+    ];
+    const blogTitles = [
+      `${month} ${year}: Making Room for the Good Stuff`,
+      `${month} ${year}: The Luxury of Taking Your Time`,
+      `${month} ${year}: A Little More Intention`,
+      `${month} ${year}: Moments Worth Looking Forward To`
+    ];
+    const blogs = [
+      `Some of the best moments are the ones we actually make room for. This month I am paying more attention to what feels meaningful instead of simply filling the calendar.\n\nFor me, that means good conversation, thoughtful details, and giving an experience enough space to unfold naturally. It is a simple shift, but it changes everything.\n\nThat is the energy I am carrying into ${month}, and I hope you find a little more room for the good stuff too.`,
+      `There is something luxurious about not rushing. A slower conversation, a thoughtful plan, or simply having enough time to enjoy where you are can make an ordinary day feel completely different.\n\nThis month I am reminding myself that being present is part of the experience. The best memories rarely come from watching the clock.\n\nHere is to making ${month} feel a little less hurried and a lot more intentional.`,
+      `I have been thinking about how intention shows up in small ways. It can be choosing the right setting, making a plan you are genuinely excited about, or simply giving someone your full attention.\n\nThose details are easy to overlook, but they are often what we remember.\n\nFor ${month}, I am choosing fewer autopilot moments and more experiences that feel considered, warm, and worth remembering.`,
+      `Anticipation is part of the fun. Having something on the calendar that you are genuinely looking forward to can change the whole rhythm of a week.\n\nThis month I am appreciating the plans, conversations, and little escapes that give us that feeling. They do not have to be complicated — they just need to feel worth showing up for.\n\nI hope ${month} gives you a few of those moments too.`
+    ];
+
+    const specialOffer = String(data.special_offer || existing.special_offer || "").trim();
+    const requiredInstruction = "Book through the subscriber button below";
+    if (!specialOffer || !specialOffer.toLowerCase().includes(requiredInstruction.toLowerCase())) {
+      return Response.json({ok:false,message:"The newsletter's required subscriber booking instructions are missing. Save or restore the monthly offer before regenerating."},{status:400});
+    }
+
+    const draft = {
+      subject: subjects[seed],
+      content: intros[seed],
+      blog_title: blogTitles[seed],
+      blog_content: blogs[seed],
+      special_offer: specialOffer
+    };
+
+    await env.DB.prepare(`
+      UPDATE newsletter_drafts
+      SET subject=?, content=?, blog_title=?, blog_content=?, special_offer=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).bind(draft.subject,draft.content,draft.blog_title,draft.blog_content,draft.special_offer,id).run();
+
+    return Response.json({ok:true,draft});
+  }
+
   // Delete an unsent newsletter draft
   if (
     url.pathname.startsWith("/api/admin/newsletter/drafts/") &&
