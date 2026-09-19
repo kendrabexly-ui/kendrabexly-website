@@ -388,6 +388,94 @@ export default {
     });
   }
 
+  // Send an approved newsletter through Resend
+  if (url.pathname.match(/^\/api\/admin\/newsletter\/drafts\/\d+\/send$/) && request.method === "POST") {
+    if (!env.RESEND_API_KEY) {
+      return Response.json({ ok: false, message: "Email delivery is not configured." }, { status: 500 });
+    }
+    await ensureNewsletterTable();
+    await ensureNewsletterSubscribersTable();
+
+    const id = Number(url.pathname.split("/").slice(-2, -1)[0]);
+    const draft = await env.DB.prepare(
+      "SELECT id, subject, content, blog_title, blog_content, special_offer, status FROM newsletter_drafts WHERE id = ?"
+    ).bind(id).first();
+
+    if (!draft) return Response.json({ ok: false, message: "Newsletter draft not found." }, { status: 404 });
+    if (draft.status !== "approved") {
+      return Response.json({ ok: false, message: "Approve the newsletter before sending it." }, { status: 400 });
+    }
+
+    const result = await env.DB.prepare(
+      "SELECT email FROM newsletter_subscribers WHERE status = 'active' ORDER BY id ASC"
+    ).all();
+    const subscribers = result.results || [];
+    if (!subscribers.length) {
+      return Response.json({ ok: false, message: "There are no active subscribers." }, { status: 400 });
+    }
+
+    const esc = (value) => String(value || "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    const para = (value) => esc(value).replace(/\n/g, "<br>");
+    const html = `<!doctype html><html><body style="margin:0;background:#f6f1e8;color:#29282d;font-family:Georgia,serif;">
+      <div style="max-width:680px;margin:0 auto;padding:32px 20px;">
+        <div style="background:#fffdf9;border:1px solid #ded7cd;padding:34px;">
+          <div style="font:12px Arial,sans-serif;letter-spacing:3px;color:#77736f;">KENDRA BEXLY</div>
+          <h1 style="font-weight:500;">${esc(draft.subject)}</h1>
+          <p style="line-height:1.65;">${para(draft.content)}</p>
+          ${draft.blog_title ? `<h2 style="font-weight:500;">${esc(draft.blog_title)}</h2>` : ""}
+          ${draft.blog_content ? `<p style="line-height:1.65;">${para(draft.blog_content)}</p>` : ""}
+          ${draft.special_offer ? `<div style="margin-top:28px;padding:20px;background:#eee7dc;"><strong>This Month's Special</strong><p style="line-height:1.65;">${para(draft.special_offer)}</p></div>` : ""}
+        </div>
+      </div>
+    </body></html>`;
+
+    let sent = 0;
+    const failed = [];
+    for (const subscriber of subscribers) {
+      try {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + env.RESEND_API_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            from: "Kendra Bexly <newsletter@kendrabexly.com>",
+            to: [subscriber.email],
+            subject: draft.subject,
+            html
+          })
+        });
+        if (!response.ok) {
+          failed.push(subscriber.email);
+          console.error("Resend delivery failed:", response.status, await response.text());
+        } else {
+          sent++;
+        }
+      } catch (error) {
+        failed.push(subscriber.email);
+        console.error("Resend delivery error:", error);
+      }
+    }
+
+    if (failed.length) {
+      return Response.json({
+        ok: false,
+        message: `Sent to ${sent} subscriber(s), but ${failed.length} delivery request(s) failed. The draft remains approved so you can retry.`,
+        sent,
+        failed: failed.length
+      }, { status: 502 });
+    }
+
+    await env.DB.prepare(
+      "UPDATE newsletter_drafts SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'approved'"
+    ).bind(id).run();
+
+    return Response.json({ ok: true, message: `Newsletter sent to ${sent} subscriber(s).`, sent });
+  }
+
   // Get newsletter drafts
   if (
     url.pathname === "/api/admin/newsletter/drafts" &&
