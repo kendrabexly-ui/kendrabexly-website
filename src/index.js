@@ -2298,6 +2298,22 @@ if (
     }
 
 
+    if (url.pathname === "/api/admin/clients/profile" && request.method === "POST") {
+      try {
+        const data = await request.json();
+        const clientId = Number(data.client_id);
+        if (!Number.isFinite(clientId) || clientId <= 0) return Response.json({ok:false,message:"Client not found."},{status:400});
+        const notes = String(data.notes || "").trim().slice(0,4000);
+        const preferences = String(data.preferences || "").trim().slice(0,4000);
+        try { await env.DB.prepare("ALTER TABLE clients ADD COLUMN preferences TEXT").run(); } catch (e) {}
+        await env.DB.prepare("UPDATE clients SET notes=?, preferences=? WHERE id=?").bind(notes || null, preferences || null, clientId).run();
+        return Response.json({ok:true,notes,preferences});
+      } catch (error) {
+        console.error("Admin client profile update error:", error);
+        return Response.json({ok:false,message:"Unable to save client profile."},{status:500});
+      }
+    }
+
     // =========================================================
     // ADMIN PAYMENT LIST
     // =========================================================
