@@ -377,7 +377,7 @@ export default {
       try {
         const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{
           messages:[
-            {role:"system",content:"Create exactly 5 distinct but connected X posts for Kendra Bexly around one topic. The posts should feel like an ongoing natural conversation, not repetitive variations. Sound warm, personable, confident, conversational, and human. Each post must stand on its own. Avoid corporate language, clickbait, excessive emojis, and unnecessary hashtags. Never invent personal facts. Return only valid JSON: an array of 5 strings, with no markdown or explanation."},
+            {role:"system",content:"Create exactly 5 distinct but connected series entries for Kendra Bexly around one topic. Series entries may be longer than 280 characters and should not be truncated to the regular post limit. The entries should feel like an ongoing natural conversation, not repetitive variations. Sound warm, personable, confident, conversational, and human. Each post must stand on its own. Avoid corporate language, clickbait, excessive emojis, and unnecessary hashtags. Never invent personal facts. Return only valid JSON: an array of 5 strings, with no markdown or explanation."},
             {role:"user",content:"Topic: "+topic}
           ],max_tokens:1400,temperature:0.85
         });
