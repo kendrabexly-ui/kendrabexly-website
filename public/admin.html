@@ -688,6 +688,11 @@
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <input id="email-drafts-search" type="search" placeholder="Search client, email, subject, or message" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+          <select id="email-drafts-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+            <option value="all">All statuses</option>
+            <option value="draft">Drafts</option>
+            <option value="sent">Sent</option>
+          </select>
         </div>
 
         <div class="panel">
@@ -2641,17 +2646,23 @@ loadRequests();
           drafts = [...drafts].sort((a,b) => (Number(b.date_request_id) === requestId) - (Number(a.date_request_id) === requestId));
         }
         const searchInput = document.getElementById("email-drafts-search");
+        const statusFilter = document.getElementById("email-drafts-status-filter");
         const renderEmailDrafts = () => {
           const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
-          const visibleDrafts = drafts.filter((draft) => !query || [
-            draft.first_name,
-            draft.last_name,
-            draft.email,
-            draft.subject,
-            draft.body,
-            draft.email_type,
-            draft.status
-          ].filter(Boolean).join(" ").toLowerCase().includes(query));
+          const selectedStatus = statusFilter ? statusFilter.value : "all";
+          const visibleDrafts = drafts.filter((draft) => {
+            const matchesSearch = !query || [
+              draft.first_name,
+              draft.last_name,
+              draft.email,
+              draft.subject,
+              draft.body,
+              draft.email_type,
+              draft.status
+            ].filter(Boolean).join(" ").toLowerCase().includes(query);
+            const matchesStatus = selectedStatus === "all" || String(draft.status || "draft").toLowerCase() === selectedStatus;
+            return matchesSearch && matchesStatus;
+          });
         box.className = "";
         box.innerHTML = visibleDrafts.length ? visibleDrafts.map((draft) => {
           const current = requestId && Number(draft.date_request_id) === requestId;
@@ -2737,6 +2748,7 @@ loadRequests();
         };
         renderEmailDrafts();
         if (searchInput) searchInput.oninput = renderEmailDrafts;
+        if (statusFilter) statusFilter.onchange = renderEmailDrafts;
       } catch (error) {
         box.className = "empty";
         box.innerHTML = '<div style="padding:22px;text-align:center;"><div style="margin-bottom:10px;">'+escapeHtml(error.message || "Unable to load email drafts.")+'</div><button type="button" id="retry-email-drafts" style="padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Try Again</button></div>';
