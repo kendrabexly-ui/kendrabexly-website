@@ -567,6 +567,50 @@ export default {
       return Response.json({ ok:true, deleted:true });
     }
 
+    async function ensureXWeeklyPlanTable() {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS x_weekly_plan_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          week_start TEXT NOT NULL,
+          planned_for TEXT NOT NULL,
+          slot_index INTEGER NOT NULL,
+          content_style TEXT,
+          draft_id INTEGER NOT NULL UNIQUE,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(week_start, planned_for, slot_index)
+        )
+      `).run();
+    }
+
+    if (url.pathname === "/api/admin/x/weekly-plan" && request.method === "GET") {
+      await ensureXWeeklyPlanTable(); await ensureXDraftMedia(env);
+      const weekStart=String(url.searchParams.get("week_start")||"").trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return Response.json({ok:false,message:"Choose a valid week starting date."},{status:400});
+      const rows=await env.DB.prepare(`
+        SELECT p.id,p.week_start,p.planned_for,p.slot_index,p.content_style,p.draft_id,
+          d.content,d.status,d.x_post_id,d.published_at,
+          CASE WHEN m.draft_id IS NULL THEN 0 ELSE 1 END AS has_media,
+          s.id AS schedule_id,s.scheduled_for,s.status AS schedule_status
+        FROM x_weekly_plan_items p
+        JOIN x_post_drafts d ON d.id=p.draft_id
+        LEFT JOIN x_draft_media m ON m.draft_id=d.id
+        LEFT JOIN x_scheduled_posts s ON s.draft_id=d.id AND s.status='scheduled'
+        WHERE p.week_start=? ORDER BY p.planned_for,p.slot_index
+      `).bind(weekStart).all();
+      return Response.json({ok:true,items:rows.results||[]});
+    }
+
+    if (url.pathname === "/api/admin/x/weekly-plan" && request.method === "POST") {
+      await ensureXWeeklyPlanTable();
+      const data=await request.json(),draftId=Number(data.draft_id),weekStart=String(data.week_start||"").trim(),plannedFor=String(data.planned_for||"").trim(),slotIndex=Number(data.slot_index),style=String(data.content_style||"").trim();
+      if(!Number.isInteger(draftId)||draftId<1||!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)||!/^\d{4}-\d{2}-\d{2}$/.test(plannedFor)||!Number.isInteger(slotIndex)||slotIndex<0||slotIndex>9) return Response.json({ok:false,message:"Invalid weekly plan item."},{status:400});
+      const draft=await env.DB.prepare("SELECT id FROM x_post_drafts WHERE id=?").bind(draftId).first();if(!draft)return Response.json({ok:false,message:"Draft not found."},{status:404});
+      await env.DB.prepare(`INSERT INTO x_weekly_plan_items(week_start,planned_for,slot_index,content_style,draft_id,updated_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)
+        ON CONFLICT(draft_id) DO UPDATE SET week_start=excluded.week_start,planned_for=excluded.planned_for,slot_index=excluded.slot_index,content_style=excluded.content_style,updated_at=CURRENT_TIMESTAMP`).bind(weekStart,plannedFor,slotIndex,style,draftId).run();
+      return Response.json({ok:true});
+    }
+
     async function ensureXScheduledTable() {
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS x_scheduled_posts (
