@@ -686,7 +686,11 @@
           <div style="padding:24px;">
             <label for="x-ai-idea" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Topic or idea</label>
             <textarea id="x-ai-idea" maxlength="1000" placeholder="Example: Good morning post. Keep it playful, natural, and positive." style="width:100%;min-height:95px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
-            <button id="x-generate-post" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;margin:10px 0 20px;">Generate Post</button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 12px;">
+              <button id="x-generate-topics" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:11px 16px;background:white;color:var(--ink);cursor:pointer;">Generate Topics</button>
+              <button id="x-generate-post" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Generate Post</button>
+            </div>
+            <div id="x-topic-suggestions" style="display:none;margin:0 0 20px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;"></div>
             <label for="x-new-content" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Post draft</label>
             <textarea id="x-new-content" maxlength="280" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
             <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;">
@@ -1180,6 +1184,32 @@ loadRequests();
         box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
       }
     }
+
+    const xGenerateTopics = document.getElementById("x-generate-topics");
+    const xTopicSuggestions = document.getElementById("x-topic-suggestions");
+    if (xGenerateTopics) xGenerateTopics.addEventListener("click", async () => {
+      xGenerateTopics.disabled = true;
+      xGenerateTopics.textContent = "Generating...";
+      try {
+        const r = await fetch("/api/admin/x/topics", { method:"POST" });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.message || "Unable to generate topics.");
+        xTopicSuggestions.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:9px;">Choose a topic:</div>' +
+          d.topics.map(topic => '<button type="button" class="x-topic-choice" data-topic="' + escapeHtml(topic) + '" style="display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:white;padding:10px 4px;cursor:pointer;font:inherit;color:var(--ink);">' + escapeHtml(topic) + '</button>').join("");
+        xTopicSuggestions.style.display = "block";
+        xTopicSuggestions.querySelectorAll(".x-topic-choice").forEach(button => {
+          button.addEventListener("click", () => {
+            xAiIdea.value = button.dataset.topic || button.textContent.trim();
+            xAiIdea.focus();
+          });
+        });
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        xGenerateTopics.disabled = false;
+        xGenerateTopics.textContent = "Generate Topics";
+      }
+    });
 
     const xGenerate = document.getElementById("x-generate-post");
     const xAiIdea = document.getElementById("x-ai-idea");
