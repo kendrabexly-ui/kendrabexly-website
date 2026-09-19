@@ -317,7 +317,7 @@ export default {
       if (draft.status!=="approved") return Response.json({ok:false,message:"Approve this reply before sending."},{status:400});
       const token=await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id=1").first();
       if (!token) return Response.json({ok:false,message:"X is not connected."},{status:400});
-      const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+token.access_token,"Content-Type":"application/json"},body:JSON.stringify({text:draft.content,reply:{in_reply_to_tweet_id:draft.in_reply_to_tweet_id}})});
+      const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+token.access_token,"Content-Type":"application/json"},body:JSON.stringify({text:draft.content,quote_tweet_id:draft.in_reply_to_tweet_id})});
       const xd=await xr.json().catch(()=>({}));
       if (!xr.ok) return Response.json({ok:false,message:xd?.detail||xd?.title||"X could not send the reply."},{status:xr.status});
       const replyId=xd?.data?.id||null;
