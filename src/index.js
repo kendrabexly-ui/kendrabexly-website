@@ -2319,6 +2319,10 @@ if (
         const data=await request.json();
         const clientId=Number(data.client_id);
         const followType=String(data.type||"reconnect");
+        const tone=String(data.tone||"warm").slice(0,40);
+        const length=String(data.length||"short").slice(0,20);
+        const goal=String(data.goal||"no-pressure").slice(0,40);
+        const instructions=String(data.instructions||"").trim().slice(0,700);
         if(!Number.isFinite(clientId)||clientId<=0)return Response.json({ok:false,message:"Choose a client first."},{status:400});
         const client=await env.DB.prepare("SELECT id,first_name,last_name,email,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
         if(!client)return Response.json({ok:false,message:"Client not found."},{status:404});
@@ -2328,9 +2332,10 @@ if (
         const prompt=followType==="after-date"
           ?"Draft a short personal follow up after spending time together. Make it warm, appreciative, lightly flirty, and natural. Do not sound like customer service and do not pressure him to book again. IMPORTANT: Do not mention a city, location, venue, conversation topic, how he made me feel, what happened on the date, or any other specific memory unless that exact detail appears in my Private notes or Private preferences. Booking history is administrative context only and must never be turned into a personal memory."
           :"Draft a short personal reconnect message for a gentleman I have seen before. Make it warm, familiar, lightly flirty, and natural. Let him know he crossed my mind without sounding automated, needy, or salesy. Do not invent a memory or turn booking history into something I personally remember.";
+        const controlPrompt="\nWriting controls: Tone: "+tone+". Length: "+length+". Goal: "+goal+". Additional instructions: "+(instructions||"none")+". Respect these controls while keeping the message natural.";
         const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
           {role:"system",content:"You write private client messages in my first person voice as an adult independent professional companion. My voice is informal, feminine, confident, warm, personal, and lightly sensual. Use everyday language and contractions. Never refer to me by name or in third person. Do not use poetic language, hyphens, em dashes, or en dashes. Do not invent memories, preferences, gifts, conversations, feelings, locations, or date details. Administrative booking history may establish that I have seen the client before, but it is not permission to mention the location or fabricate what happened there. Only mention a specific personal detail when it is explicitly written in Private notes or Private preferences. Keep it discreet and concise."},
-          {role:"user",content:prompt+"\nClient first name: "+String(client.first_name||"").trim()+"\nPrivate preferences: "+String(profile?.preferences||"").trim()+"\nPrivate notes: "+String(client.notes||"").trim()+"\nRecent history: "+JSON.stringify(history.results||[])}
+          {role:"user",content:prompt+controlPrompt+"\nClient first name: "+String(client.first_name||"").trim()+"\nPrivate preferences: "+String(profile?.preferences||"").trim()+"\nPrivate notes: "+String(client.notes||"").trim()+"\nRecent history: "+JSON.stringify(history.results||[])}
         ],max_tokens:350,temperature:0.72});
         let draft=String(ai?.response||ai?.result?.response||"").trim().replace(/^["“]|["”]$/g,"").replace(/[–—]/g,",");
         if(!draft)throw new Error("Workers AI returned an empty message.");
