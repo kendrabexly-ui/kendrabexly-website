@@ -684,7 +684,11 @@
             </div>
           </div>
           <div style="padding:24px;">
-            <textarea id="x-new-content" maxlength="280" placeholder="Write or paste your post draft here..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
+            <label for="x-ai-idea" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Topic or idea</label>
+            <textarea id="x-ai-idea" maxlength="1000" placeholder="Example: Good morning post. Keep it playful, natural, and positive." style="width:100%;min-height:95px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
+            <button id="x-generate-post" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;margin:10px 0 20px;">Generate Post</button>
+            <label for="x-new-content" style="display:block;margin-bottom:7px;font-size:13px;color:var(--muted);">Post draft</label>
+            <textarea id="x-new-content" maxlength="280" placeholder="Your generated post will appear here, or you can write your own..." style="width:100%;min-height:140px;padding:14px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;"></textarea>
             <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;">
               <span id="x-char-count" style="color:var(--muted);font-size:13px;">0 / 280</span>
               <button id="x-create-draft" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
@@ -1176,6 +1180,33 @@ loadRequests();
         box.innerHTML = '<div class="empty">' + escapeHtml(e.message) + '</div>';
       }
     }
+
+    const xGenerate = document.getElementById("x-generate-post");
+    const xAiIdea = document.getElementById("x-ai-idea");
+    if (xGenerate) xGenerate.addEventListener("click", async () => {
+      const idea = xAiIdea.value.trim();
+      if (!idea) return alert("Add a topic or idea first.");
+      xGenerate.disabled = true;
+      xGenerate.textContent = "Generating...";
+      try {
+        const r = await fetch("/api/admin/x/generate", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({idea})
+        });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.message || "Unable to generate post.");
+        xNewContent.value = d.content || "";
+        xCharCount.textContent = xNewContent.value.length + " / 280";
+        xAiIdea.value = "";
+        await loadXDrafts();
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        xGenerate.disabled = false;
+        xGenerate.textContent = "Generate Post";
+      }
+    });
 
     const xCreate = document.getElementById("x-create-draft");
     if (xCreate) xCreate.addEventListener("click", async () => {
