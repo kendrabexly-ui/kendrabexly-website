@@ -2319,7 +2319,7 @@ if (
       try {
         const data=await request.json();
         const clientId=Number(data.client_id);
-        const followType=String(data.type||"reconnect");
+        const followType="after-date";
         const tone=String(data.tone||"warm").slice(0,40);
         const length=String(data.length||"short").slice(0,20);
         const goal=String(data.goal||"no-pressure").slice(0,40);
@@ -2329,18 +2329,13 @@ if (
         if(!client)return Response.json({ok:false,message:"Client not found."},{status:404});
         try{await env.DB.prepare("ALTER TABLE clients ADD COLUMN preferences TEXT").run();}catch(e){}
         const profile=await env.DB.prepare("SELECT preferences FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
-        const history=await env.DB.prepare("SELECT id,requested_date,status,location_name,notes FROM date_requests WHERE client_id=? ORDER BY requested_date DESC LIMIT 5").bind(clientId).all();
-        const lastCompleted=followType==="after-date"
-          ? await env.DB.prepare("SELECT id,requested_date,requested_time,location_name,notes FROM date_requests WHERE client_id=? AND status='completed' ORDER BY requested_date DESC, requested_time DESC, id DESC LIMIT 1").bind(clientId).first()
-          : null;
-        if(followType==="after-date" && !lastCompleted)return Response.json({ok:false,message:"This client does not have a successfully completed date yet."},{status:400});
-        const prompt=followType==="after-date"
-          ?"Draft a short personal follow up specifically for the client's MOST RECENT date that is marked successfully completed. Do not use an upcoming date, approved date, older completed date, or another request as the subject of this message. Make it warm, appreciative, lightly flirty, and natural. Do not sound like customer service and do not pressure him to book again. IMPORTANT: Do not mention a city, location, venue, conversation topic, how he made me feel, what happened on the date, or any other specific memory unless that exact personal detail appears in my Private notes or Private preferences. The completed booking record identifies which date this follow up belongs to, but administrative fields are not personal memories."
-          :"Draft a short personal reconnect message for a gentleman I have seen before. Make it warm, familiar, lightly flirty, and natural. Let him know he crossed my mind without sounding automated, needy, or salesy. Do not invent a memory or turn booking history into something I personally remember.";
+        const lastCompleted=await env.DB.prepare("SELECT id FROM date_requests WHERE client_id=? AND status='completed' ORDER BY requested_date DESC, requested_time DESC, id DESC LIMIT 1").bind(clientId).first();
+        if(!lastCompleted)return Response.json({ok:false,message:"This client does not have a successfully completed date yet."},{status:400});
+        const prompt="Draft a short personal after date follow up for my most recent date marked successfully completed. The completed record is used only to establish eligibility and must not supply content for the message. Make it warm, appreciative, lightly flirty, and natural. Do not sound like customer service and do not pressure him to book again. Never mention when the date happened, including last night, last week, the other night, recently, or similar relative time references. Never mention how long we spent together. Never claim I had a great time, loved something, enjoyed a conversation, felt a certain way, found him easy to be around, or remember a specific moment unless that exact personal detail is explicitly present in Private notes, Private preferences, or Additional instructions. Generic appreciation such as thank you for spending time with me is allowed.";
         const controlPrompt="\nWriting controls: Tone: "+tone+". Length: "+length+". Goal: "+goal+". Additional instructions: "+(instructions||"none")+". Respect these controls while keeping the message natural.";
         const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
           {role:"system",content:"You write private client messages in my first person voice as an adult independent professional companion. My voice is informal, feminine, confident, warm, personal, and lightly sensual. Use everyday language and contractions. Never refer to me by name or in third person. Do not use poetic language, hyphens, em dashes, or en dashes. Do not invent memories, preferences, gifts, conversations, feelings, locations, or date details. Administrative booking history may establish that I have seen the client before, but it is not permission to mention the location or fabricate what happened there. Only mention a specific personal detail when it is explicitly written in Private notes or Private preferences. Keep it discreet and concise. Return ONLY the finished message itself. Never add labels, commentary, explanations, quotation marks, or phrases such as Here's a draft follow up message."},
-          {role:"user",content:prompt+controlPrompt+"\nClient first name: "+String(client.first_name||"").trim()+"\nPrivate preferences: "+String(profile?.preferences||"").trim()+"\nPrivate notes: "+String(client.notes||"").trim()+"\nMost recent successfully completed date record: "+JSON.stringify(lastCompleted||null)+"\nRecent history for administrative context only: "+JSON.stringify(history.results||[])}
+          {role:"user",content:prompt+controlPrompt+"\nClient first name: "+String(client.first_name||"").trim()+"\nPrivate preferences: "+String(profile?.preferences||"").trim()+"\nPrivate notes: "+String(client.notes||"").trim()}
         ],max_tokens:350,temperature:0.72});
         let draft=String(ai?.response||ai?.result?.response||"").trim().replace(/^["“]|["”]$/g,"").replace(/[–—]/g,",");
         draft=draft.replace(/^\s*(?:here(?:'|’)s|here is)\s+(?:a|the|your)?\s*(?:draft\s+)?(?:follow\s*up\s+)?message\s*:?\s*/i,"").trim();
