@@ -1239,7 +1239,9 @@ async function loadRequests() {
                   <span>After Date Follow Ups: <strong>${followUpHistory.filter(item=>item.sent_at).length}/${followUpHistory.length}</strong> sent</span>
                   <span>Last Follow Up: <strong>${escapeHtml(followUpHistory.find(item=>item.sent_at)?.sent_at || "None sent")}</strong></span>
                   <span>Next Date: <strong>${escapeHtml(upcomingDate?.requested_date || "None scheduled")}</strong></span>
+                  <span>Follow Up Needed: <strong>${followUpHistory.some(item=>!item.sent_at) ? followUpHistory.filter(item=>!item.sent_at).length : "None"}</strong></span>
                 </div>
+                ${followUpHistory.some(item=>!item.sent_at) ? `<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f7f2e9;font-weight:700;">○ After Date Follow Up pending for ${followUpHistory.filter(item=>!item.sent_at).map(item=>escapeHtml(item.date||"completed date")).join(" · ")}</div>` : followUpHistory.length ? '<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f4f7f2;font-weight:700;">✓ All completed dates have an After Date Follow Up sent.</div>' : ""}
               </div>
               <div style="margin-top:10px;font-size:13px;">Manage this client without affecting their booking history.</div>
               <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
