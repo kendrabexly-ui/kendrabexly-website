@@ -245,7 +245,12 @@ export default {
         return Response.json({ ok: true, id: result.meta.last_row_id, content, status: "draft" });
       } catch (error) {
         console.error("X AI generation failed:", error);
-        return Response.json({ ok: false, message: "Unable to generate the post right now." }, { status: 502 });
+        const detail = String(error?.message || error?.cause?.message || error || "Unknown Workers AI error").slice(0, 600);
+        return Response.json({
+          ok: false,
+          message: "Workers AI error: " + detail,
+          error: detail
+        }, { status: 502 });
       }
     }
 
