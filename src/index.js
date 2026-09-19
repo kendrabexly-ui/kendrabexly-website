@@ -354,6 +354,31 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/admin/x/series/generate" && request.method === "POST") {
+      if (!env.AI) return Response.json({ ok:false, message:"Workers AI is not connected." }, { status:500 });
+      const data=await request.json();
+      const topic=String(data.topic||"").trim();
+      if(!topic) return Response.json({ok:false,message:"Add a series topic first."},{status:400});
+      if(topic.length>1000) return Response.json({ok:false,message:"Keep the topic under 1,000 characters."},{status:400});
+      try {
+        const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{
+          messages:[
+            {role:"system",content:"Create exactly 5 distinct but connected X posts for Kendra Bexly around one topic. The posts should feel like an ongoing natural conversation, not repetitive variations. Sound warm, personable, confident, conversational, and human. Each post must stand on its own. Avoid corporate language, clickbait, excessive emojis, and unnecessary hashtags. Never invent personal facts. Return only valid JSON: an array of 5 strings, with no markdown or explanation."},
+            {role:"user",content:"Topic: "+topic}
+          ],max_tokens:1400,temperature:0.85
+        });
+        let raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`$/,"").trim();
+        let posts;
+        try{posts=JSON.parse(raw);}catch{posts=raw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)-]?|[-*])\s*/,"").trim()).filter(Boolean);}
+        posts=(Array.isArray(posts)?posts:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,5);
+        if(posts.length!==5) throw new Error("Workers AI did not return five usable posts.");
+        return Response.json({ok:true,posts});
+      } catch(error) {
+        const detail=String(error?.message||error||"Unknown Workers AI error").slice(0,600);
+        return Response.json({ok:false,message:"Workers AI error: "+detail},{status:502});
+      }
+    }
+
     if (url.pathname === "/api/admin/x/generate" && request.method === "POST") {
       if (!env.AI) return Response.json({ ok: false, message: "Workers AI is not connected." }, { status: 500 });
       const data = await request.json();
