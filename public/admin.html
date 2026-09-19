@@ -911,6 +911,7 @@
     <button id="rates-save" type="button" disabled style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:default;opacity:.5;">Save Changes</button>
     <button id="rates-reset" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Reset</button>
     <button id="rates-preview" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Preview Menu</button>
+    <button id="rates-copy" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Copy Rate Menu</button>
     <span id="rates-status" style="align-self:center;color:var(--muted);font-size:13px;"></span>
   </div>
   <div id="rates-preview-panel" style="display:none;margin-top:14px;padding:18px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
@@ -2659,6 +2660,21 @@ loadRequests();
     document.getElementById("rates-save")?.addEventListener("click",()=>{
       const data=getRateServices().map((s,si)=>({...s,name:document.querySelector('[data-rs-name="'+si+'"]').value.trim(),description:document.querySelector('[data-rs-desc="'+si+'"]').value.trim(),rates:s.rates.map((r,ri)=>[document.querySelector('[data-rs-duration="'+si+'-'+ri+'"]').value.trim(),Number(document.querySelector('[data-rs-rate="'+si+'-'+ri+'"]').value)])}));
       localStorage.setItem("kendra_rate_services",JSON.stringify(data)); renderRateServices(); setRatesDirty(false); document.getElementById("rates-status").textContent="Saved on this dashboard.";
+    });
+    document.getElementById("rates-copy")?.addEventListener("click",async()=>{
+      const data=getRateServices().map((s,si)=>({
+        ...s,
+        name:document.querySelector('[data-rs-name="'+si+'"]')?.value.trim()||s.name,
+        description:document.querySelector('[data-rs-desc="'+si+'"]')?.value.trim()||"",
+        rates:s.rates.map((r,ri)=>[
+          document.querySelector('[data-rs-duration="'+si+'-'+ri+'"]')?.value.trim()||r[0],
+          Number(document.querySelector('[data-rs-rate="'+si+'-'+ri+'"]')?.value||0)
+        ])
+      }));
+      const text=data.map(s=>[s.name,s.description,...s.rates.map(r=>r[0]+" — $"+Number(r[1]).toLocaleString())].filter(Boolean).join("\n")).join("\n\n");
+      const status=document.getElementById("rates-status");
+      try{await navigator.clipboard.writeText(text);if(status)status.textContent="Rate menu copied.";}
+      catch{if(status)status.textContent="Unable to copy rate menu.";}
     });
     document.getElementById("rates-preview")?.addEventListener("click",()=>{
       const panel=document.getElementById("rates-preview-panel"); if(!panel)return;
