@@ -1084,6 +1084,20 @@
       </div>
 
       <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+        <div style="font-weight:700;margin-bottom:5px;">Offer Tone</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Set the default voice for future retention drafts so they still sound like you.</div>
+        <label for="retention-offer-tone" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Default tone</label>
+        <select id="retention-offer-tone" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
+          <option value="warm-personal">Warm &amp; Personal</option>
+          <option value="flirty">Flirty</option>
+          <option value="playful">Playful</option>
+          <option value="soft-sensual">Soft &amp; Sensual</option>
+          <option value="direct">Direct</option>
+        </select>
+        <div id="retention-tone-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">Personal and inviting without sounding like a mass promotion.</div>
+      </div>
+
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
         <div style="font-weight:700;margin-bottom:5px;">Current Retention Plan</div>
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Preview the rules you have selected before we use them for future retention tools.</div>
         <div id="retention-plan-summary" style="padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--cream);font-size:13px;line-height:1.7;"></div>
@@ -3162,8 +3176,9 @@ loadRequests();
     const frequency = document.getElementById("retention-offer-frequency");
     const expiration = document.getElementById("retention-offer-expiration");
     const delivery = document.getElementById("retention-offer-delivery");
+    const tone = document.getElementById("retention-offer-tone");
     const summary = document.getElementById("retention-plan-summary");
-    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !summary) return;
+    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !tone || !summary) return;
     const update = () => {
       const selectedText = select => select.options[select.selectedIndex]?.text || "";
       summary.innerHTML =
@@ -3171,9 +3186,10 @@ loadRequests();
         "<strong>Eligibility:</strong> " + escapeHtml(selectedText(eligibility)) + "<br>" +
         "<strong>Frequency:</strong> " + escapeHtml(selectedText(frequency)) + "<br>" +
         "<strong>Expiration:</strong> " + escapeHtml(selectedText(expiration)) + "<br>" +
-        "<strong>Delivery:</strong> " + escapeHtml(selectedText(delivery));
+        "<strong>Delivery:</strong> " + escapeHtml(selectedText(delivery)) + "<br>" +
+        "<strong>Tone:</strong> " + escapeHtml(selectedText(tone));
     };
-    [strategy, eligibility, frequency, expiration, delivery].forEach(select => select.addEventListener("change", update));
+    [strategy, eligibility, frequency, expiration, delivery, tone].forEach(select => select.addEventListener("change", update));
     update();
   })();
   (() => {
@@ -3182,9 +3198,10 @@ loadRequests();
     const frequency = document.getElementById("retention-offer-frequency");
     const expiration = document.getElementById("retention-offer-expiration");
     const delivery = document.getElementById("retention-offer-delivery");
+    const tone = document.getElementById("retention-offer-tone");
     const save = document.getElementById("retention-save-settings");
     const status = document.getElementById("retention-save-status");
-    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !save) return;
+    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !tone || !save) return;
     const key = "kendra_retention_settings";
     try {
       const saved = JSON.parse(localStorage.getItem(key) || "{}");
@@ -3193,7 +3210,8 @@ loadRequests();
       if (saved.frequency) frequency.value = saved.frequency;
       if (saved.expiration) expiration.value = saved.expiration;
       if (saved.delivery) delivery.value = saved.delivery;
-      [strategy, eligibility, frequency, expiration, delivery].forEach(el => el.dispatchEvent(new Event("change")));
+      if (saved.tone) tone.value = saved.tone;
+      [strategy, eligibility, frequency, expiration, delivery, tone].forEach(el => el.dispatchEvent(new Event("change")));
     } catch {}
     save.addEventListener("click", () => {
       localStorage.setItem(key, JSON.stringify({
@@ -3201,7 +3219,8 @@ loadRequests();
         eligibility: eligibility.value,
         frequency: frequency.value,
         expiration: expiration.value,
-        delivery: delivery.value
+        delivery: delivery.value,
+        tone: tone.value
       }));
       if (status) {
         status.textContent = "Saved";
@@ -3234,6 +3253,21 @@ loadRequests();
     };
     delivery.addEventListener("change", () => {
       guidance.textContent = messages[delivery.value] || "";
+    });
+  })();
+  (() => {
+    const tone = document.getElementById("retention-offer-tone");
+    const guidance = document.getElementById("retention-tone-guidance");
+    if (!tone || !guidance) return;
+    const messages = {
+      "warm-personal": "Personal and inviting without sounding like a mass promotion.",
+      "flirty": "Adds a little flirtation while keeping the offer natural and personal.",
+      "playful": "Light, fun wording with more personality.",
+      "soft-sensual": "A softer, more sensual voice without becoming overly poetic.",
+      "direct": "Clear and concise with the offer front and center."
+    };
+    tone.addEventListener("change", () => {
+      guidance.textContent = messages[tone.value] || "";
     });
   })();
 </script>
