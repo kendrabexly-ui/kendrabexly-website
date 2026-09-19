@@ -1713,7 +1713,7 @@ My journal will continue to be a place where I share a little more of that side 
         const blacklisted = await env.DB.prepare(
           `SELECT b.id AS blacklist_id, b.client_id
            FROM blacklist b
-           WHERE LOWER(b.email) = LOWER(?) OR b.phone = ?
+           WHERE (b.email <> '' AND LOWER(b.email) = LOWER(?)) OR (b.phone <> '' AND b.phone = ?)
               OR EXISTS (
                 SELECT 1 FROM clients c
                 WHERE c.id = b.client_id
@@ -2491,11 +2491,13 @@ if (
         }
         const client = await env.DB.prepare("SELECT id, first_name, last_name, email, phone FROM clients WHERE id = ?").bind(clientId).first();
         if (!client) return Response.json({ ok:false, message:"Client not found." }, { status:404 });
-        const existing = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id = ? OR LOWER(email) = LOWER(?) OR phone = ? LIMIT 1").bind(clientId, client.email || "", client.phone || "").first();
+        const existing = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id = ? OR (email <> '' AND LOWER(email) = LOWER(?)) OR (phone <> '' AND phone = ?) LIMIT 1").bind(clientId, client.email || "", client.phone || "").first();
         if (existing) return Response.json({ ok:false, message:"This client is already blacklisted." }, { status:409 });
         const name = [client.first_name, client.last_name].filter(Boolean).join(" ").trim();
         await env.DB.prepare("INSERT INTO blacklist (client_id, name, email, phone, reason) VALUES (?, ?, ?, ?, ?)").bind(clientId, name, client.email || "", client.phone || "", reason).run();
-        return Response.json({ ok:true });
+        await env.DB.prepare("UPDATE clients SET status='do_not_book' WHERE id=?").bind(clientId).run();
+        await env.DB.prepare("UPDATE date_requests SET status='declined' WHERE client_id=? AND status='pending'").bind(clientId).run();
+        return Response.json({ ok:true, client_status:"do_not_book" });
       } catch (error) {
         console.error("Add blacklist error:", error);
         return Response.json({ ok:false, message:"Unable to blacklist this client." }, { status:500 });
@@ -2513,7 +2515,9 @@ if (
         if (!Number.isInteger(id) || id <= 0) {
           return Response.json({ ok:false, message:"A valid blacklist record is required." }, { status:400 });
         }
+        const record=await env.DB.prepare("SELECT client_id FROM blacklist WHERE id=? LIMIT 1").bind(id).first();
         await env.DB.prepare("DELETE FROM blacklist WHERE id = ?").bind(id).run();
+        if(record?.client_id) await env.DB.prepare("UPDATE clients SET status='active' WHERE id=?").bind(record.client_id).run();
         return Response.json({ ok:true });
       } catch (error) {
         console.error("Remove blacklist error:", error);
