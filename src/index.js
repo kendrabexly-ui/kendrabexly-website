@@ -354,6 +354,20 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/admin/x/series/topics" && request.method === "POST") {
+      if (!env.AI) return Response.json({ok:false,message:"Workers AI is not connected."},{status:500});
+      try{
+        const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+          {role:"system",content:"Generate exactly 5 interesting X conversation-series topic ideas for Kendra Bexly. Each topic should be broad enough to support five related standalone posts. Keep them natural, engaging, conversational, lifestyle-friendly, and not repetitive. Do not invent personal facts. Return one topic per line with no explanations."},
+          {role:"user",content:"Give me five fresh conversation-series topics."}
+        ],max_tokens:350,temperature:0.9});
+        const raw=String(ai?.response||ai?.result?.response||"").trim();
+        const topics=raw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)-]?|[-*])\s*/,"").trim()).filter(Boolean).slice(0,5);
+        if(!topics.length)throw new Error("Workers AI returned no series topics.");
+        return Response.json({ok:true,topics});
+      }catch(error){return Response.json({ok:false,message:"Workers AI error: "+String(error?.message||error).slice(0,600)},{status:502});}
+    }
+
     if (url.pathname === "/api/admin/x/series/generate" && request.method === "POST") {
       if (!env.AI) return Response.json({ ok:false, message:"Workers AI is not connected." }, { status:500 });
       const data=await request.json();
