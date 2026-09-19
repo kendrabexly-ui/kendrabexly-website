@@ -201,6 +201,76 @@ export default {
     }
 
     // =========================================================
+    // X REPLIES
+    // =========================================================
+
+    if (url.pathname === "/api/admin/x/replies" && request.method === "GET") {
+      const token = await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id = 1").first();
+      if (!token) return Response.json({ ok:false, message:"X is not connected." }, { status:400 });
+      const meResponse = await fetch("https://api.x.com/2/users/me?user.fields=username", { headers:{ Authorization:"Bearer " + token.access_token } });
+      if (!meResponse.ok) return Response.json({ ok:false, message:"Reconnect X before loading replies." }, { status:401 });
+      const me = await meResponse.json();
+      const posts = await env.DB.prepare("SELECT id,x_post_id,content FROM x_post_drafts WHERE status='published' AND x_post_id IS NOT NULL ORDER BY published_at DESC LIMIT 10").all();
+      const replies = [];
+      for (const post of (posts.results || [])) {
+        const query = "conversation_id:" + post.x_post_id + " -from:" + me.data.username;
+        const endpoint = "https://api.x.com/2/tweets/search/recent?query=" + encodeURIComponent(query) + "&max_results=10&tweet.fields=author_id,conversation_id,created_at&expansions=author_id&user.fields=username,name";
+        const rr = await fetch(endpoint, { headers:{ Authorization:"Bearer " + token.access_token } });
+        if (!rr.ok) {
+          const detail = await rr.json().catch(()=>({}));
+          console.error("X replies lookup failed:", rr.status, detail);
+          if (rr.status === 403 || rr.status === 402) return Response.json({ ok:false, message:"Your current X API access does not include conversation search. X may require additional API access for loading replies." }, { status:rr.status });
+          continue;
+        }
+        const data = await rr.json();
+        const users = Object.fromEntries((data.includes?.users || []).map(u => [u.id,u]));
+        for (const item of (data.data || [])) {
+          const author = users[item.author_id] || {};
+          replies.push({ tweet_id:item.id, text:item.text, created_at:item.created_at, author_name:author.name || "", author_username:author.username || "", parent_post_id:post.id, parent_x_post_id:post.x_post_id, parent_content:post.content });
+        }
+      }
+      return Response.json({ ok:true, replies });
+    }
+
+    if (url.pathname === "/api/admin/x/reply/generate" && request.method === "POST") {
+      if (!env.AI) return Response.json({ ok:false, message:"Workers AI is not connected." }, { status:500 });
+      const data = await request.json();
+      const tweetId = String(data.tweet_id || "").trim(), incoming = String(data.text || "").trim(), parent = String(data.parent_content || "").trim();
+      if (!tweetId || !incoming) return Response.json({ ok:false, message:"Reply information is missing." }, { status:400 });
+      const ai = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8", { messages:[
+        { role:"system", content:"Draft one natural reply for Kendra Bexly to an X user who responded to her post. Sound warm, personable, confident, conversational, and human. Keep the conversation flowing. Do not invent personal facts. No labels or quotation marks. Return only the reply." },
+        { role:"user", content:"Kendra's post: " + parent + "\nTheir reply: " + incoming }
+      ], max_tokens:350, temperature:0.85 });
+      const content = String(ai?.response || ai?.result?.response || "").trim().replace(/^[“"]|[”"]$/g,"").trim();
+      if (!content) return Response.json({ ok:false, message:"AI returned an empty reply." }, { status:502 });
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS x_reply_drafts (id INTEGER PRIMARY KEY AUTOINCREMENT,in_reply_to_tweet_id TEXT NOT NULL,incoming_text TEXT,content TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'draft',x_reply_id TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,sent_at TEXT)").run();
+      const result = await env.DB.prepare("INSERT INTO x_reply_drafts (in_reply_to_tweet_id,incoming_text,content,status) VALUES (?,?,?,'draft')").bind(tweetId,incoming,content).run();
+      return Response.json({ ok:true, id:result.meta.last_row_id, content, status:"draft" });
+    }
+
+    if (url.pathname === "/api/admin/x/reply/approve" && request.method === "POST") {
+      const data=await request.json(), id=Number(data.id), content=String(data.content||"").trim();
+      if (!Number.isInteger(id)||id<1||!content) return Response.json({ok:false,message:"Reply draft is invalid."},{status:400});
+      await env.DB.prepare("UPDATE x_reply_drafts SET content=?,status='approved' WHERE id=? AND status!='sent'").bind(content,id).run();
+      return Response.json({ok:true,status:"approved"});
+    }
+
+    if (url.pathname === "/api/admin/x/reply/send" && request.method === "POST") {
+      const data=await request.json(), id=Number(data.id);
+      const draft=await env.DB.prepare("SELECT * FROM x_reply_drafts WHERE id=?").bind(id).first();
+      if (!draft) return Response.json({ok:false,message:"Reply draft not found."},{status:404});
+      if (draft.status!=="approved") return Response.json({ok:false,message:"Approve this reply before sending."},{status:400});
+      const token=await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id=1").first();
+      if (!token) return Response.json({ok:false,message:"X is not connected."},{status:400});
+      const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+token.access_token,"Content-Type":"application/json"},body:JSON.stringify({text:draft.content,reply:{in_reply_to_tweet_id:draft.in_reply_to_tweet_id}})});
+      const xd=await xr.json().catch(()=>({}));
+      if (!xr.ok) return Response.json({ok:false,message:xd?.detail||xd?.title||"X could not send the reply."},{status:xr.status});
+      const replyId=xd?.data?.id||null;
+      await env.DB.prepare("UPDATE x_reply_drafts SET status='sent',x_reply_id=?,sent_at=CURRENT_TIMESTAMP WHERE id=?").bind(replyId,id).run();
+      return Response.json({ok:true,status:"sent",x_reply_id:replyId});
+    }
+
+    // =========================================================
     // X AGENT DRAFTS + APPROVAL/PUBLISH
     // =========================================================
 
