@@ -316,6 +316,13 @@
               </div>
             </div>
 
+            <div class="detail">
+              <div class="label">Expected Deposit</div>
+              <div class="value">
+                ${Number(item.deposit_amount || 0) > 0 ? "$" + Number(item.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : "Calculated when request moves forward"}
+              </div>
+            </div>
+
           </div>
 
           ${String(item.notes || "").includes("Newsletter special: Newsletter #") ? `
@@ -457,7 +464,9 @@ moveForwardButton.addEventListener(
       }
 
       moveForwardStatus.textContent =
-        "Request moved forward successfully.";
+        result.deposit_amount > 0
+          ? "Request moved forward. Expected 25% deposit: $" + Number(result.deposit_amount).toFixed(2)
+          : "Request moved forward. Deposit amount could not be calculated from the selected duration.";
 
       moveForwardButton.textContent =
         "Moved Forward";
