@@ -590,6 +590,7 @@
               <option value="pending_final_approval">Pending final approval</option>
               <option value="approved">Approved</option>
               <option value="canceled">Canceled</option>
+              <option value="blacklisted_submission">🚩 Blacklisted submissions</option>
             </select>
             <input id="request-search" type="search" placeholder="Search client, date, or location" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
           </div>
@@ -1130,7 +1131,7 @@ async function loadRequests() {
       const status = item.status || "pending";
       return `
         <button type="button" class="request-card" data-request-id="${item.id}" style="width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #ddd6ca;padding:22px;cursor:pointer;font:inherit;">
-          <strong>${escapeHtml(name || "Client")}</strong>
+          <strong>${escapeHtml(name || "Client")}</strong>${status === "blacklisted_submission" ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED SUBMISSION</span>' : ""}
           <div style="margin-top:6px;">${escapeHtml(item.requested_date || "Date not provided")} at ${escapeHtml(item.requested_time || "Time not provided")}</div>
           <div style="margin-top:4px;">${escapeHtml(item.location_name || "Location not provided")}</div>
           <div style="margin-top:8px;">Status: ${escapeHtml(status.replaceAll("_"," "))}</div>
@@ -1218,6 +1219,7 @@ async function loadRequests() {
               <strong>
                 ${escapeHtml(name || "Client")}
               </strong>
+              ${status === "blacklisted_submission" ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED SUBMISSION</span>' : ""}
               ${isNewsletterSpecial ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#eee7dc;font-size:11px;font-weight:600;letter-spacing:.04em;">✨ Newsletter Special</span>' : ""}
 
               <div style="margin-top:6px;">
