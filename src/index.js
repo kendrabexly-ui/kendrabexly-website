@@ -413,9 +413,21 @@ export default {
         });
         let raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`$/,"").trim();
         let posts;
-        try{posts=JSON.parse(raw);}catch{posts=raw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)-]?|[-*])\s*/,"").trim()).filter(Boolean);}
+        try{posts=JSON.parse(raw);}catch{
+          const objectMatch=raw.match(/\[[\s\S]*\]/);
+          if(objectMatch){try{posts=JSON.parse(objectMatch[0]);}catch{}}
+          if(!Array.isArray(posts)) posts=raw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)]?|[*•])\s*/,"").replace(/^["\[]|["\],]$/g,"").trim()).filter(Boolean);
+        }
         posts=(Array.isArray(posts)?posts:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,5);
-        if(posts.length!==5) throw new Error("Workers AI did not return five usable posts.");
+        if(posts.length<5){
+          const retry=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+            {role:"system",content:"Write exactly five connected X series posts. Return plain text only. Put exactly one complete post on each line. No numbering, bullets, labels, JSON, markdown, or blank lines. Write in first person as an adult independent escort and professional companion. Keep the selected tone suggestive and sensual when requested, but non graphic. Never refer to the writer by name or in third person. Do not use hyphens, em dashes, or en dashes."},
+            {role:"user",content:"Writing style: "+style+"\nTopic: "+topic}
+          ],max_tokens:1200,temperature:0.78});
+          const retryRaw=String(retry?.response||retry?.result?.response||"").trim();
+          posts=retryRaw.split(/\n+/).map(x=>x.replace(/^\s*(?:\d+[.)]?|[*•])\s*/,"").trim()).filter(Boolean).slice(0,5);
+        }
+        if(posts.length!==5) throw new Error("Workers AI could not produce all five series posts. Please try Generate Series again.");
         return Response.json({ok:true,posts});
       } catch(error) {
         const detail=String(error?.message||error||"Unknown Workers AI error").slice(0,600);
