@@ -1022,8 +1022,13 @@
       const safety = parseSafetyReason(item.reason);
       return `
       <div style="padding:20px 22px;border-bottom:1px solid #ddd6ca;">
-        <strong>${escapeHtml(item.name || "Client")}</strong>
-        <div style="margin-top:6px;">${escapeHtml(item.email || "No email")} · ${escapeHtml(item.phone || "No phone")}</div>
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div>
+            <strong>${escapeHtml(item.name || "Client")}</strong>
+            <div style="margin-top:6px;">${escapeHtml(item.email || "No email")} · ${escapeHtml(item.phone || "No phone")}</div>
+          </div>
+          <span style="padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED</span>
+        </div>
         <div style="margin-top:10px;"><strong>Safety Record</strong></div>
         ${safety.concerns.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${safety.concerns.map(concern => `<span style="padding:5px 8px;border-radius:999px;background:#f3dfdf;font-size:12px;">⚠️ ${escapeHtml(concern)}</span>`).join("")}</div>` : ""}
         ${safety.notes ? `<div style="margin-top:9px;padding:10px 12px;background:#faf8f4;border-radius:8px;"><strong>Private notes:</strong> ${escapeHtml(safety.notes)}</div>` : (!safety.concerns.length ? `<div style="margin-top:8px;">${escapeHtml(item.reason || "No reason recorded")}</div>` : "")}
