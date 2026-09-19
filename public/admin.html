@@ -980,7 +980,7 @@ loadRequests();
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
             <button type="button" data-newsletter-action="preview">Preview</button>
             ${readOnly ? "" : '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>'}
-            ${item.status === "approved" ? '<button type="button" data-newsletter-action="send" disabled title="Email delivery will be connected next.">Send Newsletter</button>' : ""}
+            ${item.status === "approved" ? '<button type="button" data-newsletter-action="send">Send Newsletter</button>' : ""}
           </div>
         </div>`;
     }
@@ -999,7 +999,24 @@ loadRequests();
             button.addEventListener("click", async () => {
               const id = Number(card.dataset.newsletterDraft);
               const action = button.dataset.newsletterAction;
-              if (action === "send") return;
+              if (action === "send") {
+                if (!confirm("Send this approved newsletter to all active subscribers now?")) return;
+                button.disabled = true;
+                button.textContent = "Sending...";
+                try {
+                  const r = await fetch("/api/admin/newsletter/drafts/" + id + "/send", { method: "POST" });
+                  const d = await r.json();
+                  if (!r.ok || !d.ok) throw new Error(d.message || "Unable to send newsletter.");
+                  alert(d.message || "Newsletter sent.");
+                  await loadNewsletterDrafts();
+                } catch (e) {
+                  alert(e.message);
+                } finally {
+                  button.disabled = false;
+                  button.textContent = "Send Newsletter";
+                }
+                return;
+              }
               if (action === "preview") {
                 const subject = card.querySelector('[data-field="subject"]').value;
                 const content = card.querySelector('[data-field="content"]').value;
