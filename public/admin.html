@@ -962,7 +962,10 @@
     </div>
 
     <div id="newsletter-subscriber-count">Loading subscribers...</div>
-    <div id="newsletter-subscribers" style="margin-top:14px;"></div>
+    <div style="padding:0 24px 10px;">
+      <input id="newsletter-subscriber-search" type="search" placeholder="Search subscribers" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;font:inherit;">
+    </div>
+    <div id="newsletter-subscribers" style="margin-top:4px;"></div>
   </div>
 
   <div class="panel">
@@ -1780,9 +1783,20 @@ loadRequests();
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.message || "Unable to load subscribers.");
         count.textContent = (d.count || 0) + ((d.count || 0) === 1 ? " subscriber" : " subscribers");
-        list.innerHTML = d.subscribers.length
-          ? d.subscribers.map(item => `<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;"><span>${escapeHtml(item.email)}</span><small>${escapeHtml(item.status)}</small></div>`).join("")
-          : '<div class="empty">No subscribers yet.</div>';
+        const subscribers = d.subscribers || [];
+        const search = document.getElementById("newsletter-subscriber-search");
+        const renderSubscribers = () => {
+          const query = search ? search.value.trim().toLowerCase() : "";
+          const visible = subscribers.filter(item => !query || String(item.email || "").toLowerCase().includes(query) || String(item.status || "").toLowerCase().includes(query));
+          list.innerHTML = visible.length
+            ? visible.map(item => `<div style="padding:10px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;"><span>${escapeHtml(item.email)}</span><small>${escapeHtml(item.status)}</small></div>`).join("")
+            : '<div class="empty">' + (subscribers.length ? "No subscribers match your search." : "No subscribers yet.") + '</div>';
+        };
+        renderSubscribers();
+        if (search && !search.dataset.bound) {
+          search.dataset.bound = "1";
+          search.addEventListener("input", renderSubscribers);
+        }
       } catch (error) {
         count.textContent = "Unable to load subscribers.";
         list.innerHTML = "";
