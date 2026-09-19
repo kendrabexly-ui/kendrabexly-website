@@ -1256,6 +1256,12 @@ loadRequests();
                   const approve=await fetch("/api/admin/x/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
                   const ad=await approve.json();if(!approve.ok||!ad.ok)throw new Error(ad.message||"Unable to approve scheduled draft.");
                   r=await fetch("/api/admin/x/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,scheduled_for:when.toISOString()})});
+                  const scheduledData=await r.json();
+                  if(!r.ok||!scheduledData.ok)throw new Error(scheduledData.message||"Unable to schedule post.");
+                  await loadXScheduled();
+                  await loadXDrafts();
+                  await loadXStatus();
+                  return;
                 }
                 const d = await r.json();
                 if (!r.ok || !d.ok) throw new Error(d.message || "Action failed.");
