@@ -2103,6 +2103,53 @@ Kendra`
 
 
     // =========================================================
+    // ADMIN CALENDAR AVAILABILITY
+    // =========================================================
+
+    if (url.pathname === "/api/admin/calendar/availability") {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS calendar_availability (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          available_date TEXT NOT NULL,
+          available_time TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(available_date, available_time)
+        )
+      `).run();
+
+      if (request.method === "GET") {
+        const result = await env.DB.prepare(
+          "SELECT available_date AS date, available_time AS time FROM calendar_availability ORDER BY available_date, available_time"
+        ).all();
+        return Response.json({ ok: true, items: result.results || [] });
+      }
+
+      const data = await request.json().catch(() => ({}));
+      const date = String(data.date || "").trim();
+      const time = String(data.time || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}(?::\d{2})?$/.test(time)) {
+        return Response.json({ ok: false, message: "Choose a valid availability date and time." }, { status: 400 });
+      }
+
+      if (request.method === "POST") {
+        await env.DB.prepare(
+          "INSERT OR IGNORE INTO calendar_availability (available_date, available_time) VALUES (?, ?)"
+        ).bind(date, time).run();
+        return Response.json({ ok: true, item: { date, time } });
+      }
+
+      if (request.method === "DELETE") {
+        await env.DB.prepare(
+          "DELETE FROM calendar_availability WHERE available_date = ? AND available_time = ?"
+        ).bind(date, time).run();
+        return Response.json({ ok: true });
+      }
+
+      return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+    }
+
+
+    // =========================================================
     // ADMIN REQUEST LIST
     // =========================================================
 
