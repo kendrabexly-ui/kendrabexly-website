@@ -758,7 +758,7 @@
                 <option value="watch">Watch</option>
                 <option value="high">High attention</option>
                 <option value="repeat">Repeat blocked attempts</option>
-              </select><select id="client-value-filter" aria-label="Filter clients by activity" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All Activity</option><option value="repeat">Repeat Clients</option><option value="recent">Seen Recently</option><option value="inactive">Due for Reconnect</option><option value="upcoming">Upcoming Date</option></select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span>
+              </select><select id="client-value-filter" aria-label="Filter clients by activity" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All Activity</option><option value="repeat">Repeat Clients</option><option value="recent">Seen Recently</option><option value="inactive">Due for Reconnect</option><option value="upcoming">Upcoming Date</option></select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="client-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
             </div>
           </div>
           <div id="client-records">
@@ -1965,6 +1965,8 @@ async function loadRequests() {
       });
       const clientResultCount=document.getElementById("client-result-count");
       if(clientResultCount) clientResultCount.textContent=filtered.length+" client"+(filtered.length===1?"":"s");
+      const clearClientFilters=document.getElementById("client-clear-filters");
+      if(clearClientFilters) clearClientFilters.hidden=!query&&safetyFilter==="all"&&valueFilter==="all";
       document.querySelectorAll("[data-client-retention]").forEach(button=>{
         const active=valueFilter===button.dataset.clientRetention;
         button.setAttribute("aria-pressed",active?"true":"false");
@@ -2021,13 +2023,12 @@ async function loadRequests() {
         return `
           <div style="padding:22px;border-bottom:1px solid #ddd6ca;${blacklistRecord ? "border-left:4px solid #8f3d3d;" : ""}">
             <strong style="font-size:18px;">${escapeHtml(name)}</strong>
-            ${blacklistRecord ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED</span>' : ""}
-            ${blacklistRecord ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">⚠️ ${riskLabel}</span>` : ""}
+            ${blacklistRecord ? `<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">🚩 BLACKLISTED · ${riskLabel}</span>` : ""}
             ${blacklistRecord && blockedAttempts.length > 1 ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">${blockedAttempts.length} BLOCKED ATTEMPTS</span>` : ""}
             <div style="margin-top:6px;font-size:13px;color:var(--muted);">${escapeHtml(client.email || "No email")} · ${escapeHtml(client.phone || "No phone")}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;font-size:12px;">
-              ${upcomingDate ? `<span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>Next Date:</strong> ${escapeHtml(upcomingDate.requested_date || "Scheduled")}</span>` : ""}
-              ${lastCompleted ? `<span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>Last Seen:</strong> ${escapeHtml(lastCompleted.requested_date || "Completed")}</span>` : ""}
+              ${upcomingDate ? `<span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>Next Date:</strong> ${escapeHtml(formatCalendarDate(upcomingDate.requested_date))}</span>` : ""}
+              ${lastCompleted ? `<span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>Last Seen:</strong> ${escapeHtml(formatCalendarDate(lastCompleted.requested_date))}</span>` : ""}
               <span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>${completed}</strong> completed date${completed === 1 ? "" : "s"}</span>
               ${followUpHistory.some(item=>!item.sent_at) ? '<span style="padding:5px 8px;border-radius:999px;background:#fff0d9;font-weight:700;">Follow Up Pending</span>' : ""}
             </div>
@@ -2040,8 +2041,8 @@ async function loadRequests() {
                 <div style="margin-top:10px;">
                 <strong style="font-size:13px;">Follow Up Agent</strong>
                 <div style="font-size:12px;color:var(--muted);margin-top:4px;">Create an after date message for the most recent date marked successfully completed. Nothing is sent automatically.</div>
-                ${lastCompleted ? `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Follow up for:</strong> ${escapeHtml(lastCompleted.requested_date || "Completed date")}${lastCompleted.requested_time ? " at "+escapeHtml(lastCompleted.requested_time) : ""}<div class="client-followup-context-status" style="margin-top:6px;font-weight:700;">${lastCompleted.after_date_follow_up_sent_at ? "✓ Follow Up Sent" : "○ Follow Up Not Sent"}</div></div>` : `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>No successfully completed date yet.</strong> Mark a date successfully completed before generating an after date follow up.</div>`}
-                ${followUpHistory.length ? `<details style="margin-top:9px;padding:9px 11px;border:1px solid #eee7dc;border-radius:8px;background:#fffdf9;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">Follow Up History (${followUpHistory.length})</summary><div style="margin-top:8px;">${followUpHistory.map((item,index)=>`<div style="padding:7px 0;${index ? "border-top:1px solid #eee7dc;" : ""}font-size:12px;"><strong>${escapeHtml(item.date || "Completed date")}</strong>${item.time ? " at "+escapeHtml(item.time) : ""}<div style="margin-top:3px;font-weight:700;">${item.sent_at ? "✓ Sent" : "○ Not Sent"}</div>${item.sent_at ? `<div style="margin-top:2px;color:var(--muted);">Sent ${escapeHtml(item.sent_at)}</div>` : ""}<button type="button" class="view-followup-history" data-request-id="${item.id}" data-client-id="${client.client_id}" style="margin-top:5px;padding:0;border:0;background:transparent;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">View Follow Up</button><div class="followup-history-detail" style="display:none;margin-top:7px;padding:8px 10px;border-radius:7px;background:#f7f2e9;white-space:pre-wrap;line-height:1.5;"></div></div>`).join("")}</div></details>` : ""}
+                ${lastCompleted ? `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Follow up for:</strong> ${escapeHtml(formatCalendarDate(lastCompleted.requested_date))}${lastCompleted.requested_time ? " at "+escapeHtml(formatCalendarTime(lastCompleted.requested_time)) : ""}<div class="client-followup-context-status" style="margin-top:6px;font-weight:700;">${lastCompleted.after_date_follow_up_sent_at ? "✓ Follow Up Sent" : "○ Follow Up Not Sent"}</div></div>` : `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>No successfully completed date yet.</strong> Mark a date successfully completed before generating an after date follow up.</div>`}
+                ${followUpHistory.length ? `<details style="margin-top:9px;padding:9px 11px;border:1px solid #eee7dc;border-radius:8px;background:#fffdf9;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">Follow Up History (${followUpHistory.length})</summary><div style="margin-top:8px;">${followUpHistory.map((item,index)=>`<div style="padding:7px 0;${index ? "border-top:1px solid #eee7dc;" : ""}font-size:12px;"><strong>${escapeHtml(formatCalendarDate(item.date))}</strong>${item.time ? " at "+escapeHtml(formatCalendarTime(item.time)) : ""}<div style="margin-top:3px;font-weight:700;">${item.sent_at ? "✓ Sent" : "○ Not Sent"}</div>${item.sent_at ? `<div style="margin-top:2px;color:var(--muted);">Sent ${escapeHtml(item.sent_at)}</div>` : ""}<button type="button" class="view-followup-history" data-request-id="${item.id}" data-client-id="${client.client_id}" style="margin-top:5px;padding:0;border:0;background:transparent;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">View Follow Up</button><div class="followup-history-detail" style="display:none;margin-top:7px;padding:8px 10px;border-radius:7px;background:#f7f2e9;white-space:pre-wrap;line-height:1.5;"></div></div>`).join("")}</div></details>` : ""}
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                   <button type="button" class="generate-client-followup" data-followup-type="after-date" data-client-id="${client.client_id}" ${lastCompleted ? "" : "disabled"} style="padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;font-weight:700;">Generate Follow Up</button>
                   <button type="button" class="send-client-followup" data-client-id="${client.client_id}" data-already-sent="${lastCompleted?.after_date_follow_up_sent_at ? "1" : "0"}" ${lastCompleted ? "" : "disabled"} style="padding:9px 13px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;font-weight:700;">${lastCompleted?.after_date_follow_up_sent_at ? "Resend Follow Up" : "Send Follow Up"}</button>
@@ -2326,6 +2327,12 @@ async function loadRequests() {
     if (clientSafetyFilter) clientSafetyFilter.addEventListener("change", renderClients);
     const clientValueFilter = document.getElementById("client-value-filter");
     if (clientValueFilter) clientValueFilter.addEventListener("change", renderClients);
+    document.getElementById("client-clear-filters")?.addEventListener("click",()=>{
+      if(clientSearch){clientSearch.value="";clientSearch.focus();}
+      if(clientSafetyFilter) clientSafetyFilter.value="all";
+      if(clientValueFilter) clientValueFilter.value="all";
+      renderClients();
+    });
     document.querySelectorAll("[data-client-retention]").forEach(button=>button.addEventListener("click",()=>{
       if(!clientValueFilter)return;
       clientValueFilter.value=button.dataset.clientRetention||"all";
