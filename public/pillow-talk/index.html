@@ -9,24 +9,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css">\n  <script src="/site-shell.js"></script>
 </head>
 <body class="pillow-talk-page">
   <a class="skip-link" href="#main-content">Skip to content</a>
 
-  <header class="nav">
-    <a class="brand" href="/" aria-label="Kendra Bexly home">Kendra Bexly</a>
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-    <nav id="site-nav" aria-label="Primary navigation">
-      <a href="/">The Invitation</a>
-      <a href="/meet-kendra">Meet Kendra</a>
-      <a href="/the-muse">The Muse</a>
-      <a href="/our-time">Our Time</a>
-      <a href="/etiquette">Etiquette</a>
-      <a href="/pillow-talk" aria-current="page">Pillow Talk</a>
-      <a class="button small" href="/request">The Rendezvous</a>
-    </nav>
-  </header>
+  <site-header active="pillow-talk"></site-header>
 
   <main id="main-content">
     <section class="page-hero" aria-labelledby="faq-title">
@@ -64,60 +52,9 @@
   </main>
 
   
-  <footer class="site-footer">
-    <div class="footer-subscribe">
-      <div>
-        <div class="eyebrow">PRIVATE NOTES</div>
-        <h2>Stay in the Know</h2>
-        <p>Join my private list for personal notes, new availability, and the occasional invitation created especially for you.</p>
-      </div>
-      <form class="footer-subscribe-form" novalidate>
-        <label>
-          <span>Email address</span>
-          <div class="footer-subscribe-row">
-            <input name="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" required>
-            <button class="button" type="submit">Subscribe</button>
-          </div>
-        </label>
-        <small class="footer-subscribe-status" hidden role="status" aria-live="polite"></small>
-      </form>
-    </div>
-    <div class="footer-bottom">
-      <span>Copyright 2025 by Kendra Bexly</span>
-    </div>
-  </footer>
+  <site-footer></site-footer>
 
   <script src="/newsletter.js"></script>
 
-  <script>
-    const toggle = document.querySelector(".menu-toggle");
-    const nav = document.getElementById("site-nav");
-
-    const closeMenu = () => {
-      toggle?.setAttribute("aria-expanded", "false");
-      nav?.classList.remove("open");
-    };
-
-    toggle?.addEventListener("click", () => {
-      const willOpen = toggle.getAttribute("aria-expanded") !== "true";
-      toggle.setAttribute("aria-expanded", String(willOpen));
-      nav?.classList.toggle("open", willOpen);
-    });
-
-    nav?.addEventListener("click", event => {
-      if (event.target.closest("a")) closeMenu();
-    });
-
-    document.addEventListener("keydown", event => {
-      if (event.key === "Escape") {
-        closeMenu();
-        toggle?.focus();
-      }
-    });
-
-    window.addEventListener("resize", () => {
-      if (window.innerWidth > 1100) closeMenu();
-    });
-  </script>
 </body>
 </html>
