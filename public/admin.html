@@ -238,6 +238,12 @@
 
     .section-hard-hidden { display: none !important; }
 
+    /* X Agent containment guard: its large workspace can never render unless
+       the X Agent dashboard section itself is the active section. */
+    #x-agent-boundary { display: none !important; }
+    #x-agent.active:not([hidden]) > #x-agent-boundary { display: block !important; }
+    #x-agent[hidden], #x-agent.section-hard-hidden { display: none !important; }
+
     /* Hard section isolation: only the section selected by navigation may render.
        This also protects against nested/legacy section markup leaking into another view. */
     .main .section:not(.active) {
@@ -830,6 +836,7 @@
       <!-- X AGENT -->
 
       <section id="x-agent" class="section">
+        <div id="x-agent-boundary">
         <div class="section-heading">
           <h2>X Agent</h2>
           <p>Your social workspace for creating, planning, reviewing, scheduling, and publishing posts without losing track of what needs attention.</p>
@@ -1043,6 +1050,7 @@
           </summary>
           <div id="x-draft-controls" style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="x-draft-search" type="search" placeholder="Search drafts" style="flex:1 1 180px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;"><select id="x-draft-filter" style="border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"><option value="all">All</option><option value="draft">Draft</option><option value="approved">Approved</option><option value="scheduled">Scheduled</option><option value="published">Published</option></select><select id="x-draft-sort" style="border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"><option value="newest">Newest</option><option value="oldest">Oldest</option></select><button type="button" id="x-draft-select-all">Select Multiple</button><button type="button" id="x-draft-bulk-approve" style="display:none;">Approve Selected</button><button type="button" id="x-draft-bulk-delete" style="display:none;">Delete Selected</button></div><div id="x-drafts"><div class="empty">Drafts load when you open this section.</div></div>
         </div></details>
+              </div><!-- /x-agent-boundary -->
       </section>
 
      <!-- RATES & SERVICES -->
@@ -3972,6 +3980,8 @@ loadRequests();
       section.classList.remove("section-hard-hidden");
       section.classList.add("active");
       section.setAttribute("aria-hidden","false");
+      const xBoundary = document.getElementById("x-agent-boundary");
+      if (xBoundary) xBoundary.style.display = sectionName === "x-agent" ? "block" : "none";
     };
 
     const pageParams = new URLSearchParams(window.location.search);
