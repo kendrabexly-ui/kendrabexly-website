@@ -236,6 +236,19 @@
       display: block;
     }
 
+    /* Dashboard vertical layout guard: inactive sections must never reserve space. */
+    .main > .section:not(.active) {
+      display: none !important;
+    }
+    .main > .section.active {
+      display: block !important;
+      margin-top: 0 !important;
+      padding-top: 0;
+    }
+    .main > .section.active > .section-heading:first-child {
+      margin-top: 0 !important;
+    }
+
     .section-heading {
       margin-bottom: 24px;
     }
