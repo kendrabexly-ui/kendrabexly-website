@@ -1,17 +1,99 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Rates and services with Kendra Bexly."><title>Our Time | Kendra Bexly</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/styles.css"></head><body><header class="nav">
-  <a class="brand" href="/">Kendra Bexly</a>
-  <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-  <nav id="site-nav" aria-label="Primary navigation">
-    <a href="/">The Invitation</a>
-    <a href="/meet-kendra">Meet Kendra</a>
-    <a href="/the-muse">The Muse</a>
-    <a href="/our-time">Our Time</a>
-    <a href="/etiquette">Etiquette</a>
-    <a href="/pillow-talk">Pillow Talk</a>
-    <a class="button small" href="/request">The Rendezvous</a>
-  </nav>
-</header><main><section class="page-hero"><div class="eyebrow">OUR TIME</div><h1>Experiences shaped around us.</h1><p class="lede">Choose the time and setting that suit the occasion. Every request is reviewed personally.</p></section><section class="cards"><article><div class="eyebrow">RENDEZVOUS</div><h2>Private Time</h2><p>Unhurried conversation, connection, and a thoughtfully planned escape.</p></article><article><div class="eyebrow">SOCIAL</div><h2>Dinner & Events</h2><p>A polished companion for an evening out, a special occasion, or an event.</p></article><article><div class="eyebrow">AWAY</div><h2>Travel & Extended Time</h2><p>More time, more ease, and room to settle into the experience.</p></article></section><section class="notice"><h2>Rates & availability</h2><p>Current rates and available experiences are confirmed during the private request process. Select your preferred duration and plans to begin.</p><a class="button" href="/request">Request Our Time</a></section></main><footer><span>© 2026 Kendra Bexly</span><span>Official website • KendraBexly.com</span></footer>
-<script>
-const toggle=document.querySelector(".menu-toggle"),nav=document.getElementById("site-nav");
-toggle?.addEventListener("click",()=>{const open=toggle.getAttribute("aria-expanded")==="true";toggle.setAttribute("aria-expanded",String(!open));nav?.classList.toggle("open",!open);});
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Explore Kendra Bexly’s companionship experiences, durations, and rates.">
+  <meta name="theme-color" content="#f5f1eb">
+  <title>Our Time | Rates &amp; Services | Kendra Bexly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="our-time-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Kendra Bexly home">Kendra Bexly</a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" aria-label="Primary navigation">
+      <a href="/">The Invitation</a>
+      <a href="/meet-kendra">Meet Kendra</a>
+      <a href="/the-muse">The Muse</a>
+      <a href="/our-time" aria-current="page">Our Time</a>
+      <a href="/etiquette">Etiquette</a>
+      <a href="/pillow-talk">Pillow Talk</a>
+      <a class="button small" href="/request">The Rendezvous</a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <section class="page-hero" aria-labelledby="our-time-title">
+      <div class="eyebrow">OUR TIME</div>
+      <h1 id="our-time-title">Rates &amp; Services</h1>
+      <p class="lede">Choose the experience and amount of time that feel right for our rendezvous.</p>
+    </section>
+
+    <section class="rate-menu" aria-label="Rates and services">
+      <article class="rate-service">
+        <header class="rate-service-heading">
+          <div class="eyebrow">SIGNATURE EXPERIENCE</div>
+          <h2>Signature Private Companionship Experience</h2>
+          <p>Kendra’s signature private companionship experience—romantic, flirtatious, relaxed, and intentionally unhurried.</p>
+        </header>
+        <dl class="rate-list">
+          <div><dt>1 Hour</dt><dd>$500</dd></div>
+          <div><dt>2 Hours</dt><dd>$750</dd></div>
+          <div><dt>3 Hours</dt><dd>$1,000</dd></div>
+          <div><dt>4 Hours</dt><dd>$1,250</dd></div>
+        </dl>
+      </article>
+
+      <article class="rate-service">
+        <header class="rate-service-heading">
+          <div class="eyebrow">ELEVATED EXPERIENCE</div>
+          <h2>The Greek Princess</h2>
+          <p>The more adventurous and elevated rendezvous, described discreetly rather than as an explicit menu of activities.</p>
+        </header>
+        <dl class="rate-list">
+          <div><dt>1 Hour</dt><dd>$650</dd></div>
+          <div><dt>1.5 Hours</dt><dd>$800</dd></div>
+          <div><dt>2 Hours</dt><dd>$1,050</dd></div>
+        </dl>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const toggle = document.querySelector(".menu-toggle");
+    const nav = document.getElementById("site-nav");
+
+    const closeMenu = () => {
+      toggle?.setAttribute("aria-expanded", "false");
+      nav?.classList.remove("open");
+    };
+
+    toggle?.addEventListener("click", () => {
+      const willOpen = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", String(willOpen));
+      nav?.classList.toggle("open", willOpen);
+    });
+
+    nav?.addEventListener("click", event => {
+      if (event.target.closest("a")) closeMenu();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeMenu();
+        toggle?.focus();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 1100) closeMenu();
+    });
+  </script>
+</body>
+</html>
