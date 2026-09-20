@@ -3084,7 +3084,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             WHERE email_type='retention_follow_up'
             GROUP BY client_id
           )
-          SELECT r.client_id, r.sent_at, r.draft_at,
+          SELECT r.client_id, r.sent_at, r.draft_at, c.first_name, c.last_name,
             CASE WHEN r.sent_at IS NOT NULL THEN 'sent' WHEN r.draft_at IS NOT NULL THEN 'draft' ELSE 'none' END AS status,
             (
               SELECT MIN(dr.requested_date)
