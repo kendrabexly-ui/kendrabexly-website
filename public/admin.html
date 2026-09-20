@@ -1745,6 +1745,7 @@ async function loadRequests() {
       document.getElementById("retention-preview-cancel")?.addEventListener("click",()=>{ document.getElementById("retention-offer-preview").hidden=true; });
     const retentionPreviewSettings = () => ({
       tone: document.getElementById("retention-offer-tone")?.value || "warm-personal",
+      expiration: document.getElementById("retention-offer-expiration")?.value || "14",
       useFirstName: document.getElementById("retention-use-first-name")?.checked !== false,
       usePreferences: document.getElementById("retention-use-preferences")?.checked !== false,
       useHistory: document.getElementById("retention-use-history")?.checked !== false
