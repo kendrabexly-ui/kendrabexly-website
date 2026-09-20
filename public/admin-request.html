@@ -425,6 +425,7 @@
   >
     Final Approve
   </button>
+  <div id="final-approval-readiness" style="margin-top:10px;font-size:13px;color:#6f675f;"></div>
 
   <div
     id="final-approval-status"
@@ -572,9 +573,23 @@ const depositStatus = document.getElementById("deposit-status");
 const postDepositSummary = document.getElementById("post-deposit-summary");
 
 idReceivedCheckbox.checked = Boolean(item.id_received);
+let depositConfirmed = Boolean(item.deposit_paid);
+const finalApprovalReadiness=document.getElementById("final-approval-readiness");
+function updateFinalApprovalReadiness(){
+  const specialReady=!newsletterSpecialApprovalCheckbox || newsletterSpecialApprovalCheckbox.checked;
+  const ready=Boolean(idReceivedCheckbox.checked && depositConfirmed && specialReady);
+  finalApproveButton.disabled=!ready;
+  finalApproveButton.style.opacity=ready?"1":".5";
+  finalApproveButton.style.cursor=ready?"pointer":"not-allowed";
+  if(finalApprovalReadiness) finalApprovalReadiness.textContent=ready
+    ? "✓ Ready for final approval."
+    : "Complete "+[!idReceivedCheckbox.checked?"ID screening":"",!depositConfirmed?"deposit confirmation":"",!specialReady?"newsletter special approval":""].filter(Boolean).join(" and ")+".";
+}
 if (item.deposit_paid) {
   confirmDepositButton.disabled = true;
+  confirmDepositButton.textContent = "✓ Confirmed";
 }
+idReceivedCheckbox.addEventListener("change",updateFinalApprovalReadiness);
 
 confirmDepositButton.addEventListener("click", async function () {
   confirmDepositButton.disabled = true;
@@ -587,11 +602,12 @@ confirmDepositButton.addEventListener("click", async function () {
     });
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.message || "Unable to confirm deposit.");
-    confirmDepositButton.textContent = "Deposit Confirmed";
-    postDepositSummary.style.display = "block";
-    postDepositSummary.querySelector(".value").textContent =
-      "$" + Number(result.remaining_balance).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+    confirmDepositButton.textContent = "✓ Confirmed";
+    depositConfirmed = true;
+    const depositCheckLabel=document.getElementById("deposit-check-label");
+    if(depositCheckLabel) depositCheckLabel.textContent="Confirmed";
     depositStatus.textContent = "Deposit payment confirmed.";
+    updateFinalApprovalReadiness();
   } catch (error) {
     depositStatus.textContent = error.message || "Unable to confirm deposit.";
     confirmDepositButton.disabled = false;
@@ -600,13 +616,15 @@ confirmDepositButton.addEventListener("click", async function () {
 
 const newsletterSpecialApprovalCheckbox =
   document.getElementById("newsletter-special-approval-checkbox");
+if(newsletterSpecialApprovalCheckbox) newsletterSpecialApprovalCheckbox.addEventListener("change",updateFinalApprovalReadiness);
+updateFinalApprovalReadiness();
         finalApproveButton.addEventListener(
   "click",
   async function () {
 
     if (
       !idReceivedCheckbox.checked ||
-      !item.deposit_paid && confirmDepositButton.textContent !== "Deposit Confirmed"
+      !depositConfirmed
     ) {
       finalApprovalStatus.textContent =
         "Please confirm both the ID screening and deposit before final approval.";
