@@ -341,19 +341,23 @@
                 Select one
               </option>
 
-              <option value="1-hour">
+              <option value="1-hour" data-experiences="signature-private-companionship greek-princess">
                 1 hour
               </option>
 
-              <option value="2-hours">
+              <option value="1.5-hours" data-experiences="greek-princess">
+                1.5 hours
+              </option>
+
+              <option value="2-hours" data-experiences="signature-private-companionship greek-princess">
                 2 hours
               </option>
 
-              <option value="3-hours">
+              <option value="3-hours" data-experiences="signature-private-companionship">
                 3 hours
               </option>
 
-              <option value="4-hours">
+              <option value="4-hours" data-experiences="signature-private-companionship">
                 4 hours
               </option>
 
@@ -600,6 +604,31 @@
         })
         .catch(() => {});
     }
+
+    const dateType = document.getElementById("date-type");
+    const durationSelect = document.getElementById("duration");
+    const durationOptions = durationSelect
+      ? Array.from(durationSelect.querySelectorAll("option[data-experiences]"))
+      : [];
+
+    function syncDurationOptions() {
+      const selectedExperience = dateType?.value || "";
+      durationOptions.forEach(option => {
+        const isAvailable = !selectedExperience ||
+          option.dataset.experiences.split(" ").includes(selectedExperience);
+        option.hidden = !isAvailable;
+        option.disabled = !isAvailable;
+      });
+
+      const selectedOption = durationSelect?.selectedOptions?.[0];
+      if (selectedOption?.disabled && durationSelect) {
+        durationSelect.value = "";
+      }
+    }
+
+    dateType?.addEventListener("change", syncDurationOptions);
+    syncDurationOptions();
+
 
     const appointmentType = document.getElementById("appointment-type");
     const outcallAddress = document.getElementById("outcall-address");
