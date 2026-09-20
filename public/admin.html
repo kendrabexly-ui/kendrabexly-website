@@ -1172,6 +1172,11 @@
       </div>
 
       <details style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
+        <summary style="cursor:pointer;font-weight:700;">Retention Insights <span style="font-weight:400;color:var(--muted);">— what is producing return activity</span></summary>
+        <div id="retention-insights" style="margin-top:12px;"><div class="empty">No retention results to analyze yet.</div></div>
+      </details>
+
+      <details style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
         <summary style="cursor:pointer;font-weight:700;">Retention Activity History <span style="font-weight:400;color:var(--muted);">— contact and outcome log</span></summary>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;margin-bottom:8px;">
           <label for="retention-history-filter" style="font-size:12px;color:var(--muted);">Show</label>
@@ -1571,6 +1576,41 @@ async function loadRequests() {
       }
     } catch (error) {}
 
+    const renderRetentionInsights = () => {
+      const container = document.getElementById("retention-insights");
+      if (!container) return;
+      const range = document.getElementById("retention-date-range")?.value || "90";
+      const cutoff = range === "all" ? 0 : Date.now() - Number(range) * 86400000;
+      const groups = {reconnect:{label:"Due for Reconnect",sent:0,requests:0,bookings:0},repeat:{label:"Repeat Clients",sent:0,requests:0,bookings:0},recent:{label:"Recently Seen",sent:0,requests:0,bookings:0}};
+      Array.from(retentionOutcomeByClient.values()).forEach(item => {
+        const when = new Date(item.sent_at || 0).getTime();
+        if (!item.sent_at || (cutoff && (!Number.isFinite(when) || when < cutoff))) return;
+        const client = clientProfiles.find(c => Number(c.client_id) === Number(item.client_id));
+        if (!client) return;
+        const completed = client.requests.filter(r => {
+          const status=String(r.status||"").toLowerCase();
+          if(status==="completed") return true;
+          if(status!=="approved"||!r.requested_date) return false;
+          const d=new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime();
+          return Number.isFinite(d)&&d<Date.now();
+        }).sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")));
+        const lastSeen=completed[0]?.requested_date?new Date(completed[0].requested_date+"T00:00:00").getTime():0;
+        const days=lastSeen?Math.floor((Date.now()-lastSeen)/86400000):null;
+        const key=days!==null&&days>=90?"reconnect":completed.length>=2?"repeat":"recent";
+        groups[key].sent++;
+        if(item.requested_after_contact) groups[key].requests++;
+        if(item.booked_after_contact) groups[key].bookings++;
+      });
+      const rows=Object.values(groups).filter(g=>g.sent>0).sort((a,b)=>(b.bookings/b.sent)-(a.bookings/a.sent));
+      container.innerHTML=rows.length?rows.map(g=>{
+        const rate=Math.round((g.bookings/g.sent)*100);
+        return `<div style="padding:10px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(130px,1fr) repeat(4,minmax(65px,auto));gap:10px;align-items:center;font-size:12px;">
+          <strong>${escapeHtml(g.label)}</strong><span>${g.sent} sent</span><span>${g.requests} request${g.requests===1?"":"s"}</span><span>${g.bookings} booking${g.bookings===1?"":"s"}</span><strong>${rate}%</strong>
+        </div>`;
+      }).join(""):'<div class="empty">No sent retention follow-ups in this date range yet.</div>';
+    };
+    renderRetentionInsights();
+
     const renderRetentionActivityHistory = () => {
       const container = document.getElementById("retention-activity-history");
       if (!container) return;
@@ -1629,6 +1669,7 @@ async function loadRequests() {
     document.getElementById("retention-date-range")?.addEventListener("change", () => {
       renderRetentionPerformance();
       renderRetentionActivityHistory();
+      renderRetentionInsights();
     });
 
     const renderRetentionTargets = () => {
