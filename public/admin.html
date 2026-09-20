@@ -1526,15 +1526,6 @@ async function loadRequests() {
             ${latest ? `<button type="button" class="client-profile-toggle" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Open Client Profile →</button>` : ""}
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Profile</strong>
-              <div style="margin-top:10px;padding:10px 12px;border:1px solid #eee7dc;border-radius:8px;background:white;font-size:12px;">
-                <strong>Client Activity</strong>
-                <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;">
-                  <span>Last Completed: <strong>${escapeHtml(lastCompleted?.requested_date || "None")}</strong></span>
-                  <span>Next Date: <strong>${escapeHtml(upcomingDate?.requested_date || "None scheduled")}</strong></span>
-                  <span>Follow Ups: <strong>${followUpHistory.filter(item=>item.sent_at).length}/${followUpHistory.length}</strong> sent${followUpHistory.some(item=>!item.sent_at) ? " · "+followUpHistory.filter(item=>!item.sent_at).length+" pending" : ""}</span>
-                </div>
-                ${followUpHistory.some(item=>!item.sent_at) ? `<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f7f2e9;font-weight:700;">○ After Date Follow Up pending for ${followUpHistory.filter(item=>!item.sent_at).map(item=>escapeHtml(item.date||"completed date")).join(" · ")} <button type="button" class="jump-followup-agent" data-request-id="${followUpHistory.find(item=>!item.sent_at)?.id||""}" style="margin-left:8px;padding:4px 8px;border:1px solid #d9cdbd;border-radius:6px;background:white;cursor:pointer;font:inherit;font-size:11px;">Open Follow Up Agent</button></div>` : followUpHistory.length ? '<div style="margin-top:8px;padding:7px 9px;border-radius:7px;background:#f4f7f2;font-weight:700;">✓ All completed dates have an After Date Follow Up sent.</div>' : ""}
-              </div>
               <div style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <strong style="font-size:13px;">Follow Up Agent</strong>
                 <div style="font-size:12px;color:var(--muted);margin-top:4px;">Create an after date message for the most recent date marked successfully completed. Nothing is sent automatically.</div>
@@ -1614,7 +1605,7 @@ async function loadRequests() {
               <button type="button" class="blacklist-client" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Blacklist Client</button>
               </div>`}
             </div>
-            ${latest ? `<button type="button" class="client-history-toggle" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View booking history ↓</button><div class="client-history" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee7dc;">${sorted.map(r => `<button type="button" class="client-history-request" data-request-id="${r.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 0;cursor:pointer;font:inherit;"><strong>${escapeHtml(r.requested_date || "Date not provided")}</strong> at ${escapeHtml(r.requested_time || "Time not provided")} · ${escapeHtml(String(r.status || "pending").replaceAll("_"," "))}${Number(r.deposit_paid) ? ` · Deposit ${Number(r.deposit_amount || 0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}` : ""} →</button>`).join("")}</div>` : ""}
+            ${latest ? `<button type="button" class="client-history-toggle" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View date history ↓</button><div class="client-history" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee7dc;">${sorted.map(r => `<button type="button" class="client-history-request" data-request-id="${r.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 0;cursor:pointer;font:inherit;"><strong>${escapeHtml(r.requested_date || "Date not provided")}</strong> · ${escapeHtml(String(r.status || "pending").replaceAll("_"," "))} →</button>`).join("")}</div>` : ""}
           </div>`;
       }).join("") : '<div class="empty">No client profiles match your search.</div>';
       clientRecords.querySelectorAll(".client-profile-toggle").forEach((button) => {
@@ -1788,7 +1779,7 @@ async function loadRequests() {
           const history = button.nextElementSibling;
           const opening = history.style.display === "none";
           history.style.display = opening ? "block" : "none";
-          button.textContent = opening ? "Hide booking history ↑" : "View booking history ↓";
+          button.textContent = opening ? "Hide date history ↑" : "View date history ↓";
         });
       });
       clientRecords.querySelectorAll(".client-history-request").forEach((button) => {
