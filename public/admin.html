@@ -3846,7 +3846,7 @@ loadRequests();
           const results=await Promise.all(pendingDeletes.map(slot=>deleteCalendarAvailability(slot)));
           const remaining=pendingDeletes.filter((slot,index)=>!results[index]);
           localStorage.setItem(calendarAvailabilityDeleteQueueKey,JSON.stringify(remaining));
-          remote=remote.filter(item=>remaining.every(slot=>slot.date!==item.date||slot.time!==item.time));
+          remote=remote.filter(item=>pendingDeletes.every(slot=>slot.date!==item.date||slot.time!==item.time));
         }
         const local=readCalendarAvailability();
         const missing=local.filter(slot=>!remote.some(item=>item.date===slot.date&&item.time===slot.time));
