@@ -3060,30 +3060,33 @@ loadRequests();
         box.innerHTML = visibleDrafts.length ? visibleDrafts.map((draft) => {
           const current = requestId && Number(draft.date_request_id) === requestId;
           const name = [draft.first_name,draft.last_name].filter(Boolean).join(" ") || "Client";
+          const sent = String(draft.status || "draft").toLowerCase() === "sent";
+          const typeLabel = String(draft.email_type || "client_email").replaceAll("_"," ").replace(/\b\w/g, ch => ch.toUpperCase());
           return `<div data-email-draft="${draft.id}" style="padding:20px 22px;border-bottom:1px solid var(--line);${current ? "background:#fff8e8;border-left:4px solid #b28a45;" : ""}">
             ${current ? '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:7px;">CURRENT REQUEST</div>' : ""}
-            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
-              <strong>${escapeHtml(name)}</strong>
-              <span style="font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;${String(draft.status || "draft").toLowerCase() === "sent" ? "background:#e5f1e7;" : "background:#f3ead8;"}">${String(draft.status || "draft").toLowerCase() === "sent" ? "✓ SENT" : "DRAFT"}</span>
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+              <div><strong style="font-size:15px;">${escapeHtml(name)}</strong><div style="margin-top:4px;font-size:12px;color:var(--muted);">${escapeHtml(typeLabel)} · Request #${escapeHtml(draft.date_request_id || "—")}</div></div>
+              <span style="font-size:11px;font-weight:700;padding:5px 9px;border-radius:999px;${sent ? "background:#e5f1e7;" : "background:#f3ead8;"}">${sent ? "✓ SENT" : "NEEDS REVIEW"}</span>
             </div>
-            <div style="margin-top:5px;font-size:13px;">${escapeHtml(draft.email || "No email")} · Request #${escapeHtml(draft.date_request_id || "—")}</div>
-            <div style="margin-top:6px;font-size:12px;color:var(--muted);">
-              ${String(draft.status || "").toLowerCase() === "sent"
-                ? "Sent: " + escapeHtml(draft.sent_at || "—")
-                : "Created: " + escapeHtml(draft.created_at || "—")}
-            </div>
-            <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">SUBJECT</label>
-            <input data-email-subject value="${escapeHtml(draft.subject || "")}" style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;">
-            <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">EMAIL</label>
-            <textarea data-email-body rows="12" style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;resize:vertical;">${escapeHtml(draft.body || "")}</textarea>
-            <button type="button" data-save-email="${draft.id}" style="margin-top:10px;padding:9px 14px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Save Draft</button>
-            <button type="button" data-regenerate-email="${draft.id}" ${draft.status === "sent" ? "disabled" : ""} style="margin-top:10px;margin-left:8px;padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Regenerate</button>
-            <button type="button" data-preview-email="${draft.id}" style="margin-top:10px;margin-left:8px;padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Preview</button>
-            <button type="button" data-copy-email="${draft.id}" style="margin-top:10px;margin-left:8px;padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;">Copy</button>
-            <button type="button" data-send-email="${draft.id}" ${draft.status === "sent" ? "disabled" : ""} style="margin-top:10px;margin-left:8px;padding:9px 14px;border:1px solid var(--ink);border-radius:999px;background:white;color:var(--ink);cursor:pointer;">${draft.status === "sent" ? "✓ Sent" : "Send Email"}</button>
-            <div data-email-preview-panel style="display:none;margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
-            <span data-email-status style="margin-left:9px;font-size:12px;"></span>
-          </div>`;
+            <div style="margin-top:7px;font-size:12px;color:var(--muted);">${escapeHtml(draft.email || "No email")} · ${sent ? "Sent " + escapeHtml(draft.sent_at || "—") : "Created " + escapeHtml(draft.created_at || "—")}</div>
+            <details ${current && !sent ? "open" : ""} style="margin-top:12px;">
+              <summary style="cursor:pointer;font-size:12px;font-weight:700;">${sent ? "View Sent Email" : "Review Email"}</summary>
+              <div style="margin-top:10px;">
+                <label style="display:block;font-size:12px;font-weight:700;">SUBJECT</label>
+                <input data-email-subject value="${escapeHtml(draft.subject || "")}" ${sent ? "readonly" : ""} style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:${sent ? "#faf8f4" : "white"};">
+                <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">EMAIL</label>
+                <textarea data-email-body rows="10" ${sent ? "readonly" : ""} style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:${sent ? "#faf8f4" : "white"};resize:vertical;">${escapeHtml(draft.body || "")}</textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                  ${sent ? "" : `<button type="button" data-save-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Save Draft</button><button type="button" data-regenerate-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Regenerate</button>`}
+                  <button type="button" data-preview-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Preview</button>
+                  <button type="button" data-copy-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Copy</button>
+                  ${sent ? "" : `<button type="button" data-send-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font-weight:700;">Send Email</button>`}
+                </div>
+                <div data-email-preview-panel style="display:none;margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
+                <span data-email-status style="display:block;margin-top:8px;font-size:12px;"></span>
+              </div>
+            </details>
+          </div>`;;
         }).join("") : '<div class="empty">No email drafts yet.</div>';
         box.querySelectorAll("[data-save-email]").forEach((button) => button.addEventListener("click", async () => {
           const card = button.closest("[data-email-draft]");
