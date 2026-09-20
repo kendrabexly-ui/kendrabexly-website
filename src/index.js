@@ -2511,23 +2511,20 @@ Kendra`
         const countRow = await env.DB.prepare(
           "SELECT COUNT(*) AS total FROM date_requests"
         ).first();
-        const clientCountRow = await env.DB.prepare(
-          "SELECT COUNT(*) AS total FROM clients WHERE id NOT IN (SELECT client_id FROM blacklist WHERE client_id IS NOT NULL)"
-        ).first();
 
         await env.DB.batch([
-          env.DB.prepare("DELETE FROM email_drafts"),
-          env.DB.prepare("DELETE FROM payments"),
-          env.DB.prepare("DELETE FROM date_requests"),
           env.DB.prepare(
-            "DELETE FROM clients WHERE id NOT IN (SELECT client_id FROM blacklist WHERE client_id IS NOT NULL)"
-          )
+            "DELETE FROM email_drafts WHERE date_request_id IS NOT NULL"
+          ),
+          env.DB.prepare(
+            "DELETE FROM payments WHERE date_request_id IS NOT NULL"
+          ),
+          env.DB.prepare("DELETE FROM date_requests")
         ]);
 
         return Response.json({
           ok: true,
-          deleted: Number(countRow?.total || 0),
-          clients_deleted: Number(clientCountRow?.total || 0)
+          deleted: Number(countRow?.total || 0)
         });
       } catch (error) {
         console.error("Clear admin requests error:", error);
