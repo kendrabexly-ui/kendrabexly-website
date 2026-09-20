@@ -1022,7 +1022,7 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
     <button type="button" onclick="document.getElementById('generate-newsletter')?.scrollIntoView({behavior:'smooth',block:'center'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Create Draft</button>
     <button type="button" onclick="document.getElementById('newsletter-subscriber-count')?.scrollIntoView({behavior:'smooth',block:'center'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Subscribers</button>
-    <button type="button" onclick="document.getElementById('newsletter-drafts')?.scrollIntoView({behavior:'smooth',block:'start'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Drafts</button>
+    <button type="button" onclick="document.getElementById('newsletter-drafts')?.scrollIntoView({behavior:'smooth',block:'start'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Review & Send</button>
   </div>
 
   <div class="panel" style="margin-bottom:18px;">
@@ -1073,10 +1073,10 @@
     <div style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <label for="newsletter-draft-status-filter" style="font-size:13px;color:var(--muted);">Show</label>
       <select id="newsletter-draft-status-filter" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;">
-        <option value="all">All newsletters</option>
-        <option value="draft">Drafts</option>
-        <option value="approved">Approved</option>
+        <option value="draft">Needs Review</option>
+        <option value="approved">Ready to Send</option>
         <option value="sent">Sent</option>
+        <option value="all">All Newsletters</option>
       </select>
       <label for="newsletter-draft-sort" style="font-size:13px;color:var(--muted);">Sort</label>
       <select id="newsletter-draft-sort" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;">
@@ -2117,7 +2117,7 @@ loadRequests();
           const draftCount = drafts.filter(item => String(item.status || "").toLowerCase() === "draft").length;
           const approvedCount = drafts.filter(item => String(item.status || "").toLowerCase() === "approved").length;
           const sentCount = drafts.filter(item => String(item.status || "").toLowerCase() === "sent").length;
-          summary.innerHTML = "<strong>" + drafts.length + "</strong> total · <strong>" + draftCount + "</strong> draft" + (draftCount === 1 ? "" : "s") + " · <strong>" + approvedCount + "</strong> approved · <strong>" + sentCount + "</strong> sent";
+          summary.innerHTML = "<strong>" + draftCount + "</strong> need" + (draftCount === 1 ? "s" : "") + " review · <strong>" + approvedCount + "</strong> ready to send · <strong>" + sentCount + "</strong> sent";
         }
         const statusFilter = document.getElementById("newsletter-draft-status-filter");
         if (statusFilter) statusFilter.value = drafts.some(item => String(item.status || "").toLowerCase() === "draft") ? "draft" : (drafts.some(item => String(item.status || "").toLowerCase() === "approved") ? "approved" : "all");
