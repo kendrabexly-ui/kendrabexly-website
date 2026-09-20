@@ -2360,6 +2360,7 @@ async function loadRequests() {
             <div><strong>${record.accepted ? "Accepted" : "Not accepted"}</strong> · Version ${escapeHtml(record.authorization_version || "—")}</div>
             <div>Accepted: ${escapeHtml(record.accepted_at ? new Date(record.accepted_at + (String(record.accepted_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "—")}</div>
             <div>Client ID: ${escapeHtml(record.client_id)} · Booking Request ID: ${escapeHtml(record.booking_request_id)}</div>
+            <div><strong>Submitted employment:</strong> ${escapeHtml(record.submitted_employer || "—")} · ${escapeHtml(record.submitted_job_title || "—")} · ${escapeHtml(record.submitted_industry || "—")}</div>
             <div>Status: ${escapeHtml(String(record.verification_status || "pending_review").replaceAll("_", " "))} · Method: ${escapeHtml(record.verification_method || "Not entered")} · Completed: ${escapeHtml(record.completed_at || "—")}</div>
             <details style="margin-top:5px;"><summary style="cursor:pointer;font-weight:700;">View recorded wording</summary><div style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;">${escapeHtml(record.authorization_wording || "—")}</div></details>
           </div>`).join("");
