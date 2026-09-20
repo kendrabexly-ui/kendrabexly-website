@@ -3119,12 +3119,47 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
     }
 
     // ============================================================
+    // RETENTION FOLLOW-UP PREVIEW
+    // ============================================================
+    if (url.pathname === "/api/admin/retention/follow-up-preview" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const clientId=Number(data.client_id);
+        const allowed=new Set(["extra-time","experience-upgrade","special-rate"]);
+        const strategy=allowed.has(String(data.offer_strategy||""))?String(data.offer_strategy):"extra-time";
+        if(!Number.isInteger(clientId)||clientId<1) return Response.json({ok:false,message:"Choose a valid client."},{status:400});
+        const client=await env.DB.prepare("SELECT id,first_name,last_name,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
+        if(!client) return Response.json({ok:false,message:"Client not found."},{status:404});
+        const blocked=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(clientId).first().catch(()=>null);
+        if(blocked) return Response.json({ok:false,message:"Blacklisted clients cannot receive retention follow-ups."},{status:400});
+        const dates=await env.DB.prepare("SELECT id,requested_date,requested_time,status,notes FROM date_requests WHERE client_id=? ORDER BY requested_date DESC,requested_time DESC").bind(clientId).all();
+        const rows=dates.results||[], now=Date.now();
+        const completed=rows.filter(r=>{const st=String(r.status||"").toLowerCase();if(st==="completed")return true;if(st!=="approved"||!r.requested_date)return false;const t=new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime();return Number.isFinite(t)&&t<now;});
+        const upcoming=rows.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=now);
+        if(!completed.length) return Response.json({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
+        if(upcoming) return Response.json({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
+        const recent=await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' AND datetime(sent_at)>=datetime('now','-30 days') LIMIT 1").bind(clientId).first();
+        if(recent) return Response.json({ok:false,message:"This client received a retention follow-up within the last 30 days."},{status:409});
+        const last=completed[0];
+        const offer=strategy==="extra-time"?"an extra 30 minutes":strategy==="experience-upgrade"?"a special experience upgrade":"a special rate";
+        let body=`Hi ${client.first_name||""},\n\nYou crossed my mind, so I wanted to say hello. I enjoyed seeing you and would love to spend time together again when the timing feels right. I have ${offer} available for a future date.\n\nKendra`;
+        if(env.AI){try{const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[{role:"system",content:"Write a short private retention email in first person. Natural, feminine, warm, personal, lightly flirty, not poetic or robotic. Do not invent memories. Do not pressure the client. Do not invent prices, discounts, amounts, or terms. No hyphens or dash punctuation. Return only the body without a signature."},{role:"user",content:"Client: "+String(client.first_name||"")+"\nCompleted dates: "+completed.length+"\nLast completed: "+String(last.requested_date||"")+"\nNotes: "+String(client.notes||"")+"\nLast date notes: "+String(last.notes||"")+"\nOffer: "+offer+"\nMention the offer naturally."}],max_tokens:350,temperature:.75});const generated=String(ai?.response||ai?.result?.response||"").trim().replace(/^[\"“]|[\"”]$/g,"").replace(/[–—]/g,",");if(generated)body=generated+"\n\nKendra";}catch(e){console.error("Retention preview generation error:",e);}}
+        return Response.json({ok:true,subject:"A little hello",body,offer_strategy:strategy});
+      } catch(error) {
+        console.error("Retention follow-up preview error:",error);
+        return Response.json({ok:false,message:"Unable to preview retention follow-up."},{status:500});
+      }
+    }
+
+    // ============================================================
     // RETENTION FOLLOW-UP DRAFT
     // ============================================================
     if (url.pathname === "/api/admin/retention/follow-up-draft" && request.method === "POST") {
       try {
         const data = await request.json();
         const clientId = Number(data.client_id);
+        const allowedOfferStrategies = new Set(["extra-time","experience-upgrade","special-rate"]);
+        const offerStrategy = allowedOfferStrategies.has(String(data.offer_strategy||"")) ? String(data.offer_strategy) : "extra-time";
         if (!Number.isInteger(clientId) || clientId < 1) return Response.json({ok:false,message:"Choose a valid client."},{status:400});
         const client = await env.DB.prepare("SELECT id,first_name,last_name,email,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
         if (!client) return Response.json({ok:false,message:"Client not found."},{status:404});
@@ -3156,14 +3191,18 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             if(generated) body=generated+"\n\nKendra";
           } catch(e) { console.error("Retention draft generation error:",e); }
         }
+        const reviewedSubject = String(data.subject || "").trim();
+        const reviewedBody = String(data.body || "").trim();
+        if (reviewedBody) body = reviewedBody;
+        const draftSubject = reviewedSubject || "A little hello";
         const recentSent = await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' AND datetime(sent_at) >= datetime('now','-30 days') ORDER BY sent_at DESC LIMIT 1").bind(clientId).first();
         if (recentSent) return Response.json({ok:false,message:"This client received a retention follow-up within the last 30 days."},{status:409});
         const existing = await env.DB.prepare("SELECT id FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='draft' LIMIT 1").bind(clientId).first();
         if(existing) {
-          await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind("A little hello",body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->",existing.id).run();
+          await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(draftSubject,body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->",existing.id).run();
           return Response.json({ok:true,id:existing.id,updated:true,message:"Retention follow-up draft refreshed."});
         }
-        const result=await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,last.id,"retention_follow_up","A little hello",body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->").run();
+        const result=await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,last.id,"retention_follow_up",draftSubject,body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->").run();
         return Response.json({ok:true,id:result.meta.last_row_id,message:"Retention follow-up draft created."});
       } catch(error) {
         console.error("Retention follow-up draft error:",error);
