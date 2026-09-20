@@ -720,7 +720,12 @@
 
         <div class="section-heading">
           <h2>Blacklist</h2>
-          <p>Manage clients you no longer wish to accept.</p>
+          <p>Your safety-focused record of clients who should not be accepted for future bookings.</p>
+        </div>
+
+        <div style="margin-bottom:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:white;">
+          <strong>Safety Records</strong>
+          <div style="margin-top:4px;font-size:13px;color:var(--muted);">Use this section to review active blacklist records, identify repeat attempts, and manage whether a client remains blocked. Booking history stays in the Client Profile and Requests sections.</div>
         </div>
 
         <div id="blacklist-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
@@ -731,7 +736,7 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <input id="blacklist-search" type="search" placeholder="Search name, email, phone, or safety reason" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
           <select id="blacklist-safety-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-            <option value="all">All safety concerns</option>
+            <option value="all">All reasons</option>
             <option value="boundaries">Boundary concerns</option>
             <option value="threatening">Threatening / aggressive</option>
             <option value="identity">Identity / screening</option>
