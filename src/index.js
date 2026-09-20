@@ -2536,6 +2536,68 @@ Kendra`
     }
 
     // =========================================================
+    // DELETE SELECTED TEST CLIENT PROFILES
+    // =========================================================
+
+    if (
+      url.pathname === "/api/admin/clients/delete-selected" &&
+      request.method === "POST"
+    ) {
+      try {
+        const data = await request.json().catch(() => ({}));
+        const ids = [...new Set(
+          (Array.isArray(data.ids) ? data.ids : [])
+            .map(Number)
+            .filter(id => Number.isInteger(id) && id > 0)
+        )];
+
+        if (!ids.length || ids.length > 100) {
+          return Response.json(
+            { ok: false, message: "Choose one or more valid client records." },
+            { status: 400 }
+          );
+        }
+
+        const placeholders = ids.map(() => "?").join(",");
+        const existing = await env.DB.prepare(
+          `SELECT id FROM clients WHERE id IN (${placeholders})`
+        ).bind(...ids).all();
+        const existingIds = (existing.results || []).map(row => Number(row.id));
+
+        if (!existingIds.length) {
+          return Response.json({ ok: true, deleted: 0 });
+        }
+
+        const existingPlaceholders = existingIds.map(() => "?").join(",");
+        await env.DB.batch([
+          env.DB.prepare(
+            `DELETE FROM email_drafts WHERE client_id IN (${existingPlaceholders})`
+          ).bind(...existingIds),
+          env.DB.prepare(
+            `DELETE FROM payments WHERE client_id IN (${existingPlaceholders})`
+          ).bind(...existingIds),
+          env.DB.prepare(
+            `DELETE FROM date_requests WHERE client_id IN (${existingPlaceholders})`
+          ).bind(...existingIds),
+          env.DB.prepare(
+            `DELETE FROM blacklist WHERE client_id IN (${existingPlaceholders})`
+          ).bind(...existingIds),
+          env.DB.prepare(
+            `DELETE FROM clients WHERE id IN (${existingPlaceholders})`
+          ).bind(...existingIds)
+        ]);
+
+        return Response.json({ ok: true, deleted: existingIds.length });
+      } catch (error) {
+        console.error("Delete selected clients error:", error);
+        return Response.json(
+          { ok: false, message: "Unable to delete the selected client records." },
+          { status: 500 }
+        );
+      }
+    }
+
+    // =========================================================
     // ADMIN REQUEST LIST
     // =========================================================
 
