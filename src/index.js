@@ -60,6 +60,18 @@ async function ensureSiteContentTables(env) {
     )
   `).run();
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS email_tracking (
+      email_draft_id INTEGER PRIMARY KEY,
+      provider_email_id TEXT,
+      opened_at TEXT,
+      last_opened_at TEXT,
+      open_count INTEGER NOT NULL DEFAULT 0,
+      responded_at TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS calendar_work_hours (
       day_of_week INTEGER PRIMARY KEY CHECK (day_of_week BETWEEN 0 AND 6),
       enabled INTEGER NOT NULL DEFAULT 0,
@@ -3715,12 +3727,19 @@ if (
                 ed.status,
                 ed.created_at,
                 ed.sent_at,
+                et.opened_at,
+                et.last_opened_at,
+                et.open_count,
+                et.responded_at,
+                et.provider_email_id,
                 c.first_name,
                 c.last_name,
                 c.email
               FROM email_drafts ed
               LEFT JOIN clients c
                 ON c.id = ed.client_id
+              LEFT JOIN email_tracking et
+                ON et.email_draft_id = ed.id
               ORDER BY ed.created_at DESC
               LIMIT 100
               `
@@ -3918,13 +3937,59 @@ if (
           console.error("Client email delivery failed:", sendResponse.status, await sendResponse.text());
           return Response.json({ ok:false, message:"Email delivery failed. The draft was not marked sent." }, { status:502 });
         }
+        const sendData = await sendResponse.json().catch(() => ({}));
         await env.DB.prepare("UPDATE email_drafts SET status = 'sent', sent_at = CURRENT_TIMESTAMP WHERE id = ?")
           .bind(draftId).run();
+        await env.DB.prepare(`
+          INSERT INTO email_tracking (email_draft_id, provider_email_id, updated_at)
+          VALUES (?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(email_draft_id) DO UPDATE SET provider_email_id=excluded.provider_email_id, updated_at=CURRENT_TIMESTAMP
+        `).bind(draftId, String(sendData.id || "")).run();
         return Response.json({ ok:true, message:"Email sent to " + draft.email + ".", status:"sent" });
       } catch (error) {
         console.error("Client email send error:", error);
         return Response.json({ ok:false, message:"Unable to send this email." }, { status:500 });
       }
+    }
+
+    // =========================================================
+    // EMAIL ENGAGEMENT WEBHOOK (Resend)
+    // =========================================================
+    if (url.pathname === "/api/webhooks/resend" && request.method === "POST") {
+      try {
+        const event = await request.json();
+        const type = String(event?.type || "");
+        const providerId = String(event?.data?.email_id || event?.data?.id || "");
+        if (!providerId) return Response.json({ok:true,ignored:true});
+        const tracked = await env.DB.prepare("SELECT email_draft_id FROM email_tracking WHERE provider_email_id=? LIMIT 1").bind(providerId).first();
+        if (!tracked) return Response.json({ok:true,ignored:true});
+        if (type === "email.opened") {
+          await env.DB.prepare(`
+            UPDATE email_tracking SET
+              opened_at=COALESCE(opened_at,CURRENT_TIMESTAMP),
+              last_opened_at=CURRENT_TIMESTAMP,
+              open_count=COALESCE(open_count,0)+1,
+              updated_at=CURRENT_TIMESTAMP
+            WHERE email_draft_id=?
+          `).bind(tracked.email_draft_id).run();
+        }
+        return Response.json({ok:true});
+      } catch(error) {
+        console.error("Resend webhook error:",error);
+        return Response.json({ok:false},{status:500});
+      }
+    }
+
+    // Mark a sent email as responded when the client replies outside the dashboard.
+    if (url.pathname.match(/^\/api\/admin\/email-drafts\/\d+\/responded$/) && request.method === "POST") {
+      const draftId=Number(url.pathname.split("/").slice(-2,-1)[0]);
+      if(!Number.isInteger(draftId)||draftId<1) return Response.json({ok:false,message:"Invalid email ID."},{status:400});
+      await env.DB.prepare(`
+        INSERT INTO email_tracking (email_draft_id, responded_at, updated_at)
+        VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(email_draft_id) DO UPDATE SET responded_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+      `).bind(draftId).run();
+      return Response.json({ok:true});
     }
 
     // =========================================================
