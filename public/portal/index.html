@@ -2140,6 +2140,7 @@ async function loadRequests() {
                     <div class="client-verification-editor" hidden style="margin-top:12px;">
                       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
                         <label style="font-size:12px;font-weight:700;">Verification status<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
+                        <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, provider…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Completion date<input class="client-verification-completed" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       </div>
@@ -2366,9 +2367,11 @@ async function loadRequests() {
           </div>`).join("");
         section.dataset.verificationAuditId = String(latest.id);
         const statusSelect = section.querySelector(".client-verification-status");
+        const industryInput = section.querySelector(".client-verification-industry");
         const methodInput = section.querySelector(".client-verification-method");
         const completedInput = section.querySelector(".client-verification-completed");
         if (statusSelect) statusSelect.value = latest.verification_status || "pending_review";
+        if (industryInput) industryInput.value = latest.submitted_industry || "";
         if (methodInput) methodInput.value = latest.verification_method || "";
         if (completedInput) completedInput.value = latest.completed_at || "";
         if (editor) editor.hidden = false;
@@ -2436,6 +2439,7 @@ async function loadRequests() {
                 audit_id: auditId,
                 client_id: Number(section.dataset.clientId),
                 verification_status: auditStatus?.value || "pending_review",
+                submitted_industry: section.querySelector(".client-verification-industry")?.value || "",
                 verification_method: section.querySelector(".client-verification-method")?.value || "",
                 completed_at: auditCompleted?.value || ""
               })
