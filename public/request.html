@@ -311,15 +311,19 @@
               Preferred start time *
             </label>
 
-            <input
+            <select
               id="requested-time"
               name="requested_time"
-              type="time"
               required
+              disabled
             >
+              <option value="" selected>
+                Choose a date and duration first
+              </option>
+            </select>
 
-            <small>
-              Same-day requests must be scheduled at least 2 hours from the time you submit to allow time for screening.
+            <small id="availability-status" role="status" aria-live="polite">
+              Available start times will appear after you choose a date and duration.
             </small>
 
           </div>
@@ -425,6 +429,15 @@
 
       </div>
 
+
+
+      <!-- BOOKING SUMMARY -->
+      <section id="booking-summary" class="booking-summary" aria-labelledby="booking-summary-title" hidden>
+        <div class="eyebrow">REVIEW YOUR REQUEST</div>
+        <h2 id="booking-summary-title">Your Booking Summary</h2>
+        <dl id="booking-summary-details"></dl>
+        <p class="booking-summary-note">Your date is not reserved until your request is approved and the required 25% deposit is received.</p>
+      </section>
 
 
       <!-- SCREENING -->
@@ -626,8 +639,138 @@
       }
     }
 
-    dateType?.addEventListener("change", syncDurationOptions);
+    dateType?.addEventListener("change", () => {
+      syncDurationOptions();
+      loadAvailableTimes();
+      updateBookingSummary();
+    });
+    durationSelect?.addEventListener("change", () => {
+      loadAvailableTimes();
+      updateBookingSummary();
+    });
     syncDurationOptions();
+
+
+    let publicRateServices = [];
+
+    async function loadPublicRates() {
+      try {
+        const response = await fetch("/api/public/rates", { headers: { "Accept": "application/json" } });
+        const data = await response.json();
+        if (response.ok && data.ok && Array.isArray(data.services)) {
+          publicRateServices = data.services;
+        }
+      } catch (error) {
+        console.error("Unable to load current rates:", error);
+      }
+      updateBookingSummary();
+    }
+
+    function selectedOptionText(select) {
+      const option = select?.selectedOptions?.[0];
+      return option && option.value ? option.textContent.trim() : "";
+    }
+
+    function selectedRate() {
+      const experienceName = selectedOptionText(dateType);
+      const durationName = selectedOptionText(durationSelect);
+      const service = publicRateServices.find(item =>
+        String(item.name || "").toLowerCase() === experienceName.toLowerCase()
+      );
+      const rate = service?.rates?.find(item =>
+        String(item?.[0] || "").toLowerCase() === durationName.toLowerCase()
+      );
+      if (rate) return Number(rate[1]) || 0;
+      const fallback = {
+        "signature-private-companionship": { "1-hour": 500, "2-hours": 750, "3-hours": 1000, "4-hours": 1250 },
+        "greek-princess": { "1-hour": 650, "1.5-hours": 800, "2-hours": 1050 }
+      };
+      return fallback[dateType?.value]?.[durationSelect?.value] || 0;
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0
+      }).format(Number(value) || 0);
+    }
+
+    function updateBookingSummary() {
+      const summary = document.getElementById("booking-summary");
+      const details = document.getElementById("booking-summary-details");
+      if (!summary || !details) return;
+      const ready = dateType?.value && appointmentType?.value && durationSelect?.value &&
+        requestedDate?.value && requestedTime?.value;
+      summary.hidden = !ready;
+      if (!ready) {
+        details.innerHTML = "";
+        return;
+      }
+      const baseRate = selectedRate();
+      const outcallFee = appointmentType.value === "outcall" ? 100 : 0;
+      const total = baseRate + outcallFee;
+      const rows = [
+        ["Experience", selectedOptionText(dateType)],
+        ["Duration", selectedOptionText(durationSelect)],
+        ["Date", new Date(requestedDate.value + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })],
+        ["Start time", selectedOptionText(requestedTime)],
+        ["Location", selectedOptionText(appointmentType)],
+        ...(outcallFee ? [["Outcall add-on", money(outcallFee)]] : []),
+        ["Estimated total", money(total)],
+        ["Estimated 25% deposit", money(total * 0.25)]
+      ];
+      details.innerHTML = rows.map(row =>
+        '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>'
+      ).join("");
+    }
+
+    async function loadAvailableTimes() {
+      const status = document.getElementById("availability-status");
+      if (!requestedDate?.value || !durationSelect?.value) {
+        requestedTime.disabled = true;
+        requestedTime.innerHTML = '<option value="">Choose a date and duration first</option>';
+        if (status) status.textContent = "Available start times will appear after you choose a date and duration.";
+        updateBookingSummary();
+        return;
+      }
+
+      requestedTime.disabled = true;
+      requestedTime.innerHTML = '<option value="">Loading available times…</option>';
+      if (status) status.textContent = "Checking the calendar…";
+      try {
+        const params = new URLSearchParams({
+          date: requestedDate.value,
+          duration: durationSelect.value
+        });
+        const response = await fetch("/api/public/availability?" + params.toString(), {
+          headers: { "Accept": "application/json" }
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load availability.");
+        const slots = Array.isArray(data.slots) ? data.slots : [];
+        requestedTime.innerHTML = '<option value="">Select an available start time</option>' +
+          slots.map(time => {
+            const parts = time.split(":");
+            const display = new Date(2000, 0, 1, Number(parts[0]), Number(parts[1]))
+              .toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+            return '<option value="' + time + '">' + display + '</option>';
+          }).join("");
+        requestedTime.disabled = slots.length === 0;
+        if (status) {
+          status.textContent = slots.length
+            ? slots.length + " available start time" + (slots.length === 1 ? "" : "s") + " found."
+            : "No openings are available for that date and duration.";
+        }
+      } catch (error) {
+        requestedTime.innerHTML = '<option value="">Availability unavailable</option>';
+        requestedTime.disabled = true;
+        if (status) status.textContent = error.message || "Unable to load availability.";
+      }
+      updateBookingSummary();
+    }
+
+    loadPublicRates();
 
 
     const appointmentType = document.getElementById("appointment-type");
@@ -654,7 +797,10 @@
       });
     }
 
-    appointmentType?.addEventListener("change", syncOutcallAddress);
+    appointmentType?.addEventListener("change", () => {
+      syncOutcallAddress();
+      updateBookingSummary();
+    });
     syncOutcallAddress();
 
 
@@ -694,8 +840,15 @@
       return true;
     }
 
-    requestedDate.addEventListener("change", validateMinimumNotice);
-    requestedTime.addEventListener("change", validateMinimumNotice);
+    requestedDate.addEventListener("change", () => {
+      validateMinimumNotice();
+      loadAvailableTimes();
+      updateBookingSummary();
+    });
+    requestedTime.addEventListener("change", () => {
+      validateMinimumNotice();
+      updateBookingSummary();
+    });
 
 
     form.addEventListener(
@@ -766,6 +919,10 @@
 
 
           form.reset();
+          syncDurationOptions();
+          syncOutcallAddress();
+          loadAvailableTimes();
+          updateBookingSummary();
 
 
         } catch (error) {
