@@ -451,6 +451,16 @@
     style="margin-top: 12px;"
   ></div>
   <div id="request-outcome-controls" style="margin-top:20px;padding-top:18px;border-top:1px solid #ded7cd;display:flex;gap:10px;flex-wrap:wrap;">
+    <button type="button" id="reschedule-booking-button" style="padding:11px 18px;border:1px solid #8b765d;border-radius:999px;background:white;color:#5e4c39;font-family:inherit;cursor:pointer;">Reschedule Appointment</button>
+    <div id="reschedule-panel" style="display:none;width:100%;padding:16px;border:1px solid #ded7cd;border-radius:12px;background:#fffdf9;">
+      <strong>Choose a new date and time</strong>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px;">
+        <label style="font-size:12px;font-weight:700;">NEW DATE<input id="reschedule-date" type="date" value="${escapeHtml(item.requested_date||"")}" style="display:block;width:100%;margin-top:5px;padding:10px;border:1px solid #cfc6ba;border-radius:8px;font:inherit;"></label>
+        <label style="font-size:12px;font-weight:700;">NEW TIME<input id="reschedule-time" type="time" value="${escapeHtml(String(item.requested_time||"").slice(0,5))}" step="1800" style="display:block;width:100%;margin-top:5px;padding:10px;border:1px solid #cfc6ba;border-radius:8px;font:inherit;"></label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button type="button" id="save-reschedule-button" style="padding:10px 16px;border:0;border-radius:999px;background:#25252d;color:white;font:inherit;cursor:pointer;">Save New Appointment</button><button type="button" id="cancel-reschedule-button" style="padding:10px 16px;border:1px solid #cfc6ba;border-radius:999px;background:white;font:inherit;cursor:pointer;">Cancel</button></div>
+      <div id="reschedule-status" style="margin-top:9px;font-size:13px;color:#6f675f;"></div>
+    </div>
     <button type="button" id="decline-booking-button" style="padding:11px 18px;border:1px solid #9f3f3f;border-radius:999px;background:white;color:#8a3030;font-family:inherit;cursor:pointer;">Decline Booking</button>
     <button type="button" id="no-show-button" style="padding:11px 18px;border:1px solid #6f675f;border-radius:999px;background:white;color:#4e4944;font-family:inherit;cursor:pointer;">No Call / No Show</button>
     <div id="request-outcome-status" style="width:100%;font-size:13px;color:#6f675f;"></div>
@@ -487,6 +497,21 @@ if (["pending_final_approval", "screening_pending"].includes(item.status)) {
  moveForwardButton.style.display = "none";
 finalApprovalControls.style.display = "block";
 }
+
+const reschedulePanel=document.getElementById("reschedule-panel");
+document.getElementById("reschedule-booking-button")?.addEventListener("click",()=>{if(reschedulePanel)reschedulePanel.style.display=reschedulePanel.style.display==="none"?"block":"none";});
+document.getElementById("cancel-reschedule-button")?.addEventListener("click",()=>{if(reschedulePanel)reschedulePanel.style.display="none";});
+document.getElementById("save-reschedule-button")?.addEventListener("click",async()=>{
+  const button=document.getElementById("save-reschedule-button"),status=document.getElementById("reschedule-status");
+  const requested_date=document.getElementById("reschedule-date")?.value||"",requested_time=document.getElementById("reschedule-time")?.value||"";
+  if(!requested_date||!requested_time){if(status)status.textContent="Choose both a new date and time.";return;}
+  button.disabled=true;if(status)status.textContent="Checking availability...";
+  try{
+    const response=await fetch("/api/admin/request/reschedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(id),requested_date,requested_time})});
+    const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Unable to reschedule appointment.");
+    window.location.reload();
+  }catch(error){if(status)status.textContent=error.message||"Unable to reschedule appointment.";button.disabled=false;}
+});
 
 const outcomeStatus=document.getElementById("request-outcome-status");
 async function setRequestOutcome(outcome){
