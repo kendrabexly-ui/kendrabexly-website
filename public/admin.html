@@ -4118,16 +4118,11 @@ loadRequests();
             '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
             escapeHtml(formatCalendarDate(item.requested_date)) + (item.requested_time ? " · " + escapeHtml(formatCalendarTime(item.requested_time)) : "") +
             (item.location_name ? " · " + escapeHtml(item.location_name) : "") + '</div>' +
-            '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">' +
-            '<button type="button" data-calendar-view-client="' + escapeHtml(item.email || "") + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">View Client</button>' +
-            '<button type="button" data-calendar-view-date="' + escapeHtml(String(item.id || "")) + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">Date Details</button>' +
+            '<div style="display:flex;margin-top:8px;">' +
+            '<button type="button" data-calendar-view-date="' + escapeHtml(String(item.id || "")) + '" style="padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;font-weight:600;">Open Details</button>' +
             '</div></div>';
         }).join("")+(rows.length>6?'<div style="padding-top:12px;border-top:1px solid var(--line);"><button type="button" data-calendar-view-all="approved" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--cream);cursor:pointer;font-weight:600;">View All '+rows.length+' Upcoming Dates</button></div>':'') : '<div style="font-size:13px;color:var(--muted);">No upcoming approved dates.</div>';
         box.querySelector("[data-calendar-view-all]")?.addEventListener("click",()=>openCalendarRequestList("approved"));
-        box.querySelectorAll("[data-calendar-view-client]").forEach(button => button.addEventListener("click", () => {
-          const email = button.dataset.calendarViewClient || "";
-          openCalendarClient(email);
-        }));
         box.querySelectorAll("[data-calendar-view-date]").forEach(button => button.addEventListener("click", () => {
           const requestId = button.dataset.calendarViewDate || "";
           openCalendarRequest(requestId);
