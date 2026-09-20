@@ -266,6 +266,8 @@
           approved:["3 of 3 · Confirmed","This date is confirmed. After the appointment, mark it Successfully Completed."],
           completed:["Completed","This date has been successfully completed. Follow-up activity is handled from the client profile and Email Drafts."],
           canceled:["Canceled","No action is required unless you need to review this request."],
+          declined:["Declined","This booking request was declined."],
+          no_call_no_show:["No Call / No Show","This client did not call or arrive for the confirmed appointment."],
           blacklisted_submission:["Safety Review","This submission is linked to a blacklisted client. Review the safety record before taking any action."]
         };
         const flow=workflowCopy[String(item.status||"pending").toLowerCase()]||workflowCopy.pending;
@@ -448,6 +450,11 @@
     id="move-forward-status"
     style="margin-top: 12px;"
   ></div>
+  <div id="request-outcome-controls" style="margin-top:20px;padding-top:18px;border-top:1px solid #ded7cd;display:flex;gap:10px;flex-wrap:wrap;">
+    <button type="button" id="decline-booking-button" style="padding:11px 18px;border:1px solid #9f3f3f;border-radius:999px;background:white;color:#8a3030;font-family:inherit;cursor:pointer;">Decline Booking</button>
+    <button type="button" id="no-show-button" style="padding:11px 18px;border:1px solid #6f675f;border-radius:999px;background:white;color:#4e4944;font-family:inherit;cursor:pointer;">No Call / No Show</button>
+    <div id="request-outcome-status" style="width:100%;font-size:13px;color:#6f675f;"></div>
+  </div>
   <div id="completed-date-controls" style="${item.status === "approved" ? "" : "display:none;"}margin-top:24px;padding:18px 20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:14px;">
     <div class="label">AFTER THE DATE</div>
     <strong style="display:block;margin-top:6px;">Complete this only after the appointment has ended.</strong>
@@ -481,7 +488,21 @@ if (["pending_final_approval", "screening_pending"].includes(item.status)) {
 finalApprovalControls.style.display = "block";
 }
 
-const inactiveRequest=["canceled","blacklisted_submission","completed"].includes(String(item.status||"").toLowerCase());
+const outcomeStatus=document.getElementById("request-outcome-status");
+async function setRequestOutcome(outcome){
+  const label=outcome==="declined"?"decline this booking":"mark this booking No Call / No Show";
+  if(!window.confirm("Are you sure you want to "+label+"?")) return;
+  try{
+    const response=await fetch("/api/admin/request/outcome",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(id),outcome})});
+    const result=await response.json();
+    if(!response.ok||!result.ok) throw new Error(result.message||"Unable to update booking.");
+    window.location.reload();
+  }catch(error){if(outcomeStatus) outcomeStatus.textContent=error.message||"Unable to update booking.";}
+}
+document.getElementById("decline-booking-button")?.addEventListener("click",()=>setRequestOutcome("declined"));
+document.getElementById("no-show-button")?.addEventListener("click",()=>setRequestOutcome("no_call_no_show"));
+
+const inactiveRequest=["canceled","declined","no_call_no_show","blacklisted_submission","completed"].includes(String(item.status||"").toLowerCase());
 if(inactiveRequest){
   moveForwardButton.style.display="none";
   finalApprovalControls.style.display="none";
