@@ -2348,10 +2348,10 @@ async function loadRequests() {
       return `
         <button type="button" class="request-card" data-request-id="${item.id}" style="width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #ddd6ca;padding:20px 22px;cursor:pointer;font:inherit;">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
-            <div><strong style="font-size:16px;">${escapeHtml(name || "Client")}</strong>${status === "blacklisted_submission" ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED</span>' : ""}</div>
-            <span style="padding:4px 8px;border:1px solid var(--line);border-radius:999px;background:white;font-size:11px;font-weight:700;">${escapeHtml(statusLabels[status] || status.replaceAll("_"," "))}</span>
+            <div><strong style="font-size:16px;">${escapeHtml(name || "Client")}</strong></div>
+            <span style="padding:4px 8px;border:1px solid ${status==="blacklisted_submission"?"var(--red)":"var(--line)"};border-radius:999px;background:${status==="blacklisted_submission"?"#f3dfdf":"white"};font-size:11px;font-weight:700;">${status==="blacklisted_submission"?"🚩 ":""}${escapeHtml(statusLabels[status] || status.replaceAll("_"," "))}</span>
           </div>
-          <div style="margin-top:9px;font-weight:600;">${escapeHtml(item.requested_date || "Date not provided")} · ${escapeHtml(item.requested_time || "Time not provided")}</div>
+          <div style="margin-top:9px;font-weight:600;">${escapeHtml(formatCalendarDate(item.requested_date))} · ${escapeHtml(formatCalendarTime(item.requested_time))}</div>
           <div style="margin-top:3px;font-size:13px;color:var(--muted);">${escapeHtml(item.location_name || "Location not provided")}</div>
           ${status==="pending_final_approval" ? `<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;font-size:11px;"><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(deposit)}</span><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(screening)}</span></div>` : ""}
           <div style="margin-top:11px;font-size:13px;font-weight:700;text-decoration:underline;">${escapeHtml(nextActions[status] || "View Request")} →</div>
