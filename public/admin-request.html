@@ -436,9 +436,10 @@
     id="move-forward-status"
     style="margin-top: 12px;"
   ></div>
-  <div id="completed-date-controls" style="${item.status === "approved" ? "" : "display:none;"}margin-top:24px;padding-top:22px;border-top:1px solid #ded7cd;">
+  <div id="completed-date-controls" style="${item.status === "approved" ? "" : "display:none;"}margin-top:24px;padding:18px 20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:14px;">
     <div class="label">AFTER THE DATE</div>
-    <div style="margin:8px 0 12px;font-size:14px;color:#6f675f;">When the date is successfully completed, mark it here. Your Follow Up Agent will immediately create an after date draft for review.</div>
+    <strong style="display:block;margin-top:6px;">Complete this only after the appointment has ended.</strong>
+    <div style="margin:6px 0 14px;font-size:13px;color:#6f675f;line-height:1.5;">Marking the date successfully completed will create the After Date Follow Up draft for this specific appointment. Nothing is sent automatically.</div>
     <button type="button" id="mark-date-completed-button" style="background:#25252d;color:white;border:none;padding:12px 20px;border-radius:999px;font-family:inherit;cursor:pointer;">Mark Successfully Completed</button>
     <div id="completed-date-status" style="margin-top:10px;font-size:13px;"></div>
   </div>
@@ -480,9 +481,16 @@ if(markDateCompletedButton){
       const response=await fetch("/api/admin/request/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(id)})});
       const result=await response.json();
       if(!response.ok||!result.ok)throw new Error(result.message||"Unable to complete date.");
-      completedDateStatus.textContent=result.message||"Completed.";
-      markDateCompletedButton.textContent="Successfully Completed";
-      window.setTimeout(()=>{window.location.href="/admin?section=emails&request_id="+encodeURIComponent(id);},700);
+      completedDateStatus.innerHTML='<strong>✓ Date successfully completed.</strong><div style="margin-top:5px;">The After Date Follow Up draft is ready for review.</div>';
+      markDateCompletedButton.textContent="✓ Successfully Completed";
+      markDateCompletedButton.disabled=true;
+      const statusBadge=container.querySelector(".status"); if(statusBadge)statusBadge.textContent="Completed";
+      const workflow=document.getElementById("request-workflow");
+      if(workflow)workflow.innerHTML='<strong>Completed</strong><div style="margin-top:5px;font-size:13px;color:#6f675f;line-height:1.5;">This date is complete. Review the After Date Follow Up draft before sending it.</div>';
+      let followupButton=document.getElementById("review-after-date-followup");
+      if(!followupButton){followupButton=document.createElement("button");followupButton.id="review-after-date-followup";followupButton.type="button";followupButton.style.cssText="margin-top:12px;background:transparent;border:1px solid #cfc6ba;padding:10px 16px;border-radius:999px;font-family:inherit;cursor:pointer;";completedDateStatus.after(followupButton);}
+      followupButton.textContent="Review After Date Follow Up";
+      followupButton.onclick=()=>{window.location.href="/admin?section=emails&request_id="+encodeURIComponent(id);};
     }catch(error){completedDateStatus.textContent=error.message||"Unable to complete date.";markDateCompletedButton.disabled=false;}
   });
 }
