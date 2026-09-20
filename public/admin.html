@@ -782,9 +782,9 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <input id="email-drafts-search" type="search" placeholder="Find an email by client, subject, or message" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
           <select id="email-drafts-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-            <option value="all">All statuses</option>
-            <option value="draft">Drafts</option>
+            <option value="draft">Needs Review</option>
             <option value="sent">Sent</option>
+            <option value="all">All Emails</option>
           </select>
           <button id="email-drafts-clear-filters" type="button" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear Filters</button>
           <select id="email-drafts-sort" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
@@ -3024,14 +3024,15 @@ loadRequests();
         if (totalEl) totalEl.textContent = drafts.length;
         if (unsentEl) unsentEl.textContent = drafts.filter((draft) => String(draft.status || "draft").toLowerCase() !== "sent").length;
         if (sentEl) sentEl.textContent = drafts.filter((draft) => String(draft.status || "").toLowerCase() === "sent").length;
+        if (statusFilter) statusFilter.value = requestId ? "all" : "draft";
         const renderEmailDrafts = () => {
           const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
           const selectedStatus = statusFilter ? statusFilter.value : "all";
           const activeSummary = document.getElementById("email-drafts-active-filters");
-          const filtersActive = Boolean(query) || selectedStatus !== "all" || Boolean(sortSelect && sortSelect.value !== "newest");
+          const filtersActive = Boolean(query) || selectedStatus !== (requestId ? "all" : "draft") || Boolean(sortSelect && sortSelect.value !== "newest");
           if (clearFilters) {
             clearFilters.disabled = !filtersActive;
-            clearFilters.style.opacity = filtersActive ? "1" : "0.5";
+            clearFilters.style.display = filtersActive ? "inline-block" : "none";
             clearFilters.style.cursor = filtersActive ? "pointer" : "default";
           }
           if (activeSummary) {
@@ -3167,7 +3168,7 @@ loadRequests();
         if (sortSelect) sortSelect.onchange = renderEmailDrafts;
         if (clearFilters) clearFilters.onclick = () => {
           if (searchInput) searchInput.value = "";
-          if (statusFilter) statusFilter.value = "all";
+          if (statusFilter) statusFilter.value = requestId ? "all" : "draft";
           if (sortSelect) sortSelect.value = "newest";
           renderEmailDrafts();
           if (searchInput) searchInput.focus();
