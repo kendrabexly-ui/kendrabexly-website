@@ -777,11 +777,6 @@
           <p>Your safety-focused record of clients who should not be accepted for future bookings.</p>
         </div>
 
-        <div style="margin-bottom:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:white;">
-          <strong>Safety Records</strong>
-          <div style="margin-top:4px;font-size:13px;color:var(--muted);">Use this section to review active blacklist records, identify repeat attempts, and manage whether a client remains blocked. Booking history stays in the Client Profile and Requests sections.</div>
-        </div>
-
         <div id="blacklist-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="blacklist-total">—</strong><div style="font-size:12px;margin-top:2px;">Active Blocks</div></div>
           <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="blacklist-safety-count">—</strong><div style="font-size:12px;margin-top:2px;">With Safety Details</div></div>
@@ -802,9 +797,8 @@
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
           </select>
-          <button id="blacklist-clear-filters" type="button" style="display:none;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Reset</button>
+          <button id="blacklist-clear-filters" type="button" hidden style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear Filters</button>
         </div>
-        <div id="blacklist-active-filters" style="display:none;margin:-4px 0 14px;font-size:12px;color:var(--muted);"></div>
         <div class="panel">
           <div id="blacklist-records">
             <div class="empty">Loading blacklist...</div>
@@ -1480,20 +1474,6 @@
       const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
       const filter = safetyFilter ? safetyFilter.value : "all";
       const filtersActive = Boolean(query) || filter !== "all" || Boolean(sortSelect && sortSelect.value !== "newest");
-      const activeFilterSummary = document.getElementById("blacklist-active-filters");
-      if (activeFilterSummary) {
-        const parts = [];
-        if (query) parts.push("Search: " + (searchInput ? searchInput.value.trim() : ""));
-        if (filter !== "all") parts.push("Safety: " + (safetyFilter?.options[safetyFilter.selectedIndex]?.text || filter));
-        if (sortSelect && sortSelect.value !== "newest") parts.push("Sort: Oldest first");
-        activeFilterSummary.textContent = parts.length ? "Active: " + parts.join(" · ") : "";
-        activeFilterSummary.style.display = parts.length ? "block" : "none";
-      }
-      if (clearFilters) {
-        clearFilters.disabled = !filtersActive;
-        clearFilters.style.opacity = filtersActive ? "1" : "0.5";
-        clearFilters.style.cursor = filtersActive ? "pointer" : "default";
-      }
       const filtered = records.filter((item) => {
         const reason = String(item.reason || "").toLowerCase();
         const haystack = [item.name,item.email,item.phone,item.reason].filter(Boolean).join(" ").toLowerCase();
@@ -1506,7 +1486,7 @@
       if (filteredCountEl) filteredCountEl.textContent = filtered.length;
       const showingCard = document.getElementById("blacklist-showing-card");
       if (showingCard) showingCard.style.display = filtersActive ? "block" : "none";
-      if (clearFilters) clearFilters.style.display = filtersActive ? "inline-block" : "none";
+      if (clearFilters) clearFilters.hidden = !filtersActive;
       container.innerHTML = filtered.length ? filtered.map((item) => {
       const safety = parseSafetyReason(item.reason);
       return `
@@ -1519,7 +1499,7 @@
           <span style="padding:5px 9px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLOCKED</span>
         </div>
         ${safety.concerns.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:11px;">${safety.concerns.map(concern => `<span style="padding:5px 8px;border-radius:999px;background:#f3dfdf;font-size:12px;font-weight:700;">${escapeHtml(concern)}</span>`).join("")}</div>` : `<div style="margin-top:11px;font-size:13px;font-weight:700;">${escapeHtml(item.reason || "Reason not recorded")}</div>`}
-        <div style="margin-top:8px;font-size:12px;color:var(--muted);">Blocked since ${escapeHtml(item.created_at || "—")}</div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);">Blocked since ${escapeHtml(item.created_at ? formatCalendarDate(String(item.created_at).slice(0,10)) : "Date unavailable")}</div>
         <details style="margin-top:10px;">
           <summary style="cursor:pointer;font-size:12px;font-weight:700;">Manage Safety Record</summary>
           <div style="margin-top:9px;padding:10px 12px;background:#faf8f4;border-radius:8px;">
