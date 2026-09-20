@@ -3810,6 +3810,42 @@ loadRequests();
     function readCalendarAvailability() {
       try { return JSON.parse(localStorage.getItem(calendarAvailabilityKey) || "[]"); } catch { return []; }
     }
+    async function writeCalendarAvailabilityRemote(method,slot){
+      try{
+        const response=await fetch("/api/admin/calendar/availability",{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(slot)});
+        const data=await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.message||"Unable to save availability.");
+        return true;
+      }catch(error){
+        console.error("Calendar availability sync failed:",error);
+        return false;
+      }
+    }
+    async function loadCalendarAvailabilityRemote(){
+      try{
+        const response=await fetch("/api/admin/calendar/availability");
+        const data=await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.message||"Unable to load availability.");
+        const remote=Array.isArray(data.items)?data.items:[];
+        const local=readCalendarAvailability();
+        const migrationKey=calendarAvailabilityKey+"_server_migrated";
+        let merged=remote;
+        if(!localStorage.getItem(migrationKey)){
+          const missing=local.filter(slot=>!remote.some(item=>item.date===slot.date && item.time===slot.time));
+          const migrated=await Promise.all(missing.map(slot=>writeCalendarAvailabilityRemote("POST",slot)));
+          if(migrated.some(result=>!result)) throw new Error("Unable to migrate local availability.");
+          merged=[...remote,...missing];
+          localStorage.setItem(migrationKey,"1");
+        }
+        localStorage.setItem(calendarAvailabilityKey,JSON.stringify(merged));
+        renderCalendarAvailability();
+        renderCalendarWeek();
+      }catch(error){
+        setCalendarAvailabilityFeedback("Using availability saved in this browser. Server sync is temporarily unavailable.",true);
+        renderCalendarAvailability();
+        renderCalendarWeek();
+      }
+    }
     function minutesFromTime(value) {
       const match=String(value||"").match(/(\d{1,2}):(\d{2})/);
       return match ? Number(match[1])*60+Number(match[2]) : null;
@@ -3842,7 +3878,10 @@ loadRequests();
         const opening=new Date(String(item.date)+"T"+String(item.time||"23:59"));
         return Number.isFinite(opening.getTime()) && opening>=now;
       });
-      if(active.length!==saved.length) localStorage.setItem(calendarAvailabilityKey,JSON.stringify(active));
+      if(active.length!==saved.length){
+        localStorage.setItem(calendarAvailabilityKey,JSON.stringify(active));
+        saved.filter(item=>!active.includes(item)).forEach(item=>writeCalendarAvailabilityRemote("DELETE",item));
+      }
       const all=active.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
       const rows=all.filter(item=>!availabilityIsBlocked(item,calendarApprovedDates));
       if(count) count.textContent=String(rows.length);
@@ -3850,9 +3889,10 @@ loadRequests();
         const originalIndex=all.findIndex(candidate=>candidate.date===item.date && candidate.time===item.time);
         return '<div style="padding:9px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;"><span style="font-size:13px;">'+escapeHtml(formatCalendarDate(item.date))+(item.time?' · '+escapeHtml(formatCalendarTime(item.time)):'')+'</span><button type="button" data-remove-availability="'+originalIndex+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button></div>';
       }).join("") : '<div style="font-size:13px;color:var(--muted);">No open availability for the current schedule.</div>';
-      box.querySelectorAll("[data-remove-availability]").forEach(button=>button.addEventListener("click",()=>{
+      box.querySelectorAll("[data-remove-availability]").forEach(button=>button.addEventListener("click",async()=>{
         const current=readCalendarAvailability().filter(item=>item && item.date).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-        current.splice(Number(button.dataset.removeAvailability),1);
+        const removed=current.splice(Number(button.dataset.removeAvailability),1)[0];
+        if(removed) await writeCalendarAvailabilityRemote("DELETE",removed);
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
         renderCalendarAvailability();
         renderCalendarWeek();
@@ -3866,7 +3906,7 @@ loadRequests();
     }
     const calendarAvailabilityDateInput=document.getElementById("calendar-availability-date");
     if(calendarAvailabilityDateInput) calendarAvailabilityDateInput.min=new Date().toLocaleDateString("en-CA");
-    document.getElementById("calendar-add-availability")?.addEventListener("click",()=>{
+    document.getElementById("calendar-add-availability")?.addEventListener("click",async()=>{
       const date=document.getElementById("calendar-availability-date")?.value||"";
       const time=document.getElementById("calendar-availability-time")?.value||"";
       if(!date || !time) return setCalendarAvailabilityFeedback("Choose both a date and time.",true);
@@ -3876,11 +3916,12 @@ loadRequests();
       if(availabilityIsBlocked(slot,calendarApprovedDates)) return setCalendarAvailabilityFeedback("That time overlaps a confirmed appointment.",true);
       const current=readCalendarAvailability();
       if(current.some(item=>item.date===date && item.time===time)) return setCalendarAvailabilityFeedback("That opening is already listed.",true);
+      const synced=await writeCalendarAvailabilityRemote("POST",slot);
       current.push(slot);
       localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
       document.getElementById("calendar-availability-date").value="";
       document.getElementById("calendar-availability-time").value="";
-      setCalendarAvailabilityFeedback("Opening added.");
+      setCalendarAvailabilityFeedback(synced?"Opening added and synced.":"Opening added in this browser; server sync is temporarily unavailable.",!synced);
       renderCalendarAvailability();
       renderCalendarWeek();
     });
@@ -3931,8 +3972,9 @@ loadRequests();
         const requestId=button.dataset.dayViewDate||"";
         openCalendarRequest(requestId);
       }));
-      box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",()=>{
+      box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",async()=>{
         const time=button.dataset.dayRemoveTime||"";
+        await writeCalendarAvailabilityRemote("DELETE",{date:key,time});
         const current=readCalendarAvailability().filter(x=>!(x.date===key && x.time===time));
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
         renderCalendarAvailability(); renderCalendarWeek(); renderCalendarDay(key);
@@ -4046,6 +4088,7 @@ loadRequests();
         const removedOpeningCount=savedAvailability.length-availableAfterBookings.length;
         if(removedOpeningCount>0){
           localStorage.setItem(calendarAvailabilityKey,JSON.stringify(availableAfterBookings));
+          savedAvailability.filter(slot=>availabilityIsBlocked(slot,calendarApprovedDates)).forEach(slot=>writeCalendarAvailabilityRemote("DELETE",slot));
           setCalendarAvailabilityFeedback(removedOpeningCount+" opening"+(removedOpeningCount===1?" was":"s were")+" removed because confirmed appointments now occupy the time.");
         }
         renderCalendarAvailability();
@@ -4148,6 +4191,12 @@ loadRequests();
 
     const initialSectionName = new URLSearchParams(window.location.search).get("section") || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
     openSection(initialSectionName);
+    if(initialSectionName==="calendar"){
+      loadCalendarAvailabilityRemote().finally(()=>{
+        loadCalendarUpcomingDates();
+        loadCalendarCompletedDates();
+      });
+    }
 
     navButtons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -4165,8 +4214,10 @@ loadRequests();
         window.history.replaceState({}, "", nextUrl);
 
         if (sectionName === "calendar") {
-          loadCalendarUpcomingDates();
-          loadCalendarCompletedDates();
+          loadCalendarAvailabilityRemote().finally(()=>{
+            loadCalendarUpcomingDates();
+            loadCalendarCompletedDates();
+          });
         }
         if (sectionName === "emails") {
           const emailBox=document.getElementById("email-draft-records");
