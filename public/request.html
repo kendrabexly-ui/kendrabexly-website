@@ -24,7 +24,7 @@
     rel="stylesheet"
   >
 
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css">\n  <script src="/site-shell.js"></script>
 </head>
 
 
@@ -32,20 +32,7 @@
 
   <a class="skip-link" href="#main-content">Skip to booking form</a>
 
-  <!-- NAVIGATION -->
-  <header class="nav">
-  <a class="brand" href="/" aria-label="Kendra Bexly home">Kendra Bexly</a>
-  <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-  <nav id="site-nav" aria-label="Primary navigation">
-    <a href="/">The Invitation</a>
-    <a href="/meet-kendra">Meet Kendra</a>
-    <a href="/the-muse">The Muse</a>
-    <a href="/our-time">Our Time</a>
-    <a href="/etiquette">Etiquette</a>
-    <a href="/pillow-talk">Pillow Talk</a>
-    <a class="button small" href="/request" aria-current="page">The Rendezvous</a>
-  </nav>
-</header>
+  <site-header active="request"></site-header>
 
 
   <main id="main-content" class="request-page">
@@ -531,61 +518,11 @@
 
   <!-- FORM SUBMISSION -->
   
-  <footer class="site-footer">
-    <div class="footer-subscribe">
-      <div>
-        <div class="eyebrow">PRIVATE NOTES</div>
-        <h2>Stay in the Know</h2>
-        <p>Join my private list for personal notes, new availability, and the occasional invitation created especially for you.</p>
-      </div>
-      <form class="footer-subscribe-form" novalidate>
-        <label>
-          <span>Email address</span>
-          <div class="footer-subscribe-row">
-            <input name="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" required>
-            <button class="button" type="submit">Subscribe</button>
-          </div>
-        </label>
-        <small class="footer-subscribe-status" hidden role="status" aria-live="polite"></small>
-      </form>
-    </div>
-    <div class="footer-bottom">
-      <span>Copyright 2025 by Kendra Bexly</span>
-    </div>
-  </footer>
+  <site-footer></site-footer>
 
   <script src="/newsletter.js"></script>
 
   <script>
-    const menuToggle = document.querySelector(".menu-toggle");
-    const siteNav = document.getElementById("site-nav");
-
-    const closeMenu = () => {
-      menuToggle?.setAttribute("aria-expanded", "false");
-      siteNav?.classList.remove("open");
-    };
-
-    menuToggle?.addEventListener("click", () => {
-      const willOpen = menuToggle.getAttribute("aria-expanded") !== "true";
-      menuToggle.setAttribute("aria-expanded", String(willOpen));
-      siteNav?.classList.toggle("open", willOpen);
-    });
-
-    siteNav?.addEventListener("click", event => {
-      if (event.target.closest("a")) closeMenu();
-    });
-
-    document.addEventListener("keydown", event => {
-      if (event.key === "Escape") {
-        closeMenu();
-        menuToggle?.focus();
-      }
-    });
-
-    window.addEventListener("resize", () => {
-      if (window.innerWidth > 1100) closeMenu();
-    });
-
     const offerParams = new URLSearchParams(window.location.search);
     const newsletterOffer = offerParams.get("newsletter_offer");
     if (newsletterOffer && /^\d+$/.test(newsletterOffer)) {
