@@ -519,3 +519,8 @@ input:focus-visible {
     width: 100%;
   }
 }
+
+.invitation-page .hero.invitation {
+  min-height: calc(100vh - 84px);
+  min-height: calc(100svh - 84px);
+}
