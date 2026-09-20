@@ -647,6 +647,12 @@
           <p>Review and manage incoming date requests.</p>
         </div>
 
+        <div id="request-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-bottom:14px;">
+          <button type="button" data-request-summary="pending" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="request-summary-pending">—</strong><div style="font-size:12px;margin-top:3px;">Needs Review</div></button>
+          <button type="button" data-request-summary="pending_final_approval" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="request-summary-final">—</strong><div style="font-size:12px;margin-top:3px;">Final Approval</div></button>
+          <button type="button" data-request-summary="approved" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="request-summary-approved">—</strong><div style="font-size:12px;margin-top:3px;">Confirmed</div></button>
+          <button type="button" data-request-summary="completed" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="request-summary-completed">—</strong><div style="font-size:12px;margin-top:3px;">Completed</div></button>
+        </div>
         <div class="panel">
           <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;flex-wrap:wrap;">
             <select id="request-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
@@ -654,6 +660,7 @@
               <option value="pending">Pending</option>
               <option value="pending_final_approval">Pending final approval</option>
               <option value="approved">Approved</option>
+              <option value="completed">Completed</option>
               <option value="canceled">Canceled</option>
               <option value="blacklisted_submission">🚩 Blacklisted submissions</option>
             </select>
@@ -1358,6 +1365,14 @@ async function loadRequests() {
     }
 
     const requests = data.requests || [];
+    const requestCount=(status)=>requests.filter(item=>String(item.status||"").toLowerCase()===status).length;
+    const requestSummaryValues={
+      "request-summary-pending":requestCount("pending"),
+      "request-summary-final":requestCount("pending_final_approval"),
+      "request-summary-approved":requestCount("approved"),
+      "request-summary-completed":requestCount("completed")
+    };
+    Object.entries(requestSummaryValues).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=String(value);});
     let savedClientProfiles = new Map();
     try {
       const cpResponse = await fetch("/api/admin/clients");
@@ -1849,6 +1864,15 @@ async function loadRequests() {
     };
 
     renderAllRequests();
+    document.querySelectorAll("[data-request-summary]").forEach(button=>{
+      if(button.dataset.bound==="1") return;
+      button.dataset.bound="1";
+      button.addEventListener("click",()=>{
+        if(statusFilter) statusFilter.value=button.dataset.requestSummary||"all";
+        renderAllRequests();
+        recordsContainer?.scrollIntoView({behavior:"smooth",block:"start"});
+      });
+    });
     if (statusFilter) statusFilter.addEventListener("change", renderAllRequests);
     if (requestSearch) requestSearch.addEventListener("input", renderAllRequests);
 
