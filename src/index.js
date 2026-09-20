@@ -51,6 +51,46 @@ async function ensureSiteContentTables(env) {
 }
 
 
+const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that a valid ID is required for screening before final approval.";
+const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-id-v1";
+
+async function ensureClientVerificationAuditsTable(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_audits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER NOT NULL,
+      date_request_id INTEGER NOT NULL UNIQUE,
+      accepted INTEGER NOT NULL DEFAULT 0,
+      authorization_wording TEXT NOT NULL,
+      authorization_version TEXT NOT NULL,
+      accepted_at TEXT NOT NULL,
+      verification_status TEXT NOT NULL DEFAULT 'pending_review',
+      verification_method TEXT NOT NULL DEFAULT '',
+      completed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_client_verification_audits_client ON client_verification_audits(client_id, accepted_at DESC)").run();
+}
+
+function verificationAuditPublicRecord(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    client_id: Number(row.client_id),
+    booking_request_id: Number(row.date_request_id),
+    accepted: Number(row.accepted || 0) === 1,
+    authorization_wording: row.authorization_wording || "",
+    authorization_version: row.authorization_version || "",
+    accepted_at: row.accepted_at || "",
+    verification_status: row.verification_status || "pending_review",
+    verification_method: row.verification_method || "",
+    completed_at: row.completed_at || "",
+    updated_at: row.updated_at || ""
+  };
+}
+
 async function ensureClientIdDocumentsTable(env) {
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_id_documents (
@@ -230,6 +270,77 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+
+    // =========================================================
+    // PRIVATE CLIENT VERIFICATION AUDIT
+    // Protected by Cloudflare Access with the rest of /api/admin.
+    // =========================================================
+
+    if (url.pathname === "/api/admin/clients/verification-audit" && request.method === "GET") {
+      try {
+        await ensureClientVerificationAuditsTable(env);
+        const clientId = Number(url.searchParams.get("client_id"));
+        if (!await requireIdDocumentClient(env, clientId)) {
+          return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
+        }
+        const result = await env.DB.prepare(`
+          SELECT id, client_id, date_request_id, accepted, authorization_wording,
+                 authorization_version, accepted_at, verification_status,
+                 verification_method, completed_at, updated_at
+          FROM client_verification_audits
+          WHERE client_id = ?
+          ORDER BY accepted_at DESC, id DESC
+        `).bind(clientId).all();
+        return Response.json({
+          ok: true,
+          records: (result.results || []).map(verificationAuditPublicRecord)
+        }, { headers: { "Cache-Control": "private, no-store" } });
+      } catch (error) {
+        console.error("Load client verification audit error:", error);
+        return Response.json({ ok: false, message: "Unable to load verification records." }, { status: 500 });
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-audit" && request.method === "POST") {
+      try {
+        await ensureClientVerificationAuditsTable(env);
+        const data = await request.json().catch(() => ({}));
+        const auditId = Number(data.audit_id);
+        const clientId = Number(data.client_id);
+        if (!Number.isInteger(auditId) || auditId < 1 || !await requireIdDocumentClient(env, clientId)) {
+          return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
+        }
+        const allowedStatuses = new Set(["pending_review", "verified", "unable_to_verify", "declined"]);
+        const verificationStatus = String(data.verification_status || "");
+        if (!allowedStatuses.has(verificationStatus)) {
+          return Response.json({ ok: false, message: "Choose a valid verification status." }, { status: 400 });
+        }
+        const verificationMethod = String(data.verification_method || "").trim().slice(0, 240);
+        const completedAt = verificationStatus === "pending_review"
+          ? null
+          : (idDocumentDate(data.completed_at) || idDocumentToday());
+        const update = await env.DB.prepare(`
+          UPDATE client_verification_audits
+          SET verification_status = ?, verification_method = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND client_id = ?
+        `).bind(verificationStatus, verificationMethod, completedAt, auditId, clientId).run();
+        if (!Number(update.meta?.changes || 0)) {
+          return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
+        }
+        const row = await env.DB.prepare(`
+          SELECT id, client_id, date_request_id, accepted, authorization_wording,
+                 authorization_version, accepted_at, verification_status,
+                 verification_method, completed_at, updated_at
+          FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
+        `).bind(auditId, clientId).first();
+        return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
+          headers: { "Cache-Control": "private, no-store" }
+        });
+      } catch (error) {
+        console.error("Update client verification audit error:", error);
+        return Response.json({ ok: false, message: "Unable to update the verification record." }, { status: 500 });
+      }
+    }
 
     // =========================================================
     // PRIVATE CLIENT ID DOCUMENTS
@@ -2569,6 +2680,24 @@ My journal will continue to be a place where I share a little more of that side 
         const requestId =
           requestResult.meta.last_row_id;
 
+        // Preserve the screening acknowledgement exactly as presented when
+        // this booking request was submitted. This is an audit record only;
+        // it does not add or change wording on the public form.
+        await ensureClientVerificationAuditsTable(env);
+        await env.DB.prepare(`
+          INSERT INTO client_verification_audits
+            (client_id, date_request_id, accepted, authorization_wording,
+             authorization_version, accepted_at, verification_status, verification_method)
+          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'pending_review', 'Booking form acknowledgement')
+          ON CONFLICT(date_request_id) DO NOTHING
+        `).bind(
+          clientId,
+          requestId,
+          screeningAcknowledgement ? 1 : 0,
+          SCREENING_ACKNOWLEDGEMENT_WORDING,
+          SCREENING_ACKNOWLEDGEMENT_VERSION
+        ).run();
+
 
         // Create the first email draft for review.
         // This is NOT automatically sent.
@@ -2803,7 +2932,11 @@ Kendra`
           "SELECT COUNT(*) AS total FROM date_requests"
         ).first();
 
+        await ensureClientVerificationAuditsTable(env);
         await env.DB.batch([
+          env.DB.prepare(
+            "DELETE FROM client_verification_audits WHERE date_request_id IS NOT NULL"
+          ),
           env.DB.prepare(
             "DELETE FROM email_drafts WHERE date_request_id IS NOT NULL"
           ),
