@@ -47,6 +47,32 @@
     </section>
   </main>
 
+  
+  <footer class="site-footer">
+    <div class="footer-subscribe">
+      <div>
+        <div class="eyebrow">PRIVATE NOTES</div>
+        <h2>Stay in the know.</h2>
+        <p>Subscribe for personal updates and private offers.</p>
+      </div>
+      <form class="footer-subscribe-form" novalidate>
+        <label>
+          <span>Email address</span>
+          <div class="footer-subscribe-row">
+            <input name="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" required>
+            <button class="button" type="submit">Subscribe</button>
+          </div>
+        </label>
+        <small class="footer-subscribe-status" hidden role="status" aria-live="polite"></small>
+      </form>
+    </div>
+    <div class="footer-bottom">
+      <span>Copyright 2025 by Kendra Bexly</span>
+    </div>
+  </footer>
+
+  <script src="/newsletter.js"></script>
+
   <script>
     const toggle = document.querySelector(".menu-toggle");
     const nav = document.getElementById("site-nav");
