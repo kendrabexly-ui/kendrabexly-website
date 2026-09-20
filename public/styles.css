@@ -1254,3 +1254,43 @@ input:focus-visible {
     line-height: 1.75;
   }
 }
+
+
+/* Our Time add-ons */
+.rate-addons {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
+  gap: clamp(40px, 8vw, 110px);
+  align-items: center;
+  padding: 70px 8vw 90px;
+  border-top: 1px solid #d8d0c7;
+  background: #e9dfd5;
+}
+
+.rate-addons h2 {
+  margin: 0;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(36px, 4.5vw, 56px);
+  font-weight: 500;
+}
+
+.rate-addons .add-on-list {
+  margin-top: 0;
+}
+
+.rate-addons .add-on-list dt {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.rate-addons .add-on-list dd {
+  font-size: 30px;
+}
+
+@media (max-width: 760px) {
+  .rate-addons {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 58px 8vw 70px;
+  }
+}
