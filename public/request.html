@@ -504,6 +504,13 @@
 
   <!-- FORM SUBMISSION -->
   <script>
+    const menuToggle = document.querySelector(".menu-toggle");
+    const siteNav = document.getElementById("site-nav");
+    menuToggle?.addEventListener("click", () => {
+      const open = menuToggle.getAttribute("aria-expanded") === "true";
+      menuToggle.setAttribute("aria-expanded", String(!open));
+      siteNav?.classList.toggle("open", !open);
+    });
 
     const offerParams = new URLSearchParams(window.location.search);
     const newsletterOffer = offerParams.get("newsletter_offer");
