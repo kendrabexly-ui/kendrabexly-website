@@ -1522,6 +1522,15 @@ async function loadRequests() {
 
     const retentionTargetFilter = document.getElementById("retention-target-filter");
     const retentionTargetList = document.getElementById("retention-targeting-list");
+    let retentionStatusByClient = new Map();
+    try {
+      const statusResponse = await fetch("/api/admin/retention/follow-up-status");
+      const statusData = await statusResponse.json();
+      if (statusResponse.ok && statusData.ok) {
+        (statusData.clients || []).forEach(item => retentionStatusByClient.set(Number(item.client_id), item));
+      }
+    } catch (error) {}
+
     const renderRetentionTargets = () => {
       if (!retentionTargetList) return;
       const group = retentionTargetFilter?.value || "reconnect";
@@ -1551,13 +1560,19 @@ async function loadRequests() {
         const name = (String(client.first_name || "") + " " + String(client.last_name || "")).trim() || "Client";
         const reason = days >= 90 ? "Due for reconnect" : days >= 61 ? "Cooling off" : completed >= 2 ? "Repeat client" : "Recently seen";
         const lookup = client.email || client.phone || name;
+        const contact = retentionStatusByClient.get(Number(client.client_id)) || {};
+        const sentAt = contact.sent_at ? new Date(contact.sent_at) : null;
+        const recentlyContacted = sentAt && Number.isFinite(sentAt.getTime()) && (Date.now() - sentAt.getTime()) < 30 * 86400000;
+        const contactLabel = recentlyContacted ? "Recently Contacted" : contact.status === "sent" ? "Sent" : contact.status === "draft" ? "Draft Ready" : "Not Contacted";
+        const contactDetail = contact.sent_at ? " · Last sent " + new Date(contact.sent_at).toLocaleDateString() : "";
         return `<div style="padding:13px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
           <div>
             <strong>${escapeHtml(name)}</strong>
             <div style="font-size:12px;color:var(--muted);margin-top:3px;">${escapeHtml(reason)} · ${completed} completed date${completed === 1 ? "" : "s"} · Last completed ${escapeHtml(lastDate || "unknown")}${days !== null ? " · " + days + " days ago" : ""}</div>
+            <div style="margin-top:6px;"><span style="display:inline-block;padding:4px 7px;border:1px solid var(--line);border-radius:999px;background:${recentlyContacted ? "#f7f2e9" : "white"};font-size:11px;font-weight:700;">${escapeHtml(contactLabel)}</span><span style="font-size:11px;color:var(--muted);">${escapeHtml(contactDetail)}</span></div>
           </div>
           <div style="display:flex;gap:7px;flex-wrap:wrap;">
-            <button type="button" class="retention-create-draft" data-client-id="${escapeHtml(String(client.client_id || ""))}" style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:#2f2a25;color:white;cursor:pointer;font-size:12px;font-weight:700;">Create Follow-Up Draft</button>
+            <button type="button" class="retention-create-draft" data-client-id="${escapeHtml(String(client.client_id || ""))}" ${recentlyContacted ? 'disabled title="A retention follow-up was sent within the last 30 days."' : ""} style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:#2f2a25;color:white;cursor:pointer;font-size:12px;font-weight:700;">${recentlyContacted ? "Recently Contacted" : contact.status === "draft" ? "Refresh Follow-Up Draft" : "Create Follow-Up Draft"}</button>
             <a href="/admin?section=clients&client_email=${encodeURIComponent(lookup)}" style="display:inline-block;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;color:inherit;text-decoration:none;font-size:12px;font-weight:700;">Open Client Profile</a>
           </div>
         </div>`;
