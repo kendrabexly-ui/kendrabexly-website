@@ -3946,6 +3946,18 @@ loadRequests();
       if(dayView) dayView.style.display="none";
     });
 
+    function openCalendarRequestList(status){
+      openSection("requests");
+      window.setTimeout(()=>{
+        const filter=document.getElementById("request-status-filter");
+        const search=document.getElementById("request-search");
+        if(search) search.value="";
+        if(filter) filter.value=status;
+        (filter||search)?.dispatchEvent(new Event(filter?"change":"input",{bubbles:true}));
+        document.getElementById("request-records")?.scrollIntoView({behavior:"smooth",block:"start"});
+      },100);
+    }
+
     async function loadCalendarCompletedDates() {
       const box=document.getElementById("calendar-completed-dates");
       const count=document.getElementById("calendar-completed-count");
@@ -3970,7 +3982,8 @@ loadRequests();
             '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;">'+
             '<button type="button" data-completed-view-client="'+escapeHtml(item.email||"")+'" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">View Client</button>'+
             '</div></div>';
-        }).join("") : '<div style="font-size:13px;color:var(--muted);">No successfully completed dates yet.</div>';
+        }).join("")+(rows.length>8?'<div style="padding-top:12px;border-top:1px solid var(--line);"><button type="button" data-calendar-view-all="completed" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--cream);cursor:pointer;font-weight:600;">View All '+rows.length+' Completed Dates</button></div>':'') : '<div style="font-size:13px;color:var(--muted);">No successfully completed dates yet.</div>';
+        box.querySelector("[data-calendar-view-all]")?.addEventListener("click",()=>openCalendarRequestList("completed"));
         box.querySelectorAll("[data-completed-view-client]").forEach(button=>button.addEventListener("click",()=>{
           const email=button.dataset.completedViewClient||"";
           openSection("clients");
@@ -4028,7 +4041,8 @@ loadRequests();
             '<button type="button" data-calendar-view-client="' + escapeHtml(item.email || "") + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">View Client</button>' +
             '<button type="button" data-calendar-view-date="' + escapeHtml(String(item.id || "")) + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;">Date Details</button>' +
             '</div></div>';
-        }).join("") : '<div style="font-size:13px;color:var(--muted);">No upcoming approved dates.</div>';
+        }).join("")+(rows.length>6?'<div style="padding-top:12px;border-top:1px solid var(--line);"><button type="button" data-calendar-view-all="approved" style="width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--cream);cursor:pointer;font-weight:600;">View All '+rows.length+' Upcoming Dates</button></div>':'') : '<div style="font-size:13px;color:var(--muted);">No upcoming approved dates.</div>';
+        box.querySelector("[data-calendar-view-all]")?.addEventListener("click",()=>openCalendarRequestList("approved"));
         box.querySelectorAll("[data-calendar-view-client]").forEach(button => button.addEventListener("click", () => {
           const email = button.dataset.calendarViewClient || "";
           openSection("clients");
