@@ -2623,6 +2623,21 @@ if (
         );
       }
     }
+    if (
+      url.pathname === "/api/admin/email-drafts/clear" &&
+      request.method === "POST"
+    ) {
+      try {
+        const result = await env.DB.prepare(
+          "DELETE FROM email_drafts WHERE COALESCE(status, 'draft') != 'sent'"
+        ).run();
+        return Response.json({ ok:true, deleted:Number(result.meta?.changes || 0) });
+      } catch (error) {
+        console.error("Clear email drafts error:", error);
+        return Response.json({ ok:false, message:"Unable to clear email drafts." }, { status:500 });
+      }
+    }
+
 // ========================================
 // UPDATE ADMIN EMAIL DRAFT
 // ========================================
