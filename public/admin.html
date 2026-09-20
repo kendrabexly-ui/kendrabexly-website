@@ -1516,17 +1516,14 @@ async function loadRequests() {
             ${blacklistRecord ? '<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED</span>' : ""}
             ${blacklistRecord ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">⚠️ ${riskLabel}</span>` : ""}
             ${blacklistRecord && blockedAttempts.length > 1 ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">${blockedAttempts.length} BLOCKED ATTEMPTS</span>` : ""}
-            <div style="margin-top:6px;">${escapeHtml(client.email || "No email")} · ${escapeHtml(client.phone || "No phone")}</div>
-            <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:14px;">
-              <span><strong>${client.requests.length}</strong> total request${client.requests.length === 1 ? "" : "s"}</span>
-              <span><strong>${approved}</strong> approved</span>
-              <span><strong>${completed}</strong> completed date${completed === 1 ? "" : "s"}</span>
-              <span><strong>${followThroughRate}%</strong> request follow-through</span>
-              <span><strong>${canceled}</strong> canceled</span>
-              <span><strong>${deposits.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong> deposits paid</span>
-              <span>Latest: <strong>${escapeHtml(latest?.requested_date || "—")}</strong></span>
+            <div style="margin-top:6px;font-size:13px;color:var(--muted);">${escapeHtml(client.email || "No email")} · ${escapeHtml(client.phone || "No phone")}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;font-size:12px;">
+              ${upcomingDate ? `<span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>Next Date:</strong> ${escapeHtml(upcomingDate.requested_date || "Scheduled")}</span>` : ""}
+              ${lastCompleted ? `<span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>Last Seen:</strong> ${escapeHtml(lastCompleted.requested_date || "Completed")}</span>` : ""}
+              <span style="padding:5px 8px;border-radius:999px;background:#f7f2e9;"><strong>${completed}</strong> completed date${completed === 1 ? "" : "s"}</span>
+              ${followUpHistory.some(item=>!item.sent_at) ? '<span style="padding:5px 8px;border-radius:999px;background:#fff0d9;font-weight:700;">Follow Up Pending</span>' : ""}
             </div>
-            ${latest ? `<button type="button" class="client-profile-toggle" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">View Client Profile</button>` : ""}
+            ${latest ? `<button type="button" class="client-profile-toggle" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Open Client Profile →</button>` : ""}
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Profile</strong>
               <div style="margin-top:10px;padding:10px 12px;border:1px solid #eee7dc;border-radius:8px;background:white;font-size:12px;">
