@@ -2077,9 +2077,14 @@ loadRequests();
           <input data-field="blog_title" ${readOnly ? "disabled" : ""} value="${escapeHtml(item.blog_title || "")}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:12px;">
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Featured Blog Post</label>
           <textarea data-field="blog_content" ${readOnly ? "disabled" : ""} style="width:100%;min-height:120px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;margin-bottom:12px;">${escapeHtml(item.blog_content || "")}</textarea>
-          <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">One-Time Special Rate Offer</label>
-          <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
-          ${item.status === "draft" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button type="button" data-newsletter-action="regenerate-offer">Change Offer Wording</button><button type="button" data-newsletter-action="change-offer-experience">Choose Monthly Offers</button></div>' : ""}
+          <div style="margin-top:4px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fffdf9;">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+              <div><strong style="font-size:13px;">Monthly Special Offer</strong><div style="margin-top:3px;font-size:12px;color:var(--muted);">The offer itself and the wording are controlled separately.</div></div>
+              ${item.status === "draft" ? '<span style="font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;background:#f3ead8;">REVIEW OFFER</span>' : ""}
+            </div>
+            <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
+            ${item.status === "draft" ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px;"><button type="button" data-newsletter-action="change-offer-experience"><strong style="display:block;">Change Featured Offer</strong><span style="display:block;margin-top:2px;font-size:11px;font-weight:400;">Choose the experience, rate, or extra-time incentive.</span></button><button type="button" data-newsletter-action="regenerate-offer"><strong style="display:block;">Rewrite Offer Copy</strong><span style="display:block;margin-top:2px;font-size:11px;font-weight:400;">Keep the selected offer and only change how it is written.</span></button></div>' : ""}
+          </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
             ${item.status === "draft" ? '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="preview">Preview</button><button type="button" data-newsletter-action="approve">Approve Newsletter</button><details style="align-self:center;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">More Draft Tools</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button type="button" data-newsletter-action="regenerate">Regenerate Newsletter</button><button type="button" data-newsletter-action="delete">Delete Draft</button></div></details>' : ""}
             ${item.status === "approved" ? '<button type="button" data-newsletter-action="preview">Preview</button><button type="button" data-newsletter-action="send">Send Newsletter</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
@@ -2195,7 +2200,7 @@ loadRequests();
                   alert(e.message);
                 } finally {
                   button.disabled = false;
-                  button.textContent = "Choose Monthly Offers";
+                  button.innerHTML = '<strong style="display:block;">Change Featured Offer</strong><span style="display:block;margin-top:2px;font-size:11px;font-weight:400;">Choose the experience, rate, or extra-time incentive.</span>';
                 }
                 return;
               }
@@ -2217,7 +2222,7 @@ loadRequests();
                   alert(e.message);
                 } finally {
                   button.disabled = false;
-                  button.textContent = "Change Offer Wording";
+                  button.innerHTML = '<strong style="display:block;">Rewrite Offer Copy</strong><span style="display:block;margin-top:2px;font-size:11px;font-weight:400;">Keep the selected offer and only change how it is written.</span>';
                 }
                 return;
               }
