@@ -3071,6 +3071,31 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
     }
 
     // ============================================================
+    // RETENTION FOLLOW-UP STATUS
+    // ============================================================
+    if (url.pathname === "/api/admin/retention/follow-up-status" && request.method === "GET") {
+      try {
+        const result = await env.DB.prepare(`
+          SELECT client_id,
+            MAX(CASE WHEN status='sent' THEN sent_at END) AS sent_at,
+            MAX(CASE WHEN status='draft' THEN created_at END) AS draft_at,
+            CASE
+              WHEN MAX(CASE WHEN status='sent' THEN sent_at END) IS NOT NULL THEN 'sent'
+              WHEN MAX(CASE WHEN status='draft' THEN created_at END) IS NOT NULL THEN 'draft'
+              ELSE 'none'
+            END AS status
+          FROM email_drafts
+          WHERE email_type='retention_follow_up'
+          GROUP BY client_id
+        `).all();
+        return Response.json({ok:true,clients:result.results||[]});
+      } catch(error) {
+        console.error("Retention follow-up status error:",error);
+        return Response.json({ok:false,message:"Unable to load retention follow-up status."},{status:500});
+      }
+    }
+
+    // ============================================================
     // RETENTION FOLLOW-UP DRAFT
     // ============================================================
     if (url.pathname === "/api/admin/retention/follow-up-draft" && request.method === "POST") {
@@ -3107,6 +3132,8 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             if(generated) body=generated+"\n\nKendra";
           } catch(e) { console.error("Retention draft generation error:",e); }
         }
+        const recentSent = await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' AND datetime(sent_at) >= datetime('now','-30 days') ORDER BY sent_at DESC LIMIT 1").bind(clientId).first();
+        if (recentSent) return Response.json({ok:false,message:"This client received a retention follow-up within the last 30 days."},{status:409});
         const existing = await env.DB.prepare("SELECT id FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='draft' LIMIT 1").bind(clientId).first();
         if(existing) {
           await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind("A little hello",body,existing.id).run();
