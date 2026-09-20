@@ -2991,6 +2991,38 @@ My journal will continue to be a place where I share a little more of that side 
 
 
     // =========================================================
+    // RESCHEDULE BOOKING — available for current booking requests
+    // =========================================================
+    if (url.pathname === "/api/admin/request/reschedule" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const requestId=Number(data.id);
+        const requestedDate=String(data.requested_date||"").trim();
+        const requestedTime=String(data.requested_time||"").trim().slice(0,5);
+        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)||!/^\d{2}:\d{2}$/.test(requestedTime)) return Response.json({ok:false,message:"Choose a valid new date and time."},{status:400});
+        const item=await env.DB.prepare("SELECT id,status,notes,requested_date,requested_time FROM date_requests WHERE id=? LIMIT 1").bind(requestId).first();
+        if(!item) return Response.json({ok:false,message:"Booking request not found."},{status:404});
+        if(["declined","no_call_no_show","canceled","completed","blacklisted_submission"].includes(String(item.status||"").toLowerCase())) return Response.json({ok:false,message:"This booking can no longer be rescheduled."},{status:400});
+        const duration=siteBookingDurationFromNotes(item.notes);
+        const availability=await siteAvailableSlots(env,requestedDate,duration);
+        if(!(availability.slots||[]).includes(requestedTime)) return Response.json({ok:false,message:"That time is not available. Choose another date or time."},{status:409});
+        const oldDate=item.requested_date,oldTime=item.requested_time;
+        await env.DB.prepare("UPDATE date_requests SET requested_date=?, requested_time=? WHERE id=?").bind(requestedDate,requestedTime,requestId).run();
+        await env.DB.prepare(`
+          UPDATE email_drafts
+          SET body=replace(replace(body, ?, ?), ?, ?)
+          WHERE date_request_id=? AND COALESCE(status,'draft')!='sent'
+        `).bind(String(oldDate||""),requestedDate,String(oldTime||""),requestedTime,requestId).run();
+        return Response.json({ok:true,requested_date:requestedDate,requested_time:requestedTime,message:"Appointment rescheduled."});
+      } catch(error) {
+        console.error("Reschedule booking error:",error);
+        return Response.json({ok:false,message:"Unable to reschedule appointment."},{status:500});
+      }
+    }
+
+
+    // =========================================================
     // BOOKING OUTCOME — available for new and existing requests
     // =========================================================
     if (url.pathname === "/api/admin/request/outcome" && request.method === "POST") {
