@@ -1351,10 +1351,18 @@
       <option value="special-rate">Special Rate</option>
     </select>
     <div id="retention-preview-guidance" style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5;"></div>
+    <div id="retention-preview-email-wrap" hidden style="margin-top:16px;">
+      <label for="retention-preview-subject" style="display:block;font-size:13px;font-weight:700;">Subject</label>
+      <input id="retention-preview-subject" type="text" style="width:100%;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:inherit;">
+      <label for="retention-preview-body" style="display:block;margin-top:12px;font-size:13px;font-weight:700;">Email wording</label>
+      <textarea id="retention-preview-body" style="width:100%;min-height:190px;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:12px;font:inherit;resize:vertical;"></textarea>
+      <div style="margin-top:6px;font-size:11px;color:var(--muted);">You can edit this wording before saving it to Email Drafts.</div>
+    </div>
     <div style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--cream);font-size:12px;line-height:1.5;">This changes only this client's follow-up. Your saved Retention Plan stays unchanged. The email will still be created as a draft for review.</div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
       <button id="retention-preview-cancel" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Cancel</button>
-      <button id="retention-preview-create" type="button" style="border:0;border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">Create Draft</button>
+      <button id="retention-preview-generate" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;color:var(--ink);cursor:pointer;">Preview Email</button>
+      <button id="retention-preview-create" type="button" hidden style="border:0;border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">Save to Email Drafts</button>
     </div>
   </div>
 </div>
@@ -1735,22 +1743,40 @@ async function loadRequests() {
       renderRetentionInsights();
       renderRetentionOfferPerformance();
       document.getElementById("retention-preview-cancel")?.addEventListener("click",()=>{ document.getElementById("retention-offer-preview").hidden=true; });
+    document.getElementById("retention-preview-generate")?.addEventListener("click",async()=>{
+      const modal=document.getElementById("retention-offer-preview");
+      const button=document.getElementById("retention-preview-generate");
+      const clientId=Number(modal?.dataset.clientId);
+      const strategy=document.getElementById("retention-preview-strategy")?.value||"extra-time";
+      if(!clientId||!button) return;
+      const original=button.textContent; button.disabled=true; button.textContent="Writing Preview...";
+      try{
+        const response=await fetch("/api/admin/retention/follow-up-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy})});
+        const data=await response.json();
+        if(!response.ok||!data.ok) throw new Error(data.message||"Unable to preview follow-up.");
+        document.getElementById("retention-preview-subject").value=data.subject||"A little hello";
+        document.getElementById("retention-preview-body").value=data.body||"";
+        document.getElementById("retention-preview-email-wrap").hidden=false;
+        document.getElementById("retention-preview-create").hidden=false;
+        button.textContent="Regenerate Preview"; button.disabled=false;
+      }catch(error){ alert(error.message||"Unable to preview follow-up."); button.disabled=false; button.textContent=original; }
+    });
     document.getElementById("retention-preview-create")?.addEventListener("click",async()=>{
       const modal=document.getElementById("retention-offer-preview");
       const create=document.getElementById("retention-preview-create");
       const clientId=Number(modal?.dataset.clientId);
       const strategy=document.getElementById("retention-preview-strategy")?.value||"extra-time";
-      if(!clientId||!modal||!create) return;
-      const original=create.textContent; create.disabled=true; create.textContent="Creating Draft...";
+      const subject=document.getElementById("retention-preview-subject")?.value.trim();
+      const body=document.getElementById("retention-preview-body")?.value.trim();
+      if(!clientId||!modal||!create||!subject||!body) return;
+      const original=create.textContent; create.disabled=true; create.textContent="Saving Draft...";
       try{
-        const response=await fetch("/api/admin/retention/follow-up-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy})});
+        const response=await fetch("/api/admin/retention/follow-up-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy,subject,body})});
         const data=await response.json();
-        if(!response.ok||!data.ok) throw new Error(data.message||"Unable to create follow-up draft.");
-        create.textContent="Draft Created";
+        if(!response.ok||!data.ok) throw new Error(data.message||"Unable to save follow-up draft.");
+        create.textContent="Draft Saved";
         window.setTimeout(()=>{ modal.hidden=true; create.disabled=false; create.textContent=original; openSection("emails"); },450);
-      }catch(error){
-        alert(error.message||"Unable to create follow-up draft."); create.disabled=false; create.textContent=original;
-      }
+      }catch(error){ alert(error.message||"Unable to save follow-up draft."); create.disabled=false; create.textContent=original; }
     });
 
     renderRetentionTargets();
@@ -1829,6 +1855,9 @@ async function loadRequests() {
         };
         updateGuidance();
         strategy.onchange=updateGuidance;
+        const wrap=document.getElementById("retention-preview-email-wrap"); if(wrap) wrap.hidden=true;
+        const save=document.getElementById("retention-preview-create"); if(save) save.hidden=true;
+        const preview=document.getElementById("retention-preview-generate"); if(preview){preview.hidden=false;preview.disabled=false;preview.textContent="Preview Email";}
         modal.hidden=false;
       }));
     };
