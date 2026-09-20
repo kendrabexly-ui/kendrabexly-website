@@ -2345,6 +2345,10 @@ async function loadRequests() {
       const nextActions={pending:"Review Request",pending_final_approval:"Complete Final Approval",approved:"View Confirmed Date",completed:"View Completed Date",canceled:"View Request",blacklisted_submission:"Review Safety Record"};
       const deposit=Number(item.deposit_paid) ? "Deposit Confirmed" : (Number(item.deposit_amount||0)>0 ? "Deposit Pending" : "Deposit Not Set");
       const screening=Number(item.id_received) ? "ID Received" : "ID Pending";
+      const createdAt=new Date(item.created_at||"");
+      const ageDays=Number.isFinite(createdAt.getTime())?Math.max(0,Math.floor((Date.now()-createdAt.getTime())/86400000)):null;
+      const ageLabel=ageDays===null?"":ageDays===0?"Submitted today":ageDays===1?"Submitted 1 day ago":"Submitted "+ageDays+" days ago";
+      const showAge=status==="pending"||status==="pending_final_approval";
       return `
         <button type="button" class="request-card" data-request-id="${item.id}" style="width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #ddd6ca;padding:20px 22px;cursor:pointer;font:inherit;">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
@@ -2353,6 +2357,7 @@ async function loadRequests() {
           </div>
           <div style="margin-top:9px;font-weight:600;">${escapeHtml(formatCalendarDate(item.requested_date))} · ${escapeHtml(formatCalendarTime(item.requested_time))}</div>
           <div style="margin-top:3px;font-size:13px;color:var(--muted);">${escapeHtml(item.location_name || "Location not provided")}</div>
+          ${showAge&&ageLabel ? `<div style="margin-top:7px;font-size:11px;color:${ageDays>=3?"var(--red)":"var(--muted)"};font-weight:${ageDays>=3?"700":"500"};">${escapeHtml(ageLabel)}</div>` : ""}
           ${status==="pending_final_approval" ? `<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;font-size:11px;"><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(deposit)}</span><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(screening)}</span></div>` : ""}
           <div style="margin-top:11px;font-size:13px;font-weight:700;text-decoration:underline;">${escapeHtml(nextActions[status] || "View Request")} →</div>
         </button>`;
