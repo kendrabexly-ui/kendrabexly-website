@@ -3215,8 +3215,25 @@ loadRequests();
       const date=new Date(key+"T12:00:00");
       box.style.display="block";
       box.innerHTML='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;"><strong>'+date.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})+'</strong><button id="calendar-close-day" type="button" style="border:0;background:transparent;cursor:pointer;">Close</button></div>'+
-        '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);"><strong>'+escapeHtml(e.time||"Time TBD")+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:12px;padding:10px;border:1px solid var(--line);border-radius:9px;"><input id="calendar-day-add-time" type="time" style="padding:6px;border:1px solid var(--line);border-radius:7px;"><button id="calendar-day-add" type="button" style="padding:6px 10px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Add Opening</button></div>'+
+        '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;"><div><strong>'+escapeHtml(e.time||"Time TBD")+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>'+(e.type==="Open Availability"?'<button type="button" data-day-remove-time="'+escapeHtml(e.time||"")+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button>':'')+'</div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
       document.getElementById("calendar-close-day")?.addEventListener("click",()=>{box.style.display="none";});
+      document.getElementById("calendar-day-add")?.addEventListener("click",()=>{
+        const time=document.getElementById("calendar-day-add-time")?.value||"";
+        if(!time) return;
+        const slot={date:key,time};
+        if(availabilityIsBlocked(slot,calendarApprovedDates)) return;
+        const current=readCalendarAvailability();
+        if(!current.some(x=>x.date===key && x.time===time)) current.push(slot);
+        localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
+        renderCalendarAvailability(); renderCalendarWeek(); renderCalendarDay(key);
+      });
+      box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",()=>{
+        const time=button.dataset.dayRemoveTime||"";
+        const current=readCalendarAvailability().filter(x=>!(x.date===key && x.time===time));
+        localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
+        renderCalendarAvailability(); renderCalendarWeek(); renderCalendarDay(key);
+      }));
       box.scrollIntoView({behavior:"smooth",block:"nearest"});
     }
     document.getElementById("calendar-prev-week")?.addEventListener("click",()=>{calendarWeekOffset--;renderCalendarWeek();});
