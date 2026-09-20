@@ -1152,6 +1152,17 @@
         <div style="margin-top:5px;color:var(--muted);font-size:13px;line-height:1.5;">Retention offers should reference your master rates. Extra time and experience-based incentives can be used before reducing the rate.</div>
       </div>
 
+      <div id="retention-performance" style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
+        <div style="font-weight:700;margin-bottom:10px;">Retention Performance</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
+          <div style="padding:12px;border:1px solid var(--line);border-radius:8px;"><strong id="retention-perf-sent">0</strong><div style="font-size:11px;color:var(--muted);margin-top:3px;">Follow-ups Sent</div></div>
+          <div style="padding:12px;border:1px solid var(--line);border-radius:8px;"><strong id="retention-perf-requests">0</strong><div style="font-size:11px;color:var(--muted);margin-top:3px;">New Requests</div></div>
+          <div style="padding:12px;border:1px solid var(--line);border-radius:8px;"><strong id="retention-perf-bookings">0</strong><div style="font-size:11px;color:var(--muted);margin-top:3px;">Bookings</div></div>
+          <div style="padding:12px;border:1px solid var(--line);border-radius:8px;"><strong id="retention-perf-rate">0%</strong><div style="font-size:11px;color:var(--muted);margin-top:3px;">Booking Conversion</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">Based only on tracked retention follow-ups that were actually sent.</div>
+      </div>
+
       <details open style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
         <summary style="cursor:pointer;font-weight:700;">Follow-up Opportunities <span style="font-weight:400;color:var(--muted);">— client targeting</span></summary>
         <div style="margin-top:12px;">
@@ -1534,6 +1545,20 @@ async function loadRequests() {
         });
       }
     } catch (error) {}
+
+    const renderRetentionPerformance = () => {
+      const tracked = Array.from(retentionOutcomeByClient.values());
+      const sent = tracked.filter(item => item.sent_at).length;
+      const requests = tracked.filter(item => item.requested_after_contact).length;
+      const bookings = tracked.filter(item => item.booked_after_contact).length;
+      const rate = sent ? Math.round((bookings / sent) * 100) : 0;
+      const setText = (id, value) => { const el=document.getElementById(id); if(el) el.textContent=String(value); };
+      setText("retention-perf-sent", sent);
+      setText("retention-perf-requests", requests);
+      setText("retention-perf-bookings", bookings);
+      setText("retention-perf-rate", rate + "%");
+    };
+    renderRetentionPerformance();
 
     const renderRetentionTargets = () => {
       if (!retentionTargetList) return;
