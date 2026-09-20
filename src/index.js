@@ -4139,6 +4139,55 @@ Kendra`
     }
 
         // ============================================================
+    // CALCULATE / REPAIR DEPOSIT
+    // ============================================================
+    if (url.pathname === "/api/admin/request/calculate-deposit" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const requestId=Number(data.id);
+        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        const item=await env.DB.prepare("SELECT id, deposit_amount, notes FROM date_requests WHERE id=? LIMIT 1").bind(requestId).first();
+        if(!item) return Response.json({ok:false,message:"Request not found."},{status:404});
+        if(Number(item.deposit_amount||0)>0) return Response.json({ok:true,deposit_amount:Number(item.deposit_amount)});
+
+        const notes=String(item.notes||"");
+        const dateTypeKey=(notes.match(/Date type:\s*([^\n]+)/i)?.[1]||"").trim().toLowerCase();
+        const appointmentTypeKey=(notes.match(/Appointment type:\s*([^\n]+)/i)?.[1]||"").trim().toLowerCase();
+        const durationKey=(notes.match(/Duration:\s*([^\n]+)/i)?.[1]||"").trim().toLowerCase().replace(/-/g," ");
+        const specialRateMatch=notes.match(/Selected monthly special:[^\n]*?\bat\s*\$([\d,]+(?:\.\d{1,2})?)/i);
+        const specialRate=specialRateMatch?Number(specialRateMatch[1].replace(/,/g,"")):0;
+        const configuredServices=await readSiteRates(env);
+        const aliases={
+          "private-introduction":"private introductions","private-uncovered-introduction":"private introductions",
+          "signature-brief-introduction":"brief experiences","greek-princess-brief-introduction":"brief experiences",
+          "signature-girlfriend-experience":"signature girlfriend experience","signature-private-companionship":"signature girlfriend experience",
+          "signature-experience":"signature girlfriend experience","greek-princess-experience":"greek princess experience",
+          "greek-private-companionship":"greek princess experience"
+        };
+        const selectedService=configuredServices.find(service=>String(service.name||"").trim().toLowerCase()===aliases[dateTypeKey]);
+        const configuredRate=selectedService?.rates?.find(rate=>{
+          const label=String(rate?.[0]||"").trim().toLowerCase();
+          if(dateTypeKey==="private-introduction")return label.startsWith("private introduction");
+          if(dateTypeKey==="private-uncovered-introduction")return label.includes("private uncovered introduction");
+          if(dateTypeKey==="signature-brief-introduction")return label.includes("signature brief introduction");
+          if(dateTypeKey==="greek-princess-brief-introduction")return label.includes("greek princess brief introduction");
+          return siteDurationMinutes(label)===siteDurationMinutes(durationKey);
+        });
+        const standardRate=Number(configuredRate?.[1])||0;
+        const outcallService=configuredServices.find(service=>service.add_on||String(service.name||"").trim().toLowerCase()==="outcall");
+        const outcallAddOn=appointmentTypeKey==="outcall"?(Number(outcallService?.rates?.[0]?.[1])||100):0;
+        const bookingRate=(specialRate||standardRate)+outcallAddOn;
+        const depositAmount=bookingRate>0?Math.round(bookingRate*.25*100)/100:0;
+        if(depositAmount<=0)return Response.json({ok:false,message:"Unable to match this request to a current rate."},{status:400});
+        await env.DB.prepare("UPDATE date_requests SET deposit_amount=? WHERE id=?").bind(depositAmount,requestId).run();
+        return Response.json({ok:true,deposit_amount:depositAmount,booking_rate:bookingRate});
+      } catch(error) {
+        console.error("Calculate deposit error:",error);
+        return Response.json({ok:false,message:"Unable to calculate deposit."},{status:500});
+      }
+    }
+
+        // ============================================================
     // CONFIRM DEPOSIT
     // ============================================================
     if (
