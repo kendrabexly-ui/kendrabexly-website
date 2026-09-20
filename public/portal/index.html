@@ -3461,10 +3461,28 @@ loadRequests();
 
 
     const defaultRateServices = [
-      {name:"Signature Private Companionship Experience",description:"Kendra’s signature private companionship experience—romantic, flirtatious, relaxed, and intentionally unhurried.",rates:[["1 Hour",500],["2 Hours",750],["3 Hours",1000],["4 Hours",1250]]},
-      {name:"The Greek Princess",description:"The more adventurous and elevated rendezvous, described discreetly rather than as an explicit menu of activities.",rates:[["1 Hour",650],["1.5 Hours",800],["2 Hours",1050]]}
+      {name:"Signature Private Companionship Experience",description:"My signature experience is romantic, flirtatious, and intentionally unhurried.",rates:[["1 Hour",500],["2 Hours",750],["3 Hours",1000],["4 Hours",1250]]},
+      {name:"The Greek Princess",description:"My more adventurous and elevated experience, with warmth, chemistry, attentive companionship, and a daring, playful energy.",rates:[["1 Hour",650],["1.5 Hours",800],["2 Hours",1050]]},
+      {name:"Outcall",description:"Available as an add-on for approved dates at upscale locations only.",rates:[["Outcall",100]],add_on:true}
     ];
-    function getRateServices(){try{return JSON.parse(localStorage.getItem("kendra_rate_services"))||structuredClone(defaultRateServices);}catch{return structuredClone(defaultRateServices);}}
+    let rateServicesCache=structuredClone(defaultRateServices);
+    function getRateServices(){return structuredClone(rateServicesCache);}
+    async function loadRateServicesRemote(){
+      const status=document.getElementById("rates-status");
+      try{
+        const response=await fetch("/api/admin/rates",{headers:{"Accept":"application/json"}});
+        const data=await response.json();
+        if(!response.ok||!data.ok||!Array.isArray(data.services))throw new Error(data.message||"Unable to load rates.");
+        rateServicesCache=data.services;
+        localStorage.setItem("kendra_rate_services",JSON.stringify(rateServicesCache));
+        renderRateServices();
+        if(status)status.textContent="Website rates loaded.";
+      }catch(error){
+        try{rateServicesCache=JSON.parse(localStorage.getItem("kendra_rate_services"))||structuredClone(defaultRateServices);}catch{rateServicesCache=structuredClone(defaultRateServices);}
+        renderRateServices();
+        if(status)status.textContent="Using the last rates saved in this browser.";
+      }
+    }
     function renderRateServices(){
       const box=document.getElementById("rates-services-editor"); if(!box)return;
       const data=getRateServices();
@@ -3487,13 +3505,27 @@ loadRequests();
       if(status)status.textContent=dirty?"Unsaved changes":"";
     }
     ratesEditor?.addEventListener("input",()=>setRatesDirty(true));
-    document.getElementById("rates-save")?.addEventListener("click",()=>{
-      const data=getRateServices().map((s,si)=>({...s,name:document.querySelector('[data-rs-name="'+si+'"]').value.trim(),description:document.querySelector('[data-rs-desc="'+si+'"]').value.trim(),rates:s.rates.map((r,ri)=>[document.querySelector('[data-rs-duration="'+si+'-'+ri+'"]').value.trim(),Number(document.querySelector('[data-rs-rate="'+si+'-'+ri+'"]').value)])}));
-      const invalid=data.some(service=>!service.name||service.rates.some(rate=>!rate[0]||!Number.isFinite(rate[1])||rate[1]<=0));
+    document.getElementById("rates-save")?.addEventListener("click",async()=>{
+      const data=getRateServices().map((s,si)=>({...s,name:document.querySelector('[data-rs-name="'+si+'"]').value.trim(),description:document.querySelector('[data-rs-desc="'+si+'"]').value.trim(),rates:s.rates.map((r,ri)=>[document.querySelector('[data-rs-duration="'+si+'-'+ri+'"]').value.trim(),Number(document.querySelector('[data-rs-rate="'+si+'-'+ri+'"]').value)]),add_on:Boolean(s.add_on)}));
+      const invalid=data.some(service=>!service.name||!service.description||service.rates.some(rate=>!rate[0]||!Number.isFinite(rate[1])||rate[1]<=0));
       const status=document.getElementById("rates-status");
-      if(invalid){if(status)status.textContent="Add a service name, duration, and rate above $0 before saving.";return;}
-      if(!window.confirm("Save these as your master service rates? Website offers and newsletter packages may reference this menu."))return;
-      localStorage.setItem("kendra_rate_services",JSON.stringify(data)); renderRateServices(); setRatesDirty(false); if(status)status.textContent="Master rates saved.";
+      if(invalid){if(status)status.textContent="Add a service name, website description, duration, and rate above $0 before saving.";return;}
+      if(!window.confirm("Save these rates to the dashboard and public website?"))return;
+      ratesSave.disabled=true;
+      if(status)status.textContent="Saving website rates…";
+      try{
+        const response=await fetch("/api/admin/rates",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({services:data})});
+        const result=await response.json();
+        if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save rates.");
+        rateServicesCache=result.services;
+        localStorage.setItem("kendra_rate_services",JSON.stringify(rateServicesCache));
+        renderRateServices();
+        setRatesDirty(false);
+        if(status)status.textContent="Dashboard and website rates saved.";
+      }catch(error){
+        ratesSave.disabled=false;
+        if(status)status.textContent=error.message||"Unable to save rates.";
+      }
     });
     document.getElementById("rates-discard")?.addEventListener("click",()=>{
       if(!window.confirm("Discard your unsaved rate changes?"))return;
@@ -3531,8 +3563,23 @@ loadRequests();
       panel.innerHTML='<strong style="font-size:18px;">Rate Menu Preview</strong>'+data.map(s=>'<div style="margin-top:16px;"><strong>'+escapeHtml(s.name)+'</strong><div style="margin-top:4px;color:var(--muted);">'+escapeHtml(s.description)+'</div><div style="margin-top:8px;">'+s.rates.map(r=>'<div style="display:flex;justify-content:space-between;gap:16px;padding:6px 0;border-bottom:1px solid #eee7dc;"><span>'+escapeHtml(r[0])+'</span><strong>$'+Number(r[1]).toLocaleString()+'</strong></div>').join("")+'</div></div>').join("");
       const opening=panel.style.display==="none"; panel.style.display=opening?"block":"none"; const previewButton=document.getElementById("rates-preview"); if(previewButton)previewButton.textContent=opening?"Close Preview":"Preview Menu";
     });
-    document.getElementById("rates-reset")?.addEventListener("click",()=>{if(!confirm("Restore the original default service menu? This replaces your saved master-rate changes on this dashboard."))return;localStorage.removeItem("kendra_rate_services");renderRateServices();setRatesDirty(false);const panel=document.getElementById("rates-preview-panel");if(panel)panel.style.display="none";const previewButton=document.getElementById("rates-preview");if(previewButton)previewButton.textContent="Preview Menu";document.getElementById("rates-status").textContent="Original default rates restored.";});
+    document.getElementById("rates-reset")?.addEventListener("click",async()=>{
+      if(!confirm("Restore the original default service menu on the dashboard and website?"))return;
+      const status=document.getElementById("rates-status");
+      try{
+        const response=await fetch("/api/admin/rates",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({services:defaultRateServices})});
+        const result=await response.json();
+        if(!response.ok||!result.ok)throw new Error(result.message||"Unable to restore rates.");
+        rateServicesCache=result.services;
+        localStorage.setItem("kendra_rate_services",JSON.stringify(rateServicesCache));
+        renderRateServices();setRatesDirty(false);
+        const panel=document.getElementById("rates-preview-panel");if(panel)panel.style.display="none";
+        const previewButton=document.getElementById("rates-preview");if(previewButton)previewButton.textContent="Preview Menu";
+        if(status)status.textContent="Original website rates restored.";
+      }catch(error){if(status)status.textContent=error.message||"Unable to restore rates.";}
+    });
     renderRateServices();
+    loadRateServicesRemote();
 
     async function loadEmailDrafts() {
       const box = document.getElementById("email-draft-records");
