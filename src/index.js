@@ -295,7 +295,7 @@ function siteZonedDateTime(dateValue, timeValue) {
   return new Date(guess - (represented - guess));
 }
 
-async function siteAvailableSlots(env, date, requestedDuration) {
+async function siteAvailableSlots(env, date, requestedDuration, excludeRequestId = null) {
   await ensureSiteContentTables(env);
   const requestedDate = new Date(String(date) + "T12:00:00");
   if (!Number.isFinite(requestedDate.getTime())) {
@@ -311,8 +311,9 @@ async function siteAvailableSlots(env, date, requestedDuration) {
       FROM date_requests
       WHERE requested_date = ?
         AND final_approval = 1
-        AND status NOT IN ('canceled', 'declined', 'blacklisted_submission')
-    `).bind(date).all()
+        AND status NOT IN ('canceled', 'declined', 'blacklisted_submission', 'no_call_no_show', 'completed')
+        AND (? IS NULL OR id != ?)
+    `).bind(date, excludeRequestId, excludeRequestId).all()
   ]);
 
   if (!workHours || !Number(workHours.enabled)) {
@@ -3005,7 +3006,7 @@ My journal will continue to be a place where I share a little more of that side 
         if(!item) return Response.json({ok:false,message:"Booking request not found."},{status:404});
         if(["declined","no_call_no_show","canceled","completed","blacklisted_submission"].includes(String(item.status||"").toLowerCase())) return Response.json({ok:false,message:"This booking can no longer be rescheduled."},{status:400});
         const duration=siteBookingDurationFromNotes(item.notes);
-        const availability=await siteAvailableSlots(env,requestedDate,duration);
+        const availability=await siteAvailableSlots(env,requestedDate,duration,requestId);
         if(!(availability.slots||[]).includes(requestedTime)) return Response.json({ok:false,message:"That time is not available. Choose another date or time."},{status:409});
         const oldDate=item.requested_date,oldTime=item.requested_time;
         await env.DB.prepare("UPDATE date_requests SET requested_date=?, requested_time=? WHERE id=?").bind(requestedDate,requestedTime,requestId).run();
