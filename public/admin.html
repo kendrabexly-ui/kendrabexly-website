@@ -765,17 +765,22 @@
 
         <div class="section-heading">
           <h2>Email Drafts</h2>
-          <p>Review personalized client emails before they are sent.</p>
+          <p>Your review queue for client emails created throughout the booking and follow-up workflow.</p>
+        </div>
+
+        <div style="margin-bottom:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:white;">
+          <strong>Email Review Queue</strong>
+          <div style="margin-top:4px;font-size:13px;color:var(--muted);">Review, edit, regenerate, and send drafts from one place. Date-specific emails stay linked to the request that created them.</div>
         </div>
 
         <div id="email-drafts-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-total">—</strong><div style="font-size:12px;margin-top:2px;">Total drafts</div></div>
-          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-unsent">—</strong><div style="font-size:12px;margin-top:2px;">Needs review</div></div>
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-unsent">—</strong><div style="font-size:12px;margin-top:2px;">Needs Review</div></div>
           <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-sent">—</strong><div style="font-size:12px;margin-top:2px;">Sent</div></div>
+          <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-total">—</strong><div style="font-size:12px;margin-top:2px;">All Emails</div></div>
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-          <input id="email-drafts-search" type="search" placeholder="Search client, email, subject, or message" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+          <input id="email-drafts-search" type="search" placeholder="Find an email by client, subject, or message" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;">
           <select id="email-drafts-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
             <option value="all">All statuses</option>
             <option value="draft">Drafts</option>
