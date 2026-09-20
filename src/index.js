@@ -3299,36 +3299,31 @@ if (
         const offerMatch = notesText.match(/Offer:\s*([\s\S]*?)(?=\n(?:Date type:|Appointment type:|Preferred contact|Outcall address:|Duration:|Request details:|Screening requirement|25% deposit)|$)/i);
         const specialRateMatch = offerMatch?.[1]?.match(/for\s+\$([\d,]+)/i);
 
-        const standardRates = {
-          "1-hour": 500,
-          "1 hour": 500,
-          "2-hours": 750,
-          "2 hours": 750,
-          "3-hours": 1000,
-          "3 hours": 1000,
-          "4-hours": 1250,
-          "4 hours": 1250
-        };
-
-        const greekPrincessRates = {
-          "1-hour": 650,
-          "1 hour": 650,
-          "1.5-hours": 800,
-          "1.5 hours": 800,
-          "2-hours": 1050,
-          "2 hours": 1050
-        };
-
         const durationKey = String(durationMatch?.[1] || "").trim().toLowerCase();
+        const durationLabel = durationKey
+          .replace(/-hours?$/, match => match === "-hour" ? " hour" : " hours");
         const dateTypeKey = String(dateTypeMatch?.[1] || "").trim().toLowerCase();
         const appointmentTypeKey = String(appointmentTypeMatch?.[1] || "").trim().toLowerCase();
         const specialRate = specialRateMatch
           ? Number(specialRateMatch[1].replace(/,/g, ""))
           : 0;
-        const standardBookingRate = dateTypeKey === "greek-princess"
-          ? greekPrincessRates[durationKey] || 0
-          : standardRates[durationKey] || 0;
-        const outcallAddOn = appointmentTypeKey === "outcall" ? 100 : 0;
+
+        const configuredServices = await readSiteRates(env);
+        const selectedService = configuredServices.find(service => {
+          const name = String(service.name || "").toLowerCase();
+          return dateTypeKey === "greek-princess"
+            ? name.includes("greek princess")
+            : name.includes("signature private companionship");
+        });
+        const configuredRate = selectedService?.rates?.find(rate =>
+          String(rate?.[0] || "").trim().toLowerCase() === durationLabel
+        );
+        const standardBookingRate = Number(configuredRate?.[1]) || 0;
+        const outcallService = configuredServices.find(service =>
+          service.add_on || String(service.name || "").trim().toLowerCase() === "outcall"
+        );
+        const configuredOutcallRate = Number(outcallService?.rates?.[0]?.[1]) || 100;
+        const outcallAddOn = appointmentTypeKey === "outcall" ? configuredOutcallRate : 0;
         const bookingRate = (specialRate || standardBookingRate) + outcallAddOn;
         const depositAmount = bookingRate > 0
           ? Math.round(bookingRate * 0.25 * 100) / 100
