@@ -383,32 +383,24 @@
   </button>
 <div
   id="final-approval-controls"
-  style="display: none; margin-top: 24px;"
+  style="display: none; margin-top: 24px;padding:20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:14px;"
 >
-  <div style="margin:0 0 24px;padding:18px 20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:12px;">
-    <div class="label">EXPECTED DEPOSIT</div>
-    <div id="expected-deposit-value" class="value" style="margin-top:8px;font-size:20px;font-weight:600;">
-      ${Number(item.deposit_amount || 0) > 0 ? "$" + Number(item.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : "Custom rate required — deposit not calculated"}
+  <div class="label">FINAL APPROVAL</div>
+  <div style="margin:6px 0 16px;font-size:14px;color:#6f675f;">Complete both checks below before confirming the date.</div>
+  <div style="display:grid;gap:10px;margin-bottom:18px;">
+    <label style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid #ded7cd;border-radius:10px;background:white;cursor:pointer;">
+      <input type="checkbox" id="id-received-checkbox" style="margin-top:3px;">
+      <span><strong>ID & Screening</strong><br><small style="color:#6f675f;">ID received and screening completed</small></span>
+    </label>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border:1px solid #ded7cd;border-radius:10px;background:white;flex-wrap:wrap;">
+      <span><strong>Deposit</strong><br><small id="deposit-check-label" style="color:#6f675f;">${item.deposit_paid ? "Confirmed" : (Number(item.deposit_amount||0)>0 ? "Expected: $" + Number(item.deposit_amount).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}) : "Amount not calculated")}</small></span>
+      <button type="button" id="confirm-deposit-button" style="background:#25252d;color:white;border:none;padding:10px 16px;border-radius:999px;font-family:inherit;cursor:pointer;">
+        ${item.deposit_paid ? "✓ Confirmed" : "Confirm Paid"}
+      </button>
     </div>
   </div>
-  <label style="display: block; margin-bottom: 14px;">
-    <input
-      type="checkbox"
-      id="id-received-checkbox"
-    >
-    ID received and screening completed
-  </label>
-
-  <div style="margin-bottom:20px;">
-    <button type="button" id="confirm-deposit-button" style="background:#25252d;color:white;border:none;padding:12px 20px;border-radius:999px;font-family:inherit;cursor:pointer;">
-      ${item.deposit_paid ? "Deposit Confirmed" : "Confirm Deposit Paid"}
-    </button>
-    <div id="deposit-status" style="margin-top:10px;"></div>
-  </div>
-
-  <div id="post-deposit-summary" style="${item.deposit_paid ? "" : "display:none;"}margin-bottom:22px;padding:14px 16px;border:1px solid #ded7cd;background:#fffdf9;border-radius:12px;">
-    <div class="value" style="font-size:14px;font-weight:600;">✓ Deposit confirmed</div>
-  </div>
+  <div id="deposit-status" style="margin:-8px 0 14px;font-size:13px;"></div>
+  <div id="post-deposit-summary" style="display:none;"></div>
 
   ${String(item.notes || "").includes("Newsletter special: Newsletter #") ? `
   <label style="display:block;margin-bottom:20px;padding:14px 16px;background:#f6f1e8;border:1px solid #d8cbb9;border-radius:10px;">
@@ -539,11 +531,11 @@ moveForwardButton.addEventListener(
           ? "Request moved forward. Expected 25% deposit: $" + Number(result.deposit_amount).toFixed(2)
           : "Request moved forward. Deposit amount could not be calculated from the selected duration.";
 
-      const expectedDepositValue = document.getElementById("expected-deposit-value");
-      if (expectedDepositValue) {
-        expectedDepositValue.textContent = Number(result.deposit_amount || 0) > 0
-          ? "$" + Number(result.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2})
-          : "Custom rate required — deposit not calculated";
+      const depositCheckLabel = document.getElementById("deposit-check-label");
+      if (depositCheckLabel) {
+        depositCheckLabel.textContent = Number(result.deposit_amount || 0) > 0
+          ? "Expected: $" + Number(result.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2})
+          : "Amount not calculated";
       }
       moveForwardButton.textContent =
         "Moved Forward";
