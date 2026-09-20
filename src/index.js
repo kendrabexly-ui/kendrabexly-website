@@ -3561,29 +3561,6 @@ if (
     // PRIVATE PORTAL ROUTING
     // =========================================================
 
-    const portalAssets = new Map([
-      ["/portal", "/portal-assets/dashboard.txt"],
-      ["/portal/", "/portal-assets/dashboard.txt"],
-      ["/portal/request", "/portal-assets/request.txt"],
-      ["/portal/request/", "/portal-assets/request.txt"],
-      ["/portal/emails", "/portal-assets/emails.txt"],
-      ["/portal/emails/", "/portal-assets/emails.txt"]
-    ]);
-
-    if (portalAssets.has(url.pathname)) {
-      const assetUrl = new URL(request.url);
-      assetUrl.pathname = portalAssets.get(url.pathname);
-      const assetResponse = await env.ASSETS.fetch(new Request(assetUrl.toString(), request));
-      const headers = new Headers(assetResponse.headers);
-      headers.set("Content-Type", "text/html; charset=UTF-8");
-      headers.set("Cache-Control", "private, no-store");
-      headers.delete("Location");
-      return new Response(assetResponse.body, {
-        status: assetResponse.ok ? 200 : assetResponse.status,
-        headers
-      });
-    }
-
     const legacyPortalRoutes = new Map([
       ["/admin", "/portal"],
       ["/admin.html", "/portal"],
