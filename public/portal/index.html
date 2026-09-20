@@ -536,7 +536,7 @@
     body[data-admin-section="clients"] main.main > #clients,
     body[data-admin-section="blacklist"] main.main > #blacklist,
     body[data-admin-section="emails"] main.main > #emails,
-    body[data-admin-section="rates-services"] main.main > #rates-services,
+    body[data-admin-section="rates-services"] main.main > #rates-services,\n    body[data-admin-section="gallery"] main.main > #gallery,
     body[data-admin-section="newsletter"] main.main > #newsletter,
     body[data-admin-section="x-agent"] main.main > #x-agent,
     body[data-admin-section="marketing-retention"] main.main > #marketing-retention { display:block !important; }
@@ -561,7 +561,7 @@
         <button type="button" data-section="clients">Clients</button>
         <button type="button" data-section="blacklist">Blacklist</button>
         <button type="button" data-section="emails">Email Drafts</button>
-        <button type="button" data-section="rates-services">Rates & Services</button>
+        <button type="button" data-section="rates-services">Rates & Services</button>\n        <button type="button" data-section="gallery">Gallery</button>
         <button type="button" data-section="newsletter">Newsletter</button>
         <button type="button" data-section="x-agent">X Agent</button>
         <button type="button" data-section="marketing-retention">Marketing &amp; Retention</button>
@@ -849,6 +849,21 @@
       </section>
 
       <!-- X AGENT -->
+
+      <!-- GALLERY -->
+
+<section id="gallery" class="section">
+  <div class="section-heading">
+    <h2>The Muse Gallery</h2>
+    <p>Upload, replace, or remove the six photographs displayed on The Muse page.</p>
+  </div>
+  <div style="padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:white;margin-bottom:14px;font-size:13px;line-height:1.55;">
+    <strong>Gallery Photo Manager</strong>
+    <div style="margin-top:4px;color:var(--muted);">Images are resized before upload. Use clear, high-quality JPG, PNG, or WebP files. Changes publish to The Muse automatically.</div>
+  </div>
+  <div id="gallery-manager" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;"></div>
+  <div id="gallery-manager-status" role="status" aria-live="polite" style="min-height:20px;margin-top:14px;color:var(--muted);font-size:13px;"></div>
+</section>
 
       <!-- RATES & SERVICES -->
 
@@ -3458,6 +3473,100 @@ loadRequests();
       const initialXView=new URLSearchParams(window.location.search).get("x_view")||"create";
       showXView(initialXView);
     }
+
+
+    const galleryManager=document.getElementById("gallery-manager");
+    const galleryManagerStatus=document.getElementById("gallery-manager-status");
+    let galleryItems=new Map();
+
+    function galleryDataUrl(item){
+      return item?.image_base64&&item?.mime_type
+        ? "data:"+item.mime_type+";base64,"+item.image_base64
+        : "";
+    }
+
+    function renderGalleryManager(){
+      if(!galleryManager)return;
+      galleryManager.innerHTML=Array.from({length:6},(_,index)=>{
+        const slot=index+1,item=galleryItems.get(slot),src=galleryDataUrl(item);
+        return '<article data-gallery-card="'+slot+'" style="padding:18px;border:1px solid var(--line);border-radius:12px;background:white;">'+
+          '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);">PHOTO SLOT '+String(slot).padStart(2,"0")+'</div>'+
+          '<div style="height:220px;margin-top:10px;border:1px solid var(--line);border-radius:9px;background:var(--cream);overflow:hidden;display:grid;place-items:center;">'+
+            (src?'<img src="'+src+'" alt="" style="width:100%;height:100%;object-fit:cover;">':'<span style="color:var(--muted);font-size:13px;">No photo uploaded</span>')+
+          '</div>'+
+          '<label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ALT TEXT<input data-gallery-alt="'+slot+'" value="'+escapeHtml(item?.alt_text||"")+'" placeholder="Describe the photograph" style="display:block;width:100%;margin-top:5px;border:1px solid var(--line);border-radius:8px;padding:9px;"></label>'+
+          '<label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">IMAGE<input data-gallery-file="'+slot+'" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font-size:12px;"></label>'+
+          '<div style="display:flex;gap:8px;margin-top:12px;">'+
+            '<button type="button" data-gallery-upload="'+slot+'" style="flex:1;border:0;border-radius:8px;padding:9px 12px;background:var(--ink);color:white;cursor:pointer;">'+(src?"Replace":"Upload")+'</button>'+
+            (src?'<button type="button" data-gallery-remove="'+slot+'" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:white;color:var(--red);cursor:pointer;">Remove</button>':'')+
+          '</div></article>';
+      }).join("");
+    }
+
+    async function resizeGalleryImage(file){
+      if(!file||!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("Choose a JPG, PNG, or WebP image.");
+      const bitmap=await createImageBitmap(file);
+      const maxDimension=1600;
+      const scale=Math.min(1,maxDimension/Math.max(bitmap.width,bitmap.height));
+      const width=Math.max(1,Math.round(bitmap.width*scale));
+      const height=Math.max(1,Math.round(bitmap.height*scale));
+      const canvas=document.createElement("canvas");
+      canvas.width=width;canvas.height=height;
+      canvas.getContext("2d").drawImage(bitmap,0,0,width,height);
+      bitmap.close?.();
+      const dataUrl=canvas.toDataURL("image/webp",.82);
+      return {mime_type:"image/webp",image_base64:dataUrl.split(",")[1]};
+    }
+
+    async function loadGalleryManager(){
+      if(!galleryManager)return;
+      if(galleryManagerStatus)galleryManagerStatus.textContent="Loading gallery…";
+      try{
+        const response=await fetch("/api/admin/gallery",{headers:{"Accept":"application/json"}});
+        const data=await response.json();
+        if(!response.ok||!data.ok)throw new Error(data.message||"Unable to load gallery.");
+        galleryItems=new Map((data.images||[]).map(item=>[Number(item.slot),item]));
+        renderGalleryManager();
+        if(galleryManagerStatus)galleryManagerStatus.textContent="Gallery loaded.";
+      }catch(error){
+        renderGalleryManager();
+        if(galleryManagerStatus)galleryManagerStatus.textContent=error.message||"Unable to load gallery.";
+      }
+    }
+
+    galleryManager?.addEventListener("click",async event=>{
+      const upload=event.target.closest("[data-gallery-upload]");
+      const remove=event.target.closest("[data-gallery-remove]");
+      if(!upload&&!remove)return;
+      const slot=Number((upload||remove).dataset.galleryUpload||(upload||remove).dataset.galleryRemove);
+      const card=galleryManager.querySelector('[data-gallery-card="'+slot+'"]');
+      if(remove){
+        if(!confirm("Remove this photo from The Muse?"))return;
+        remove.disabled=true;
+        try{
+          const response=await fetch("/api/admin/gallery",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({slot})});
+          const data=await response.json();
+          if(!response.ok||!data.ok)throw new Error(data.message||"Unable to remove photo.");
+          galleryItems.delete(slot);renderGalleryManager();
+          if(galleryManagerStatus)galleryManagerStatus.textContent="Photo slot "+slot+" removed.";
+        }catch(error){remove.disabled=false;if(galleryManagerStatus)galleryManagerStatus.textContent=error.message||"Unable to remove photo.";}
+        return;
+      }
+      const file=card?.querySelector("[data-gallery-file]")?.files?.[0];
+      const altText=card?.querySelector("[data-gallery-alt]")?.value.trim()||"";
+      if(!file){if(galleryManagerStatus)galleryManagerStatus.textContent="Choose an image for photo slot "+slot+".";return;}
+      upload.disabled=true;upload.textContent="Uploading…";
+      try{
+        const image=await resizeGalleryImage(file);
+        const response=await fetch("/api/admin/gallery",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slot,alt_text:altText,...image})});
+        const data=await response.json();
+        if(!response.ok||!data.ok)throw new Error(data.message||"Unable to upload photo.");
+        galleryItems.set(slot,data.image);renderGalleryManager();
+        if(galleryManagerStatus)galleryManagerStatus.textContent="Photo slot "+slot+" published to The Muse.";
+      }catch(error){upload.disabled=false;upload.textContent="Upload";if(galleryManagerStatus)galleryManagerStatus.textContent=error.message||"Unable to upload photo.";}
+    });
+
+    loadGalleryManager();
 
 
     const defaultRateServices = [
