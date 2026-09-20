@@ -2016,6 +2016,15 @@ async function loadRequests() {
                 </div>
               </details>
 
+              <details class="client-profile-section client-retention-offer" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Retention Offer</summary>
+                <div style="margin-top:10px;"><div style="font-size:12px;color:var(--muted);">Create a manual retention offer for this client. The email opens in preview first and is never sent automatically.</div>
+                <div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Eligibility:</strong> ${blacklistRecord ? "Not eligible · Blacklisted" : upcomingDate ? "Not eligible · Upcoming confirmed date" : completed > 0 ? "Eligible · "+completed+" completed date"+(completed===1?"":"s") : "Not eligible · No completed date"}</div>
+                <label style="display:block;margin-top:10px;font-size:11px;font-weight:700;">INCENTIVE<select class="client-retention-strategy" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="extra-time">Extra 30 Minutes</option><option value="experience-upgrade">Experience Upgrade</option><option value="special-rate">Special Rate</option></select></label>
+                <button type="button" class="client-retention-preview" data-client-id="${client.client_id}" ${(!blacklistRecord&&!upcomingDate&&completed>0)?"":"disabled"} style="margin-top:10px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;font-weight:700;cursor:${(!blacklistRecord&&!upcomingDate&&completed>0)?"pointer":"not-allowed"};opacity:${(!blacklistRecord&&!upcomingDate&&completed>0)?"1":".5"};">Preview Email</button>
+                <div class="client-retention-status" style="margin-top:7px;font-size:12px;color:var(--muted);"></div></div>
+              </details>
+
               <details class="client-profile-section" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:700;">Notes & Preferences</summary>
                 <div style="margin-top:10px;">
@@ -3909,6 +3918,23 @@ loadRequests();
         }, 50);
       }, 50);
     }
+
+    document.addEventListener("click",(event)=>{
+      const button=event.target.closest(".client-retention-preview");
+      if(!button||button.disabled) return;
+      const card=button.closest(".client-profile-actions"), modal=document.getElementById("retention-offer-preview"), strategy=document.getElementById("retention-preview-strategy");
+      if(!modal||!strategy) return;
+      modal.dataset.clientId=button.dataset.clientId||"";
+      strategy.value=card?.querySelector(".client-retention-strategy")?.value||document.getElementById("retention-offer-strategy")?.value||"extra-time";
+      const label=document.getElementById("retention-preview-client"); if(label) label.textContent="Manual retention offer";
+      const note=document.getElementById("retention-preview-guidance"), messages={"extra-time":"Adds 30 minutes while keeping your regular rate intact.","experience-upgrade":"Offers an experience upgrade without reducing your master rate.","special-rate":"Uses a special-rate incentive. You will review the generated wording before anything is sent."};
+      if(note) note.textContent=messages[strategy.value]||"";
+      strategy.onchange=()=>{if(note)note.textContent=messages[strategy.value]||"";};
+      const wrap=document.getElementById("retention-preview-email-wrap"); if(wrap) wrap.hidden=true;
+      const save=document.getElementById("retention-preview-create"); if(save) save.hidden=true;
+      const preview=document.getElementById("retention-preview-generate"); if(preview){preview.hidden=false;preview.disabled=false;preview.textContent="Preview Email";}
+      modal.hidden=false;
+    });
 
     navButtons.forEach((button) => {
       button.addEventListener("click", () => {
