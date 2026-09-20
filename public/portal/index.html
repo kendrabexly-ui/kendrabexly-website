@@ -4328,18 +4328,11 @@ loadRequests();
       box.style.display="block";
       box.innerHTML='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;"><strong>'+date.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})+'</strong><button id="calendar-close-day" type="button" style="border:0;background:transparent;cursor:pointer;">Close</button></div>'+
         '<div style="font-size:12px;color:var(--muted);margin-top:10px;">Manage openings in the Open Availability panel below.</div>'+
-        '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;"><div><strong>'+escapeHtml(formatCalendarTime(e.time))+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>'+(e.type==="Open Availability"?'<button type="button" data-day-remove-time="'+escapeHtml(e.time||"")+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button>':'<button type="button" data-day-view-date="'+escapeHtml(e.requestId)+'" style="padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;white-space:nowrap;">Open Details</button>')+'</div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
+        '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;"><div><strong>'+escapeHtml(formatCalendarTime(e.time))+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>'+(e.type==="Open Availability"?'<span style="font-size:11px;color:var(--muted);">From work hours</span>':'<button type="button" data-day-view-date="'+escapeHtml(e.requestId)+'" style="padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;white-space:nowrap;">Open Details</button>')+'</div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
       document.getElementById("calendar-close-day")?.addEventListener("click",()=>{box.style.display="none";});
       box.querySelectorAll("[data-day-view-date]").forEach(button=>button.addEventListener("click",()=>{
         const requestId=button.dataset.dayViewDate||"";
         openCalendarRequest(requestId);
-      }));
-      box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",async()=>{
-        const time=button.dataset.dayRemoveTime||"";
-        await deleteCalendarAvailability({date:key,time});
-        const current=readCalendarAvailability().filter(x=>!(x.date===key && x.time===time));
-        localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
-        renderCalendarAvailability(); renderCalendarWeek(); renderCalendarDay(key);
       }));
       box.scrollIntoView({behavior:"smooth",block:"nearest"});
     }
@@ -4445,15 +4438,7 @@ loadRequests();
           })
           .sort((a,b) => String(a.requested_date||"").localeCompare(String(b.requested_date||"")) || String(a.requested_time||"").localeCompare(String(b.requested_time||"")));
         calendarApprovedDates = rows;
-        const savedAvailability=readCalendarAvailability();
-        const availableAfterBookings=savedAvailability.filter(slot=>!availabilityIsBlocked(slot,calendarApprovedDates));
-        const removedOpeningCount=savedAvailability.length-availableAfterBookings.length;
-        if(removedOpeningCount>0){
-          localStorage.setItem(calendarAvailabilityKey,JSON.stringify(availableAfterBookings));
-          savedAvailability.filter(slot=>availabilityIsBlocked(slot,calendarApprovedDates)).forEach(slot=>deleteCalendarAvailability(slot));
-          setCalendarAvailabilityFeedback(removedOpeningCount+" opening"+(removedOpeningCount===1?" was":"s were")+" removed because confirmed appointments now occupy the time.");
-        }
-        renderCalendarAvailability();
+        // Work-hour openings are derived; confirmed bookings are filtered by duration.\n        renderCalendarAvailability();
         renderCalendarWeek();
         if (count) count.textContent = String(rows.length);
         box.innerHTML = rows.length ? rows.slice(0,6).map(item => {
