@@ -3765,6 +3765,23 @@ if (
       }
     }
 
+    if (
+      url.pathname.match(/^\/api\/admin\/email-drafts\/\d+$/) &&
+      request.method === "DELETE"
+    ) {
+      try {
+        const id=Number(url.pathname.split("/").pop());
+        if(!Number.isInteger(id)||id<=0) return Response.json({ok:false,message:"Invalid email draft ID."},{status:400});
+        const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE id=? LIMIT 1").bind(id).first();
+        if(!existing) return Response.json({ok:false,message:"Email draft not found."},{status:404});
+        await env.DB.prepare("DELETE FROM email_drafts WHERE id=?").bind(id).run();
+        return Response.json({ok:true,deleted:id});
+      } catch(error) {
+        console.error("Delete email draft error:",error);
+        return Response.json({ok:false,message:"Unable to delete email draft."},{status:500});
+      }
+    }
+
 // ========================================
 // UPDATE ADMIN EMAIL DRAFT
 // ========================================
