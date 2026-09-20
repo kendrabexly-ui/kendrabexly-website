@@ -204,6 +204,18 @@
         : fallback;
     }
 
+    function formatUsDate(value) {
+      const match=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return match ? match[2]+"/"+match[3]+"/"+match[1] : displayValue(value);
+    }
+    function format12HourTime(value) {
+      const match=String(value||"").match(/^(\d{1,2}):(\d{2})/);
+      if(!match) return displayValue(value);
+      let hour=Number(match[1]); const minute=match[2]; const suffix=hour>=12?"PM":"AM";
+      hour=hour%12||12;
+      return hour+":"+minute+" "+suffix;
+    }
+
     async function loadRequest() {
       const container =
         document.getElementById("request-container");
@@ -296,14 +308,14 @@
             <div class="detail">
               <div class="label">Requested Date</div>
               <div class="value">
-                ${displayValue(item.requested_date)}
+                ${formatUsDate(item.requested_date)}
               </div>
             </div>
 
             <div class="detail">
               <div class="label">Requested Time</div>
               <div class="value">
-                ${displayValue(item.requested_time)}
+                ${format12HourTime(item.requested_time)}
               </div>
             </div>
 
