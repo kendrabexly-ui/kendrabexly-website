@@ -2303,6 +2303,8 @@ if (
       try {
         const data = await request.json();
         const clientId = Number(data.client_id);
+        const allowedOfferStrategies = new Set(["extra-time","experience-upgrade","special-rate"]);
+        const offerStrategy = allowedOfferStrategies.has(String(data.offer_strategy||"")) ? String(data.offer_strategy) : "extra-time";
         if (!Number.isFinite(clientId) || clientId <= 0) return Response.json({ok:false,message:"Client not found."},{status:400});
         const notes = String(data.notes || "").trim().slice(0,4000);
         const preferences = String(data.preferences || "").trim().slice(0,4000);
@@ -3085,6 +3087,12 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             GROUP BY client_id
           )
           SELECT r.client_id, r.sent_at, r.draft_at, c.first_name, c.last_name,
+            CASE
+              WHEN instr(COALESCE((SELECT body FROM email_drafts e2 WHERE e2.client_id=r.client_id AND e2.email_type='retention_follow_up' ORDER BY COALESCE(e2.sent_at,e2.created_at) DESC LIMIT 1),''),'RETENTION_OFFER:experience-upgrade')>0 THEN 'experience-upgrade'
+              WHEN instr(COALESCE((SELECT body FROM email_drafts e2 WHERE e2.client_id=r.client_id AND e2.email_type='retention_follow_up' ORDER BY COALESCE(e2.sent_at,e2.created_at) DESC LIMIT 1),''),'RETENTION_OFFER:special-rate')>0 THEN 'special-rate'
+              WHEN instr(COALESCE((SELECT body FROM email_drafts e2 WHERE e2.client_id=r.client_id AND e2.email_type='retention_follow_up' ORDER BY COALESCE(e2.sent_at,e2.created_at) DESC LIMIT 1),''),'RETENTION_OFFER:extra-time')>0 THEN 'extra-time'
+              ELSE 'untracked'
+            END AS offer_strategy,
             CASE WHEN r.sent_at IS NOT NULL THEN 'sent' WHEN r.draft_at IS NOT NULL THEN 'draft' ELSE 'none' END AS status,
             (
               SELECT MIN(dr.requested_date)
@@ -3136,12 +3144,13 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         if (!completed.length) return Response.json({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
         if (upcoming) return Response.json({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
         const last = completed[0];
-        let body = `Hi ${client.first_name || ""},\n\nYou crossed my mind, so I wanted to say hello. I enjoyed seeing you and would love to spend time together again when the timing feels right.\n\nKendra`;
+        const offerLabel = offerStrategy==="extra-time" ? "an extra 30 minutes" : offerStrategy==="experience-upgrade" ? "a special experience upgrade" : "a special rate";
+        let body = `Hi ${client.first_name || ""},\n\nYou crossed my mind, so I wanted to say hello. I enjoyed seeing you and would love to spend time together again when the timing feels right. I have ${offerLabel} available for a future date.\n\nKendra`;
         if (env.AI) {
           try {
             const ai = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
               {role:"system",content:"Write a short private retention follow-up email in my first person voice as an adult independent professional companion. It is for a client who has already completed a date with me. Sound natural, feminine, warm, personal, lightly flirty, and never like mass marketing. Do not invent memories or details. Do not pressure the client to book. Protect my pricing: do not invent or reduce rates and do not promise a discount. If an incentive is appropriate, prefer mentioning that I may have something special available rather than naming an unverified offer. No poetic language. No hyphens, em dashes, or en dashes. Return only the email body without a signature."},
-              {role:"user",content:"Client first name: "+String(client.first_name||"")+"\nCompleted dates: "+completed.length+"\nLast completed date: "+String(last.requested_date||"")+"\nClient notes: "+String(client.notes||"")+"\nLast date notes: "+String(last.notes||"")}
+              {role:"user",content:"Client first name: "+String(client.first_name||"")+"\nCompleted dates: "+completed.length+"\nLast completed date: "+String(last.requested_date||"")+"\nClient notes: "+String(client.notes||"")+"\nLast date notes: "+String(last.notes||"")+"\nRetention offer strategy: "+offerLabel+"\nInclude this incentive naturally without inventing any rate, amount, or additional terms."}
             ],max_tokens:350,temperature:0.75});
             const generated=String(ai?.response||ai?.result?.response||"").trim().replace(/^[\"“]|[\"”]$/g,"").replace(/[–—]/g,",");
             if(generated) body=generated+"\n\nKendra";
@@ -3151,10 +3160,10 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         if (recentSent) return Response.json({ok:false,message:"This client received a retention follow-up within the last 30 days."},{status:409});
         const existing = await env.DB.prepare("SELECT id FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='draft' LIMIT 1").bind(clientId).first();
         if(existing) {
-          await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind("A little hello",body,existing.id).run();
+          await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind("A little hello",body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->",existing.id).run();
           return Response.json({ok:true,id:existing.id,updated:true,message:"Retention follow-up draft refreshed."});
         }
-        const result=await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,last.id,"retention_follow_up","A little hello",body).run();
+        const result=await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,last.id,"retention_follow_up","A little hello",body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->").run();
         return Response.json({ok:true,id:result.meta.last_row_id,message:"Retention follow-up draft created."});
       } catch(error) {
         console.error("Retention follow-up draft error:",error);
