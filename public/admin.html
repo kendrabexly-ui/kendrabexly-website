@@ -3929,12 +3929,7 @@ loadRequests();
       document.getElementById("calendar-close-day")?.addEventListener("click",()=>{box.style.display="none";});
       box.querySelectorAll("[data-day-view-date]").forEach(button=>button.addEventListener("click",()=>{
         const requestId=button.dataset.dayViewDate||"";
-        openSection("requests");
-        const search=document.getElementById("request-search");
-        if(search && requestId){
-          search.value=requestId;
-          search.dispatchEvent(new Event("input",{bubbles:true}));
-        }
+        openCalendarRequest(requestId);
       }));
       box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",()=>{
         const time=button.dataset.dayRemoveTime||"";
@@ -3953,6 +3948,31 @@ loadRequests();
       if(dayView) dayView.style.display="none";
     });
 
+    function openCalendarRequest(requestId){
+      openSection("requests");
+      window.setTimeout(()=>{
+        const filter=document.getElementById("request-status-filter");
+        const search=document.getElementById("request-search");
+        if(filter) filter.value="all";
+        if(search){
+          search.value=requestId||"";
+          search.dispatchEvent(new Event("input",{bubbles:true}));
+          search.focus();
+        }
+        document.getElementById("request-records")?.scrollIntoView({behavior:"smooth",block:"start"});
+      },75);
+    }
+    function openCalendarClient(email){
+      openSection("clients");
+      window.setTimeout(()=>{
+        const search=document.getElementById("client-search");
+        if(!search) return;
+        search.value=email||"";
+        search.dispatchEvent(new Event("input",{bubbles:true}));
+        search.focus();
+        window.setTimeout(()=>document.querySelector("#client-records .client-profile-toggle")?.click(),60);
+      },75);
+    }
     function openCalendarRequestList(status){
       openSection("requests");
       window.setTimeout(()=>{
@@ -3993,13 +4013,7 @@ loadRequests();
         box.querySelector("[data-calendar-view-all]")?.addEventListener("click",()=>openCalendarRequestList("completed"));
         box.querySelectorAll("[data-completed-view-client]").forEach(button=>button.addEventListener("click",()=>{
           const email=button.dataset.completedViewClient||"";
-          openSection("clients");
-          const search=document.getElementById("client-search");
-          if(search && email){
-            search.value=email;
-            search.dispatchEvent(new Event("input",{bubbles:true}));
-            window.setTimeout(()=>document.querySelector("#client-records .client-profile-toggle")?.click(),60);
-          }
+          openCalendarClient(email);
         }));
       } catch(error) {
         if(count) count.textContent="—";
@@ -4052,22 +4066,11 @@ loadRequests();
         box.querySelector("[data-calendar-view-all]")?.addEventListener("click",()=>openCalendarRequestList("approved"));
         box.querySelectorAll("[data-calendar-view-client]").forEach(button => button.addEventListener("click", () => {
           const email = button.dataset.calendarViewClient || "";
-          openSection("clients");
-          const search = document.getElementById("client-search");
-          if (search && email) {
-            search.value = email;
-            search.dispatchEvent(new Event("input", {bubbles:true}));
-            window.setTimeout(() => document.querySelector("#client-records .client-profile-toggle")?.click(), 60);
-          }
+          openCalendarClient(email);
         }));
         box.querySelectorAll("[data-calendar-view-date]").forEach(button => button.addEventListener("click", () => {
           const requestId = button.dataset.calendarViewDate || "";
-          openSection("requests");
-          const search = document.getElementById("request-search");
-          if (search && requestId) {
-            search.value = requestId;
-            search.dispatchEvent(new Event("input", {bubbles:true}));
-          }
+          openCalendarRequest(requestId);
         }));
       } catch (error) {
         if (count) count.textContent = "—";
