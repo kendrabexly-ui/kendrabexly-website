@@ -657,20 +657,24 @@
             <div class="stat-label">Completed Dates</div>
             <div class="stat-number" id="calendar-completed-count">—</div>
           </div>
-          <div class="stat">
-            <div class="stat-label">Calendar View</div>
-            <div class="stat-number" style="font-size:22px;">Ready</div>
-          </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
             <div>
-              <div class="panel-title">Calendar</div>
-              <div class="panel-subtitle">The section shell is isolated. Date records and actions will be connected in the next step.</div>
+              <div class="panel-title">Schedule &amp; Calendar</div>
+              <div class="panel-subtitle">Review confirmed appointments, manage availability, and open client or date details from one place.</div>
             </div>
           </div>
-          <div style="padding:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+          <div style="padding:22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
+            <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;grid-column:1/-1;">
+              <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+                <div><strong>Weekly Schedule</strong><div style="margin-top:6px;font-size:13px;color:var(--muted);">Confirmed appointments and remaining open availability.</div></div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button id="calendar-prev-week" type="button" aria-label="Previous week">←</button><strong id="calendar-week-label" style="font-size:13px;"></strong><button id="calendar-next-week" type="button" aria-label="Next week">→</button><button id="calendar-this-week" type="button">This Week</button></div>
+              </div>
+              <div id="calendar-week-view" style="display:grid;grid-template-columns:repeat(7,minmax(115px,1fr));gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:4px;"></div>
+              <div id="calendar-day-view" style="display:none;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
+            </div>
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Upcoming Dates</strong>
               <div style="margin-top:6px;font-size:13px;color:var(--muted);">Confirmed dates will appear here.</div>
@@ -684,14 +688,8 @@
             </div>
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Completed Dates</strong>
-              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Successfully completed dates will be organized here.</div>
-            </div>
-            <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
-              <strong>Calendar View</strong>
-              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Confirmed appointments and remaining open availability in one weekly schedule.</div>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;"><button id="calendar-prev-week" type="button">←</button><strong id="calendar-week-label" style="font-size:13px;"></strong><button id="calendar-next-week" type="button">→</button><button id="calendar-this-week" type="button">This Week</button></div>
-              <div id="calendar-week-view" style="display:grid;grid-template-columns:repeat(7,minmax(115px,1fr));gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:4px;"></div>
-              <div id="calendar-day-view" style="display:none;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
+              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Most recently completed appointments.</div>
+              <div id="calendar-completed-dates" style="margin-top:14px;"><div style="font-size:13px;color:var(--muted);">Open Calendar to load completed dates.</div></div>
             </div>
           </div>
         </div>
@@ -3888,19 +3886,9 @@ loadRequests();
       const date=new Date(key+"T12:00:00");
       box.style.display="block";
       box.innerHTML='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;"><strong>'+date.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})+'</strong><button id="calendar-close-day" type="button" style="border:0;background:transparent;cursor:pointer;">Close</button></div>'+
-        '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:12px;padding:10px;border:1px solid var(--line);border-radius:9px;"><input id="calendar-day-add-time" type="time" style="padding:6px;border:1px solid var(--line);border-radius:7px;"><button id="calendar-day-add" type="button" style="padding:6px 10px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Add Opening</button></div>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:10px;">Manage openings in the Open Availability panel below.</div>'+
         '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;"><div><strong>'+escapeHtml(e.time||"Time TBD")+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>'+(e.type==="Open Availability"?'<button type="button" data-day-remove-time="'+escapeHtml(e.time||"")+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button>':'')+'</div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
       document.getElementById("calendar-close-day")?.addEventListener("click",()=>{box.style.display="none";});
-      document.getElementById("calendar-day-add")?.addEventListener("click",()=>{
-        const time=document.getElementById("calendar-day-add-time")?.value||"";
-        if(!time) return;
-        const slot={date:key,time};
-        if(availabilityIsBlocked(slot,calendarApprovedDates)) return;
-        const current=readCalendarAvailability();
-        if(!current.some(x=>x.date===key && x.time===time)) current.push(slot);
-        localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
-        renderCalendarAvailability(); renderCalendarWeek(); renderCalendarDay(key);
-      });
       box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",()=>{
         const time=button.dataset.dayRemoveTime||"";
         const current=readCalendarAvailability().filter(x=>!(x.date===key && x.time===time));
