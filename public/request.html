@@ -11,10 +11,10 @@
 
   <meta
     name="description"
-    content="Private request portal for Kendra Bexly"
+    content="Submit a private booking request for time with Kendra Bexly."
   >
 
-  <title>The Rendezvous | Kendra Bexly</title>
+  <title>The Rendezvous | Booking Form | Kendra Bexly</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,11 +28,13 @@
 </head>
 
 
-<body>
+<body class="rendezvous-page">
+
+  <a class="skip-link" href="#main-content">Skip to booking form</a>
 
   <!-- NAVIGATION -->
   <header class="nav">
-  <a class="brand" href="/">Kendra Bexly</a>
+  <a class="brand" href="/" aria-label="Kendra Bexly home">Kendra Bexly</a>
   <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
   <nav id="site-nav" aria-label="Primary navigation">
     <a href="/">The Invitation</a>
@@ -41,12 +43,12 @@
     <a href="/our-time">Our Time</a>
     <a href="/etiquette">Etiquette</a>
     <a href="/pillow-talk">Pillow Talk</a>
-    <a class="button small" href="/request">The Rendezvous</a>
+    <a class="button small" href="/request" aria-current="page">The Rendezvous</a>
   </nav>
 </header>
 
 
-  <main class="request-page">
+  <main id="main-content" class="request-page">
 
     <!-- INTRODUCTION -->
     <section class="request-intro">
@@ -487,29 +489,36 @@
 
 
 
-  <!-- FOOTER -->
-  <footer>
-
-    <span>
-      © 2026 Kendra Bexly
-    </span>
-
-    <span>
-      Official website • KendraBexly.com
-    </span>
-
-  </footer>
-
-
 
   <!-- FORM SUBMISSION -->
   <script>
     const menuToggle = document.querySelector(".menu-toggle");
     const siteNav = document.getElementById("site-nav");
+
+    const closeMenu = () => {
+      menuToggle?.setAttribute("aria-expanded", "false");
+      siteNav?.classList.remove("open");
+    };
+
     menuToggle?.addEventListener("click", () => {
-      const open = menuToggle.getAttribute("aria-expanded") === "true";
-      menuToggle.setAttribute("aria-expanded", String(!open));
-      siteNav?.classList.toggle("open", !open);
+      const willOpen = menuToggle.getAttribute("aria-expanded") !== "true";
+      menuToggle.setAttribute("aria-expanded", String(willOpen));
+      siteNav?.classList.toggle("open", willOpen);
+    });
+
+    siteNav?.addEventListener("click", event => {
+      if (event.target.closest("a")) closeMenu();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeMenu();
+        menuToggle?.focus();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 1100) closeMenu();
     });
 
     const offerParams = new URLSearchParams(window.location.search);
