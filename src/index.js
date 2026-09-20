@@ -1793,26 +1793,29 @@ My journal will continue to be a place where I share a little more of that side 
     if (!current) return Response.json({ok:false,message:"Generate the monthly offer before choosing its specials."},{status:400});
     const data = await request.json().catch(() => ({}));
 
-    // Margin-protected choices: price-only discounts stay under 10%; combination
-    // offers use about 5% off because they also include extra time.
+    // Monthly specials are aligned with the current published experience menu.
+    // Signature: $500 / $750 / $1,000 / $2,600.
+    // Greek Princess: $700 / $1,000 / $1,300 / $3,000.
+    // Price-only specials remain under 10% off; combination offers use a smaller
+    // reduction because they also include 30 extra minutes.
     const classicOptions = [
-      {id:"classic-time-1",base:"1 hour",special:"1.5 hours",price:500,type:"Extra Time",label:"Extra Time · $500 for 1 hour · enjoy 1.5 hours"},
-      {id:"classic-time-15",base:"1.5 hours",special:"2 hours",price:750,type:"Extra Time",label:"Extra Time · $750 for 1.5 hours · enjoy 2 hours"},
-      {id:"classic-time-2",base:"2 hours",special:"2.5 hours",price:1000,type:"Extra Time",label:"Extra Time · $1,000 for 2 hours · enjoy 2.5 hours"},
-      {id:"classic-time-4",base:"4 hours",special:"4.5 hours",price:2600,type:"Extra Time",label:"Extra Time · $2,600 for 4 hours · enjoy 4.5 hours"},
+      {id:"classic-time-1",base:"1 hour",special:"1.5 hours",price:500,regular:500,type:"Extra Time",label:"Extra Time · $500 for 1 hour · enjoy 1.5 hours"},
+      {id:"classic-time-15",base:"1.5 hours",special:"2 hours",price:750,regular:750,type:"Extra Time",label:"Extra Time · $750 for 1.5 hours · enjoy 2 hours"},
+      {id:"classic-time-2",base:"2 hours",special:"2.5 hours",price:1000,regular:1000,type:"Extra Time",label:"Extra Time · $1,000 for up to 2 hours · enjoy 2.5 hours"},
+      {id:"classic-time-4",base:"4 hours",special:"4.5 hours",price:2600,regular:2600,type:"Extra Time",label:"Extra Time · $2,600 for up to 4 hours · enjoy 4.5 hours"},
       {id:"classic-price-15",base:"1.5 hours",special:"1.5 hours",price:700,regular:750,type:"Special Price",label:"Special Price · 1.5 hours $700 · normally $750 · save $50"},
-      {id:"classic-price-2",base:"2 hours",special:"2 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · 2 hours $925 · normally $1,000 · save $75"},
-      {id:"classic-price-4",base:"4 hours",special:"4 hours",price:2400,regular:2600,type:"Special Price",label:"Special Price · 4 hours $2,400 · normally $2,600 · save $200"},
+      {id:"classic-price-2",base:"2 hours",special:"2 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · up to 2 hours $925 · normally $1,000 · save $75"},
+      {id:"classic-price-4",base:"4 hours",special:"4 hours",price:2400,regular:2600,type:"Special Price",label:"Special Price · up to 4 hours $2,400 · normally $2,600 · save $200"},
       {id:"classic-combo-2",base:"2 hours",special:"2.5 hours",price:950,regular:1000,type:"Price + Extra Time",label:"Combo · $950 + 30 extra minutes · normally $1,000"}
     ];
     const greekOptions = [
-      {id:"greek-time-1",base:"1 hour",special:"1.5 hours",price:700,type:"Extra Time",label:"Extra Time · $700 for 1 hour · enjoy 1.5 hours"},
-      {id:"greek-time-15",base:"1.5 hours",special:"2 hours",price:1000,type:"Extra Time",label:"Extra Time · $1,000 for 1.5 hours · enjoy 2 hours"},
-      {id:"greek-time-2",base:"2 hours",special:"2.5 hours",price:1300,type:"Extra Time",label:"Extra Time · $1,300 for 2 hours · enjoy 2.5 hours"},
-      {id:"greek-time-4",base:"4 hours",special:"4.5 hours",price:3000,type:"Extra Time",label:"Extra Time · $3,000 for 4 hours · enjoy 4.5 hours"},
+      {id:"greek-time-1",base:"1 hour",special:"1.5 hours",price:700,regular:700,type:"Extra Time",label:"Extra Time · $700 for 1 hour · enjoy 1.5 hours"},
+      {id:"greek-time-15",base:"1.5 hours",special:"2 hours",price:1000,regular:1000,type:"Extra Time",label:"Extra Time · $1,000 for 1.5 hours · enjoy 2 hours"},
+      {id:"greek-time-2",base:"2 hours",special:"2.5 hours",price:1300,regular:1300,type:"Extra Time",label:"Extra Time · $1,300 for up to 2 hours · enjoy 2.5 hours"},
+      {id:"greek-time-4",base:"4 hours",special:"4.5 hours",price:3000,regular:3000,type:"Extra Time",label:"Extra Time · $3,000 for up to 4 hours · enjoy 4.5 hours"},
       {id:"greek-price-15",base:"1.5 hours",special:"1.5 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · 1.5 hours $925 · normally $1,000 · save $75"},
-      {id:"greek-price-2",base:"2 hours",special:"2 hours",price:1200,regular:1300,type:"Special Price",label:"Special Price · 2 hours $1,200 · normally $1,300 · save $100"},
-      {id:"greek-price-4",base:"4 hours",special:"4 hours",price:2800,regular:3000,type:"Special Price",label:"Special Price · 4 hours $2,800 · normally $3,000 · save $200"},
+      {id:"greek-price-2",base:"2 hours",special:"2 hours",price:1200,regular:1300,type:"Special Price",label:"Special Price · up to 2 hours $1,200 · normally $1,300 · save $100"},
+      {id:"greek-price-4",base:"4 hours",special:"4 hours",price:2800,regular:3000,type:"Special Price",label:"Special Price · up to 4 hours $2,800 · normally $3,000 · save $200"},
       {id:"greek-combo-2",base:"2 hours",special:"2.5 hours",price:1235,regular:1300,type:"Price + Extra Time",label:"Combo · $1,235 + 30 extra minutes · normally $1,300"}
     ];
 
