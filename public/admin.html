@@ -1152,7 +1152,9 @@
         <div style="margin-top:5px;color:var(--muted);font-size:13px;line-height:1.5;">Retention offers should reference your master rates. Extra time and experience-based incentives can be used before reducing the rate.</div>
       </div>
 
-      <div style="margin-top:16px;">
+      <details open style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
+        <summary style="cursor:pointer;font-weight:700;">Offer Strategy <span style="font-weight:400;color:var(--muted);">— protect your pricing</span></summary>
+        <div style="margin-top:12px;">
         <div style="font-weight:700;margin-bottom:8px;">Offer Strategy</div>
         <label for="retention-offer-strategy" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Preferred incentive</label>
         <select id="retention-offer-strategy" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
@@ -1161,10 +1163,11 @@
           <option value="special-rate">Special Rate</option>
         </select>
         <div id="retention-offer-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">Keeps your regular rate intact while giving returning clients something meaningful.</div>
-      </div>
-
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
-        <div style="font-weight:700;margin-bottom:5px;">Offer Eligibility</div>
+        </div>
+      </details>
+      <details open style="padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
+        <summary style="cursor:pointer;font-weight:700;">Offer Eligibility <span style="font-weight:400;color:var(--muted);">— who qualifies</span></summary>
+        <div style="margin-top:12px;">
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Choose who can receive retention offers. This does not change your booking approval process.</div>
         <label for="retention-offer-eligibility" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Eligible clients</label>
         <select id="retention-offer-eligibility" style="width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
@@ -1173,8 +1176,8 @@
           <option value="manual">Manual selection only</option>
         </select>
         <div id="retention-eligibility-guidance" style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.5;">A client becomes eligible after their first date has been marked successfully completed.</div>
-      </div>
-
+        </div>
+      </details>
       <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
         <div style="font-weight:700;margin-bottom:5px;">Offer Frequency</div>
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;">Set a default limit so retention offers stay intentional instead of becoming an expected discount.</div>
