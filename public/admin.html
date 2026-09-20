@@ -2379,6 +2379,7 @@ async function loadRequests() {
             item.last_name,
             item.email,
             item.phone,
+            item.id,
             item.requested_date,
             item.requested_time,
             item.location_name,
@@ -3897,15 +3898,24 @@ loadRequests();
       const booked=calendarApprovedDates.filter(x=>String(x.requested_date||"")===key);
       const open=readCalendarAvailability().filter(x=>String(x.date||"")===key && !availabilityIsBlocked(x,calendarApprovedDates));
       const entries=[
-        ...booked.map(x=>({time:x.requested_time||"",type:"Confirmed Appointment",detail:[x.first_name,x.last_name].filter(Boolean).join(" ")||"Client",duration:bookingDurationMinutes(x)})),
-        ...open.map(x=>({time:x.time||"",type:"Open Availability",detail:"Available to schedule",duration:0}))
+        ...booked.map(x=>({time:x.requested_time||"",type:"Confirmed Appointment",detail:[x.first_name,x.last_name].filter(Boolean).join(" ")||"Client",duration:bookingDurationMinutes(x),requestId:String(x.id||"")})),
+        ...open.map(x=>({time:x.time||"",type:"Open Availability",detail:"Available to schedule",duration:0,requestId:""}))
       ].sort((a,b)=>String(a.time).localeCompare(String(b.time)));
       const date=new Date(key+"T12:00:00");
       box.style.display="block";
       box.innerHTML='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;"><strong>'+date.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})+'</strong><button id="calendar-close-day" type="button" style="border:0;background:transparent;cursor:pointer;">Close</button></div>'+
         '<div style="font-size:12px;color:var(--muted);margin-top:10px;">Manage openings in the Open Availability panel below.</div>'+
-        '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;"><div><strong>'+escapeHtml(e.time||"Time TBD")+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>'+(e.type==="Open Availability"?'<button type="button" data-day-remove-time="'+escapeHtml(e.time||"")+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button>':'')+'</div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
+        '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center;"><div><strong>'+escapeHtml(e.time||"Time TBD")+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>'+(e.type==="Open Availability"?'<button type="button" data-day-remove-time="'+escapeHtml(e.time||"")+'" style="border:0;background:transparent;cursor:pointer;color:var(--red);font-size:12px;">Remove</button>':'<button type="button" data-day-view-date="'+escapeHtml(e.requestId)+'" style="padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:white;cursor:pointer;font-size:12px;white-space:nowrap;">Open Details</button>')+'</div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
       document.getElementById("calendar-close-day")?.addEventListener("click",()=>{box.style.display="none";});
+      box.querySelectorAll("[data-day-view-date]").forEach(button=>button.addEventListener("click",()=>{
+        const requestId=button.dataset.dayViewDate||"";
+        openSection("requests");
+        const search=document.getElementById("request-search");
+        if(search && requestId){
+          search.value=requestId;
+          search.dispatchEvent(new Event("input",{bubbles:true}));
+        }
+      }));
       box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",()=>{
         const time=button.dataset.dayRemoveTime||"";
         const current=readCalendarAvailability().filter(x=>!(x.date===key && x.time===time));
