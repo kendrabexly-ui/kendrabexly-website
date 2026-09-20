@@ -4164,7 +4164,7 @@ Kendra`
           const notes = String(item.notes || "");
           const dateTypeKey = (notes.match(/Date type:\s*([^\n]+)/i)?.[1] || "").trim().toLowerCase();
           const appointmentTypeKey = (notes.match(/Appointment type:\s*([^\n]+)/i)?.[1] || "").trim().toLowerCase();
-          const durationKey = (notes.match(/Duration:\s*([^\n]+)/i)?.[1] || "").trim().toLowerCase();
+          const durationKey = (notes.match(/Duration:\s*([^\n]+)/i)?.[1] || "").trim().toLowerCase().replace(/-/g, " ");
           const specialRateMatch = notes.match(/Selected monthly special:[^\n]*?\bat\s*\$([\d,]+(?:\.\d{1,2})?)/i);
           const specialRate = specialRateMatch ? Number(specialRateMatch[1].replace(/,/g, "")) : 0;
           const configuredServices = await readSiteRates(env);
@@ -4174,7 +4174,10 @@ Kendra`
             "signature-brief-introduction": "brief experiences",
             "greek-princess-brief-introduction": "brief experiences",
             "signature-girlfriend-experience": "signature girlfriend experience",
-            "greek-princess-experience": "greek princess experience"
+            "signature-private-companionship": "signature girlfriend experience",
+            "signature-experience": "signature girlfriend experience",
+            "greek-princess-experience": "greek princess experience",
+            "greek-private-companionship": "greek princess experience"
           };
           const selectedService = configuredServices.find(service =>
             String(service.name || "").trim().toLowerCase() === serviceNameByDateType[dateTypeKey]
