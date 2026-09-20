@@ -2372,6 +2372,14 @@ My journal will continue to be a place where I share a little more of that side 
         const depositAcknowledgement =
           data.deposit_acknowledgement === "yes";
 
+        const depositPaymentMethod =
+          String(data.deposit_payment_method || "").trim().toLowerCase();
+
+        const allowedDepositPaymentMethods = new Set(["gift-card", "stripe", "crypto"]);
+        if (!allowedDepositPaymentMethods.has(depositPaymentMethod)) {
+          return Response.json({ ok:false, message:"Please choose how you would like to secure the date." }, { status:400 });
+        }
+
         const newsletterOfferId =
           String(data.newsletter_offer || "").trim();
 
@@ -2746,7 +2754,11 @@ My journal will continue to be a place where I share a little more of that side 
             : null,
 
           depositAcknowledgement
-            ? "25% deposit requirement acknowledged: Yes"
+            ? "Deposit requirement acknowledged: Yes"
+            : null,
+
+          depositPaymentMethod
+            ? `Deposit payment method: ${depositPaymentMethod}`
             : null
         ]
           .filter(Boolean)
@@ -4061,9 +4073,13 @@ if (
         const configuredOutcallRate = Number(outcallService?.rates?.[0]?.[1]) || 100;
         const outcallAddOn = appointmentTypeKey === "outcall" ? configuredOutcallRate : 0;
         const bookingRate = (specialRate || standardBookingRate) + outcallAddOn;
-        const depositAmount = bookingRate > 0
+        const baseDepositAmount = bookingRate > 0
           ? Math.round(bookingRate * 0.25 * 100) / 100
           : 0;
+        const depositPaymentMethod = String(notesText.match(/Deposit payment method:\s*([^\n]+)/i)?.[1] || "gift-card").trim().toLowerCase();
+        const depositProcessingRate = ["stripe", "crypto"].includes(depositPaymentMethod) ? 0.10 : 0;
+        const depositProcessingFee = Math.round(baseDepositAmount * depositProcessingRate * 100) / 100;
+        const depositAmount = Math.round((baseDepositAmount + depositProcessingFee) * 100) / 100;
 
         await env.DB
           .prepare(`
@@ -4103,15 +4119,18 @@ I'd love to move forward with your request.
 Date: ${existingRequest.requested_date}
 Time: ${existingRequest.requested_time}
 
-To complete final approval, please reply directly to this email with your ID attached and send your ${depositDisplay} deposit.
+To complete final approval, please reply directly to this email with your ID attached and complete your ${depositDisplay} deposit.
 
-Please note: your deposit must be received no later than 4 hours before our scheduled date and time. After that cutoff, I won't be able to confirm the deposit or complete the booking.
+You selected: ${depositPaymentMethod === "gift-card" ? "Gift Card" : depositPaymentMethod === "stripe" ? "Stripe" : "Crypto"}.
+${depositProcessingFee > 0 ? `Your deposit request includes the 10% payment processing fee (${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(depositProcessingFee)}).` : "No processing fee is added for Gift Card deposits."}
 
-Payment options:
-• Gift Card — payment button coming soon
-• Crypto — payment button coming soon (15% conversion fee applies)
+${depositPaymentMethod === "crypto"
+  ? "Crypto payment instructions: Please use the crypto payment information provided with this email and reply with your ID attached."
+  : depositPaymentMethod === "stripe"
+    ? "Stripe payment instructions: Please use the Stripe payment request provided with this email and reply with your ID attached."
+    : "Gift Card payment instructions: Please follow the gift card payment instructions provided with this email and reply with your ID attached."}
 
-If you choose crypto, the payment amount will be your deposit plus a 15% conversion fee.
+Please complete both the deposit and ID screening no later than 4 hours before our scheduled date and time.
 
 Once I have both your ID and deposit, I'll personally review everything and confirm our date.
 
@@ -4124,7 +4143,10 @@ Kendra`
           message: "Request moved forward.",
           status: "pending_final_approval",
           deposit_amount: depositAmount,
-          booking_rate: bookingRate
+          booking_rate: bookingRate,
+          base_deposit_amount: baseDepositAmount,
+          processing_fee: depositProcessingFee,
+          deposit_payment_method: depositPaymentMethod
         });
 
       } catch (error) {
