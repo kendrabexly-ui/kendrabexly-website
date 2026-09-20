@@ -1576,6 +1576,7 @@ async function loadRequests() {
       }
     } catch (error) {}
 
+    let retentionBestGroup = "";
     const renderRetentionInsights = () => {
       const container = document.getElementById("retention-insights");
       if (!container) return;
@@ -1601,11 +1602,12 @@ async function loadRequests() {
         if(item.requested_after_contact) groups[key].requests++;
         if(item.booked_after_contact) groups[key].bookings++;
       });
-      const rows=Object.values(groups).filter(g=>g.sent>0).sort((a,b)=>(b.bookings/b.sent)-(a.bookings/a.sent));
-      container.innerHTML=rows.length?rows.map(g=>{
+      const rows=Object.entries(groups).filter(([,g])=>g.sent>0).sort((a,b)=>(b[1].bookings/b[1].sent)-(a[1].bookings/a[1].sent));
+      retentionBestGroup = rows.length && rows[0][1].bookings > 0 ? rows[0][0] : "";
+      container.innerHTML=rows.length?rows.map(([key,g],index)=>{
         const rate=Math.round((g.bookings/g.sent)*100);
         return `<div style="padding:10px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(130px,1fr) repeat(4,minmax(65px,auto));gap:10px;align-items:center;font-size:12px;">
-          <strong>${escapeHtml(g.label)}</strong><span>${g.sent} sent</span><span>${g.requests} request${g.requests===1?"":"s"}</span><span>${g.bookings} booking${g.bookings===1?"":"s"}</span><strong>${rate}%</strong>
+          <strong>${escapeHtml(g.label)}${retentionBestGroup===key ? ' <span style="font-size:10px;padding:3px 6px;border:1px solid var(--line);border-radius:999px;margin-left:5px;">Responding Best</span>' : ""}</strong><span>${g.sent} sent</span><span>${g.requests} request${g.requests===1?"":"s"}</span><span>${g.bookings} booking${g.bookings===1?"":"s"}</span><strong>${rate}%</strong>
         </div>`;
       }).join(""):'<div class="empty">No sent retention follow-ups in this date range yet.</div>';
     };
@@ -1670,6 +1672,7 @@ async function loadRequests() {
       renderRetentionPerformance();
       renderRetentionActivityHistory();
       renderRetentionInsights();
+      renderRetentionTargets();
     });
 
     const renderRetentionTargets = () => {
@@ -1697,6 +1700,12 @@ async function loadRequests() {
       }).sort((a,b) => (b.days || 0) - (a.days || 0));
       const count = document.getElementById("retention-target-count");
       if (count) count.textContent = String(opportunities.length);
+      const bestMap = {reconnect:"reconnect",repeat:"repeat",recent:"recent"};
+      if (retentionTargetFilter && retentionBestGroup && bestMap[retentionBestGroup]) {
+        Array.from(retentionTargetFilter.options).forEach(option => option.textContent = option.textContent.replace(" ★ Responding Best",""));
+        const bestOption = Array.from(retentionTargetFilter.options).find(option => option.value === bestMap[retentionBestGroup]);
+        if (bestOption) bestOption.textContent += " ★ Responding Best";
+      }
       retentionTargetList.innerHTML = opportunities.length ? opportunities.map(({client,completed,lastDate,days}) => {
         const name = (String(client.first_name || "") + " " + String(client.last_name || "")).trim() || "Client";
         const reason = days >= 90 ? "Due for reconnect" : days >= 61 ? "Cooling off" : completed >= 2 ? "Repeat client" : "Recently seen";
