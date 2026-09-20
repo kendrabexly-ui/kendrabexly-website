@@ -1576,12 +1576,12 @@ My journal will continue to be a place where I share a little more of that side 
 
         if (
           !Number.isFinite(requestedStart.getTime()) ||
-          requestedStart.getTime() < Date.now() + 60 * 60 * 1000
+          requestedStart.getTime() < Date.now() + 2 * 60 * 60 * 1000
         ) {
           return Response.json(
             {
               ok: false,
-              message: "Please choose a start time at least 1 hour from the time you submit your request."
+              message: "Please choose a start time at least 2 hours from the time you submit your request."
             },
             { status: 400 }
           );
