@@ -682,7 +682,7 @@
             </div>
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Open Availability</strong>
-              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Keep a lightweight list of date and time windows you want to make available.</div>
+              <div style="margin-top:6px;font-size:13px;color:var(--muted);">Add future openings here. Expired times are removed automatically.</div>
               <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;"><label style="font-size:12px;color:var(--muted);">Date<input id="calendar-availability-date" type="date" style="display:block;margin-top:4px;padding:7px;border:1px solid var(--line);border-radius:8px;min-width:135px;"></label><label style="font-size:12px;color:var(--muted);">Time<input id="calendar-availability-time" type="time" style="display:block;margin-top:4px;padding:7px;border:1px solid var(--line);border-radius:8px;min-width:110px;"></label><button id="calendar-add-availability" type="button" style="align-self:end;padding:8px 12px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Add Opening</button></div>
               <div id="calendar-availability-feedback" role="status" aria-live="polite" style="min-height:18px;margin-top:7px;font-size:12px;color:var(--muted);"></div>
               <div id="calendar-availability-list" style="margin-top:4px;"></div>
@@ -3836,7 +3836,14 @@ loadRequests();
       const box=document.getElementById("calendar-availability-list");
       const count=document.getElementById("calendar-availability-count");
       if(!box) return;
-      const all=readCalendarAvailability().filter(item=>item && item.date).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+      const saved=readCalendarAvailability().filter(item=>item && item.date);
+      const now=new Date();
+      const active=saved.filter(item=>{
+        const opening=new Date(String(item.date)+"T"+String(item.time||"23:59"));
+        return Number.isFinite(opening.getTime()) && opening>=now;
+      });
+      if(active.length!==saved.length) localStorage.setItem(calendarAvailabilityKey,JSON.stringify(active));
+      const all=active.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
       const rows=all.filter(item=>!availabilityIsBlocked(item,calendarApprovedDates));
       if(count) count.textContent=String(rows.length);
       box.innerHTML=rows.length ? rows.map(item=>{
