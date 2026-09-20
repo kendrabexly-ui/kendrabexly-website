@@ -2500,6 +2500,42 @@ Kendra`
 
 
     // =========================================================
+    // CLEAR BOOKING SUBMISSIONS
+    // =========================================================
+
+    if (
+      url.pathname === "/api/admin/requests/clear" &&
+      request.method === "POST"
+    ) {
+      try {
+        const countRow = await env.DB.prepare(
+          "SELECT COUNT(*) AS total FROM date_requests"
+        ).first();
+
+        await env.DB.batch([
+          env.DB.prepare(
+            "DELETE FROM email_drafts WHERE date_request_id IS NOT NULL"
+          ),
+          env.DB.prepare(
+            "DELETE FROM payments WHERE date_request_id IS NOT NULL"
+          ),
+          env.DB.prepare("DELETE FROM date_requests")
+        ]);
+
+        return Response.json({
+          ok: true,
+          deleted: Number(countRow?.total || 0)
+        });
+      } catch (error) {
+        console.error("Clear admin requests error:", error);
+        return Response.json(
+          { ok: false, message: "Unable to clear booking submissions." },
+          { status: 500 }
+        );
+      }
+    }
+
+    // =========================================================
     // ADMIN REQUEST LIST
     // =========================================================
 
