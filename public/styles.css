@@ -1068,3 +1068,136 @@ input:focus-visible {
     line-height: 1.75;
   }
 }
+
+
+/* Meet Kendra profile sections */
+.meet-kendra-hero {
+  min-height: 58vh;
+}
+
+.meet-story,
+.meet-favorites {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(48px, 9vw, 130px);
+  padding: clamp(90px, 11vw, 145px) 8vw;
+  border-top: 1px solid #d8d0c7;
+}
+
+.meet-section-heading h2 {
+  max-width: 590px;
+  margin: 0;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(40px, 5vw, 66px);
+  font-weight: 500;
+  line-height: 1.07;
+}
+
+.meet-section-copy {
+  max-width: 680px;
+}
+
+.meet-section-copy p {
+  margin: 0 0 25px;
+  font-size: clamp(17px, 1.5vw, 19px);
+  line-height: 1.82;
+}
+
+.meet-section-copy p:last-child {
+  margin-bottom: 0;
+}
+
+.meet-details {
+  padding: clamp(85px, 10vw, 130px) 8vw;
+  border-top: 1px solid #d8d0c7;
+  background: #e9dfd5;
+}
+
+.meet-details > .meet-section-heading {
+  max-width: 760px;
+  margin-bottom: 58px;
+}
+
+.detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.detail-card {
+  min-width: 0;
+  padding: clamp(30px, 4vw, 48px);
+  border: 1px solid rgba(32, 27, 24, 0.14);
+  background: rgba(255, 253, 249, 0.64);
+}
+
+.detail-card > span {
+  display: block;
+  margin-bottom: 34px;
+  color: #7b6c62;
+  font-family: "Playfair Display", serif;
+  font-size: 20px;
+}
+
+.detail-card h3 {
+  margin: 0 0 15px;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(27px, 3vw, 36px);
+  font-weight: 500;
+}
+
+.detail-card p {
+  margin: 0;
+  color: #514943;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.meet-favorites {
+  background: #faf7f2;
+}
+
+.meet-closing {
+  margin-top: 38px !important;
+  padding-top: 28px;
+  border-top: 1px solid #cfc6bc;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(25px, 3vw, 35px) !important;
+  line-height: 1.35 !important;
+}
+
+@media (max-width: 820px) {
+  .meet-story,
+  .meet-favorites {
+    grid-template-columns: 1fr;
+    gap: 38px;
+    padding: 76px 8vw;
+  }
+
+  .detail-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .meet-details {
+    padding: 76px 8vw;
+  }
+
+  .meet-details > .meet-section-heading {
+    margin-bottom: 38px;
+  }
+}
+
+@media (max-width: 520px) {
+  .meet-kendra-hero {
+    min-height: 48vh;
+  }
+
+  .detail-card {
+    padding: 30px 24px;
+  }
+
+  .meet-section-copy p,
+  .detail-card p {
+    font-size: 16px;
+  }
+}
