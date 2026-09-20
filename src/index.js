@@ -287,16 +287,11 @@ async function siteAvailableSlots(env, date, requestedDuration) {
     .map(item => String(item.time || "").slice(0, 5))
     .filter(time => siteMinutesFromTime(time) !== null);
 
-  // Until specific hours are added for this date, keep every half-hour
-  // start time available. Once hours are added, only those configured
-  // times are offered.
-  const candidateTimes = configuredTimes.length
-    ? [...new Set(configuredTimes)]
-    : Array.from({ length: 48 }, (_, index) => {
-        const hours = String(Math.floor(index / 2)).padStart(2, "0");
-        const minutes = index % 2 ? "30" : "00";
-        return hours + ":" + minutes;
-      });
+  const candidateTimes = [...new Set(configuredTimes)];
+
+  if (!candidateTimes.length) {
+    return { slots: [], availability_state: "not_configured" };
+  }
 
   const durationMs = Math.max(30, Number(requestedDuration) || 60) * 60 * 1000;
   const bookings = (bookedResult.results || []).map(item => {
@@ -308,12 +303,24 @@ async function siteAvailableSlots(env, date, requestedDuration) {
   }).filter(item => Number.isFinite(item.start));
 
   const earliest = Date.now() + 2 * 60 * 60 * 1000;
-  return candidateTimes.filter(time => {
+  const bookableCandidates = candidateTimes.filter(time => {
     const start = siteZonedDateTime(date, time).getTime();
-    if (!Number.isFinite(start) || start < earliest) return false;
+    return Number.isFinite(start) && start >= earliest;
+  });
+  const slots = bookableCandidates.filter(time => {
+    const start = siteZonedDateTime(date, time).getTime();
     const end = start + durationMs;
     return !bookings.some(booking => start < booking.end && end > booking.start);
   });
+
+  return {
+    slots,
+    availability_state: slots.length
+      ? "available"
+      : bookableCandidates.length
+        ? "fully_booked"
+        : "outside_booking_window"
+  };
 }
 
 export default {
@@ -2218,8 +2225,14 @@ My journal will continue to be a place where I share a little more of that side 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return Response.json({ ok: false, message: "Choose a valid date." }, { status: 400 });
       }
-      const slots = await siteAvailableSlots(env, date, duration);
-      return Response.json({ ok: true, date, duration_minutes: duration, slots });
+      const availability = await siteAvailableSlots(env, date, duration);
+      return Response.json({
+        ok: true,
+        date,
+        duration_minutes: duration,
+        slots: availability.slots,
+        availability_state: availability.availability_state
+      });
     }
 
 
@@ -2462,12 +2475,12 @@ My journal will continue to be a place where I share a little more of that side 
           );
         }
 
-        const availableSlots = await siteAvailableSlots(
+        const availability = await siteAvailableSlots(
           env,
           requestedDate,
           siteDurationMinutes(duration)
         );
-        if (!availableSlots.includes(requestedTime.slice(0, 5))) {
+        if (!availability.slots.includes(requestedTime.slice(0, 5))) {
           return Response.json(
             { ok: false, message: "That start time is no longer available. Please choose another opening." },
             { status: 409 }
