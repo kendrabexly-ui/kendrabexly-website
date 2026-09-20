@@ -2144,6 +2144,17 @@ async function loadRequests() {
                         <label style="font-size:12px;font-weight:700;">Method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, provider…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Completion date<input class="client-verification-completed" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       </div>
+                      <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
+                        <legend style="padding:0 5px;font-size:12px;font-weight:700;">Manual verification checklist</legend>
+                        <div style="display:grid;gap:8px;font-size:12px;">
+                          <label><input class="client-check-identity" type="checkbox"> Identity matches ID</label>
+                          <label><input class="client-check-employer" type="checkbox"> Employer confirmed</label>
+                          <label><input class="client-check-job-title" type="checkbox"> Job title confirmed</label>
+                          <label><input class="client-check-industry" type="checkbox"> Industry confirmed</label>
+                          <label><input class="client-check-contact" type="checkbox"> Contact information confirmed</label>
+                        </div>
+                        <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                      </fieldset>
                       <button type="button" class="client-verification-save" style="margin-top:10px;padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Save Verification Record</button>
                       <span class="client-verification-save-status" role="status" aria-live="polite" style="margin-left:8px;font-size:12px;color:var(--muted);"></span>
                     </div>
@@ -2363,6 +2374,8 @@ async function loadRequests() {
             <div>Client ID: ${escapeHtml(record.client_id)} · Booking Request ID: ${escapeHtml(record.booking_request_id)}</div>
             <div><strong>Submitted employment:</strong> ${escapeHtml(record.submitted_employer || "—")} · ${escapeHtml(record.submitted_job_title || "—")} · ${escapeHtml(record.submitted_industry || "—")}</div>
             <div>Status: ${escapeHtml(String(record.verification_status || "pending_review").replaceAll("_", " "))} · Method: ${escapeHtml(record.verification_method || "Not entered")} · Completed: ${escapeHtml(record.completed_at || "—")}</div>
+            <div><strong>Checklist:</strong> ID ${record.identity_confirmed ? "✓" : "—"} · Employer ${record.employer_confirmed ? "✓" : "—"} · Job title ${record.job_title_confirmed ? "✓" : "—"} · Industry ${record.industry_confirmed ? "✓" : "—"} · Contact ${record.contact_confirmed ? "✓" : "—"}</div>
+            ${record.evidence_notes ? `<div><strong>Evidence notes:</strong> ${escapeHtml(record.evidence_notes)}</div>` : ""}
             <details style="margin-top:5px;"><summary style="cursor:pointer;font-weight:700;">View recorded wording</summary><div style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;">${escapeHtml(record.authorization_wording || "—")}</div></details>
           </div>`).join("");
         section.dataset.verificationAuditId = String(latest.id);
@@ -2374,6 +2387,19 @@ async function loadRequests() {
         if (industryInput) industryInput.value = latest.submitted_industry || "";
         if (methodInput) methodInput.value = latest.verification_method || "";
         if (completedInput) completedInput.value = latest.completed_at || "";
+        const checklistMap = {
+          ".client-check-identity": latest.identity_confirmed,
+          ".client-check-employer": latest.employer_confirmed,
+          ".client-check-job-title": latest.job_title_confirmed,
+          ".client-check-industry": latest.industry_confirmed,
+          ".client-check-contact": latest.contact_confirmed
+        };
+        Object.entries(checklistMap).forEach(([selector, checked]) => {
+          const input = section.querySelector(selector);
+          if (input) input.checked = Boolean(checked);
+        });
+        const evidenceInput = section.querySelector(".client-verification-evidence");
+        if (evidenceInput) evidenceInput.value = latest.evidence_notes || "";
         if (editor) editor.hidden = false;
       };
       const loadVerificationAudits = async (section) => {
@@ -2441,6 +2467,12 @@ async function loadRequests() {
                 verification_status: auditStatus?.value || "pending_review",
                 submitted_industry: section.querySelector(".client-verification-industry")?.value || "",
                 verification_method: section.querySelector(".client-verification-method")?.value || "",
+                identity_confirmed: section.querySelector(".client-check-identity")?.checked || false,
+                employer_confirmed: section.querySelector(".client-check-employer")?.checked || false,
+                job_title_confirmed: section.querySelector(".client-check-job-title")?.checked || false,
+                industry_confirmed: section.querySelector(".client-check-industry")?.checked || false,
+                contact_confirmed: section.querySelector(".client-check-contact")?.checked || false,
+                evidence_notes: section.querySelector(".client-verification-evidence")?.value || "",
                 completed_at: auditCompleted?.value || ""
               })
             });
