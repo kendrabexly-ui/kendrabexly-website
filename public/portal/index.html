@@ -2134,6 +2134,19 @@ async function loadRequests() {
                     <button type="button" class="client-id-delete" hidden style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:white;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete</button>
                   </div>
                   <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+                  <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
+                    <strong style="font-size:13px;">Verification Audit</strong>
+                    <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification records...</div>
+                    <div class="client-verification-editor" hidden style="margin-top:12px;">
+                      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                        <label style="font-size:12px;font-weight:700;">Verification status<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
+                        <label style="font-size:12px;font-weight:700;">Method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, provider…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Completion date<input class="client-verification-completed" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      </div>
+                      <button type="button" class="client-verification-save" style="margin-top:10px;padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Save Verification Record</button>
+                      <span class="client-verification-save-status" role="status" aria-live="polite" style="margin-left:8px;font-size:12px;color:var(--muted);"></span>
+                    </div>
+                  </div>
                 </div>
               </details>
               ${blacklistRecord ? `<details class="client-profile-section" open style="margin-top:10px;padding:12px;border-radius:9px;background:#f3dfdf;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">Safety · Blacklisted</summary><div style="margin-top:10px;">
@@ -2331,6 +2344,46 @@ async function loadRequests() {
         if (saveStatus) saveStatus.hidden = false;
         if (deleteButton) deleteButton.hidden = false;
       };
+      const setVerificationAuditState = (section, records) => {
+        const list = section.querySelector(".client-verification-audit-list");
+        const editor = section.querySelector(".client-verification-editor");
+        const latest = Array.isArray(records) && records.length ? records[0] : null;
+        section._verificationAuditRecords = Array.isArray(records) ? records : [];
+        if (!latest) {
+          if (list) list.innerHTML = "No booking-form screening acknowledgement is recorded for this client.";
+          if (editor) editor.hidden = true;
+          return;
+        }
+        const acceptedLabel = latest.accepted ? "Accepted" : "Not accepted";
+        if (list) list.innerHTML = section._verificationAuditRecords.map((record) => `
+          <div style="padding:10px 0;border-top:1px solid var(--line);color:var(--ink);line-height:1.55;">
+            <div><strong>${record.accepted ? "Accepted" : "Not accepted"}</strong> · Version ${escapeHtml(record.authorization_version || "—")}</div>
+            <div>Accepted: ${escapeHtml(record.accepted_at ? new Date(record.accepted_at + (String(record.accepted_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "—")}</div>
+            <div>Client ID: ${escapeHtml(record.client_id)} · Booking Request ID: ${escapeHtml(record.booking_request_id)}</div>
+            <div>Status: ${escapeHtml(String(record.verification_status || "pending_review").replaceAll("_", " "))} · Method: ${escapeHtml(record.verification_method || "Not entered")} · Completed: ${escapeHtml(record.completed_at || "—")}</div>
+            <details style="margin-top:5px;"><summary style="cursor:pointer;font-weight:700;">View recorded wording</summary><div style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;">${escapeHtml(record.authorization_wording || "—")}</div></details>
+          </div>`).join("");
+        section.dataset.verificationAuditId = String(latest.id);
+        const statusSelect = section.querySelector(".client-verification-status");
+        const methodInput = section.querySelector(".client-verification-method");
+        const completedInput = section.querySelector(".client-verification-completed");
+        if (statusSelect) statusSelect.value = latest.verification_status || "pending_review";
+        if (methodInput) methodInput.value = latest.verification_method || "";
+        if (completedInput) completedInput.value = latest.completed_at || "";
+        if (editor) editor.hidden = false;
+      };
+      const loadVerificationAudits = async (section) => {
+        const list = section.querySelector(".client-verification-audit-list");
+        try {
+          const response = await fetch("/api/admin/clients/verification-audit?client_id=" + encodeURIComponent(section.dataset.clientId), { cache: "no-store" });
+          const result = await response.json();
+          if (!response.ok || !result.ok) throw new Error(result.message || "Unable to load verification records.");
+          setVerificationAuditState(section, result.records || []);
+        } catch (error) {
+          if (list) list.textContent = error.message || "Unable to load verification records.";
+        }
+      };
+
       const loadIdDocument = async (section, force) => {
         if (!section || (section.dataset.loaded === "1" && !force)) return;
         const status = section.querySelector(".client-id-status");
@@ -2348,7 +2401,10 @@ async function loadRequests() {
       };
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
         section.addEventListener("toggle", () => {
-          if (section.open) loadIdDocument(section, false);
+          if (section.open) {
+            loadIdDocument(section, false);
+            loadVerificationAudits(section);
+          }
         });
         const verificationStatus = section.querySelector(".client-id-verification-status");
         const verifiedDate = section.querySelector(".client-id-verified");
@@ -2356,6 +2412,43 @@ async function loadRequests() {
           if (!verifiedDate) return;
           if (verificationStatus.value === "verified" && !verifiedDate.value) verifiedDate.value = new Date().toISOString().slice(0,10);
           if (verificationStatus.value !== "verified") verifiedDate.value = "";
+        });
+        const auditStatus = section.querySelector(".client-verification-status");
+        const auditCompleted = section.querySelector(".client-verification-completed");
+        auditStatus?.addEventListener("change", () => {
+          if (!auditCompleted) return;
+          if (auditStatus.value !== "pending_review" && !auditCompleted.value) auditCompleted.value = new Date().toISOString().slice(0,10);
+          if (auditStatus.value === "pending_review") auditCompleted.value = "";
+        });
+        section.querySelector(".client-verification-save")?.addEventListener("click", async (event) => {
+          const button = event.currentTarget;
+          const saveStatus = section.querySelector(".client-verification-save-status");
+          const auditId = Number(section.dataset.verificationAuditId);
+          if (!auditId) { if (saveStatus) saveStatus.textContent = "No verification record is available."; return; }
+          button.disabled = true;
+          if (saveStatus) saveStatus.textContent = "Saving...";
+          try {
+            const response = await fetch("/api/admin/clients/verification-audit", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                audit_id: auditId,
+                client_id: Number(section.dataset.clientId),
+                verification_status: auditStatus?.value || "pending_review",
+                verification_method: section.querySelector(".client-verification-method")?.value || "",
+                completed_at: auditCompleted?.value || ""
+              })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.message || "Unable to save verification record.");
+            const records = (section._verificationAuditRecords || []).map(record => Number(record.id) === Number(result.record.id) ? result.record : record);
+            setVerificationAuditState(section, records);
+            if (saveStatus) saveStatus.textContent = "Saved";
+          } catch (error) {
+            if (saveStatus) saveStatus.textContent = error.message || "Unable to save verification record.";
+          } finally {
+            button.disabled = false;
+          }
         });
         section.querySelector(".client-id-upload")?.addEventListener("click", async (event) => {
           const button = event.currentTarget;
