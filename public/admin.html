@@ -1747,6 +1747,7 @@ async function loadRequests() {
       tone: document.getElementById("retention-offer-tone")?.value || "warm-personal",
       expiration: document.getElementById("retention-offer-expiration")?.value || "14",
       frequency: document.getElementById("retention-offer-frequency")?.value || "quarterly",
+      eligibility: document.getElementById("retention-offer-eligibility")?.value || "completed",
       useFirstName: document.getElementById("retention-use-first-name")?.checked !== false,
       usePreferences: document.getElementById("retention-use-preferences")?.checked !== false,
       useHistory: document.getElementById("retention-use-history")?.checked !== false
@@ -1779,7 +1780,7 @@ async function loadRequests() {
       if(!clientId||!modal||!create||!subject||!body) return;
       const original=create.textContent; create.disabled=true; create.textContent="Saving Draft...";
       try{
-        const response=await fetch("/api/admin/retention/follow-up-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy,subject,body,frequency:document.getElementById("retention-offer-frequency")?.value||"quarterly"})});
+        const response=await fetch("/api/admin/retention/follow-up-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy,subject,body,frequency:document.getElementById("retention-offer-frequency")?.value||"quarterly",eligibility:document.getElementById("retention-offer-eligibility")?.value||"completed"})});
         const data=await response.json();
         if(!response.ok||!data.ok) throw new Error(data.message||"Unable to save follow-up draft.");
         create.textContent="Draft Saved";
@@ -1806,7 +1807,13 @@ async function loadRequests() {
         const lastSeen = lastDate ? new Date(lastDate + "T00:00:00").getTime() : 0;
         const days = lastSeen ? Math.floor((Date.now() - lastSeen) / 86400000) : null;
         return {client, completed:completed.length, upcoming, lastDate, days, blacklisted:Boolean(findBlacklistRecord(client))};
-      }).filter(x => x.completed > 0 && !x.upcoming && !x.blacklisted).filter(x => {
+      }).filter(x => {
+        const eligibility=document.getElementById("retention-offer-eligibility")?.value||"completed";
+        if(x.upcoming||x.blacklisted) return false;
+        if(eligibility==="returning") return x.completed>=2;
+        if(eligibility==="manual") return false;
+        return x.completed>0;
+      }).filter(x => {
         if (group === "reconnect") return x.days !== null && x.days >= 90;
         if (group === "repeat") return x.completed >= 2;
         if (group === "cooling") return x.days !== null && x.days >= 61 && x.days <= 89;
@@ -1849,7 +1856,7 @@ async function loadRequests() {
             <a href="/admin?section=clients&client_email=${encodeURIComponent(lookup)}" style="display:inline-block;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;color:inherit;text-decoration:none;font-size:12px;font-weight:700;">Open Client Profile</a>
           </div>
         </div>`;
-      }).join("") : '<div class="empty">No clients match this follow-up group right now.</div>';
+      }).join("") : '<div class="empty">'+(document.getElementById("retention-offer-eligibility")?.value==="manual" ? "Manual Selection is active. Open a Client Profile to choose a completed client individually." : "No clients match this follow-up group right now.")+'</div>';
       retentionTargetList.querySelectorAll(".retention-create-draft").forEach(button => button.addEventListener("click", () => {
         const modal=document.getElementById("retention-offer-preview");
         const strategy=document.getElementById("retention-preview-strategy");
