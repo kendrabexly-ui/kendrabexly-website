@@ -3821,23 +3821,40 @@ loadRequests();
         return false;
       }
     }
+    const calendarAvailabilityDeleteQueueKey=calendarAvailabilityKey+"_pending_deletes";
+    function readCalendarAvailabilityDeleteQueue(){
+      try{return JSON.parse(localStorage.getItem(calendarAvailabilityDeleteQueueKey)||"[]");}catch{return [];}
+    }
+    function queueCalendarAvailabilityDelete(slot){
+      const queue=readCalendarAvailabilityDeleteQueue();
+      if(!queue.some(item=>item.date===slot.date&&item.time===slot.time)) queue.push(slot);
+      localStorage.setItem(calendarAvailabilityDeleteQueueKey,JSON.stringify(queue));
+    }
+    async function deleteCalendarAvailability(slot){
+      const synced=await writeCalendarAvailabilityRemote("DELETE",slot);
+      if(!synced) queueCalendarAvailabilityDelete(slot);
+      return synced;
+    }
     async function loadCalendarAvailabilityRemote(){
       try{
         const response=await fetch("/api/admin/calendar/availability");
         const data=await response.json();
         if(!response.ok || !data.ok) throw new Error(data.message||"Unable to load availability.");
-        const remote=Array.isArray(data.items)?data.items:[];
-        const local=readCalendarAvailability();
-        const migrationKey=calendarAvailabilityKey+"_server_migrated";
-        let merged=remote;
-        if(!localStorage.getItem(migrationKey)){
-          const missing=local.filter(slot=>!remote.some(item=>item.date===slot.date && item.time===slot.time));
-          const migrated=await Promise.all(missing.map(slot=>writeCalendarAvailabilityRemote("POST",slot)));
-          if(migrated.some(result=>!result)) throw new Error("Unable to migrate local availability.");
-          merged=[...remote,...missing];
-          localStorage.setItem(migrationKey,"1");
+        let remote=Array.isArray(data.items)?data.items:[];
+        const pendingDeletes=readCalendarAvailabilityDeleteQueue();
+        if(pendingDeletes.length){
+          const results=await Promise.all(pendingDeletes.map(slot=>deleteCalendarAvailability(slot)));
+          const remaining=pendingDeletes.filter((slot,index)=>!results[index]);
+          localStorage.setItem(calendarAvailabilityDeleteQueueKey,JSON.stringify(remaining));
+          remote=remote.filter(item=>remaining.every(slot=>slot.date!==item.date||slot.time!==item.time));
         }
+        const local=readCalendarAvailability();
+        const missing=local.filter(slot=>!remote.some(item=>item.date===slot.date&&item.time===slot.time));
+        const uploaded=await Promise.all(missing.map(slot=>writeCalendarAvailabilityRemote("POST",slot)));
+        const retainedLocal=missing.filter((slot,index)=>!uploaded[index]);
+        const merged=[...remote,...missing].filter((item,index,all)=>all.findIndex(other=>other.date===item.date&&other.time===item.time)===index);
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(merged));
+        setCalendarAvailabilityFeedback(retainedLocal.length?"Some openings are waiting to sync. They remain saved in this browser.":"Availability synced.");
         renderCalendarAvailability();
         renderCalendarWeek();
       }catch(error){
@@ -3880,7 +3897,7 @@ loadRequests();
       });
       if(active.length!==saved.length){
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(active));
-        saved.filter(item=>!active.includes(item)).forEach(item=>writeCalendarAvailabilityRemote("DELETE",item));
+        saved.filter(item=>!active.includes(item)).forEach(item=>deleteCalendarAvailability(item));
       }
       const all=active.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
       const rows=all.filter(item=>!availabilityIsBlocked(item,calendarApprovedDates));
@@ -3892,7 +3909,7 @@ loadRequests();
       box.querySelectorAll("[data-remove-availability]").forEach(button=>button.addEventListener("click",async()=>{
         const current=readCalendarAvailability().filter(item=>item && item.date).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
         const removed=current.splice(Number(button.dataset.removeAvailability),1)[0];
-        if(removed) await writeCalendarAvailabilityRemote("DELETE",removed);
+        if(removed) await deleteCalendarAvailability(removed);
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
         renderCalendarAvailability();
         renderCalendarWeek();
@@ -3974,7 +3991,7 @@ loadRequests();
       }));
       box.querySelectorAll("[data-day-remove-time]").forEach(button=>button.addEventListener("click",async()=>{
         const time=button.dataset.dayRemoveTime||"";
-        await writeCalendarAvailabilityRemote("DELETE",{date:key,time});
+        await deleteCalendarAvailability({date:key,time});
         const current=readCalendarAvailability().filter(x=>!(x.date===key && x.time===time));
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
         renderCalendarAvailability(); renderCalendarWeek(); renderCalendarDay(key);
@@ -4088,7 +4105,7 @@ loadRequests();
         const removedOpeningCount=savedAvailability.length-availableAfterBookings.length;
         if(removedOpeningCount>0){
           localStorage.setItem(calendarAvailabilityKey,JSON.stringify(availableAfterBookings));
-          savedAvailability.filter(slot=>availabilityIsBlocked(slot,calendarApprovedDates)).forEach(slot=>writeCalendarAvailabilityRemote("DELETE",slot));
+          savedAvailability.filter(slot=>availabilityIsBlocked(slot,calendarApprovedDates)).forEach(slot=>deleteCalendarAvailability(slot));
           setCalendarAvailabilityFeedback(removedOpeningCount+" opening"+(removedOpeningCount===1?" was":"s were")+" removed because confirmed appointments now occupy the time.");
         }
         renderCalendarAvailability();
