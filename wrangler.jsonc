@@ -15,6 +15,13 @@
     "binding": "AI"
   },
 
+  "r2_buckets": [
+    {
+      "binding": "ID_DOCUMENTS",
+      "bucket_name": "kendra-private-id-documents"
+    }
+  ],
+
   "triggers": {
     "crons": ["* * * * *"]
   },

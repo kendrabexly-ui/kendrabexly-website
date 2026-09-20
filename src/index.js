@@ -50,6 +50,57 @@ async function ensureSiteContentTables(env) {
   `).run();
 }
 
+
+async function ensureClientIdDocumentsTable(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_id_documents (
+      client_id INTEGER PRIMARY KEY,
+      object_key TEXT NOT NULL UNIQUE,
+      file_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      verification_status TEXT NOT NULL DEFAULT 'pending_review',
+      received_at TEXT NOT NULL,
+      verified_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
+function idDocumentDate(value) {
+  const date = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+}
+
+function idDocumentToday() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: SITE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+function idDocumentPublicRecord(row) {
+  if (!row) return null;
+  return {
+    client_id: Number(row.client_id),
+    file_name: row.file_name,
+    mime_type: row.mime_type,
+    file_size: Number(row.file_size || 0),
+    verification_status: row.verification_status || "pending_review",
+    received_at: row.received_at || "",
+    verified_at: row.verified_at || "",
+    updated_at: row.updated_at || ""
+  };
+}
+
+async function requireIdDocumentClient(env, clientId) {
+  if (!Number.isInteger(clientId) || clientId < 1) return null;
+  return env.DB.prepare("SELECT id FROM clients WHERE id = ? LIMIT 1").bind(clientId).first();
+}
+
 function normalizeSiteRates(value) {
   if (!Array.isArray(value) || !value.length || value.length > 8) return null;
   const normalized = value.map(service => {
@@ -160,6 +211,228 @@ async function siteAvailableSlots(env, date, requestedDuration) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+
+    // =========================================================
+    // PRIVATE CLIENT ID DOCUMENTS
+    // These routes are protected by Cloudflare Access and never
+    // return an R2 object key or public bucket URL.
+    // =========================================================
+
+    if (url.pathname === "/api/admin/clients/id-document" && request.method === "GET") {
+      try {
+        await ensureClientIdDocumentsTable(env);
+        const clientId = Number(url.searchParams.get("client_id"));
+        if (!await requireIdDocumentClient(env, clientId)) {
+          return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
+        }
+        const row = await env.DB.prepare(`
+          SELECT client_id, file_name, mime_type, file_size, verification_status,
+                 received_at, verified_at, updated_at
+          FROM client_id_documents
+          WHERE client_id = ?
+          LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ ok: true, document: idDocumentPublicRecord(row) }, {
+          headers: { "Cache-Control": "private, no-store" }
+        });
+      } catch (error) {
+        console.error("Load client ID document error:", error);
+        return Response.json({ ok: false, message: "Unable to load the ID document." }, { status: 500 });
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/id-document/image" && request.method === "GET") {
+      try {
+        if (!env.ID_DOCUMENTS) {
+          return Response.json({ ok: false, message: "Private ID storage is not configured." }, { status: 503 });
+        }
+        await ensureClientIdDocumentsTable(env);
+        const clientId = Number(url.searchParams.get("client_id"));
+        if (!await requireIdDocumentClient(env, clientId)) {
+          return new Response("Not found", { status: 404 });
+        }
+        const row = await env.DB.prepare(
+          "SELECT object_key, file_name, mime_type FROM client_id_documents WHERE client_id = ? LIMIT 1"
+        ).bind(clientId).first();
+        if (!row) return new Response("Not found", { status: 404 });
+        const object = await env.ID_DOCUMENTS.get(row.object_key);
+        if (!object) return new Response("Not found", { status: 404 });
+        const safeName = String(row.file_name || "id-document").replace(/[\r\n"]/g, "");
+        return new Response(object.body, {
+          headers: {
+            "Content-Type": row.mime_type,
+            "Content-Disposition": 'inline; filename="' + safeName + '"',
+            "Cache-Control": "private, no-store, max-age=0",
+            "X-Content-Type-Options": "nosniff",
+            "Cross-Origin-Resource-Policy": "same-origin",
+            "Content-Security-Policy": "default-src 'none'"
+          }
+        });
+      } catch (error) {
+        console.error("Preview client ID document error:", error);
+        return new Response("Unable to load the ID document.", { status: 500 });
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/id-document" && request.method === "POST") {
+      let newObjectKey = "";
+      try {
+        if (!env.ID_DOCUMENTS) {
+          return Response.json({ ok: false, message: "Private ID storage is not configured." }, { status: 503 });
+        }
+        await ensureClientIdDocumentsTable(env);
+        const form = await request.formData();
+        const clientId = Number(form.get("client_id"));
+        const client = await requireIdDocumentClient(env, clientId);
+        if (!client) return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
+
+        const file = form.get("file");
+        if (!(file instanceof File) || !file.size) {
+          return Response.json({ ok: false, message: "Choose an ID image to upload." }, { status: 400 });
+        }
+        const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+        if (!allowedTypes.has(file.type)) {
+          return Response.json({ ok: false, message: "Use a JPG, PNG, or WebP image." }, { status: 400 });
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          return Response.json({ ok: false, message: "ID images must be 10 MB or smaller." }, { status: 400 });
+        }
+
+        const allowedStatuses = new Set(["pending_review", "verified", "rejected"]);
+        const verificationStatus = allowedStatuses.has(String(form.get("verification_status") || ""))
+          ? String(form.get("verification_status"))
+          : "pending_review";
+        const receivedAt = idDocumentDate(form.get("received_at")) || idDocumentToday();
+        const verifiedAt = verificationStatus === "verified"
+          ? (idDocumentDate(form.get("verified_at")) || idDocumentToday())
+          : null;
+        const existing = await env.DB.prepare(
+          "SELECT object_key FROM client_id_documents WHERE client_id = ? LIMIT 1"
+        ).bind(clientId).first();
+
+        const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+        newObjectKey = "clients/" + clientId + "/id-documents/" + crypto.randomUUID() + "." + extension;
+        await env.ID_DOCUMENTS.put(newObjectKey, file.stream(), {
+          httpMetadata: { contentType: file.type },
+          customMetadata: { client_id: String(clientId), uploaded_for: "identity_screening" }
+        });
+
+        try {
+          await env.DB.prepare(`
+            INSERT INTO client_id_documents
+              (client_id, object_key, file_name, mime_type, file_size, verification_status, received_at, verified_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(client_id) DO UPDATE SET
+              object_key = excluded.object_key,
+              file_name = excluded.file_name,
+              mime_type = excluded.mime_type,
+              file_size = excluded.file_size,
+              verification_status = excluded.verification_status,
+              received_at = excluded.received_at,
+              verified_at = excluded.verified_at,
+              updated_at = CURRENT_TIMESTAMP
+          `).bind(
+            clientId,
+            newObjectKey,
+            String(file.name || "id-document." + extension).slice(0, 180),
+            file.type,
+            file.size,
+            verificationStatus,
+            receivedAt,
+            verifiedAt
+          ).run();
+        } catch (databaseError) {
+          await env.ID_DOCUMENTS.delete(newObjectKey);
+          throw databaseError;
+        }
+
+        if (existing?.object_key && existing.object_key !== newObjectKey) {
+          await env.ID_DOCUMENTS.delete(existing.object_key);
+        }
+        const row = await env.DB.prepare(`
+          SELECT client_id, file_name, mime_type, file_size, verification_status,
+                 received_at, verified_at, updated_at
+          FROM client_id_documents WHERE client_id = ? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ ok: true, document: idDocumentPublicRecord(row) }, {
+          headers: { "Cache-Control": "private, no-store" }
+        });
+      } catch (error) {
+        if (newObjectKey && env.ID_DOCUMENTS) {
+          try { await env.ID_DOCUMENTS.delete(newObjectKey); } catch {}
+        }
+        console.error("Upload client ID document error:", error);
+        return Response.json({ ok: false, message: "Unable to store the ID document." }, { status: 500 });
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/id-document/status" && request.method === "POST") {
+      try {
+        await ensureClientIdDocumentsTable(env);
+        const data = await request.json().catch(() => ({}));
+        const clientId = Number(data.client_id);
+        if (!await requireIdDocumentClient(env, clientId)) {
+          return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
+        }
+        const allowedStatuses = new Set(["pending_review", "verified", "rejected"]);
+        const verificationStatus = String(data.verification_status || "");
+        if (!allowedStatuses.has(verificationStatus)) {
+          return Response.json({ ok: false, message: "Choose a valid verification status." }, { status: 400 });
+        }
+        const receivedAt = idDocumentDate(data.received_at);
+        if (!receivedAt) {
+          return Response.json({ ok: false, message: "Enter the date the ID was received." }, { status: 400 });
+        }
+        const verifiedAt = verificationStatus === "verified"
+          ? (idDocumentDate(data.verified_at) || idDocumentToday())
+          : null;
+        const update = await env.DB.prepare(`
+          UPDATE client_id_documents
+          SET verification_status = ?, received_at = ?, verified_at = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE client_id = ?
+        `).bind(verificationStatus, receivedAt, verifiedAt, clientId).run();
+        if (!Number(update.meta?.changes || 0)) {
+          return Response.json({ ok: false, message: "Upload an ID image first." }, { status: 404 });
+        }
+        const row = await env.DB.prepare(`
+          SELECT client_id, file_name, mime_type, file_size, verification_status,
+                 received_at, verified_at, updated_at
+          FROM client_id_documents WHERE client_id = ? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ ok: true, document: idDocumentPublicRecord(row) }, {
+          headers: { "Cache-Control": "private, no-store" }
+        });
+      } catch (error) {
+        console.error("Update client ID status error:", error);
+        return Response.json({ ok: false, message: "Unable to update verification details." }, { status: 500 });
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/id-document" && request.method === "DELETE") {
+      try {
+        if (!env.ID_DOCUMENTS) {
+          return Response.json({ ok: false, message: "Private ID storage is not configured." }, { status: 503 });
+        }
+        await ensureClientIdDocumentsTable(env);
+        const clientId = Number(url.searchParams.get("client_id"));
+        if (!await requireIdDocumentClient(env, clientId)) {
+          return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
+        }
+        const row = await env.DB.prepare(
+          "SELECT object_key FROM client_id_documents WHERE client_id = ? LIMIT 1"
+        ).bind(clientId).first();
+        if (!row) return Response.json({ ok: true, deleted: false });
+        await env.ID_DOCUMENTS.delete(row.object_key);
+        await env.DB.prepare("DELETE FROM client_id_documents WHERE client_id = ?").bind(clientId).run();
+        return Response.json({ ok: true, deleted: true }, {
+          headers: { "Cache-Control": "private, no-store" }
+        });
+      } catch (error) {
+        console.error("Delete client ID document error:", error);
+        return Response.json({ ok: false, message: "Unable to permanently delete the ID document." }, { status: 500 });
+      }
+    }
 
     // =========================================================
     // X OAUTH 2.0
@@ -2569,7 +2842,19 @@ Kendra`
         }
 
         const existingPlaceholders = existingIds.map(() => "?").join(",");
+        await ensureClientIdDocumentsTable(env);
+        const idDocuments = await env.DB.prepare(
+          `SELECT object_key FROM client_id_documents WHERE client_id IN (${existingPlaceholders})`
+        ).bind(...existingIds).all();
+        if (env.ID_DOCUMENTS) {
+          await Promise.all((idDocuments.results || []).map(item =>
+            env.ID_DOCUMENTS.delete(item.object_key).catch(() => {})
+          ));
+        }
         await env.DB.batch([
+          env.DB.prepare(
+            `DELETE FROM client_id_documents WHERE client_id IN (${existingPlaceholders})`
+          ).bind(...existingIds),
           env.DB.prepare(
             `DELETE FROM email_drafts WHERE client_id IN (${existingPlaceholders})`
           ).bind(...existingIds),
