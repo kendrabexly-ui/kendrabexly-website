@@ -469,6 +469,27 @@ if (["pending_final_approval", "screening_pending"].includes(item.status)) {
 finalApprovalControls.style.display = "block";
 }
 
+const inactiveRequest=["canceled","blacklisted_submission","completed"].includes(String(item.status||"").toLowerCase());
+if(inactiveRequest){
+  moveForwardButton.style.display="none";
+  finalApprovalControls.style.display="none";
+  openEmailDraftsButton.style.display="none";
+}
+if(String(item.status||"").toLowerCase()==="completed"){
+  const completedControls=document.getElementById("completed-date-controls");
+  if(completedControls) completedControls.style.display="none";
+}
+if(String(item.status||"").toLowerCase()==="canceled"){
+  const statusBadge=container.querySelector(".status");
+  if(statusBadge) statusBadge.textContent="Canceled";
+}
+if(String(item.status||"").toLowerCase()==="blacklisted_submission"){
+  const statusBadge=container.querySelector(".status");
+  if(statusBadge) statusBadge.textContent="Blacklisted Submission";
+  const profileButton=document.getElementById("view-client-profile-button");
+  if(profileButton) profileButton.textContent="Review Client Safety Record";
+}
+
 const moveForwardStatus =
   document.getElementById("move-forward-status");
 const markDateCompletedButton=document.getElementById("mark-date-completed-button");
