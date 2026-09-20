@@ -1743,6 +1743,12 @@ async function loadRequests() {
       renderRetentionInsights();
       renderRetentionOfferPerformance();
       document.getElementById("retention-preview-cancel")?.addEventListener("click",()=>{ document.getElementById("retention-offer-preview").hidden=true; });
+    const retentionPreviewSettings = () => ({
+      tone: document.getElementById("retention-offer-tone")?.value || "warm-personal",
+      useFirstName: document.getElementById("retention-use-first-name")?.checked !== false,
+      usePreferences: document.getElementById("retention-use-preferences")?.checked !== false,
+      useHistory: document.getElementById("retention-use-history")?.checked !== false
+    });
     document.getElementById("retention-preview-generate")?.addEventListener("click",async()=>{
       const modal=document.getElementById("retention-offer-preview");
       const button=document.getElementById("retention-preview-generate");
@@ -1751,7 +1757,7 @@ async function loadRequests() {
       if(!clientId||!button) return;
       const original=button.textContent; button.disabled=true; button.textContent="Writing Preview...";
       try{
-        const response=await fetch("/api/admin/retention/follow-up-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy})});
+        const response=await fetch("/api/admin/retention/follow-up-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy,...retentionPreviewSettings()})});
         const data=await response.json();
         if(!response.ok||!data.ok) throw new Error(data.message||"Unable to preview follow-up.");
         document.getElementById("retention-preview-subject").value=data.subject||"A little hello";
