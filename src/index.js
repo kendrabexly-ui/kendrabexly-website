@@ -3194,6 +3194,8 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         });
         const upcoming = rows.some(r => String(r.status||"").toLowerCase()==="approved" && r.requested_date && new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=now);
         if (!completed.length) return Response.json({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
+        const eligibility=String(data.eligibility||"completed");
+        if(eligibility==="returning" && completed.length<2) return Response.json({ok:false,message:"This retention plan is limited to returning clients with at least two completed dates."},{status:409});
         if (upcoming) return Response.json({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
         const last = completed[0];
         const offerLabel = offerStrategy==="extra-time" ? "an extra 30 minutes" : offerStrategy==="experience-upgrade" ? "a special experience upgrade" : "a special rate";
