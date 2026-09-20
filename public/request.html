@@ -291,33 +291,8 @@
           </div>
 
 
-          <!-- TIME -->
-          <div class="field schedule-field">
-
-            <label for="requested-time">
-              Preferred start time *
-            </label>
-
-            <select
-              id="requested-time"
-              name="requested_time"
-              required
-              disabled
-            >
-              <option value="" selected>
-                Choose a date and duration first
-              </option>
-            </select>
-
-            <small id="availability-status" role="status" aria-live="polite">
-              Available start times will appear after you choose a date and duration.
-            </small>
-
-          </div>
-
-
           <!-- DURATION -->
-          <div class="field full-width">
+          <div class="field schedule-field">
 
             <label for="duration">
               How much time would you like? *
@@ -329,7 +304,7 @@
               required
             >
               <option value="" selected disabled>
-                Select one
+                Select a duration
               </option>
 
               <option value="1-hour" data-experiences="signature-private-companionship greek-princess">
@@ -353,6 +328,31 @@
               </option>
 
             </select>
+
+          </div>
+
+
+          <!-- TIME -->
+          <div class="field full-width">
+
+            <label for="requested-time">
+              Preferred start time *
+            </label>
+
+            <select
+              id="requested-time"
+              name="requested_time"
+              required
+              disabled
+            >
+              <option value="" selected>
+                Choose a date and duration first
+              </option>
+            </select>
+
+            <small id="availability-status" role="status" aria-live="polite">
+              Choose your preferred date and duration to see available start times.
+            </small>
 
           </div>
 
@@ -666,28 +666,48 @@
       ).join("");
     }
 
+    let availabilityRequestId = 0;
+
     async function loadAvailableTimes() {
       const status = document.getElementById("availability-status");
-      if (!requestedDate?.value || !durationSelect?.value) {
-        requestedTime.disabled = true;
-        requestedTime.innerHTML = '<option value="">Choose a date and duration first</option>';
-        if (status) status.textContent = "Available start times will appear after you choose a date and duration.";
+      const requestId = ++availabilityRequestId;
+      const selectedDate = requestedDate?.value || "";
+      const selectedDuration = durationSelect?.value || "";
+
+      requestedTime.setCustomValidity("");
+      requestedTime.disabled = true;
+
+      if (!selectedDate || !selectedDuration) {
+        const prompt = !selectedDate && !selectedDuration
+          ? "Choose a date and duration first"
+          : !selectedDate
+            ? "Choose a date first"
+            : "Choose a duration first";
+        requestedTime.innerHTML = '<option value="">' + prompt + '</option>';
+        if (status) {
+          status.textContent = !selectedDate && !selectedDuration
+            ? "Choose your preferred date and duration to see available start times."
+            : !selectedDate
+              ? "Choose your preferred date to see available start times."
+              : "Choose how much time you would like to see available start times.";
+        }
         updateBookingSummary();
         return;
       }
 
-      requestedTime.disabled = true;
       requestedTime.innerHTML = '<option value="">Loading available times…</option>';
       if (status) status.textContent = "Checking the calendar…";
       try {
         const params = new URLSearchParams({
-          date: requestedDate.value,
-          duration: durationSelect.value
+          date: selectedDate,
+          duration: selectedDuration
         });
         const response = await fetch("/api/public/availability?" + params.toString(), {
-          headers: { "Accept": "application/json" }
+          headers: { "Accept": "application/json" },
+          cache: "no-store"
         });
         const data = await response.json();
+        if (requestId !== availabilityRequestId) return;
         if (!response.ok || !data.ok) throw new Error(data.message || "Unable to load availability.");
         const slots = Array.isArray(data.slots) ? data.slots : [];
         requestedTime.innerHTML = '<option value="">Select an available start time</option>' +
@@ -704,6 +724,7 @@
             : "No openings are available for that date and duration.";
         }
       } catch (error) {
+        if (requestId !== availabilityRequestId) return;
         requestedTime.innerHTML = '<option value="">Availability unavailable</option>';
         requestedTime.disabled = true;
         if (status) status.textContent = error.message || "Unable to load availability.";
