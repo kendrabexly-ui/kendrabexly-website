@@ -1340,6 +1340,25 @@
   </details>
 </section>
 
+<div id="retention-offer-preview" hidden style="position:fixed;inset:0;z-index:1000;background:rgba(20,18,17,.45);padding:20px;overflow:auto;">
+  <div style="max-width:520px;margin:8vh auto;background:white;border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.18);">
+    <div style="font-family:'Playfair Display',serif;font-size:22px;">Create Retention Follow-Up</div>
+    <div id="retention-preview-client" style="margin-top:5px;font-size:13px;color:var(--muted);"></div>
+    <label for="retention-preview-strategy" style="display:block;margin-top:16px;font-size:13px;font-weight:700;">Offer for this client</label>
+    <select id="retention-preview-strategy" style="width:100%;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
+      <option value="extra-time">Extra 30 Minutes</option>
+      <option value="experience-upgrade">Experience Upgrade</option>
+      <option value="special-rate">Special Rate</option>
+    </select>
+    <div id="retention-preview-guidance" style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5;"></div>
+    <div style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--cream);font-size:12px;line-height:1.5;">This changes only this client's follow-up. Your saved Retention Plan stays unchanged. The email will still be created as a draft for review.</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+      <button id="retention-preview-cancel" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Cancel</button>
+      <button id="retention-preview-create" type="button" style="border:0;border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">Create Draft</button>
+    </div>
+  </div>
+</div>
+
 </main>
 
   </div>
@@ -1715,7 +1734,26 @@ async function loadRequests() {
       renderRetentionActivityHistory();
       renderRetentionInsights();
       renderRetentionOfferPerformance();
-      renderRetentionTargets();
+      document.getElementById("retention-preview-cancel")?.addEventListener("click",()=>{ document.getElementById("retention-offer-preview").hidden=true; });
+    document.getElementById("retention-preview-create")?.addEventListener("click",async()=>{
+      const modal=document.getElementById("retention-offer-preview");
+      const create=document.getElementById("retention-preview-create");
+      const clientId=Number(modal?.dataset.clientId);
+      const strategy=document.getElementById("retention-preview-strategy")?.value||"extra-time";
+      if(!clientId||!modal||!create) return;
+      const original=create.textContent; create.disabled=true; create.textContent="Creating Draft...";
+      try{
+        const response=await fetch("/api/admin/retention/follow-up-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,offer_strategy:strategy})});
+        const data=await response.json();
+        if(!response.ok||!data.ok) throw new Error(data.message||"Unable to create follow-up draft.");
+        create.textContent="Draft Created";
+        window.setTimeout(()=>{ modal.hidden=true; create.disabled=false; create.textContent=original; openSection("emails"); },450);
+      }catch(error){
+        alert(error.message||"Unable to create follow-up draft."); create.disabled=false; create.textContent=original;
+      }
+    });
+
+    renderRetentionTargets();
     });
 
     const renderRetentionTargets = () => {
@@ -1774,21 +1812,24 @@ async function loadRequests() {
           </div>
         </div>`;
       }).join("") : '<div class="empty">No clients match this follow-up group right now.</div>';
-      retentionTargetList.querySelectorAll(".retention-create-draft").forEach(button => button.addEventListener("click", async () => {
-        const original = button.textContent;
-        button.disabled = true;
-        button.textContent = "Creating Draft...";
-        try {
-          const response = await fetch("/api/admin/retention/follow-up-draft", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId),offer_strategy:document.getElementById("retention-offer-strategy")?.value||"extra-time"})});
-          const data = await response.json();
-          if (!response.ok || !data.ok) throw new Error(data.message || "Unable to create follow-up draft.");
-          button.textContent = "Draft Created";
-          window.setTimeout(() => openSection("emails"), 450);
-        } catch (error) {
-          alert(error.message || "Unable to create follow-up draft.");
-          button.disabled = false;
-          button.textContent = original;
-        }
+      retentionTargetList.querySelectorAll(".retention-create-draft").forEach(button => button.addEventListener("click", () => {
+        const modal=document.getElementById("retention-offer-preview");
+        const strategy=document.getElementById("retention-preview-strategy");
+        const clientLabel=document.getElementById("retention-preview-client");
+        if(!modal||!strategy) return;
+        modal.dataset.clientId=button.dataset.clientId||"";
+        modal.dataset.sourceButtonId=button.dataset.clientId||"";
+        strategy.value=document.getElementById("retention-offer-strategy")?.value||"extra-time";
+        const card=button.closest("div[style*='border-top']");
+        const clientName=card?.querySelector("strong")?.textContent||"this client";
+        if(clientLabel) clientLabel.textContent="For "+clientName;
+        const updateGuidance=()=>{
+          const messages={"extra-time":"Adds 30 minutes while keeping your regular rate intact.","experience-upgrade":"Offers an experience upgrade without reducing your master rate.","special-rate":"Uses a special-rate incentive. You will review the generated wording before anything is sent."};
+          const note=document.getElementById("retention-preview-guidance"); if(note) note.textContent=messages[strategy.value]||"";
+        };
+        updateGuidance();
+        strategy.onchange=updateGuidance;
+        modal.hidden=false;
       }));
     };
     renderRetentionTargets();
