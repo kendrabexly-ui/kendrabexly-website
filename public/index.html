@@ -1,114 +1,17 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="The official website of Kendra Bexly.">
-  <title>Kendra Bexly</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-  <header class="nav">
-    <a class="brand" href="/">Kendra Bexly</a>
-    <nav>
-      <a href="#about">About</a>
-      <a href="#journal">Journal</a>
-      <a href="#social">Social</a>
-      <a class="button small" href="#connect">Connect</a>
-    </nav>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div class="eyebrow">KENDRA BEXLY</div>
-      <h1>Personal. Polished.<br>Unmistakably Kendra.</h1>
-      <p class="lede">Welcome to my official space — a more personal way to get to know me, keep up with what’s new, and connect.</p>
-      <div class="actions">
-        <a class="button" href="#connect">Connect with Kendra</a>
-        <a class="text-link" href="#about">Get to know me →</a>
-      </div>
-    </section>
-
-    <section id="about" class="split">
-      <div>
-        <div class="eyebrow">ABOUT</div>
-        <h2>A little more personal.</h2>
-      </div>
-      <p>This is where Kendra’s story, personality, interests, and what clients can expect will live. The final copy and photography can be added from the private dashboard as the site is completed.</p>
-    </section>
-
-    <section id="journal" class="panel">
-      <div class="eyebrow">THE JOURNAL</div>
-      <h2>Something new every month.</h2>
-      <p>Monthly notes, special blog posts, and updates from Kendra.</p>
-      <a class="text-link" href="#newsletter">Read the latest →</a>
-    </section>
-
-    <section id="social" class="split">
-      <div>
-        <div class="eyebrow">LIVE SOCIAL</div>
-        <h2>Keep up with me.</h2>
-      </div>
-      <div class="placeholder">Kendra’s live X feed will appear here once the X API connection is activated.</div>
-    </section>
-
-    <section id="newsletter" class="newsletter">
-      <div>
-        <div class="eyebrow">PRIVATE NOTES</div>
-        <h2>Stay in the know.</h2>
-        <p>A monthly newsletter with a new post, personal updates, and a one-time special offer.</p>
-      </div>
-      <form id="newsletter-signup">
-        <label for="email">Email address</label>
-        <div class="form-row">
-          <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
-          <button class="button" type="submit">Join the list</button>
-        </div>
-        <small id="thanks" hidden></small>
-      </form>
-    </section>
-
-    <section id="connect" class="connect">
-      <div class="eyebrow">CONNECT</div>
-      <h2>Interested in spending time together?</h2>
-      <p>The private request and screening experience is being prepared. Client information will not be collected until the secure backend is connected.</p>
-      <a class="button" href="/request">Request Time</a>
-    </section>
-  </main>
-
-  <footer>
-    <span>© 2026 Kendra Bexly</span>
-    <span>Official website • KendraBexly.com</span>
-  </footer>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Welcome to the official website of Kendra Bexly."><title>The Invitation | Kendra Bexly</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/styles.css"></head><body><header class="nav">
+  <a class="brand" href="/">Kendra Bexly</a>
+  <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+  <nav id="site-nav" aria-label="Primary navigation">
+    <a href="/">The Invitation</a>
+    <a href="/meet-kendra">Meet Kendra</a>
+    <a href="/the-muse">The Muse</a>
+    <a href="/our-time">Our Time</a>
+    <a href="/etiquette">Etiquette</a>
+    <a href="/pillow-talk">Pillow Talk</a>
+    <a class="button small" href="/request">The Rendezvous</a>
+  </nav>
+</header><main><section class="hero invitation"><div class="eyebrow">THE INVITATION</div><h1>Personal. Polished.<br>Unmistakably Kendra.</h1><p class="lede">Welcome to my private corner of the world, created for those who appreciate confidence, chemistry, and time well spent.</p><div class="actions"><a class="button" href="/request">Begin The Rendezvous</a><a class="text-link" href="/meet-kendra">Meet Kendra →</a></div></section><section class="editorial-grid"><div><div class="eyebrow">YOUR INTRODUCTION</div><h2>Come a little closer.</h2></div><div class="prose"><p>Take your time exploring. Get to know me, discover the experiences we can share, and learn what makes a rendezvous feel effortless from the very beginning.</p><div class="link-stack"><a href="/meet-kendra">Meet Kendra <span>→</span></a><a href="/the-muse">The Muse <span>→</span></a><a href="/our-time">Our Time <span>→</span></a><a href="/etiquette">Etiquette & Policies <span>→</span></a><a href="/pillow-talk">A Little Pillow Talk <span>→</span></a></div></div></section><section class="newsletter"><div><div class="eyebrow">PRIVATE NOTES</div><h2>Stay in the know.</h2><p>A monthly note with personal updates and a private offer.</p></div><form id="newsletter-signup" method="post"><label for="email">Email address</label><div class="form-row"><input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required><button class="button" type="submit">Join the list</button></div><small id="thanks" hidden role="status" aria-live="polite"></small></form></section><section class="page-cta"><div class="eyebrow">THE RENDEZVOUS</div><h2>Shall we make plans?</h2><p>When you are ready, begin with a private request.</p><a class="button" href="/request">Request Our Time</a></section></main><footer><span>© 2026 Kendra Bexly</span><span>Official website • KendraBexly.com</span></footer>
 <script>
-  document.getElementById("newsletter-signup")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const email = form.email.value.trim();
-    const message = document.getElementById("thanks");
-    const button = form.querySelector("button[type=submit]");
-    button.disabled = true;
-    message.hidden = false;
-    message.textContent = "Joining...";
-    try {
-      const response = await fetch("/api/newsletter/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.message || "Unable to join the list.");
-      message.textContent = data.message || "You're on the list. Thank you.";
-      form.reset();
-    } catch (error) {
-      message.textContent = error.message;
-    } finally {
-      button.disabled = false;
-    }
-  });
-</script>
-</body>
-</html>
+const toggle=document.querySelector(".menu-toggle"),nav=document.getElementById("site-nav");
+toggle?.addEventListener("click",()=>{const open=toggle.getAttribute("aria-expanded")==="true";toggle.setAttribute("aria-expanded",String(!open));nav?.classList.toggle("open",!open);});
+</script><script>document.getElementById("newsletter-signup")?.addEventListener("submit",async e=>{e.preventDefault();const f=e.currentTarget,m=document.getElementById("thanks"),b=f.querySelector("button");b.disabled=true;m.hidden=false;m.textContent="Joining...";try{const r=await fetch("/api/newsletter/subscribe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:f.email.value.trim()})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to join the list.");m.textContent=d.message||"You're on the list. Thank you.";f.reset();}catch(x){m.textContent=x.message;}finally{b.disabled=false;}});</script></body></html>
