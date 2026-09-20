@@ -631,6 +631,7 @@
               <div style="margin-top:6px;font-size:13px;color:var(--muted);">Confirmed appointments and remaining open availability in one weekly schedule.</div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;"><button id="calendar-prev-week" type="button">←</button><strong id="calendar-week-label" style="font-size:13px;"></strong><button id="calendar-next-week" type="button">→</button><button id="calendar-this-week" type="button">This Week</button></div>
               <div id="calendar-week-view" style="display:grid;grid-template-columns:repeat(7,minmax(115px,1fr));gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:4px;"></div>
+              <div id="calendar-day-view" style="display:none;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
             </div>
           </div>
         </div>
@@ -3199,8 +3200,24 @@ loadRequests();
       const open=readCalendarAvailability().filter(x=>!availabilityIsBlocked(x,calendarApprovedDates));
       box.innerHTML=Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(d.getDate()+i);const key=calendarDateKey(d);
         const entries=[...calendarApprovedDates.filter(x=>String(x.requested_date||"")===key).map(x=>({time:x.requested_time||"",label:"Confirmed"})),...open.filter(x=>String(x.date||"")===key).map(x=>({time:x.time||"",label:"Open"}))].sort((a,b)=>String(a.time).localeCompare(String(b.time)));
-        return '<div style="min-width:115px;border:1px solid var(--line);border-radius:10px;padding:9px;background:white;"><strong style="font-size:12px;">'+d.toLocaleDateString(undefined,{weekday:"short"})+'</strong><div style="font-size:11px;color:var(--muted);margin:2px 0 8px;">'+d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+'</div>'+(entries.length?entries.map(e=>'<div style="padding:6px;margin-top:5px;border:1px solid var(--line);border-radius:7px;font-size:11px;"><strong>'+escapeHtml(e.time||"Time TBD")+'</strong><br>'+e.label+'</div>').join(""):'<div style="font-size:11px;color:var(--muted);">No availability</div>')+'</div>';
+        return '<div data-calendar-day="'+key+'" style="min-width:115px;border:1px solid var(--line);border-radius:10px;padding:9px;background:white;cursor:pointer;"><strong style="font-size:12px;">'+d.toLocaleDateString(undefined,{weekday:"short"})+'</strong><div style="font-size:11px;color:var(--muted);margin:2px 0 8px;">'+d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+'</div>'+(entries.length?entries.map(e=>'<div style="padding:6px;margin-top:5px;border:1px solid var(--line);border-radius:7px;font-size:11px;"><strong>'+escapeHtml(e.time||"Time TBD")+'</strong><br>'+e.label+'</div>').join(""):'<div style="font-size:11px;color:var(--muted);">No availability</div>')+'</div>';
       }).join("");
+      box.querySelectorAll("[data-calendar-day]").forEach(day=>day.addEventListener("click",()=>renderCalendarDay(day.dataset.calendarDay)));
+    }
+    function renderCalendarDay(key){
+      const box=document.getElementById("calendar-day-view"); if(!box)return;
+      const booked=calendarApprovedDates.filter(x=>String(x.requested_date||"")===key);
+      const open=readCalendarAvailability().filter(x=>String(x.date||"")===key && !availabilityIsBlocked(x,calendarApprovedDates));
+      const entries=[
+        ...booked.map(x=>({time:x.requested_time||"",type:"Confirmed Appointment",detail:[x.first_name,x.last_name].filter(Boolean).join(" ")||"Client",duration:bookingDurationMinutes(x)})),
+        ...open.map(x=>({time:x.time||"",type:"Open Availability",detail:"Available to schedule",duration:0}))
+      ].sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+      const date=new Date(key+"T12:00:00");
+      box.style.display="block";
+      box.innerHTML='<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;"><strong>'+date.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})+'</strong><button id="calendar-close-day" type="button" style="border:0;background:transparent;cursor:pointer;">Close</button></div>'+
+        '<div style="margin-top:10px;">'+(entries.length?entries.map(e=>'<div style="padding:10px 0;border-top:1px solid var(--line);"><strong>'+escapeHtml(e.time||"Time TBD")+'</strong> · '+escapeHtml(e.type)+(e.duration?' ('+(e.duration/60)+' hr)':'')+'<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+escapeHtml(e.detail)+'</div></div>').join(""):'<div style="font-size:13px;color:var(--muted);">Nothing scheduled or available for this day.</div>')+'</div>';
+      document.getElementById("calendar-close-day")?.addEventListener("click",()=>{box.style.display="none";});
+      box.scrollIntoView({behavior:"smooth",block:"nearest"});
     }
     document.getElementById("calendar-prev-week")?.addEventListener("click",()=>{calendarWeekOffset--;renderCalendarWeek();});
     document.getElementById("calendar-next-week")?.addEventListener("click",()=>{calendarWeekOffset++;renderCalendarWeek();});
