@@ -1842,7 +1842,7 @@ My journal will continue to be a place where I share a little more of that side 
           String(data.request_details || "").trim();
 
         const requestedStart =
-          new Date(requestedDate + "T" + requestedTime);
+          siteZonedDateTime(requestedDate, requestedTime);
 
         if (
           !Number.isFinite(requestedStart.getTime()) ||
@@ -1995,6 +1995,18 @@ My journal will continue to be a place where I share a little more of that side 
           );
         }
 
+        const availableSlots = await siteAvailableSlots(
+          env,
+          requestedDate,
+          siteDurationMinutes(duration)
+        );
+        if (!availableSlots.includes(requestedTime.slice(0, 5))) {
+          return Response.json(
+            { ok: false, message: "That start time is no longer available. Please choose another opening." },
+            { status: 409 }
+          );
+        }
+
 
         // Screening acknowledgement required
 
@@ -2078,9 +2090,16 @@ My journal will continue to be a place where I share a little more of that side 
           // that profile rather than creating a second client record.
           await env.DB.prepare(
             `INSERT INTO date_requests
-              (client_id, requested_date, requested_time, location_name, status, deposit_amount, deposit_paid, id_received, final_approval, notes)
-             VALUES (?, ?, ?, ?, 'blacklisted_submission', 0, 0, 0, 0, ?)`
-          ).bind(flaggedClientId, requestedDate, requestedTime, locationName, flagNotes).run();
+              (client_id, requested_date, requested_time, location_name, location_address, status, deposit_amount, deposit_paid, id_received, final_approval, notes)
+             VALUES (?, ?, ?, ?, ?, 'blacklisted_submission', 0, 0, 0, 0, ?)`
+          ).bind(
+            flaggedClientId,
+            requestedDate,
+            requestedTime,
+            appointmentType === "outcall" ? "Outcall" : "Incall",
+            appointmentType === "outcall" ? outcallAddress : null,
+            flagNotes
+          ).run();
 
           return Response.json(
             { ok:false, message:"This request cannot be accepted." },
@@ -2221,6 +2240,7 @@ My journal will continue to be a place where I share a little more of that side 
                 requested_date,
                 requested_time,
                 location_name,
+                location_address,
                 status,
                 deposit_amount,
                 deposit_paid,
@@ -2230,6 +2250,7 @@ My journal will continue to be a place where I share a little more of that side 
               )
               VALUES
               (
+                ?,
                 ?,
                 ?,
                 ?,
@@ -2247,7 +2268,8 @@ My journal will continue to be a place where I share a little more of that side 
               clientId,
               requestedDate,
               requestedTime,
-              locationName,
+              appointmentType === "outcall" ? "Outcall" : "Incall",
+              appointmentType === "outcall" ? outcallAddress : null,
               notes
             )
             .run();
@@ -3748,6 +3770,8 @@ const approvedRequest = await env.DB
       dr.requested_date,
       dr.requested_time,
       dr.location_name,
+      dr.location_address,
+      dr.notes,
       c.first_name,
       c.last_name,
       c.email
@@ -3758,6 +3782,28 @@ const approvedRequest = await env.DB
   `)
   .bind(requestId)
   .first();
+
+if (approvedRequest) {
+  await ensureSiteContentTables(env);
+  const bookedStart = siteMinutesFromTime(approvedRequest.requested_time);
+  const bookedEnd = bookedStart === null
+    ? null
+    : bookedStart + siteBookingDurationFromNotes(approvedRequest.notes);
+  if (bookedStart !== null && bookedEnd !== null) {
+    await env.DB.prepare(`
+      DELETE FROM calendar_availability
+      WHERE available_date = ?
+        AND (
+          CAST(substr(available_time, 1, 2) AS INTEGER) * 60 +
+          CAST(substr(available_time, 4, 2) AS INTEGER)
+        ) >= ?
+        AND (
+          CAST(substr(available_time, 1, 2) AS INTEGER) * 60 +
+          CAST(substr(available_time, 4, 2) AS INTEGER)
+        ) < ?
+    `).bind(approvedRequest.requested_date, bookedStart, bookedEnd).run();
+  }
+}
 
 await env.DB
   .prepare(`
@@ -3783,7 +3829,7 @@ Our date is officially confirmed.
 Date: ${approvedRequest.requested_date}
 Time: ${approvedRequest.requested_time}
 Location: ${approvedRequest.location_name}
-
+${approvedRequest.location_address ? `Address: ${approvedRequest.location_address}\n` : ""}
 I'm looking forward to seeing you. I'll send you the exact address for our date location two hours before our scheduled time.
 
 See you soon,
