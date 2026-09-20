@@ -66,11 +66,25 @@ async function ensureClientVerificationAuditsTable(env) {
       accepted_at TEXT NOT NULL,
       verification_status TEXT NOT NULL DEFAULT 'pending_review',
       verification_method TEXT NOT NULL DEFAULT '',
+      submitted_employer TEXT NOT NULL DEFAULT '',
+      submitted_job_title TEXT NOT NULL DEFAULT '',
+      submitted_industry TEXT NOT NULL DEFAULT '',
       completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+  const columnRows = await env.DB.prepare("PRAGMA table_info(client_verification_audits)").all();
+  const columns = new Set((columnRows.results || []).map((column) => String(column.name || "")));
+  if (!columns.has("submitted_employer")) {
+    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN submitted_employer TEXT NOT NULL DEFAULT ''").run();
+  }
+  if (!columns.has("submitted_job_title")) {
+    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN submitted_job_title TEXT NOT NULL DEFAULT ''").run();
+  }
+  if (!columns.has("submitted_industry")) {
+    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN submitted_industry TEXT NOT NULL DEFAULT ''").run();
+  }
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_client_verification_audits_client ON client_verification_audits(client_id, accepted_at DESC)").run();
 }
 
@@ -86,6 +100,9 @@ function verificationAuditPublicRecord(row) {
     accepted_at: row.accepted_at || "",
     verification_status: row.verification_status || "pending_review",
     verification_method: row.verification_method || "",
+    submitted_employer: row.submitted_employer || "",
+    submitted_job_title: row.submitted_job_title || "",
+    submitted_industry: row.submitted_industry || "",
     completed_at: row.completed_at || "",
     updated_at: row.updated_at || ""
   };
@@ -286,7 +303,8 @@ export default {
         const result = await env.DB.prepare(`
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
                  authorization_version, accepted_at, verification_status,
-                 verification_method, completed_at, updated_at
+                 verification_method, submitted_employer, submitted_job_title,
+                 submitted_industry, completed_at, updated_at
           FROM client_verification_audits
           WHERE client_id = ?
           ORDER BY accepted_at DESC, id DESC
@@ -330,7 +348,8 @@ export default {
         const row = await env.DB.prepare(`
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
                  authorization_version, accepted_at, verification_status,
-                 verification_method, completed_at, updated_at
+                 verification_method, submitted_employer, submitted_job_title,
+                 submitted_industry, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
@@ -2199,6 +2218,15 @@ My journal will continue to be a place where I share a little more of that side 
         const preferredContact =
           String(data.preferred_contact || "").trim();
 
+        const currentEmployer =
+          String(data.current_employer || "").trim().slice(0, 160);
+
+        const jobTitle =
+          String(data.job_title || "").trim().slice(0, 160);
+
+        const industry =
+          String(data.industry || "").trim().slice(0, 160);
+
         const requestedDate =
           String(data.requested_date || "").trim();
 
@@ -2319,6 +2347,9 @@ My journal will continue to be a place where I share a little more of that side 
           !email ||
           !phone ||
           !preferredContact ||
+          !currentEmployer ||
+          !jobTitle ||
+          !industry ||
           !requestedDate ||
           !requestedTime ||
           !dateType ||
@@ -2600,6 +2631,18 @@ My journal will continue to be a place where I share a little more of that side 
             ? `Preferred contact after confirmation: ${preferredContact}`
             : null,
 
+          currentEmployer
+            ? `Current employer: ${currentEmployer}`
+            : null,
+
+          jobTitle
+            ? `Job title: ${jobTitle}`
+            : null,
+
+          industry
+            ? `Industry: ${industry}`
+            : null,
+
           appointmentType === "outcall" && outcallAddress
             ? `Outcall address: ${outcallAddress}`
             : null,
@@ -2687,15 +2730,19 @@ My journal will continue to be a place where I share a little more of that side 
         await env.DB.prepare(`
           INSERT INTO client_verification_audits
             (client_id, date_request_id, accepted, authorization_wording,
-             authorization_version, accepted_at, verification_status, verification_method)
-          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'pending_review', 'Booking form acknowledgement')
+             authorization_version, accepted_at, verification_status, verification_method,
+             submitted_employer, submitted_job_title, submitted_industry)
+          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'pending_review', 'Booking form acknowledgement', ?, ?, ?)
           ON CONFLICT(date_request_id) DO NOTHING
         `).bind(
           clientId,
           requestId,
           screeningAcknowledgement ? 1 : 0,
           SCREENING_ACKNOWLEDGEMENT_WORDING,
-          SCREENING_ACKNOWLEDGEMENT_VERSION
+          SCREENING_ACKNOWLEDGEMENT_VERSION,
+          currentEmployer,
+          jobTitle,
+          industry
         ).run();
 
 
