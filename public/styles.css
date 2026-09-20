@@ -1342,3 +1342,163 @@ input:focus-visible {
     line-height: 1.75;
   }
 }
+
+
+/* Redesigned Rendezvous booking form */
+.rendezvous-page .request-page {
+  max-width: 1040px;
+  padding-top: clamp(70px, 9vw, 110px);
+  padding-bottom: clamp(80px, 10vw, 130px);
+}
+
+.rendezvous-page .request-intro {
+  max-width: 760px;
+  margin-bottom: 64px;
+}
+
+.rendezvous-page .request-intro h1 {
+  margin: 0 0 24px;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(48px, 7vw, 78px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.rendezvous-page .request-intro p {
+  margin: 0 auto 16px;
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.rendezvous-page #request-form {
+  display: block;
+  max-width: 860px;
+}
+
+.rendezvous-page .form-section {
+  margin-bottom: 28px;
+  padding: clamp(28px, 5vw, 48px);
+  border: 1px solid #d8d0c7;
+  background: #faf7f2;
+}
+
+.rendezvous-page .form-section > h2 {
+  margin: 0 0 32px;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(30px, 4vw, 43px);
+  font-weight: 500;
+}
+
+.rendezvous-page .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 26px;
+}
+
+.rendezvous-page .field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.rendezvous-page .field > small {
+  color: #6a625c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.rendezvous-page .schedule-field {
+  padding: 22px;
+  border: 1px solid #c9bdb2;
+  background: #eee5dc;
+}
+
+.rendezvous-page .schedule-field label {
+  font-family: "Playfair Display", serif;
+  font-size: 18px;
+}
+
+.rendezvous-page .schedule-field input {
+  min-height: 54px;
+  border-color: #b8aa9e;
+  background: #fffdf9;
+  font-size: 17px;
+}
+
+.rendezvous-page .contact-preference-field {
+  margin-top: 4px;
+  padding-top: 22px;
+  border-top: 1px solid #ded7cd;
+}
+
+.rendezvous-page .outcall-address {
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 28px;
+  border: 1px solid #c9bdb2;
+  background: #eee5dc;
+}
+
+.rendezvous-page .outcall-address[hidden] {
+  display: none;
+}
+
+.rendezvous-page .outcall-address legend {
+  padding: 0 10px;
+  font-family: "Playfair Display", serif;
+  font-size: 27px;
+  font-weight: 500;
+}
+
+.rendezvous-page .outcall-address > p {
+  margin: 0 0 24px;
+  color: #5f5751;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.rendezvous-page .checkbox-label {
+  display: grid !important;
+  grid-template-columns: auto 1fr;
+  gap: 12px !important;
+  align-items: start;
+  padding: 16px 0;
+}
+
+.rendezvous-page .checkbox-label input {
+  width: 18px !important;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.rendezvous-page #submit-request {
+  margin-top: 26px;
+}
+
+@media (max-width: 700px) {
+  .rendezvous-page .request-page {
+    padding: 58px 18px 84px;
+  }
+
+  .rendezvous-page .form-section {
+    padding: 28px 20px;
+  }
+
+  .rendezvous-page .form-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .rendezvous-page .form-grid .full-width {
+    grid-column: 1;
+  }
+
+  .rendezvous-page .schedule-field {
+    padding: 18px;
+  }
+
+  .rendezvous-page .outcall-address {
+    padding: 24px 18px;
+  }
+}
