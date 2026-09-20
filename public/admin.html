@@ -1295,21 +1295,23 @@
       container.innerHTML = filtered.length ? filtered.map((item) => {
       const safety = parseSafetyReason(item.reason);
       return `
-      <div style="padding:20px 22px;border-bottom:1px solid #ddd6ca;">
+      <div style="padding:20px 22px;border-bottom:1px solid #ddd6ca;border-left:4px solid #8f3d3d;">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
           <div>
-            <strong>${escapeHtml(item.name || "Client")}</strong>
-            <div style="margin-top:6px;">${escapeHtml(item.email || "No email")} · ${escapeHtml(item.phone || "No phone")}</div>
+            <strong style="font-size:16px;">${escapeHtml(item.name || "Client")}</strong>
+            <div style="margin-top:5px;font-size:13px;color:var(--muted);">${escapeHtml(item.email || "No email")} · ${escapeHtml(item.phone || "No phone")}</div>
           </div>
-          <span style="padding:4px 8px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLACKLISTED</span>
+          <span style="padding:5px 9px;border-radius:999px;background:#f3dfdf;font-size:11px;font-weight:700;">🚩 BLOCKED</span>
         </div>
-        <div style="margin-top:10px;"><strong>Safety Record</strong></div>
-        ${safety.concerns.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${safety.concerns.map(concern => `<span style="padding:5px 8px;border-radius:999px;background:#f3dfdf;font-size:12px;">⚠️ ${escapeHtml(concern)}</span>`).join("")}</div>` : ""}
-        ${safety.notes ? `<details style="margin-top:9px;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">View private safety notes</summary><div style="margin-top:7px;padding:10px 12px;background:#faf8f4;border-radius:8px;">${escapeHtml(safety.notes)}</div></details>` : (!safety.concerns.length ? `<div style="margin-top:8px;">${escapeHtml(item.reason || "No reason recorded")}</div>` : "")}
-        <div style="margin-top:8px;font-size:13px;color:var(--muted);">Added to blacklist: ${escapeHtml(item.created_at || "—")}</div>
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #eee7dc;">
-          <button type="button" class="remove-blacklist" data-blacklist-id="${item.id}" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
-        </div>
+        ${safety.concerns.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:11px;">${safety.concerns.map(concern => `<span style="padding:5px 8px;border-radius:999px;background:#f3dfdf;font-size:12px;font-weight:700;">${escapeHtml(concern)}</span>`).join("")}</div>` : `<div style="margin-top:11px;font-size:13px;font-weight:700;">${escapeHtml(item.reason || "Reason not recorded")}</div>`}
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);">Blocked since ${escapeHtml(item.created_at || "—")}</div>
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer;font-size:12px;font-weight:700;">Manage Safety Record</summary>
+          <div style="margin-top:9px;padding:10px 12px;background:#faf8f4;border-radius:8px;">
+            ${safety.notes ? `<div style="font-size:12px;"><strong>Private safety notes</strong><div style="margin-top:5px;line-height:1.5;">${escapeHtml(safety.notes)}</div></div>` : ""}
+            <button type="button" class="remove-blacklist" data-blacklist-id="${item.id}" style="margin-top:${safety.notes ? "10px" : "0"};padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
+          </div>
+        </details>
       </div>`;
       }).join("") : '<div class="empty">No blacklist records match your search or filter.</div>';
       container.querySelectorAll(".remove-blacklist").forEach((button) => {
