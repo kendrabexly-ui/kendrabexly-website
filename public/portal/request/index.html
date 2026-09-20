@@ -603,6 +603,28 @@ const postDepositSummary = document.getElementById("post-deposit-summary");
 
 idReceivedCheckbox.checked = Boolean(item.id_received);
 let depositConfirmed = Boolean(item.deposit_paid);
+
+// Existing requests created before deposit calculation was fixed can still
+// have a zero stored amount. Calculate and display it before payment is marked paid.
+async function refreshMissingDeposit(){
+  if (Number(item.deposit_amount || 0) > 0 || item.deposit_paid) return;
+  const label=document.getElementById("deposit-check-label");
+  if(label) label.textContent="Calculating deposit...";
+  try{
+    const response=await fetch("/api/admin/request/calculate-deposit",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({id:Number(id)})
+    });
+    const result=await response.json();
+    if(!response.ok||!result.ok) throw new Error(result.message||"Unable to calculate deposit.");
+    item.deposit_amount=Number(result.deposit_amount||0);
+    if(label) label.textContent="Expected: $"+item.deposit_amount.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  }catch(error){
+    if(label) label.textContent="Amount not calculated";
+    depositStatus.textContent=error.message||"Unable to calculate deposit.";
+  }
+}
+refreshMissingDeposit();
 const finalApprovalReadiness=document.getElementById("final-approval-readiness");
 function updateFinalApprovalReadiness(){
   const specialReady=!newsletterSpecialApprovalCheckbox || newsletterSpecialApprovalCheckbox.checked;
