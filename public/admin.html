@@ -3997,6 +3997,13 @@ loadRequests();
           })
           .sort((a,b) => String(a.requested_date||"").localeCompare(String(b.requested_date||"")) || String(a.requested_time||"").localeCompare(String(b.requested_time||"")));
         calendarApprovedDates = rows;
+        const savedAvailability=readCalendarAvailability();
+        const availableAfterBookings=savedAvailability.filter(slot=>!availabilityIsBlocked(slot,calendarApprovedDates));
+        const removedOpeningCount=savedAvailability.length-availableAfterBookings.length;
+        if(removedOpeningCount>0){
+          localStorage.setItem(calendarAvailabilityKey,JSON.stringify(availableAfterBookings));
+          setCalendarAvailabilityFeedback(removedOpeningCount+" opening"+(removedOpeningCount===1?" was":"s were")+" removed because confirmed appointments now occupy the time.");
+        }
         renderCalendarAvailability();
         renderCalendarWeek();
         if (count) count.textContent = String(rows.length);
