@@ -520,6 +520,22 @@
         padding: 12px 8px !important;
       }
     }
+
+    /* Final dashboard section firewall. Use the selected section recorded on
+       <body> so malformed/legacy child markup cannot bleed into another tab. */
+    body[data-admin-section] main.main > section.section { display:none !important; }
+    body[data-admin-section="dashboard"] main.main > #dashboard,
+    body[data-admin-section="calendar"] main.main > #calendar,
+    body[data-admin-section="requests"] main.main > #requests,
+    body[data-admin-section="clients"] main.main > #clients,
+    body[data-admin-section="blacklist"] main.main > #blacklist,
+    body[data-admin-section="emails"] main.main > #emails,
+    body[data-admin-section="rates-services"] main.main > #rates-services,
+    body[data-admin-section="newsletter"] main.main > #newsletter,
+    body[data-admin-section="x-agent"] main.main > #x-agent,
+    body[data-admin-section="marketing-retention"] main.main > #marketing-retention { display:block !important; }
+    body[data-admin-section="newsletter"] #x-agent,
+    body[data-admin-section="newsletter"] #x-agent-boundary { display:none !important; }
 </style>
 </head>
 
@@ -3975,6 +3991,7 @@ loadRequests();
       document.querySelectorAll(".section");
 
     const openSection = (sectionName) => {
+      document.body.dataset.adminSection = sectionName;
       const button = Array.from(navButtons).find((item) => item.dataset.section === sectionName);
       const section = document.getElementById(sectionName);
       if (!button || !section) return;
