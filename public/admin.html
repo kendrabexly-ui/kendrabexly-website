@@ -2371,7 +2371,10 @@ async function loadRequests() {
       if (!recordsContainer) return;
       const selected = statusFilter ? statusFilter.value : "all";
       const query = requestSearch ? requestSearch.value.trim().toLowerCase() : "";
-      let filtered = selected === "all" ? requests : requests.filter(item => item.status === selected);
+      const requestPriority={blacklisted_submission:0,pending:1,pending_final_approval:2,approved:3,completed:4,canceled:5};
+      let filtered = selected === "all"
+        ? [...requests].sort((a,b)=>(requestPriority[String(a.status||"")]??9)-(requestPriority[String(b.status||"")]??9))
+        : requests.filter(item => item.status === selected);
       if (query) {
         filtered = filtered.filter((item) => {
           const haystack = [
