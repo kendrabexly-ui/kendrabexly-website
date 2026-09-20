@@ -1,17 +1,104 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Etiquette and policies for spending time with Kendra Bexly."><title>The Art of Our Rendezvous | Kendra Bexly</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/styles.css"></head><body><header class="nav">
-  <a class="brand" href="/">Kendra Bexly</a>
-  <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
-  <nav id="site-nav" aria-label="Primary navigation">
-    <a href="/">The Invitation</a>
-    <a href="/meet-kendra">Meet Kendra</a>
-    <a href="/the-muse">The Muse</a>
-    <a href="/our-time">Our Time</a>
-    <a href="/etiquette">Etiquette</a>
-    <a href="/pillow-talk">Pillow Talk</a>
-    <a class="button small" href="/request">The Rendezvous</a>
-  </nav>
-</header><main><section class="page-hero"><div class="eyebrow">THE ART OF OUR RENDEZVOUS</div><h1>The details make the difference.</h1><p class="lede">A few shared expectations keep everything comfortable, discreet, and effortless.</p></section><section class="policy-list"><article><span>01</span><div><h2>Respect & discretion</h2><p>Kind communication, privacy, and mutual respect are essential from the first message onward.</p></div></article><article><span>02</span><div><h2>Screening</h2><p>Valid identification is required before final approval. Instructions are shared privately when your request moves forward.</p></div></article><article><span>03</span><div><h2>Reservations</h2><p>A 25% deposit confirms an approved date. Plans are not reserved until confirmation is complete.</p></div></article><article><span>04</span><div><h2>Thoughtful planning</h2><p>Please arrive clean, punctual, and ready to enjoy our time. Communicate changes as early as possible.</p></div></article></section><section class="page-cta"><a class="text-link" href="/pillow-talk">Read the FAQ →</a></section></main><footer><span>© 2026 Kendra Bexly</span><span>Official website • KendraBexly.com</span></footer>
-<script>
-const toggle=document.querySelector(".menu-toggle"),nav=document.getElementById("site-nav");
-toggle?.addEventListener("click",()=>{const open=toggle.getAttribute("aria-expanded")==="true";toggle.setAttribute("aria-expanded",String(!open));nav?.classList.toggle("open",!open);});
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Etiquette and policies for planning a respectful, discreet rendezvous with Kendra Bexly.">
+  <meta name="theme-color" content="#f5f1eb">
+  <title>The Art of Our Rendezvous | Etiquette &amp; Policies | Kendra Bexly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="etiquette-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Kendra Bexly home">Kendra Bexly</a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" aria-label="Primary navigation">
+      <a href="/">The Invitation</a>
+      <a href="/meet-kendra">Meet Kendra</a>
+      <a href="/the-muse">The Muse</a>
+      <a href="/our-time">Our Time</a>
+      <a href="/etiquette" aria-current="page">Etiquette</a>
+      <a href="/pillow-talk">Pillow Talk</a>
+      <a class="button small" href="/request">The Rendezvous</a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <section class="page-hero" aria-labelledby="etiquette-title">
+      <div class="eyebrow">THE ART OF OUR RENDEZVOUS</div>
+      <h1 id="etiquette-title">Etiquette &amp; Policies</h1>
+      <p class="lede">A few shared expectations keep everything comfortable, discreet, and effortless.</p>
+    </section>
+
+    <section class="policy-list" aria-label="Etiquette and policies">
+      <article>
+        <span aria-hidden="true">01</span>
+        <div>
+          <h2>Respect &amp; Discretion</h2>
+          <p>Kind communication, privacy, and mutual respect are essential from the first message onward.</p>
+        </div>
+      </article>
+
+      <article>
+        <span aria-hidden="true">02</span>
+        <div>
+          <h2>Screening</h2>
+          <p>Valid identification is required before final approval. Instructions are shared privately when your request moves forward.</p>
+        </div>
+      </article>
+
+      <article>
+        <span aria-hidden="true">03</span>
+        <div>
+          <h2>Reservations</h2>
+          <p>A 25% deposit confirms an approved date. Plans are not reserved until confirmation is complete.</p>
+        </div>
+      </article>
+
+      <article>
+        <span aria-hidden="true">04</span>
+        <div>
+          <h2>Thoughtful Planning</h2>
+          <p>Please arrive clean, punctual, and ready to enjoy our time. Communicate changes as early as possible.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const toggle = document.querySelector(".menu-toggle");
+    const nav = document.getElementById("site-nav");
+
+    const closeMenu = () => {
+      toggle?.setAttribute("aria-expanded", "false");
+      nav?.classList.remove("open");
+    };
+
+    toggle?.addEventListener("click", () => {
+      const willOpen = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", String(willOpen));
+      nav?.classList.toggle("open", willOpen);
+    });
+
+    nav?.addEventListener("click", event => {
+      if (event.target.closest("a")) closeMenu();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeMenu();
+        toggle?.focus();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 1100) closeMenu();
+    });
+  </script>
+</body>
+</html>
