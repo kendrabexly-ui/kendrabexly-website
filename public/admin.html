@@ -1153,7 +1153,15 @@
       </div>
 
       <div id="retention-performance" style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
-        <div style="font-weight:700;margin-bottom:10px;">Retention Performance</div>
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <div style="font-weight:700;">Retention Performance</div>
+          <select id="retention-date-range" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:white;">
+            <option value="30">Last 30 Days</option>
+            <option value="90" selected>Last 90 Days</option>
+            <option value="180">Last 6 Months</option>
+            <option value="all">All Time</option>
+          </select>
+        </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
           <div style="padding:12px;border:1px solid var(--line);border-radius:8px;"><strong id="retention-perf-sent">0</strong><div style="font-size:11px;color:var(--muted);margin-top:3px;">Follow-ups Sent</div></div>
           <div style="padding:12px;border:1px solid var(--line);border-radius:8px;"><strong id="retention-perf-requests">0</strong><div style="font-size:11px;color:var(--muted);margin-top:3px;">New Requests</div></div>
@@ -1567,7 +1575,13 @@ async function loadRequests() {
       const container = document.getElementById("retention-activity-history");
       if (!container) return;
       const filter = document.getElementById("retention-history-filter")?.value || "all";
+      const range = document.getElementById("retention-date-range")?.value || "90";
+      const cutoff = range === "all" ? 0 : Date.now() - Number(range) * 86400000;
       const rows = Array.from(retentionOutcomeByClient.values())
+        .filter(item => {
+          const when = new Date(item.sent_at || item.draft_at || 0).getTime();
+          return !cutoff || (Number.isFinite(when) && when >= cutoff);
+        })
         .filter(item => item.sent_at || item.draft_at)
         .filter(item => {
           if (filter === "sent") return Boolean(item.sent_at);
@@ -1595,7 +1609,12 @@ async function loadRequests() {
     document.getElementById("retention-history-filter")?.addEventListener("change", renderRetentionActivityHistory);
 
     const renderRetentionPerformance = () => {
-      const tracked = Array.from(retentionOutcomeByClient.values());
+      const range = document.getElementById("retention-date-range")?.value || "90";
+      const cutoff = range === "all" ? 0 : Date.now() - Number(range) * 86400000;
+      const tracked = Array.from(retentionOutcomeByClient.values()).filter(item => {
+        const when = new Date(item.sent_at || item.draft_at || 0).getTime();
+        return !cutoff || (Number.isFinite(when) && when >= cutoff);
+      });
       const sent = tracked.filter(item => item.sent_at).length;
       const requests = tracked.filter(item => item.requested_after_contact).length;
       const bookings = tracked.filter(item => item.booked_after_contact).length;
@@ -1607,6 +1626,10 @@ async function loadRequests() {
       setText("retention-perf-rate", rate + "%");
     };
     renderRetentionPerformance();
+    document.getElementById("retention-date-range")?.addEventListener("change", () => {
+      renderRetentionPerformance();
+      renderRetentionActivityHistory();
+    });
 
     const renderRetentionTargets = () => {
       if (!retentionTargetList) return;
