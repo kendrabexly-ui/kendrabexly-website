@@ -883,45 +883,37 @@
           </div>
         </div>
 
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header">
+        <details class="panel" style="margin-bottom:18px;">
+          <summary class="panel-header" style="cursor:pointer;list-style:none;">
             <div>
-              <div class="panel-title" data-x-anchor="social">X Home Feed</div>
-              <div class="panel-subtitle">Browse recent tweets from people you follow and choose one to respond to.</div>
+              <div class="panel-title" data-x-anchor="social">Conversations</div>
+              <div class="panel-subtitle">Browse your feed, your recent posts, and replies when you want to work on engagement.</div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <select id="x-home-sort" aria-label="Sort X home feed" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;font:inherit;">
-                <option value="latest">Latest</option>
-                <option value="engaged">Most Engaged</option>
-                <option value="oldest">Oldest</option>
-              </select>
-              <button id="x-load-home-feed" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Home Feed</button>
+            <span style="font-size:12px;color:var(--muted);">Open</span>
+          </summary>
+          <div style="padding:0 0 18px;">
+            <div style="padding:16px 24px;border-bottom:1px solid var(--line);">
+              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                <strong>Home Feed</strong>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <select id="x-home-sort" aria-label="Sort X home feed" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;font:inherit;"><option value="latest">Latest</option><option value="engaged">Most Engaged</option><option value="oldest">Oldest</option></select>
+                  <button id="x-load-home-feed" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;color:var(--ink);cursor:pointer;">Load Feed</button>
+                </div>
+              </div>
+              <div id="x-home-feed" style="margin-top:10px;"><div class="empty">Load the feed when you want to browse recent posts.</div></div>
+            </div>
+            <div style="padding:16px 24px;border-bottom:1px solid var(--line);">
+              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;"><strong>My Timeline</strong><button id="x-load-timeline" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;color:var(--ink);cursor:pointer;">Load Timeline</button></div>
+              <div style="margin-top:4px;font-size:12px;color:var(--muted);">Select a recent post when you want to review its replies.</div>
+              <div id="x-timeline" style="margin-top:10px;"><div class="empty">Load your timeline when needed.</div></div>
+            </div>
+            <div style="padding:16px 24px;">
+              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;"><strong>Replies</strong><button id="x-load-replies" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;color:var(--ink);cursor:pointer;">Load Replies</button></div>
+              <div style="margin-top:4px;font-size:12px;color:var(--muted);">Generate, edit, approve, and send a response when you choose to engage.</div>
+              <div id="x-replies" style="margin-top:10px;"><div class="empty">Load replies when you want to check recent conversations.</div></div>
             </div>
           </div>
-          <div id="x-home-feed"><div class="empty">Press Load Home Feed to browse tweets from other accounts.</div></div>
-        </div>
-
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header">
-            <div>
-              <div class="panel-title">My X Timeline</div>
-              <div class="panel-subtitle">Choose one of your recent tweets, then view its replies and generate responses.</div>
-            </div>
-            <button id="x-load-timeline" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Timeline</button>
-          </div>
-          <div id="x-timeline"><div class="empty">Press Load Timeline to view your recent tweets.</div></div>
-        </div>
-
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header">
-            <div>
-              <div class="panel-title">Tweet Replies</div>
-              <div class="panel-subtitle">Load replies to your recent X posts, generate a response, edit it, approve it, then quote the original tweet when you send.</div>
-            </div>
-            <button id="x-load-replies" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;color:var(--ink);cursor:pointer;">Load Replies</button>
-          </div>
-          <div id="x-replies"><div class="empty">Press Load Replies to check your recent conversations.</div></div>
-        </div>
+        </details>
 
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
