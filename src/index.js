@@ -1,6 +1,162 @@
 async function ensureXDraftMedia(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_draft_media (draft_id INTEGER PRIMARY KEY,mime_type TEXT NOT NULL,file_name TEXT,image_base64 TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`).run();}
 async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env);const m=await env.DB.prepare("SELECT mime_type,image_base64 FROM x_draft_media WHERE draft_id=?").bind(draftId).first();if(!m)return null;const rr=await fetch("https://api.x.com/2/media/upload",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({media:m.image_base64,media_category:"tweet_image"})});const d=await rr.json().catch(()=>({}));if(!rr.ok)throw new Error(d?.detail||d?.title||d?.message||"X rejected the image upload.");return d?.data?.id||d?.data?.media_id_string||d?.media_id_string||null;}
 
+
+const SITE_TIME_ZONE = "America/Los_Angeles";
+const DEFAULT_SITE_RATES = [
+  {
+    name: "Signature Private Companionship Experience",
+    description: "My signature experience is romantic, flirtatious, and intentionally unhurried. It is designed for the gentleman who appreciates genuine chemistry, affectionate company, playful conversation, and the pleasure of having my complete attention.\n\nThere is no pressure to perform or rush the moment. We can relax, get comfortable, and allow our time to unfold naturally. Come ready to disconnect from everything else and enjoy an experience that feels personal, warm, and distinctly ours.",
+    rates: [["1 Hour", 500], ["2 Hours", 750], ["3 Hours", 1000], ["4 Hours", 1250]]
+  },
+  {
+    name: "The Greek Princess",
+    description: "The Greek Princess is my more adventurous and elevated experience, created for the gentleman who enjoys a little extra indulgence with his time.\n\nExpect the same warmth, chemistry, and attentive companionship found in my signature experience, with a more daring and playful energy. The finer details are kept discreet.",
+    rates: [["1 Hour", 650], ["1.5 Hours", 800], ["2 Hours", 1050]]
+  },
+  {
+    name: "Outcall",
+    description: "Prefer that I come to you? Outcall is available as an add-on for approved dates at upscale hotels, luxury residences, and other refined private locations.\n\nYour location must be clean, safe, discreet, and suitable for receiving a guest. Complete location details are required before final confirmation, and all outcall requests remain subject to my approval.\n\nSet the scene, make yourself comfortable, and I will bring the experience to you.",
+    rates: [["Outcall", 100]],
+    add_on: true
+  }
+];
+
+async function ensureSiteContentTables(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS site_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS site_gallery (
+      slot INTEGER PRIMARY KEY CHECK (slot BETWEEN 1 AND 6),
+      mime_type TEXT NOT NULL,
+      image_base64 TEXT NOT NULL,
+      alt_text TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS calendar_availability (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      available_date TEXT NOT NULL,
+      available_time TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(available_date, available_time)
+    )
+  `).run();
+}
+
+function normalizeSiteRates(value) {
+  if (!Array.isArray(value) || !value.length || value.length > 8) return null;
+  const normalized = value.map(service => {
+    const name = String(service?.name || "").trim().slice(0, 120);
+    const description = String(service?.description || "").trim().slice(0, 4000);
+    const rates = Array.isArray(service?.rates)
+      ? service.rates.slice(0, 12).map(rate => [
+          String(rate?.[0] || "").trim().slice(0, 60),
+          Number(rate?.[1])
+        ])
+      : [];
+    return { name, description, rates, add_on: Boolean(service?.add_on) };
+  });
+  if (normalized.some(service =>
+    !service.name ||
+    !service.description ||
+    !service.rates.length ||
+    service.rates.some(rate => !rate[0] || !Number.isFinite(rate[1]) || rate[1] <= 0)
+  )) return null;
+  return normalized;
+}
+
+async function readSiteRates(env) {
+  await ensureSiteContentTables(env);
+  const row = await env.DB.prepare(
+    "SELECT setting_value FROM site_settings WHERE setting_key = 'rate_services'"
+  ).first();
+  if (!row?.setting_value) return structuredClone(DEFAULT_SITE_RATES);
+  try {
+    return normalizeSiteRates(JSON.parse(row.setting_value)) || structuredClone(DEFAULT_SITE_RATES);
+  } catch {
+    return structuredClone(DEFAULT_SITE_RATES);
+  }
+}
+
+function siteMinutesFromTime(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function siteDurationMinutes(value) {
+  const normalized = String(value || "").toLowerCase();
+  const match = normalized.match(/(\d+(?:\.\d+)?)\s*(?:hour|hr)/);
+  if (match) return Math.round(Number(match[1]) * 60);
+  const slug = normalized.match(/^(\d+(?:\.\d+)?)-hours?$/);
+  return slug ? Math.round(Number(slug[1]) * 60) : 60;
+}
+
+function siteBookingDurationFromNotes(notes) {
+  const match = String(notes || "").match(/Duration:\s*([^\n]+)/i);
+  return siteDurationMinutes(match?.[1] || "1 hour");
+}
+
+function siteZonedDateTime(dateValue, timeValue) {
+  const dateMatch = String(dateValue || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const timeMatch = String(timeValue || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!dateMatch || !timeMatch) return new Date(NaN);
+  const parts = [
+    Number(dateMatch[1]), Number(dateMatch[2]), Number(dateMatch[3]),
+    Number(timeMatch[1]), Number(timeMatch[2])
+  ];
+  const guess = Date.UTC(parts[0], parts[1] - 1, parts[2], parts[3], parts[4]);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: SITE_TIME_ZONE,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  });
+  const zoned = Object.fromEntries(
+    formatter.formatToParts(new Date(guess))
+      .filter(part => part.type !== "literal")
+      .map(part => [part.type, Number(part.value)])
+  );
+  const represented = Date.UTC(zoned.year, zoned.month - 1, zoned.day, zoned.hour, zoned.minute);
+  return new Date(guess - (represented - guess));
+}
+
+async function siteAvailableSlots(env, date, requestedDuration) {
+  await ensureSiteContentTables(env);
+  const [availabilityResult, bookedResult] = await Promise.all([
+    env.DB.prepare(
+      "SELECT available_time AS time FROM calendar_availability WHERE available_date = ? ORDER BY available_time"
+    ).bind(date).all(),
+    env.DB.prepare(`
+      SELECT requested_time, notes
+      FROM date_requests
+      WHERE requested_date = ?
+        AND (status = 'approved' OR final_approval = 1)
+    `).bind(date).all()
+  ]);
+  const durationMinutes = Math.max(30, Number(requestedDuration) || 60);
+  const bookings = (bookedResult.results || []).map(item => {
+    const start = siteMinutesFromTime(item.requested_time);
+    return { start, end: start === null ? null : start + siteBookingDurationFromNotes(item.notes) };
+  }).filter(item => item.start !== null);
+  const earliest = Date.now() + 2 * 60 * 60 * 1000;
+  return (availabilityResult.results || [])
+    .map(item => String(item.time || "").slice(0, 5))
+    .filter(time => {
+      const start = siteMinutesFromTime(time);
+      if (start === null) return false;
+      const end = start + durationMinutes;
+      if (siteZonedDateTime(date, time).getTime() < earliest) return false;
+      return !bookings.some(booking => start < booking.end && end > booking.start);
+    });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -1522,6 +1678,94 @@ My journal will continue to be a place where I share a little more of that side 
           { status: 500 }
         );
       }
+    }
+
+
+    // =========================================================
+    // PUBLIC SITE CONTENT, GALLERY, AND AVAILABILITY
+    // =========================================================
+
+    if (url.pathname === "/api/public/rates" && request.method === "GET") {
+      return Response.json({ ok: true, services: await readSiteRates(env) });
+    }
+
+    if (url.pathname === "/api/admin/rates") {
+      if (request.method === "GET") {
+        return Response.json({ ok: true, services: await readSiteRates(env) });
+      }
+      if (request.method === "POST") {
+        const data = await request.json().catch(() => ({}));
+        const services = normalizeSiteRates(data.services);
+        if (!services) {
+          return Response.json({ ok: false, message: "Enter valid service names, descriptions, durations, and rates." }, { status: 400 });
+        }
+        await ensureSiteContentTables(env);
+        await env.DB.prepare(`
+          INSERT INTO site_settings (setting_key, setting_value, updated_at)
+          VALUES ('rate_services', ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(setting_key) DO UPDATE SET
+            setting_value = excluded.setting_value,
+            updated_at = CURRENT_TIMESTAMP
+        `).bind(JSON.stringify(services)).run();
+        return Response.json({ ok: true, services });
+      }
+      return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+    }
+
+    if (url.pathname === "/api/public/gallery" && request.method === "GET") {
+      await ensureSiteContentTables(env);
+      const result = await env.DB.prepare(
+        "SELECT slot, mime_type, image_base64, alt_text, updated_at FROM site_gallery ORDER BY slot"
+      ).all();
+      return Response.json({ ok: true, images: result.results || [] });
+    }
+
+    if (url.pathname === "/api/admin/gallery") {
+      await ensureSiteContentTables(env);
+      if (request.method === "GET") {
+        const result = await env.DB.prepare(
+          "SELECT slot, mime_type, image_base64, alt_text, updated_at FROM site_gallery ORDER BY slot"
+        ).all();
+        return Response.json({ ok: true, images: result.results || [] });
+      }
+      const data = await request.json().catch(() => ({}));
+      const slot = Number(data.slot);
+      if (!Number.isInteger(slot) || slot < 1 || slot > 6) {
+        return Response.json({ ok: false, message: "Choose a valid gallery slot." }, { status: 400 });
+      }
+      if (request.method === "DELETE") {
+        await env.DB.prepare("DELETE FROM site_gallery WHERE slot = ?").bind(slot).run();
+        return Response.json({ ok: true });
+      }
+      if (request.method === "POST") {
+        const mimeType = String(data.mime_type || "").trim().toLowerCase();
+        const imageBase64 = String(data.image_base64 || "").replace(/^data:[^;]+;base64,/, "");
+        const altText = String(data.alt_text || "").trim().slice(0, 180);
+        if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType) || !imageBase64 || imageBase64.length > 3000000) {
+          return Response.json({ ok: false, message: "Upload a JPG, PNG, or WebP image under the gallery size limit." }, { status: 400 });
+        }
+        await env.DB.prepare(`
+          INSERT INTO site_gallery (slot, mime_type, image_base64, alt_text, updated_at)
+          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(slot) DO UPDATE SET
+            mime_type = excluded.mime_type,
+            image_base64 = excluded.image_base64,
+            alt_text = excluded.alt_text,
+            updated_at = CURRENT_TIMESTAMP
+        `).bind(slot, mimeType, imageBase64, altText).run();
+        return Response.json({ ok: true, image: { slot, mime_type: mimeType, image_base64: imageBase64, alt_text: altText } });
+      }
+      return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+    }
+
+    if (url.pathname === "/api/public/availability" && request.method === "GET") {
+      const date = String(url.searchParams.get("date") || "").trim();
+      const duration = siteDurationMinutes(url.searchParams.get("duration") || "1-hour");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return Response.json({ ok: false, message: "Choose a valid date." }, { status: 400 });
+      }
+      const slots = await siteAvailableSlots(env, date, duration);
+      return Response.json({ ok: true, date, duration_minutes: duration, slots });
     }
 
 
