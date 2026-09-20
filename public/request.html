@@ -58,14 +58,15 @@
       </div>
 
       <h1>
-        Let's make plans.
+        Let's Make Plans
       </h1>
 
       <p>
-        Before we make plans, I'd love to know a little more about you
-        and what you have in mind. Please complete the private request
-        below. I'll personally review your information before moving
-        forward.
+        Ready to turn the thought of seeing me into something real? Share a little about yourself, choose the experience that has your attention, and tell me when you would like our time together to begin.
+      </p>
+
+      <p>
+        Every request is reviewed personally. This form is your introduction, so be thoughtful, honest, and give me enough detail to imagine the date with you.
       </p>
 
     </section>
@@ -172,6 +173,37 @@
 
           </div>
 
+          <!-- PREFERRED CONTACT -->
+          <div class="field full-width contact-preference-field">
+
+            <label for="preferred-contact">
+              Preferred method of contact *
+            </label>
+
+            <select
+              id="preferred-contact"
+              name="preferred_contact"
+              required
+            >
+              <option value="" selected disabled>
+                Select one
+              </option>
+
+              <option value="email">
+                Email
+              </option>
+
+              <option value="text">
+                Text
+              </option>
+            </select>
+
+            <small>
+              All booking communication will be sent via email. Communication after a confirmed appointment can be moved to text.
+            </small>
+
+          </div>
+
         </div>
 
       </div>
@@ -193,7 +225,7 @@
         <div class="form-grid">
 
 
-          <!-- TYPE OF DATE -->
+          <!-- EXPERIENCE -->
           <div class="field">
 
             <label for="date-type">
@@ -209,28 +241,12 @@
                 Select one
               </option>
 
-              <option value="dinner">
-                Dinner
+              <option value="signature-private-companionship">
+                Signature Private Companionship
               </option>
 
-              <option value="drinks">
-                Drinks
-              </option>
-
-              <option value="event">
-                Event
-              </option>
-
-              <option value="social">
-                Social outing
-              </option>
-
-              <option value="travel">
-                Travel
-              </option>
-
-              <option value="other">
-                Something else
+              <option value="greek-princess">
+                The Greek Princess
               </option>
 
             </select>
@@ -242,7 +258,7 @@
           <div class="field">
 
             <label for="appointment-type">
-              Incall or outcall *
+              Where would you like to meet? *
             </label>
 
             <select
@@ -259,16 +275,20 @@
               </option>
 
               <option value="outcall">
-                Outcall
+                Outcall — add $100
               </option>
 
             </select>
+
+            <small>
+              Outcall is available at approved upscale locations only.
+            </small>
 
           </div>
 
 
           <!-- DATE -->
-          <div class="field">
+          <div class="field schedule-field">
 
             <label for="requested-date">
               Preferred date *
@@ -285,7 +305,7 @@
 
 
           <!-- TIME -->
-          <div class="field">
+          <div class="field schedule-field">
 
             <label for="requested-time">
               Preferred start time *
@@ -297,6 +317,7 @@
               type="time"
               required
             >
+
             <small>
               Same-day requests must be scheduled at least 2 hours from the time you submit to allow time for screening.
             </small>
@@ -305,7 +326,7 @@
 
 
           <!-- DURATION -->
-          <div class="field">
+          <div class="field full-width">
 
             <label for="duration">
               How much time would you like? *
@@ -336,42 +357,43 @@
                 4 hours
               </option>
 
-              <option value="5-hours">
-                5 hours
-              </option>
-
-              <option value="6-hours">
-                6 hours
-              </option>
-
-              <option value="overnight">
-                Overnight
-              </option>
-
-              <option value="extended">
-                Extended time
-              </option>
-
             </select>
 
           </div>
 
 
-          <!-- LOCATION -->
-          <div class="field">
+          <!-- OUTCALL ADDRESS -->
+          <fieldset id="outcall-address" class="outcall-address full-width" hidden>
+            <legend>Outcall address</legend>
+            <p>Please provide the complete address for the upscale hotel, luxury residence, or approved private location.</p>
 
-            <label for="location-name">
-              City or general location *
-            </label>
+            <div class="form-grid">
+              <div class="field full-width">
+                <label for="outcall-address-line-1">Street address *</label>
+                <input id="outcall-address-line-1" name="outcall_address_line_1" type="text" autocomplete="address-line1" disabled>
+              </div>
 
-            <input
-              id="location-name"
-              name="location_name"
-              type="text"
-              required
-            >
+              <div class="field full-width">
+                <label for="outcall-address-line-2">Hotel, suite, unit, or room</label>
+                <input id="outcall-address-line-2" name="outcall_address_line_2" type="text" autocomplete="address-line2" disabled>
+              </div>
 
-          </div>
+              <div class="field">
+                <label for="outcall-city">City *</label>
+                <input id="outcall-city" name="outcall_city" type="text" autocomplete="address-level2" disabled>
+              </div>
+
+              <div class="field">
+                <label for="outcall-state">State *</label>
+                <input id="outcall-state" name="outcall_state" type="text" autocomplete="address-level1" disabled>
+              </div>
+
+              <div class="field">
+                <label for="outcall-postal-code">ZIP code *</label>
+                <input id="outcall-postal-code" name="outcall_postal_code" type="text" inputmode="numeric" autocomplete="postal-code" disabled>
+              </div>
+            </div>
+          </fieldset>
 
 
           <!-- DETAILS -->
@@ -578,6 +600,34 @@
         })
         .catch(() => {});
     }
+
+    const appointmentType = document.getElementById("appointment-type");
+    const outcallAddress = document.getElementById("outcall-address");
+    const outcallRequiredFields = [
+      document.getElementById("outcall-address-line-1"),
+      document.getElementById("outcall-city"),
+      document.getElementById("outcall-state"),
+      document.getElementById("outcall-postal-code")
+    ];
+    const outcallFields = outcallAddress
+      ? Array.from(outcallAddress.querySelectorAll("input"))
+      : [];
+
+    function syncOutcallAddress() {
+      const isOutcall = appointmentType?.value === "outcall";
+      if (outcallAddress) outcallAddress.hidden = !isOutcall;
+      outcallFields.forEach(input => {
+        input.disabled = !isOutcall;
+        if (!isOutcall) input.value = "";
+      });
+      outcallRequiredFields.forEach(input => {
+        if (input) input.required = isOutcall;
+      });
+    }
+
+    appointmentType?.addEventListener("change", syncOutcallAddress);
+    syncOutcallAddress();
+
 
     const form =
       document.getElementById("request-form");
