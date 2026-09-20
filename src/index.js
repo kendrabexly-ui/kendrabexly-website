@@ -3138,8 +3138,14 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         const upcoming=rows.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=now);
         if(!completed.length) return Response.json({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
         if(upcoming) return Response.json({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
-        const recent=await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' AND datetime(sent_at)>=datetime('now','-30 days') LIMIT 1").bind(clientId).first();
-        if(recent) return Response.json({ok:false,message:"This client received a retention follow-up within the last 30 days."},{status:409});
+        const frequency=String(data.frequency||"quarterly");
+        const frequencyDays=frequency==="monthly"?30:frequency==="quarterly"?90:0;
+        const recent=await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' ORDER BY sent_at DESC LIMIT 1").bind(clientId).first();
+        if(frequencyDays&&recent?.sent_at){
+          const sentMs=new Date(String(recent.sent_at).replace(" ","T")+"Z").getTime();
+          const elapsedDays=Number.isFinite(sentMs)?Math.floor((Date.now()-sentMs)/86400000):frequencyDays;
+          if(elapsedDays<frequencyDays) return Response.json({ok:false,message:"This client is not eligible for another retention offer yet. The current cadence allows one every "+frequencyDays+" days."},{status:409});
+        }
         const last=completed[0];
         const offer=strategy==="extra-time"?"an extra 30 minutes":strategy==="experience-upgrade"?"a special experience upgrade":"a special rate";
         const tone=String(data.tone||"warm-personal");
@@ -3206,8 +3212,14 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         const reviewedBody = String(data.body || "").trim();
         if (reviewedBody) body = reviewedBody;
         const draftSubject = reviewedSubject || "A little hello";
-        const recentSent = await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' AND datetime(sent_at) >= datetime('now','-30 days') ORDER BY sent_at DESC LIMIT 1").bind(clientId).first();
-        if (recentSent) return Response.json({ok:false,message:"This client received a retention follow-up within the last 30 days."},{status:409});
+        const frequency=String(data.frequency||"quarterly");
+        const frequencyDays=frequency==="monthly"?30:frequency==="quarterly"?90:0;
+        const latestSent=await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' ORDER BY sent_at DESC LIMIT 1").bind(clientId).first();
+        if(frequencyDays&&latestSent?.sent_at){
+          const sentMs=new Date(String(latestSent.sent_at).replace(" ","T")+"Z").getTime();
+          const elapsedDays=Number.isFinite(sentMs)?Math.floor((Date.now()-sentMs)/86400000):frequencyDays;
+          if(elapsedDays<frequencyDays) return Response.json({ok:false,message:"This client is not eligible for another retention offer yet. The current cadence allows one every "+frequencyDays+" days."},{status:409});
+        }
         const existing = await env.DB.prepare("SELECT id FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='draft' LIMIT 1").bind(clientId).first();
         if(existing) {
           await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(draftSubject,body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->",existing.id).run();
