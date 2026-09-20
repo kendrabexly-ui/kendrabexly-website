@@ -2838,42 +2838,9 @@ My journal will continue to be a place where I share a little more of that side 
         ).run();
 
 
-        // Create the first email draft for review.
-        // This is NOT automatically sent.
-
-        await env.DB
-          .prepare(
-            `
-            INSERT INTO email_drafts
-            (
-              client_id,
-              date_request_id,
-              email_type,
-              subject,
-              body,
-              status
-            )
-            VALUES (?, ?, ?, ?, ?, 'draft')
-            `
-          )
-          .bind(
-            clientId,
-            requestId,
-            "request_received",
-            "Your private request",
-            `Hi ${firstName},
-
-Thank you for reaching out. I received your private request and will review the details personally.
-
-Requested date: ${requestedDate}
-Requested time: ${requestedTime}
-
-If your request moves forward, I will contact you with the next steps.
-
-Kendra`
-          )
-          .run();
-
+        // Do not create an email draft when a booking request is submitted.
+        // The first client email is created only when the request is moved
+        // forward for ID screening and deposit instructions.
 
         return Response.json({
           ok: true,
