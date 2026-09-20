@@ -930,7 +930,22 @@
           </div>
         </details>
 
-        <div class="panel" style="margin-bottom:18px;"><div class="panel-header"><div><div class="panel-title">Brand Voice</div><div class="panel-subtitle">Set the writing style Generate My Day should follow. These settings only guide draft generation.</div></div></div><div style="padding:18px 24px;"><div id="x-voice-traits" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;"><label style="font-size:13px;">Emoji Use<select id="x-voice-emoji" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;"><option>Light</option><option>None</option><option>Moderate</option></select></label><label style="font-size:13px;">Promotion Style<select id="x-voice-promo" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;"><option>Soft</option><option>Minimal</option><option>Balanced</option></select></label></div><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px;"><label><input id="x-voice-questions" type="checkbox"> Questions</label><label><input id="x-voice-humor" type="checkbox"> Humor</label><label><input id="x-voice-cta" type="checkbox"> Calls to Action</label></div><button id="x-save-voice" type="button" style="margin-top:12px;border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Save Brand Voice</button></div></div>
+        <details class="panel" style="margin-bottom:18px;">
+          <summary class="panel-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel-title">Brand Voice</div><div class="panel-subtitle">Set the writing style used by X draft generation.</div></div>
+            <span style="font-size:12px;color:var(--muted);">Open</span>
+          </summary>
+          <div style="padding:18px 24px;">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">These settings guide generation only. They do not publish posts automatically.</div>
+            <div id="x-voice-traits" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+              <label style="font-size:13px;">Emoji Use<select id="x-voice-emoji" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;"><option>Light</option><option>None</option><option>Moderate</option></select></label>
+              <label style="font-size:13px;">Promotion Style<select id="x-voice-promo" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;"><option>Soft</option><option>Minimal</option><option>Balanced</option></select></label>
+            </div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px;"><label><input id="x-voice-questions" type="checkbox"> Questions</label><label><input id="x-voice-humor" type="checkbox"> Humor</label><label><input id="x-voice-cta" type="checkbox"> Calls to Action</label></div>
+            <button id="x-save-voice" type="button" style="margin-top:12px;border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Save Brand Voice</button>
+          </div>
+        </details>
 
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header"><div><div class="panel-title">Weekly Performance Insights</div><div class="panel-subtitle">See engagement patterns from your recent X posts. Insights are informational and never change your schedule automatically.</div></div><button id="x-load-insights" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh Insights</button></div>
