@@ -1556,9 +1556,28 @@ async function loadRequests() {
             <strong>${escapeHtml(name)}</strong>
             <div style="font-size:12px;color:var(--muted);margin-top:3px;">${escapeHtml(reason)} · ${completed} completed date${completed === 1 ? "" : "s"} · Last completed ${escapeHtml(lastDate || "unknown")}${days !== null ? " · " + days + " days ago" : ""}</div>
           </div>
-          <a href="/admin?section=clients&client_email=${encodeURIComponent(lookup)}" style="display:inline-block;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;color:inherit;text-decoration:none;font-size:12px;font-weight:700;">Open Client Profile</a>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;">
+            <button type="button" class="retention-create-draft" data-client-id="${escapeHtml(String(client.client_id || ""))}" style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:#2f2a25;color:white;cursor:pointer;font-size:12px;font-weight:700;">Create Follow-Up Draft</button>
+            <a href="/admin?section=clients&client_email=${encodeURIComponent(lookup)}" style="display:inline-block;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;color:inherit;text-decoration:none;font-size:12px;font-weight:700;">Open Client Profile</a>
+          </div>
         </div>`;
       }).join("") : '<div class="empty">No clients match this follow-up group right now.</div>';
+      retentionTargetList.querySelectorAll(".retention-create-draft").forEach(button => button.addEventListener("click", async () => {
+        const original = button.textContent;
+        button.disabled = true;
+        button.textContent = "Creating Draft...";
+        try {
+          const response = await fetch("/api/admin/retention/follow-up-draft", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId)})});
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.message || "Unable to create follow-up draft.");
+          button.textContent = "Draft Created";
+          window.setTimeout(() => openSection("emails"), 450);
+        } catch (error) {
+          alert(error.message || "Unable to create follow-up draft.");
+          button.disabled = false;
+          button.textContent = original;
+        }
+      }));
     };
     renderRetentionTargets();
     if (retentionTargetFilter) retentionTargetFilter.addEventListener("change", renderRetentionTargets);
