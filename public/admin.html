@@ -811,6 +811,7 @@
             <option value="all">All Emails</option>
           </select>
           <button id="email-drafts-clear-filters" type="button" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear Filters</button>
+          <button id="email-drafts-clear-drafts" type="button" style="padding:10px 12px;border:1px solid #b86b6b;border-radius:8px;background:white;color:#8f3d3d;cursor:pointer;font:inherit;font-weight:700;">Clear Email Drafts</button>
           <select id="email-drafts-sort" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -3512,6 +3513,7 @@ loadRequests();
         const statusFilter = document.getElementById("email-drafts-status-filter");
         const clearFilters = document.getElementById("email-drafts-clear-filters");
         const sortSelect = document.getElementById("email-drafts-sort");
+        const clearDrafts = document.getElementById("email-drafts-clear-drafts");
         const totalEl = document.getElementById("email-drafts-total");
         const unsentEl = document.getElementById("email-drafts-unsent");
         const sentEl = document.getElementById("email-drafts-sent");
@@ -3660,6 +3662,24 @@ loadRequests();
         if (searchInput) searchInput.oninput = renderEmailDrafts;
         if (statusFilter) statusFilter.onchange = renderEmailDrafts;
         if (sortSelect) sortSelect.onchange = renderEmailDrafts;
+        if (clearDrafts) clearDrafts.onclick = async () => {
+          const unsentCount = drafts.filter((draft) => String(draft.status || "draft").toLowerCase() !== "sent").length;
+          if (!unsentCount) { alert("There are no unsent email drafts to clear."); return; }
+          if (!confirm("Clear " + unsentCount + " unsent email draft" + (unsentCount === 1 ? "" : "s") + "? Sent email history will be kept.")) return;
+          clearDrafts.disabled = true;
+          clearDrafts.textContent = "Clearing...";
+          try {
+            const r = await fetch("/api/admin/email-drafts/clear", {method:"POST"});
+            const d = await r.json();
+            if (!r.ok || !d.ok) throw new Error(d.message || "Unable to clear email drafts.");
+            await loadEmailDrafts();
+          } catch (e) {
+            alert(e.message || "Unable to clear email drafts.");
+          } finally {
+            clearDrafts.disabled = false;
+            clearDrafts.textContent = "Clear Email Drafts";
+          }
+        };
         if (clearFilters) clearFilters.onclick = () => {
           if (searchInput) searchInput.value = "";
           if (statusFilter) statusFilter.value = requestId ? "all" : "draft";
