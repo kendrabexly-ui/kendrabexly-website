@@ -683,8 +683,9 @@
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Open Availability</strong>
               <div style="margin-top:6px;font-size:13px;color:var(--muted);">Keep a lightweight list of date and time windows you want to make available.</div>
-              <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;"><input id="calendar-availability-date" type="date" style="padding:7px;border:1px solid var(--line);border-radius:8px;min-width:135px;"><input id="calendar-availability-time" type="time" style="padding:7px;border:1px solid var(--line);border-radius:8px;min-width:110px;"><button id="calendar-add-availability" type="button" style="padding:7px 11px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Add</button></div>
-              <div id="calendar-availability-list" style="margin-top:12px;"></div>
+              <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;"><label style="font-size:12px;color:var(--muted);">Date<input id="calendar-availability-date" type="date" style="display:block;margin-top:4px;padding:7px;border:1px solid var(--line);border-radius:8px;min-width:135px;"></label><label style="font-size:12px;color:var(--muted);">Time<input id="calendar-availability-time" type="time" style="display:block;margin-top:4px;padding:7px;border:1px solid var(--line);border-radius:8px;min-width:110px;"></label><button id="calendar-add-availability" type="button" style="align-self:end;padding:8px 12px;border:0;border-radius:999px;background:var(--ink);color:white;cursor:pointer;">Add Opening</button></div>
+              <div id="calendar-availability-feedback" role="status" aria-live="polite" style="min-height:18px;margin-top:7px;font-size:12px;color:var(--muted);"></div>
+              <div id="calendar-availability-list" style="margin-top:4px;"></div>
             </div>
             <div style="padding:18px;border:1px solid var(--line);border-radius:10px;background:white;">
               <strong>Completed Dates</strong>
@@ -3846,18 +3847,34 @@ loadRequests();
         current.splice(Number(button.dataset.removeAvailability),1);
         localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
         renderCalendarAvailability();
+        renderCalendarWeek();
       }));
     }
+    function setCalendarAvailabilityFeedback(message,isError=false){
+      const feedback=document.getElementById("calendar-availability-feedback");
+      if(!feedback) return;
+      feedback.textContent=message;
+      feedback.style.color=isError?"var(--red)":"var(--muted)";
+    }
+    const calendarAvailabilityDateInput=document.getElementById("calendar-availability-date");
+    if(calendarAvailabilityDateInput) calendarAvailabilityDateInput.min=new Date().toLocaleDateString("en-CA");
     document.getElementById("calendar-add-availability")?.addEventListener("click",()=>{
       const date=document.getElementById("calendar-availability-date")?.value||"";
       const time=document.getElementById("calendar-availability-time")?.value||"";
-      if(!date) return;
+      if(!date || !time) return setCalendarAvailabilityFeedback("Choose both a date and time.",true);
+      const today=new Date().toLocaleDateString("en-CA");
+      if(date<today) return setCalendarAvailabilityFeedback("Choose today or a future date.",true);
+      const slot={date,time};
+      if(availabilityIsBlocked(slot,calendarApprovedDates)) return setCalendarAvailabilityFeedback("That time overlaps a confirmed appointment.",true);
       const current=readCalendarAvailability();
-      current.push({date,time});
+      if(current.some(item=>item.date===date && item.time===time)) return setCalendarAvailabilityFeedback("That opening is already listed.",true);
+      current.push(slot);
       localStorage.setItem(calendarAvailabilityKey,JSON.stringify(current));
       document.getElementById("calendar-availability-date").value="";
       document.getElementById("calendar-availability-time").value="";
+      setCalendarAvailabilityFeedback("Opening added.");
       renderCalendarAvailability();
+      renderCalendarWeek();
     });
     renderCalendarAvailability();
 
