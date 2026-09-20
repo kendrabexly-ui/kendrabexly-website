@@ -89,6 +89,27 @@ async function ensureSiteContentTables(env) {
 }
 
 
+
+function timingSafeEqualHex(a,b){
+  const x=String(a||"").toLowerCase(),y=String(b||"").toLowerCase();
+  if(x.length!==y.length)return false;
+  let diff=0; for(let i=0;i<x.length;i++)diff|=x.charCodeAt(i)^y.charCodeAt(i);
+  return diff===0;
+}
+async function verifyPersonaWebhookSignature(rawBody,signatureHeader,secret){
+  if(!secret||!signatureHeader)return false;
+  const parts=String(signatureHeader).split(",").map(v=>v.trim());
+  const timestamp=parts.find(v=>v.startsWith("t="))?.slice(2)||"";
+  const signatures=parts.filter(v=>v.startsWith("v1=")).map(v=>v.slice(3));
+  if(!timestamp||!signatures.length)return false;
+  const age=Math.abs(Math.floor(Date.now()/1000)-Number(timestamp));
+  if(!Number.isFinite(age)||age>300)return false;
+  const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+  const digest=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(timestamp+"."+rawBody));
+  const expected=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+  return signatures.some(sig=>timingSafeEqualHex(sig,expected));
+}
+
 const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that a valid ID is required for screening before final approval.";
 const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-id-v1";
 
@@ -4018,6 +4039,60 @@ if (
       } catch (error) {
         console.error("Client email send error:", error);
         return Response.json({ ok:false, message:"Unable to send this email." }, { status:500 });
+      }
+    }
+
+
+    // =========================================================
+    // IDENTITY VERIFICATION WEBHOOK (Persona)
+    // =========================================================
+    if (url.pathname === "/api/webhooks/persona" && request.method === "POST") {
+      try {
+        const rawBody = await request.text();
+        const signature = request.headers.get("Persona-Signature") || "";
+        const verified = await verifyPersonaWebhookSignature(rawBody, signature, env.PERSONA_WEBHOOK_SECRET);
+        if (!verified) return Response.json({ok:false,message:"Invalid webhook signature."},{status:401});
+
+        const event = JSON.parse(rawBody || "{}");
+        const eventName = String(event?.data?.attributes?.name || event?.type || "").toLowerCase();
+        const inquiry = event?.data?.attributes?.payload?.data || event?.data?.attributes?.payload || event?.data || {};
+        const attrs = inquiry?.attributes || {};
+        const inquiryId = String(inquiry?.id || attrs?.["inquiry-id"] || "");
+        const referenceId = String(attrs?.["reference-id"] || attrs?.reference_id || "").trim();
+        const inquiryStatus = String(attrs?.status || "").toLowerCase();
+
+        let verificationStatus = "";
+        if (eventName.includes("inquiry.completed") || inquiryStatus === "completed" || inquiryStatus === "approved") verificationStatus = "verified";
+        else if (eventName.includes("inquiry.failed") || eventName.includes("inquiry.declined") || inquiryStatus === "failed" || inquiryStatus === "declined") verificationStatus = "unable_to_verify";
+        else return Response.json({ok:true,ignored:true});
+
+        const requestId = Number(referenceId);
+        if (!Number.isInteger(requestId) || requestId < 1) {
+          console.warn("Persona webhook missing valid booking request reference ID:", referenceId, inquiryId);
+          return Response.json({ok:true,ignored:true,reason:"missing_reference_id"});
+        }
+
+        await ensureClientVerificationAuditsTable(env);
+        const audit = await env.DB.prepare("SELECT id FROM client_verification_audits WHERE date_request_id=? LIMIT 1").bind(requestId).first();
+        if (!audit) {
+          console.warn("Persona webhook has no matching verification audit:", requestId, inquiryId);
+          return Response.json({ok:true,ignored:true,reason:"audit_not_found"});
+        }
+
+        await env.DB.prepare(`
+          UPDATE client_verification_audits
+          SET verification_status=?,
+              verification_method='persona',
+              identity_confirmed=?,
+              completed_at=CASE WHEN ?='verified' THEN CURRENT_TIMESTAMP ELSE completed_at END,
+              updated_at=CURRENT_TIMESTAMP
+          WHERE date_request_id=?
+        `).bind(verificationStatus, verificationStatus === "verified" ? 1 : 0, verificationStatus, requestId).run();
+
+        return Response.json({ok:true,booking_request_id:requestId,status:verificationStatus});
+      } catch(error) {
+        console.error("Persona webhook error:",error);
+        return Response.json({ok:false,message:"Unable to process verification webhook."},{status:500});
       }
     }
 
