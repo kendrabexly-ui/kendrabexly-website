@@ -714,14 +714,14 @@
         </div>
         <div class="panel">
           <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;flex-wrap:wrap;">
-            <select id="request-status-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-              <option value="all" selected>All requests</option>
-              <option value="pending">Pending</option>
-              <option value="pending_final_approval">Pending final approval</option>
-              <option value="approved">Approved</option>
+            <select id="request-status-filter" aria-label="Filter requests by status" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+              <option value="all" selected>All Requests</option>
+              <option value="pending">Needs Review</option>
+              <option value="pending_final_approval">Final Approval</option>
+              <option value="approved">Confirmed</option>
               <option value="completed">Completed</option>
               <option value="canceled">Canceled</option>
-              <option value="blacklisted_submission">🚩 Blacklisted submissions</option>
+              <option value="blacklisted_submission">🚩 Blacklisted Submissions</option>
             </select>
             <input id="request-search" type="search" placeholder="Search client, date, or location" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><span id="request-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="request-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
           </div>
