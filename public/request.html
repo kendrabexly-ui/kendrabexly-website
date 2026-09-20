@@ -755,9 +755,17 @@
           }).join("");
         requestedTime.disabled = slots.length === 0;
         if (status) {
-          status.textContent = slots.length
-            ? slots.length + " available start time" + (slots.length === 1 ? "" : "s") + " found."
-            : "No openings are available for that date and duration.";
+          if (slots.length) {
+            status.textContent = slots.length + " available start time" + (slots.length === 1 ? "" : "s") + " found.";
+          } else if (data.availability_state === "not_configured") {
+            status.textContent = "No availability has been configured for this day.";
+          } else if (data.availability_state === "fully_booked") {
+            status.textContent = "All available times for this day are already booked for that duration.";
+          } else if (data.availability_state === "outside_booking_window") {
+            status.textContent = "The available times for this day are no longer within the booking window.";
+          } else {
+            status.textContent = "No openings are available for that date and duration.";
+          }
         }
       } catch (error) {
         if (requestId !== availabilityRequestId) return;
