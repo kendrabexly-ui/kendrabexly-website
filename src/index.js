@@ -185,27 +185,45 @@ async function siteAvailableSlots(env, date, requestedDuration) {
       "SELECT available_time AS time FROM calendar_availability WHERE available_date = ? ORDER BY available_time"
     ).bind(date).all(),
     env.DB.prepare(`
-      SELECT requested_time, notes
+      SELECT requested_date, requested_time, notes
       FROM date_requests
-      WHERE requested_date = ?
-        AND (status = 'approved' OR final_approval = 1)
-    `).bind(date).all()
+      WHERE requested_date BETWEEN date(?, '-1 day') AND date(?, '+1 day')
+        AND final_approval = 1
+        AND status NOT IN ('canceled', 'declined', 'blacklisted_submission')
+    `).bind(date, date).all()
   ]);
-  const durationMinutes = Math.max(30, Number(requestedDuration) || 60);
-  const bookings = (bookedResult.results || []).map(item => {
-    const start = siteMinutesFromTime(item.requested_time);
-    return { start, end: start === null ? null : start + siteBookingDurationFromNotes(item.notes) };
-  }).filter(item => item.start !== null);
-  const earliest = Date.now() + 2 * 60 * 60 * 1000;
-  return (availabilityResult.results || [])
+
+  const configuredTimes = (availabilityResult.results || [])
     .map(item => String(item.time || "").slice(0, 5))
-    .filter(time => {
-      const start = siteMinutesFromTime(time);
-      if (start === null) return false;
-      const end = start + durationMinutes;
-      if (siteZonedDateTime(date, time).getTime() < earliest) return false;
-      return !bookings.some(booking => start < booking.end && end > booking.start);
-    });
+    .filter(time => siteMinutesFromTime(time) !== null);
+
+  // Until specific hours are added for this date, keep every half-hour
+  // start time available. Once hours are added, only those configured
+  // times are offered.
+  const candidateTimes = configuredTimes.length
+    ? [...new Set(configuredTimes)]
+    : Array.from({ length: 48 }, (_, index) => {
+        const hours = String(Math.floor(index / 2)).padStart(2, "0");
+        const minutes = index % 2 ? "30" : "00";
+        return hours + ":" + minutes;
+      });
+
+  const durationMs = Math.max(30, Number(requestedDuration) || 60) * 60 * 1000;
+  const bookings = (bookedResult.results || []).map(item => {
+    const start = siteZonedDateTime(item.requested_date, item.requested_time).getTime();
+    return {
+      start,
+      end: start + siteBookingDurationFromNotes(item.notes) * 60 * 1000
+    };
+  }).filter(item => Number.isFinite(item.start));
+
+  const earliest = Date.now() + 2 * 60 * 60 * 1000;
+  return candidateTimes.filter(time => {
+    const start = siteZonedDateTime(date, time).getTime();
+    if (!Number.isFinite(start) || start < earliest) return false;
+    const end = start + durationMs;
+    return !bookings.some(booking => start < booking.end && end > booking.start);
+  });
 }
 
 export default {
