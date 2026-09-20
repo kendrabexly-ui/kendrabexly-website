@@ -1713,7 +1713,7 @@ My journal will continue to be a place where I share a little more of that side 
           "greek-princess"
         ];
         const allowedAppointmentTypes = ["incall", "outcall"];
-        const allowedDurations = ["1-hour", "2-hours", "3-hours", "4-hours"];
+        const allowedDurations = ["1-hour", "1.5-hours", "2-hours", "3-hours", "4-hours"];
         const allowedContactMethods = ["email", "text"];
 
         if (
@@ -1727,6 +1727,19 @@ My journal will continue to be a place where I share a little more of that side 
             { status: 400 }
           );
         }
+
+        const allowedDurationsByExperience = {
+          "signature-private-companionship": ["1-hour", "2-hours", "3-hours", "4-hours"],
+          "greek-princess": ["1-hour", "1.5-hours", "2-hours"]
+        };
+
+        if (!allowedDurationsByExperience[dateType]?.includes(duration)) {
+          return Response.json(
+            { ok: false, message: "Please choose a duration available for the selected experience." },
+            { status: 400 }
+          );
+        }
+
 
         if (
           appointmentType === "outcall" &&
