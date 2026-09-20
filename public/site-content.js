@@ -20,11 +20,16 @@
       menu.innerHTML = data.services.map((service, index) => {
         const labels = ["PRIVATE INTRODUCTIONS", "BRIEF EXPERIENCES", "SIGNATURE EXPERIENCE", "ELEVATED EXPERIENCE"];
         const label = service.add_on ? "ADD-ON • UPSCALE LOCATIONS ONLY" : (labels[index] || "EXPERIENCE");
-        const paragraphs = String(service.description || "")
+        const extendedExperienceNote = "Dates lasting longer than two hours must include appropriate refreshments or a meal as part of the planned itinerary.";
+        const isExtendedExperience = ["Signature Girlfriend Experience", "Greek Princess Experience"].includes(String(service.name || ""));
+        const description = String(service.description || "");
+        const paragraphs = description
           .split(/\n\s*\n/)
           .filter(Boolean)
           .map(text => "<p>" + escapeHtml(text) + "</p>")
-          .join("");
+          .join("") + (isExtendedExperience && !description.includes(extendedExperienceNote)
+            ? "<p><em>" + escapeHtml(extendedExperienceNote) + "</em></p>"
+            : "");
         const rates = (service.rates || []).map(rate =>
           "<div><dt>" + escapeHtml(rate[0]) + "</dt><dd>$" +
           Number(rate[1] || 0).toLocaleString("en-US") + "</dd></div>"
