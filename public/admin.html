@@ -1163,6 +1163,11 @@
         <div style="font-size:11px;color:var(--muted);margin-top:8px;">Based only on tracked retention follow-ups that were actually sent.</div>
       </div>
 
+      <details style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
+        <summary style="cursor:pointer;font-weight:700;">Retention Activity History <span style="font-weight:400;color:var(--muted);">— contact and outcome log</span></summary>
+        <div id="retention-activity-history" style="margin-top:12px;"><div class="empty">Loading retention activity...</div></div>
+      </details>
+
       <details open style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
         <summary style="cursor:pointer;font-weight:700;">Follow-up Opportunities <span style="font-weight:400;color:var(--muted);">— client targeting</span></summary>
         <div style="margin-top:12px;">
@@ -1545,6 +1550,25 @@ async function loadRequests() {
         });
       }
     } catch (error) {}
+
+    const renderRetentionActivityHistory = () => {
+      const container = document.getElementById("retention-activity-history");
+      if (!container) return;
+      const rows = Array.from(retentionOutcomeByClient.values())
+        .filter(item => item.sent_at || item.draft_at)
+        .sort((a,b) => new Date(b.sent_at || b.draft_at || 0) - new Date(a.sent_at || a.draft_at || 0));
+      container.innerHTML = rows.length ? rows.map(item => {
+        const name = [item.first_name,item.last_name].filter(Boolean).join(" ") || "Client";
+        const eventDate = item.sent_at || item.draft_at;
+        const status = item.sent_at ? "Sent" : "Draft Ready";
+        const outcome = item.booked_after_contact ? "Booked after follow-up · " + item.booked_after_contact : item.requested_after_contact ? "New request after follow-up · " + item.requested_after_contact : item.sent_at ? "Awaiting response" : "Not sent yet";
+        return `<div style="padding:11px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div><strong>${escapeHtml(name)}</strong><div style="font-size:12px;color:var(--muted);margin-top:3px;">${escapeHtml(status)} · ${escapeHtml(eventDate ? new Date(eventDate).toLocaleString() : "")}</div></div>
+          <div style="font-size:12px;font-weight:700;">${escapeHtml(outcome)}</div>
+        </div>`;
+      }).join("") : '<div class="empty">No retention follow-up activity yet.</div>';
+    };
+    renderRetentionActivityHistory();
 
     const renderRetentionPerformance = () => {
       const tracked = Array.from(retentionOutcomeByClient.values());
