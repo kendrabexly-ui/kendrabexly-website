@@ -314,8 +314,12 @@ async function siteAvailableSlots(env, date, requestedDuration) {
   }
 
   const durationMinutes = Math.max(20, Number(requestedDuration) || 60);
+  // Keep a 30-minute buffer after the work day begins and before it ends.
+  // This also guarantees the requested experience can finish before the closing buffer.
+  const bookableWorkStart = workStart + 30;
+  const bookableWorkEnd = workEnd - 30;
   const candidateTimes = [];
-  for (let minute = workStart; minute + durationMinutes <= workEnd; minute += 30) {
+  for (let minute = bookableWorkStart; minute + durationMinutes <= bookableWorkEnd; minute += 30) {
     candidateTimes.push(
       String(Math.floor(minute / 60)).padStart(2, "0") + ":" +
       String(minute % 60).padStart(2, "0")
@@ -338,7 +342,8 @@ async function siteAvailableSlots(env, date, requestedDuration) {
   const slots = bookableCandidates.filter(time => {
     const start = siteZonedDateTime(date, time).getTime();
     const end = start + durationMinutes * 60 * 1000;
-    return !bookings.some(booking => start < booking.end && end > booking.start);
+    // Reserve a 30-minute reset/travel buffer after every confirmed appointment.
+    return !bookings.some(booking => start < (booking.end + 30 * 60 * 1000) && end > booking.start);
   });
 
   return {
