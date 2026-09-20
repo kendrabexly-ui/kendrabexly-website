@@ -825,3 +825,124 @@ input:focus-visible {
     transition: none;
   }
 }
+
+
+/* Shared subscription footer */
+.site-footer {
+  display: block;
+  padding: 0;
+  border-top: 1px solid #d8d0c7;
+  background: #2c2723;
+  color: #f8f4ee;
+}
+
+.footer-subscribe {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  gap: clamp(40px, 8vw, 110px);
+  align-items: center;
+  padding: 70px 8vw;
+}
+
+.footer-subscribe h2 {
+  margin: 0 0 12px;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(32px, 4vw, 50px);
+  font-weight: 500;
+}
+
+.footer-subscribe p {
+  margin: 0;
+  color: rgba(248, 244, 238, 0.74);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.footer-subscribe-form label > span {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.footer-subscribe-row {
+  display: flex;
+  gap: 10px;
+}
+
+.footer-subscribe-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 15px 16px;
+  border: 1px solid rgba(248, 244, 238, 0.36);
+  border-radius: 0;
+  background: #fffdf9;
+  color: #201b18;
+  font: inherit;
+}
+
+.footer-subscribe-row .button {
+  flex: 0 0 auto;
+  border: 1px solid #f8f4ee;
+  background: #f8f4ee;
+  color: #201b18;
+}
+
+.footer-subscribe-row .button:hover {
+  background: transparent;
+  color: #f8f4ee;
+}
+
+.footer-subscribe-row .button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.footer-subscribe-status {
+  display: block;
+  margin-top: 12px;
+  color: rgba(248, 244, 238, 0.8);
+}
+
+.footer-subscribe-status[hidden] {
+  display: none;
+}
+
+.footer-subscribe-status.success {
+  color: #bcd8bc;
+}
+
+.footer-subscribe-status.error {
+  color: #f1b6b6;
+}
+
+.footer-bottom {
+  padding: 22px 8vw;
+  border-top: 1px solid rgba(248, 244, 238, 0.16);
+  color: rgba(248, 244, 238, 0.68);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .site-footer {
+    padding: 0;
+  }
+
+  .footer-subscribe {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 54px 8vw;
+  }
+
+  .footer-subscribe-row {
+    flex-direction: column;
+  }
+
+  .footer-subscribe-row .button {
+    width: 100%;
+  }
+
+  .footer-bottom {
+    padding: 20px 8vw;
+  }
+}
