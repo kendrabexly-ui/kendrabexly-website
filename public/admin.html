@@ -1153,6 +1153,29 @@
       </div>
 
       <details open style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
+        <summary style="cursor:pointer;font-weight:700;">Follow-up Opportunities <span style="font-weight:400;color:var(--muted);">— client targeting</span></summary>
+        <div style="margin-top:12px;">
+          <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">See which completed-date clients may be worth a personal retention follow-up. Clients with an upcoming confirmed date or an active blacklist record are excluded.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px;">
+            <div style="flex:1;min-width:220px;">
+              <label for="retention-target-filter" style="display:block;font-size:13px;color:var(--muted);margin-bottom:6px;">Target group</label>
+              <select id="retention-target-filter" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:white;">
+                <option value="reconnect">Due for Reconnect — 90+ days</option>
+                <option value="repeat">Repeat Clients — 2+ completed dates</option>
+                <option value="cooling">Cooling Off — 61–89 days</option>
+                <option value="recent">Seen Recently — within 60 days</option>
+                <option value="all">All eligible completed-date clients</option>
+              </select>
+            </div>
+            <div style="padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;min-width:120px;">
+              <strong id="retention-target-count">—</strong>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">Opportunities</div>
+            </div>
+          </div>
+          <div id="retention-targeting-list"><div class="empty">Loading follow-up opportunities...</div></div>
+        </div>
+      </details>
+      <details open style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
         <summary style="cursor:pointer;font-weight:700;">Offer Strategy <span style="font-weight:400;color:var(--muted);">— protect your pricing</span></summary>
         <div style="margin-top:12px;">
         <div style="font-weight:700;margin-bottom:8px;">Offer Strategy</div>
@@ -1496,6 +1519,49 @@ async function loadRequests() {
       (client.email && entry.email && String(entry.email).toLowerCase() === String(client.email).toLowerCase()) ||
       (client.phone && entry.phone && String(entry.phone) === String(client.phone))
     );
+
+    const retentionTargetFilter = document.getElementById("retention-target-filter");
+    const retentionTargetList = document.getElementById("retention-targeting-list");
+    const renderRetentionTargets = () => {
+      if (!retentionTargetList) return;
+      const group = retentionTargetFilter?.value || "reconnect";
+      const opportunities = clientProfiles.map((client) => {
+        const completed = client.requests.filter(r => {
+          const status = String(r.status || "").toLowerCase();
+          if (status === "completed") return true;
+          if (status !== "approved" || !r.requested_date || !r.requested_time) return false;
+          const when = new Date(String(r.requested_date) + "T" + String(r.requested_time));
+          return Number.isFinite(when.getTime()) && when.getTime() < Date.now();
+        }).sort((a,b) => String(b.requested_date || "").localeCompare(String(a.requested_date || "")));
+        const upcoming = client.requests.some(r => String(r.status || "").toLowerCase() === "approved" && r.requested_date && new Date(String(r.requested_date) + "T" + String(r.requested_time || "00:00")).getTime() >= Date.now());
+        const lastDate = completed[0]?.requested_date || "";
+        const lastSeen = lastDate ? new Date(lastDate + "T00:00:00").getTime() : 0;
+        const days = lastSeen ? Math.floor((Date.now() - lastSeen) / 86400000) : null;
+        return {client, completed:completed.length, upcoming, lastDate, days, blacklisted:Boolean(findBlacklistRecord(client))};
+      }).filter(x => x.completed > 0 && !x.upcoming && !x.blacklisted).filter(x => {
+        if (group === "reconnect") return x.days !== null && x.days >= 90;
+        if (group === "repeat") return x.completed >= 2;
+        if (group === "cooling") return x.days !== null && x.days >= 61 && x.days <= 89;
+        if (group === "recent") return x.days !== null && x.days <= 60;
+        return true;
+      }).sort((a,b) => (b.days || 0) - (a.days || 0));
+      const count = document.getElementById("retention-target-count");
+      if (count) count.textContent = String(opportunities.length);
+      retentionTargetList.innerHTML = opportunities.length ? opportunities.map(({client,completed,lastDate,days}) => {
+        const name = (String(client.first_name || "") + " " + String(client.last_name || "")).trim() || "Client";
+        const reason = days >= 90 ? "Due for reconnect" : days >= 61 ? "Cooling off" : completed >= 2 ? "Repeat client" : "Recently seen";
+        const lookup = client.email || client.phone || name;
+        return `<div style="padding:13px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div>
+            <strong>${escapeHtml(name)}</strong>
+            <div style="font-size:12px;color:var(--muted);margin-top:3px;">${escapeHtml(reason)} · ${completed} completed date${completed === 1 ? "" : "s"} · Last completed ${escapeHtml(lastDate || "unknown")}${days !== null ? " · " + days + " days ago" : ""}</div>
+          </div>
+          <a href="/admin?section=clients&client_email=${encodeURIComponent(lookup)}" style="display:inline-block;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;color:inherit;text-decoration:none;font-size:12px;font-weight:700;">Open Client Profile</a>
+        </div>`;
+      }).join("") : '<div class="empty">No clients match this follow-up group right now.</div>';
+    };
+    renderRetentionTargets();
+    if (retentionTargetFilter) retentionTargetFilter.addEventListener("change", renderRetentionTargets);
 
     const renderClients = () => {
       if (!clientRecords) return;
