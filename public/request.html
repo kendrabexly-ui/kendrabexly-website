@@ -298,7 +298,7 @@
               required
             >
             <small>
-              Same-day requests must be scheduled at least 1 hour from the time you submit.
+              Same-day requests must be scheduled at least 2 hours from the time you submit to allow time for screening.
             </small>
 
           </div>
@@ -604,10 +604,10 @@
       requestedTime.setCustomValidity("");
       if (!requestedDate.value || !requestedTime.value) return true;
       const selected = new Date(requestedDate.value + "T" + requestedTime.value);
-      const earliest = new Date(Date.now() + 60 * 60 * 1000);
+      const earliest = new Date(Date.now() + 2 * 60 * 60 * 1000);
       if (selected.getTime() < earliest.getTime()) {
         requestedTime.setCustomValidity(
-          "Please choose a start time at least 1 hour from now."
+          "Please choose a start time at least 2 hours from now."
         );
         requestedTime.reportValidity();
         return false;
@@ -626,7 +626,7 @@
         event.preventDefault();
 
         if (!validateMinimumNotice()) {
-          status.textContent = "Please choose a start time at least 1 hour from now.";
+          status.textContent = "Please choose a start time at least 2 hours from now.";
           return;
         }
 
