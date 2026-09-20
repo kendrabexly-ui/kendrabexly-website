@@ -248,8 +248,8 @@
               <option value="private-introduction">
                 Private Introduction
               </option>
-              <option value="premium-introduction">
-                Premium Introduction
+              <option value="private-uncovered-introduction">
+                Private Uncovered Introduction
               </option>
               <option value="signature-brief-introduction">
                 Signature Brief Introduction
@@ -335,7 +335,7 @@
                 Select a duration
               </option>
 
-              <option value="20-minutes" data-experiences="private-introduction premium-introduction">
+              <option value="20-minutes" data-experiences="private-introduction private-uncovered-introduction">
                 20 minutes
               </option>
 
@@ -652,7 +652,7 @@
       if (rate) return Number(rate[1]) || 0;
       const fallback = {
         "private-introduction": { "20-minutes": 200 },
-        "premium-introduction": { "20-minutes": 250 },
+        "private-uncovered-introduction": { "20-minutes": 250 },
         "signature-brief-introduction": { "30-minutes": 300 },
         "greek-princess-brief-introduction": { "30-minutes": 400 },
         "signature-girlfriend-experience": { "1-hour": 500, "1.5-hours": 750, "2-hours": 1000, "4-hours": 2600 },

@@ -3,12 +3,12 @@ async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env
 
 
 const SITE_TIME_ZONE = "America/Los_Angeles";
-const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v2";
+const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v3";
 const DEFAULT_SITE_RATES = [
   {
     name: "Private Introductions",
     description: "A discreet introduction for a shorter first meeting.",
-    rates: [["Private Introduction — 20 minutes", 200], ["Premium Introduction — 20 minutes", 250]]
+    rates: [["Private Introduction — 20 minutes", 200], ["Private Uncovered Introduction — 20 minutes", 250]]
   },
   {
     name: "Brief Experiences",
@@ -229,7 +229,7 @@ function siteMinutesFromTime(value) {
 }
 
 function siteDurationMinutes(value) {
-  const normalized = String(value || "").toLowerCase();
+  const normalized = String(value || "").toLowerCase().replace(/(\d)½/g, "$1.5");
   const minuteMatch = normalized.match(/(\d+)\s*(?:minute|min)/);
   if (minuteMatch) return Number(minuteMatch[1]);
   const minuteSlug = normalized.match(/^(\d+)-minutes?$/);
@@ -1605,8 +1605,8 @@ export default {
       created.getUTCMonth() !== now.getUTCMonth();
 
     const monthly_specials = [
-      { id:"classic-rendezvous", experience:"Classic Rendezvous", duration:"1.5 hours", price:500, label:"Classic Rendezvous — 1.5 hours at $500" },
-      { id:"greek-princess", experience:"The Greek Princess", duration:"1.5 hours", price:650, label:"The Greek Princess — 1.5 hours at $650" }
+      { id:"signature-girlfriend-experience", experience:"Signature Girlfriend Experience", duration:"1.5 hours", price:750, label:"Signature Girlfriend Experience — 1.5 hours at $750" },
+      { id:"greek-princess-experience", experience:"Greek Princess Experience", duration:"1.5 hours", price:1000, label:"Greek Princess Experience — 1.5 hours at $1,000" }
     ];
 
     return Response.json({
@@ -1693,29 +1693,29 @@ My journal will continue to be a place where I share a little more of that side 
       ).trim();
 
     const monthlySubscriberOffers = [
-      { experience: "Signature Private Companionship Experience", duration: "1 hour", regular: 500, incentive: "30 extra minutes" },
-      { experience: "Signature Private Companionship Experience", duration: "2 hours", regular: 750, incentive: "30 extra minutes" },
-      { experience: "Signature Private Companionship Experience", duration: "3 hours", regular: 1000, incentive: "30 extra minutes" },
-      { experience: "Signature Private Companionship Experience", duration: "4 hours", regular: 1250, incentive: "30 extra minutes" },
-      { experience: "The Greek Princess", duration: "1 hour", regular: 650, incentive: "30 extra minutes" },
-      { experience: "The Greek Princess", duration: "1.5 hours", regular: 800, incentive: "30 extra minutes" },
-      { experience: "The Greek Princess", duration: "2 hours", regular: 1050, incentive: "30 extra minutes" }
+      { experience: "Signature Girlfriend Experience", duration: "1 hour", regular: 500, incentive: "30 extra minutes" },
+      { experience: "Signature Girlfriend Experience", duration: "1.5 hours", regular: 750, incentive: "30 extra minutes" },
+      { experience: "Signature Girlfriend Experience", duration: "2 hours", regular: 1000, incentive: "30 extra minutes" },
+      { experience: "Signature Girlfriend Experience", duration: "4 hours", regular: 2600, incentive: "30 extra minutes" },
+      { experience: "Greek Princess Experience", duration: "1 hour", regular: 700, incentive: "30 extra minutes" },
+      { experience: "Greek Princess Experience", duration: "1.5 hours", regular: 1000, incentive: "30 extra minutes" },
+      { experience: "Greek Princess Experience", duration: "2 hours", regular: 1300, incentive: "30 extra minutes" },
+      { experience: "Greek Princess Experience", duration: "4 hours", regular: 3000, incentive: "30 extra minutes" }
     ];
     // The experiences stay fixed; the monthly incentive rotates.
     // Each month selects a base duration from 1–4 hours and adds 30 bonus minutes,
     // creating specials from 1.5 through 4.5 hours without discounting the base rate.
     const classicRates = [
       { base:"1 hour", special:"1.5 hours", price:500 },
-      { base:"2 hours", special:"2.5 hours", price:750 },
-      { base:"3 hours", special:"3.5 hours", price:1000 },
-      { base:"4 hours", special:"4.5 hours", price:1250 }
+      { base:"1.5 hours", special:"2 hours", price:750 },
+      { base:"2 hours", special:"2.5 hours", price:1000 },
+      { base:"4 hours", special:"4.5 hours", price:2600 }
     ];
     const greekRates = [
-      { base:"1 hour", special:"1.5 hours", price:650 },
-      { base:"1.5 hours", special:"2 hours", price:800 },
-      { base:"2 hours", special:"2.5 hours", price:1050 },
-      { base:"3 hours", special:"3.5 hours", price:1300 },
-      { base:"4 hours", special:"4.5 hours", price:1550 }
+      { base:"1 hour", special:"1.5 hours", price:700 },
+      { base:"1.5 hours", special:"2 hours", price:1000 },
+      { base:"2 hours", special:"2.5 hours", price:1300 },
+      { base:"4 hours", special:"4.5 hours", price:3000 }
     ];
     const monthIndex = now.getFullYear() * 12 + now.getMonth();
     const classicMonthlySpecial = classicRates[monthIndex % classicRates.length];
@@ -1747,7 +1747,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — book ${classicMonthlySpecial.base} at ${money(classicMonthlySpecial.price)} and enjoy ${classicMonthlySpecial.special}.\n\nThe Greek Princess — book ${greekMonthlySpecial.base} at ${money(greekMonthlySpecial.price)} and enjoy ${greekMonthlySpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experiences:\n\nSignature Girlfriend Experience — book ${classicMonthlySpecial.base} at ${money(classicMonthlySpecial.price)} and enjoy ${classicMonthlySpecial.special}.\n\nGreek Princess Experience — book ${greekMonthlySpecial.base} at ${money(greekMonthlySpecial.price)} and enjoy ${greekMonthlySpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`
       ).trim();
 
     const result = await env.DB.prepare(`
@@ -1797,25 +1797,23 @@ My journal will continue to be a place where I share a little more of that side 
     // offers use about 5% off because they also include extra time.
     const classicOptions = [
       {id:"classic-time-1",base:"1 hour",special:"1.5 hours",price:500,type:"Extra Time",label:"Extra Time · $500 for 1 hour · enjoy 1.5 hours"},
-      {id:"classic-time-2",base:"2 hours",special:"2.5 hours",price:750,type:"Extra Time",label:"Extra Time · $750 for 2 hours · enjoy 2.5 hours"},
-      {id:"classic-time-3",base:"3 hours",special:"3.5 hours",price:1000,type:"Extra Time",label:"Extra Time · $1,000 for 3 hours · enjoy 3.5 hours"},
-      {id:"classic-time-4",base:"4 hours",special:"4.5 hours",price:1250,type:"Extra Time",label:"Extra Time · $1,250 for 4 hours · enjoy 4.5 hours"},
-      {id:"classic-price-2",base:"2 hours",special:"2 hours",price:700,regular:750,type:"Special Price",label:"Special Price · 2 hours $700 · normally $750 · save $50"},
-      {id:"classic-price-3",base:"3 hours",special:"3 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · 3 hours $925 · normally $1,000 · save $75"},
-      {id:"classic-price-4",base:"4 hours",special:"4 hours",price:1125,regular:1250,type:"Special Price",label:"Special Price · 4 hours $1,125 · normally $1,250 · save $125"},
-      {id:"classic-combo-3",base:"3 hours",special:"3.5 hours",price:950,regular:1000,type:"Price + Extra Time",label:"Combo · $950 + 30 extra minutes · normally $1,000"}
+      {id:"classic-time-15",base:"1.5 hours",special:"2 hours",price:750,type:"Extra Time",label:"Extra Time · $750 for 1.5 hours · enjoy 2 hours"},
+      {id:"classic-time-2",base:"2 hours",special:"2.5 hours",price:1000,type:"Extra Time",label:"Extra Time · $1,000 for 2 hours · enjoy 2.5 hours"},
+      {id:"classic-time-4",base:"4 hours",special:"4.5 hours",price:2600,type:"Extra Time",label:"Extra Time · $2,600 for 4 hours · enjoy 4.5 hours"},
+      {id:"classic-price-15",base:"1.5 hours",special:"1.5 hours",price:700,regular:750,type:"Special Price",label:"Special Price · 1.5 hours $700 · normally $750 · save $50"},
+      {id:"classic-price-2",base:"2 hours",special:"2 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · 2 hours $925 · normally $1,000 · save $75"},
+      {id:"classic-price-4",base:"4 hours",special:"4 hours",price:2400,regular:2600,type:"Special Price",label:"Special Price · 4 hours $2,400 · normally $2,600 · save $200"},
+      {id:"classic-combo-2",base:"2 hours",special:"2.5 hours",price:950,regular:1000,type:"Price + Extra Time",label:"Combo · $950 + 30 extra minutes · normally $1,000"}
     ];
     const greekOptions = [
-      {id:"greek-time-1",base:"1 hour",special:"1.5 hours",price:650,type:"Extra Time",label:"Extra Time · $650 for 1 hour · enjoy 1.5 hours"},
-      {id:"greek-time-15",base:"1.5 hours",special:"2 hours",price:800,type:"Extra Time",label:"Extra Time · $800 for 1.5 hours · enjoy 2 hours"},
-      {id:"greek-time-2",base:"2 hours",special:"2.5 hours",price:1050,type:"Extra Time",label:"Extra Time · $1,050 for 2 hours · enjoy 2.5 hours"},
-      {id:"greek-time-3",base:"3 hours",special:"3.5 hours",price:1300,type:"Extra Time",label:"Extra Time · $1,300 for 3 hours · enjoy 3.5 hours"},
-      {id:"greek-time-4",base:"4 hours",special:"4.5 hours",price:1550,type:"Extra Time",label:"Extra Time · $1,550 for 4 hours · enjoy 4.5 hours"},
-      {id:"greek-price-15",base:"1.5 hours",special:"1.5 hours",price:750,regular:800,type:"Special Price",label:"Special Price · 1.5 hours $750 · normally $800 · save $50"},
-      {id:"greek-price-2",base:"2 hours",special:"2 hours",price:975,regular:1050,type:"Special Price",label:"Special Price · 2 hours $975 · normally $1,050 · save $75"},
-      {id:"greek-price-3",base:"3 hours",special:"3 hours",price:1200,regular:1300,type:"Special Price",label:"Special Price · 3 hours $1,200 · normally $1,300 · save $100"},
-      {id:"greek-price-4",base:"4 hours",special:"4 hours",price:1400,regular:1550,type:"Special Price",label:"Special Price · 4 hours $1,400 · normally $1,550 · save $150"},
-      {id:"greek-combo-3",base:"3 hours",special:"3.5 hours",price:1235,regular:1300,type:"Price + Extra Time",label:"Combo · $1,235 + 30 extra minutes · normally $1,300"}
+      {id:"greek-time-1",base:"1 hour",special:"1.5 hours",price:700,type:"Extra Time",label:"Extra Time · $700 for 1 hour · enjoy 1.5 hours"},
+      {id:"greek-time-15",base:"1.5 hours",special:"2 hours",price:1000,type:"Extra Time",label:"Extra Time · $1,000 for 1.5 hours · enjoy 2 hours"},
+      {id:"greek-time-2",base:"2 hours",special:"2.5 hours",price:1300,type:"Extra Time",label:"Extra Time · $1,300 for 2 hours · enjoy 2.5 hours"},
+      {id:"greek-time-4",base:"4 hours",special:"4.5 hours",price:3000,type:"Extra Time",label:"Extra Time · $3,000 for 4 hours · enjoy 4.5 hours"},
+      {id:"greek-price-15",base:"1.5 hours",special:"1.5 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · 1.5 hours $925 · normally $1,000 · save $75"},
+      {id:"greek-price-2",base:"2 hours",special:"2 hours",price:1200,regular:1300,type:"Special Price",label:"Special Price · 2 hours $1,200 · normally $1,300 · save $100"},
+      {id:"greek-price-4",base:"4 hours",special:"4 hours",price:2800,regular:3000,type:"Special Price",label:"Special Price · 4 hours $2,800 · normally $3,000 · save $200"},
+      {id:"greek-combo-2",base:"2 hours",special:"2.5 hours",price:1235,regular:1300,type:"Price + Extra Time",label:"Combo · $1,235 + 30 extra minutes · normally $1,300"}
     ];
 
     // With no selections, return the choices so the dashboard can render a picker.
@@ -1832,7 +1830,7 @@ My journal will continue to be a place where I share a little more of that side 
       : x.type === "Price + Extra Time"
         ? `${name} — book ${x.base} at ${dollars(x.price)} and enjoy ${x.special} with me.`
         : `${name} — book ${x.base} at ${dollars(x.price)} and enjoy ${x.special}.`;
-    const specialsBlock = `This month's featured experiences:\n\n${offerCopy("Classic Rendezvous",classic)}\n\n${offerCopy("The Greek Princess",greek)}\n\nChoose the experience that catches your eye when you're ready to make plans with me.`;
+    const specialsBlock = `This month's featured experiences:\n\n${offerCopy("Signature Girlfriend Experience",classic)}\n\n${offerCopy("Greek Princess Experience",greek)}\n\nChoose the experience that catches your eye when you're ready to make plans with me.`;
 
     let specialOffer = current;
     const start = specialOffer.search(/This month's featured experience(?:s)?:/i);
@@ -1866,16 +1864,15 @@ My journal will continue to be a place where I share a little more of that side 
     const offerMonthIndex = offerNow.getFullYear() * 12 + offerNow.getMonth();
     const classicOptions = [
       {base:"1 hour",special:"1.5 hours",price:500},
-      {base:"2 hours",special:"2.5 hours",price:750},
-      {base:"3 hours",special:"3.5 hours",price:1000},
-      {base:"4 hours",special:"4.5 hours",price:1250}
+      {base:"1.5 hours",special:"2 hours",price:750},
+      {base:"2 hours",special:"2.5 hours",price:1000},
+      {base:"4 hours",special:"4.5 hours",price:2600}
     ];
     const greekOptions = [
-      {base:"1 hour",special:"1.5 hours",price:650},
-      {base:"1.5 hours",special:"2 hours",price:800},
-      {base:"2 hours",special:"2.5 hours",price:1050},
-      {base:"3 hours",special:"3.5 hours",price:1300},
-      {base:"4 hours",special:"4.5 hours",price:1550}
+      {base:"1 hour",special:"1.5 hours",price:700},
+      {base:"1.5 hours",special:"2 hours",price:1000},
+      {base:"2 hours",special:"2.5 hours",price:1300},
+      {base:"4 hours",special:"4.5 hours",price:3000}
     ];
     const classicSpecial = classicOptions[offerMonthIndex % classicOptions.length];
     const greekSpecial = greekOptions[offerMonthIndex % greekOptions.length];
@@ -1895,7 +1892,7 @@ My journal will continue to be a place where I share a little more of that side 
     ];
     const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));
     const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experiences:\n\nClassic Rendezvous — book ${classicSpecial.base} at ${classicSpecial.price} and enjoy ${classicSpecial.special}.\n\nThe Greek Princess — book ${greekSpecial.base} at ${greekSpecial.price} and enjoy ${greekSpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experiences:\n\nSignature Girlfriend Experience — book ${classicSpecial.base} at ${classicSpecial.price} and enjoy ${classicSpecial.special}.\n\nGreek Princess Experience — book ${greekSpecial.base} at ${greekSpecial.price} and enjoy ${greekSpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
@@ -2332,8 +2329,8 @@ My journal will continue to be a place where I share a little more of that side 
         const subscriberSpecial =
           String(data.subscriber_special || "").trim();
         const monthlySpecials = {
-          "classic-rendezvous": { experience:"Classic Rendezvous", duration:"1.5 hours", price:500 },
-          "greek-princess": { experience:"The Greek Princess", duration:"1.5 hours", price:650 }
+          "signature-girlfriend-experience": { experience:"Signature Girlfriend Experience", duration:"1.5 hours", price:750 },
+          "greek-princess-experience": { experience:"Greek Princess Experience", duration:"1.5 hours", price:1000 }
         };
         const selectedSubscriberSpecial = monthlySpecials[subscriberSpecial] || null;
 
@@ -2367,7 +2364,7 @@ My journal will continue to be a place where I share a little more of that side 
 
         if (newsletterOffer && !selectedSubscriberSpecial) {
           return Response.json(
-            { ok:false, message:"Please choose either the Classic Rendezvous or The Greek Princess monthly special." },
+            { ok:false, message:"Please choose either the Signature Girlfriend Experience or Greek Princess Experience monthly special." },
             { status:400 }
           );
         }
@@ -2418,7 +2415,7 @@ My journal will continue to be a place where I share a little more of that side 
         }
 
 
-        const allowedDateTypes = ["private-introduction", "premium-introduction", "signature-brief-introduction", "greek-princess-brief-introduction", "signature-girlfriend-experience", "greek-princess-experience"];
+        const allowedDateTypes = ["private-introduction", "private-uncovered-introduction", "signature-brief-introduction", "greek-princess-brief-introduction", "signature-girlfriend-experience", "greek-princess-experience"];
         const allowedAppointmentTypes = ["incall", "outcall"];
         const allowedDurations = ["20-minutes", "30-minutes", "1-hour", "1.5-hours", "2-hours", "4-hours"];
         const allowedContactMethods = ["email", "text"];
@@ -2437,7 +2434,7 @@ My journal will continue to be a place where I share a little more of that side 
 
         const allowedDurationsByExperience = {
           "private-introduction": ["20-minutes"],
-          "premium-introduction": ["20-minutes"],
+          "private-uncovered-introduction": ["20-minutes"],
           "signature-brief-introduction": ["30-minutes"],
           "greek-princess-brief-introduction": ["30-minutes"],
           "signature-girlfriend-experience": ["1-hour", "1.5-hours", "2-hours", "4-hours"],
@@ -3924,15 +3921,25 @@ if (
           : 0;
 
         const configuredServices = await readSiteRates(env);
-        const selectedService = configuredServices.find(service => {
-          const name = String(service.name || "").toLowerCase();
-          return dateTypeKey === "greek-princess"
-            ? name.includes("greek princess")
-            : name.includes("signature private companionship");
-        });
-        const configuredRate = selectedService?.rates?.find(rate =>
-          String(rate?.[0] || "").trim().toLowerCase() === durationLabel
+        const serviceNameByDateType = {
+          "private-introduction": "private introductions",
+          "private-uncovered-introduction": "private introductions",
+          "signature-brief-introduction": "brief experiences",
+          "greek-princess-brief-introduction": "brief experiences",
+          "signature-girlfriend-experience": "signature girlfriend experience",
+          "greek-princess-experience": "greek princess experience"
+        };
+        const selectedService = configuredServices.find(service =>
+          String(service.name || "").trim().toLowerCase() === serviceNameByDateType[dateTypeKey]
         );
+        const configuredRate = selectedService?.rates?.find(rate => {
+          const label = String(rate?.[0] || "").trim().toLowerCase();
+          if (dateTypeKey === "private-introduction") return label.startsWith("private introduction");
+          if (dateTypeKey === "private-uncovered-introduction") return label.includes("private uncovered introduction");
+          if (dateTypeKey === "signature-brief-introduction") return label.includes("signature brief introduction");
+          if (dateTypeKey === "greek-princess-brief-introduction") return label.includes("greek princess brief introduction");
+          return siteDurationMinutes(label) === siteDurationMinutes(durationKey);
+        });
         const standardBookingRate = Number(configuredRate?.[1]) || 0;
         const outcallService = configuredServices.find(service =>
           service.add_on || String(service.name || "").trim().toLowerCase() === "outcall"

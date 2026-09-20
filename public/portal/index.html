@@ -2905,10 +2905,10 @@ loadRequests();
                   picker.innerHTML =
                     '<div style="font-weight:700;margin-bottom:6px;">Choose this month\'s offers</div>' +
                     '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Extra time protects your rate. Price specials stay below 10% off, and combination offers use a smaller discount.</div>' +
-                    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:5px;">Classic Rendezvous</label>' +
+                    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:5px;">Signature Girlfriend Experience</label>' +
                     '<select data-classic-offer style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:6px;">' + groupOptions(d.classic_options || []) + '</select>' +
                     '<div data-classic-summary style="font-size:12px;color:var(--muted);margin-bottom:14px;"></div>' +
-                    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:5px;">The Greek Princess</label>' +
+                    '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:5px;">Greek Princess Experience</label>' +
                     '<select data-greek-offer style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:6px;">' + groupOptions(d.greek_options || []) + '</select>' +
                     '<div data-greek-summary style="font-size:12px;color:var(--muted);margin-bottom:14px;"></div>' +
                     '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" data-apply-monthly-offers>Apply Offers</button><button type="button" data-cancel-monthly-offers>Cancel</button></div>';
@@ -3864,7 +3864,7 @@ loadRequests();
 
 
     const defaultRateServices = [
-      {name:"Private Introductions",description:"A discreet introduction for a shorter first meeting.",rates:[["Private Introduction — 20 minutes",200],["Premium Introduction — 20 minutes",250]]},
+      {name:"Private Introductions",description:"A discreet introduction for a shorter first meeting.",rates:[["Private Introduction — 20 minutes",200],["Private Uncovered Introduction — 20 minutes",250]]},
       {name:"Brief Experiences",description:"A brief experience when you want a little more time to settle in and enjoy the moment.",rates:[["Signature Brief Introduction — 30 minutes",300],["Greek Princess Brief Introduction — 30 minutes",400]]},
       {name:"Signature Girlfriend Experience",description:"My signature experience is romantic, flirtatious, and intentionally unhurried, with genuine chemistry, affectionate company, playful conversation, and my complete attention.",rates:[["1 hour",500],["1½ hours",750],["Up to 2 hours",1000],["Up to 4 hours",2600]]},
       {name:"Greek Princess Experience",description:"My more adventurous and elevated experience, with the same warmth and attentive companionship and a more daring, playful energy.",rates:[["1 hour",700],["1½ hours",1000],["Up to 2 hours",1300],["Up to 4 hours",3000]]},
