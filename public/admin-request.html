@@ -174,8 +174,9 @@
     <h1>Private Request</h1>
 
     <div class="subtitle">
-      Review the complete client request.
+      Review the request and complete only the next step needed.
     </div>
+    <div id="request-workflow" style="display:none;margin:0 0 22px;padding:16px 18px;border:1px solid rgba(30,30,30,.12);border-radius:14px;background:rgba(255,255,255,.55);"></div>
 
     <div id="request-container" class="request-card">
       <div class="message">
@@ -245,6 +246,19 @@
           `${item.first_name || ""} ${item.last_name || ""}`.trim()
           || "Client";
 
+        const workflow=document.getElementById("request-workflow");
+        const workflowCopy={
+          pending:["1 of 3 · Review Request","Review the request details. If everything looks right, move it forward to create the client's next email draft."],
+          pending_final_approval:["2 of 3 · Final Approval","Confirm the deposit and ID screening, then give final approval."],
+          screening_pending:["2 of 3 · Final Approval","Complete ID screening and deposit confirmation before final approval."],
+          approved:["3 of 3 · Confirmed","This date is confirmed. After the appointment, mark it Successfully Completed."],
+          completed:["Completed","This date has been successfully completed. Follow-up activity is handled from the client profile and Email Drafts."],
+          canceled:["Canceled","No action is required unless you need to review this request."],
+          blacklisted_submission:["Safety Review","This submission is linked to a blacklisted client. Review the safety record before taking any action."]
+        };
+        const flow=workflowCopy[String(item.status||"pending").toLowerCase()]||workflowCopy.pending;
+        if(workflow){workflow.style.display="block";workflow.innerHTML='<strong>'+escapeHtml(flow[0])+'</strong><div style="margin-top:5px;font-size:13px;color:#6f675f;line-height:1.5;">'+escapeHtml(flow[1])+'</div>';}
+
         container.innerHTML = `
           <div class="request-header">
 
@@ -301,9 +315,9 @@
             </div>
 
             <div class="detail">
-              <div class="label">Request Status</div>
+              <div class="label">Approval Progress</div>
               <div class="value">
-                ${displayValue(item.status, "Pending")}
+                ${item.deposit_paid ? "✓ Deposit confirmed" : "○ Deposit pending"} · ${item.id_received ? "✓ ID screened" : "○ ID screening pending"}
               </div>
             </div>
 
@@ -392,14 +406,8 @@
     <div id="deposit-status" style="margin-top:10px;"></div>
   </div>
 
-  <div id="post-deposit-summary" style="${item.deposit_paid ? "" : "display:none;"}margin-bottom:22px;padding:18px 20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:12px;">
-    <div class="label">REMAINING BALANCE</div>
-    <div class="value" style="margin-top:8px;font-size:20px;font-weight:600;">
-      ${Number(item.deposit_amount || 0) > 0 ? "$" + (Number(item.deposit_amount) * 3).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}
-    </div>
-    <div class="value" style="margin-top:12px;font-size:14px;">
-      Deposit must be received no later than 4 hours before the scheduled date.
-    </div>
+  <div id="post-deposit-summary" style="${item.deposit_paid ? "" : "display:none;"}margin-bottom:22px;padding:14px 16px;border:1px solid #ded7cd;background:#fffdf9;border-radius:12px;">
+    <div class="value" style="font-size:14px;font-weight:600;">✓ Deposit confirmed</div>
   </div>
 
   ${String(item.notes || "").includes("Newsletter special: Newsletter #") ? `
