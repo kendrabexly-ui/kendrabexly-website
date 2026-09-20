@@ -679,7 +679,12 @@
 
         <div class="section-heading">
           <h2>Clients</h2>
-          <p>Your client directory — one profile per person with their complete booking history.</p>
+          <p>Your client directory — quickly find a client, understand their relationship history, and open the full profile only when needed.</p>
+        </div>
+
+        <div style="margin-bottom:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:white;">
+          <strong>Client Directory</strong>
+          <div style="margin-top:4px;font-size:13px;color:var(--muted);">Use the summary for retention groups or search below for a specific client. Booking actions stay inside the request or calendar workflow.</div>
         </div>
 
         <div id="client-retention-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:14px;">
@@ -692,7 +697,7 @@
         <div class="panel">
           <div style="padding:18px 22px;border-bottom:1px solid var(--line);">
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-              <input id="client-search" type="search" placeholder="Search clients by name, email, or phone" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+              <input id="client-search" type="search" placeholder="Find a client by name, email, or phone" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
               <select id="client-safety-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
                 <option value="all">All clients</option>
                 <option value="blacklisted">Blacklisted</option>
