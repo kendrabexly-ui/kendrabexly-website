@@ -2979,6 +2979,31 @@ My journal will continue to be a place where I share a little more of that side 
 
 
     // =========================================================
+    // BOOKING OUTCOME — available for new and existing requests
+    // =========================================================
+    if (url.pathname === "/api/admin/request/outcome" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const requestId=Number(data.id);
+        const outcome=String(data.outcome||"").trim().toLowerCase();
+        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        if(!["declined","no_call_no_show"].includes(outcome)) return Response.json({ok:false,message:"Invalid booking outcome."},{status:400});
+        const item=await env.DB.prepare("SELECT id,status,final_approval FROM date_requests WHERE id=? LIMIT 1").bind(requestId).first();
+        if(!item) return Response.json({ok:false,message:"Booking request not found."},{status:404});
+        if(outcome==="no_call_no_show" && !Number(item.final_approval||0)) {
+          return Response.json({ok:false,message:"No Call / No Show can only be used for a confirmed booking."},{status:400});
+        }
+        await env.DB.prepare("UPDATE date_requests SET status=?, final_approval=CASE WHEN ?='declined' THEN 0 ELSE final_approval END WHERE id=?")
+          .bind(outcome,outcome,requestId).run();
+        return Response.json({ok:true,status:outcome});
+      } catch(error) {
+        console.error("Booking outcome error:",error);
+        return Response.json({ok:false,message:"Unable to update booking."},{status:500});
+      }
+    }
+
+
+    // =========================================================
     // ADMIN CALENDAR WORK HOURS
     // =========================================================
 
