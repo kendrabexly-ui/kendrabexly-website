@@ -1550,6 +1550,9 @@ My journal will continue to be a place where I share a little more of that side 
         const phone =
           String(data.phone || "").trim();
 
+        const preferredContact =
+          String(data.preferred_contact || "").trim();
+
         const requestedDate =
           String(data.requested_date || "").trim();
 
@@ -1565,8 +1568,31 @@ My journal will continue to be a place where I share a little more of that side 
         const duration =
           String(data.duration || "").trim();
 
+        const outcallAddressLine1 =
+          String(data.outcall_address_line_1 || "").trim();
+
+        const outcallAddressLine2 =
+          String(data.outcall_address_line_2 || "").trim();
+
+        const outcallCity =
+          String(data.outcall_city || "").trim();
+
+        const outcallState =
+          String(data.outcall_state || "").trim();
+
+        const outcallPostalCode =
+          String(data.outcall_postal_code || "").trim();
+
+        const outcallAddress = [
+          outcallAddressLine1,
+          outcallAddressLine2,
+          outcallCity,
+          outcallState,
+          outcallPostalCode
+        ].filter(Boolean).join(", ");
+
         const locationName =
-          String(data.location_name || "").trim();
+          appointmentType === "outcall" ? outcallAddress : "Incall";
 
         const requestDetails =
           String(data.request_details || "").trim();
@@ -1646,8 +1672,13 @@ My journal will continue to be a place where I share a little more of that side 
           !lastName ||
           !email ||
           !phone ||
+          !preferredContact ||
           !requestedDate ||
-          !requestedTime
+          !requestedTime ||
+          !dateType ||
+          !appointmentType ||
+          !duration ||
+          !requestDetails
         ) {
           return Response.json(
             {
@@ -1672,6 +1703,37 @@ My journal will continue to be a place where I share a little more of that side 
               message:
                 "Please enter a valid email address."
             },
+            { status: 400 }
+          );
+        }
+
+
+        const allowedDateTypes = [
+          "signature-private-companionship",
+          "greek-princess"
+        ];
+        const allowedAppointmentTypes = ["incall", "outcall"];
+        const allowedDurations = ["1-hour", "2-hours", "3-hours", "4-hours"];
+        const allowedContactMethods = ["email", "text"];
+
+        if (
+          !allowedDateTypes.includes(dateType) ||
+          !allowedAppointmentTypes.includes(appointmentType) ||
+          !allowedDurations.includes(duration) ||
+          !allowedContactMethods.includes(preferredContact)
+        ) {
+          return Response.json(
+            { ok: false, message: "Please choose valid booking options." },
+            { status: 400 }
+          );
+        }
+
+        if (
+          appointmentType === "outcall" &&
+          (!outcallAddressLine1 || !outcallCity || !outcallState || !outcallPostalCode)
+        ) {
+          return Response.json(
+            { ok: false, message: "Please complete the outcall address." },
             { status: 400 }
           );
         }
@@ -1745,6 +1807,7 @@ My journal will continue to be a place where I share a little more of that side 
             "Submitted name: " + firstName + " " + lastName,
             "Submitted email: " + email,
             "Submitted phone: " + phone,
+            "Preferred contact after confirmation: " + preferredContact,
             "Requested date: " + requestedDate,
             "Requested time: " + requestedTime,
             dateType ? "Date type: " + dateType : null,
@@ -1853,6 +1916,14 @@ My journal will continue to be a place where I share a little more of that side 
 
           appointmentType
             ? `Appointment type: ${appointmentType}`
+            : null,
+
+          preferredContact
+            ? `Preferred contact after confirmation: ${preferredContact}`
+            : null,
+
+          appointmentType === "outcall" && outcallAddress
+            ? `Outcall address: ${outcallAddress}`
             : null,
 
           duration
@@ -2944,7 +3015,9 @@ if (
 
         const notesText = String(existingRequest.notes || "");
         const durationMatch = notesText.match(/Duration:\s*([^\n]+)/i);
-        const offerMatch = notesText.match(/Offer:\s*([\s\S]*?)(?=\n(?:Date type:|Appointment type:|Duration:|Request details:|Screening requirement|25% deposit)|$)/i);
+        const dateTypeMatch = notesText.match(/Date type:\s*([^\n]+)/i);
+        const appointmentTypeMatch = notesText.match(/Appointment type:\s*([^\n]+)/i);
+        const offerMatch = notesText.match(/Offer:\s*([\s\S]*?)(?=\n(?:Date type:|Appointment type:|Preferred contact|Outcall address:|Duration:|Request details:|Screening requirement|25% deposit)|$)/i);
         const specialRateMatch = offerMatch?.[1]?.match(/for\s+\$([\d,]+)/i);
 
         const standardRates = {
@@ -2958,11 +3031,26 @@ if (
           "4 hours": 1250
         };
 
+        const greekPrincessRates = {
+          "1-hour": 650,
+          "1 hour": 650,
+          "1.5-hours": 800,
+          "1.5 hours": 800,
+          "2-hours": 1050,
+          "2 hours": 1050
+        };
+
         const durationKey = String(durationMatch?.[1] || "").trim().toLowerCase();
+        const dateTypeKey = String(dateTypeMatch?.[1] || "").trim().toLowerCase();
+        const appointmentTypeKey = String(appointmentTypeMatch?.[1] || "").trim().toLowerCase();
         const specialRate = specialRateMatch
           ? Number(specialRateMatch[1].replace(/,/g, ""))
           : 0;
-        const bookingRate = specialRate || standardRates[durationKey] || 0;
+        const standardBookingRate = dateTypeKey === "greek-princess"
+          ? greekPrincessRates[durationKey] || 0
+          : standardRates[durationKey] || 0;
+        const outcallAddOn = appointmentTypeKey === "outcall" ? 100 : 0;
+        const bookingRate = (specialRate || standardBookingRate) + outcallAddOn;
         const depositAmount = bookingRate > 0
           ? Math.round(bookingRate * 0.25 * 100) / 100
           : 0;
