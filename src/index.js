@@ -107,6 +107,12 @@ async function ensureClientVerificationAuditsTable(env) {
       submitted_employer TEXT NOT NULL DEFAULT '',
       submitted_job_title TEXT NOT NULL DEFAULT '',
       submitted_industry TEXT NOT NULL DEFAULT '',
+      identity_confirmed INTEGER NOT NULL DEFAULT 0,
+      employer_confirmed INTEGER NOT NULL DEFAULT 0,
+      job_title_confirmed INTEGER NOT NULL DEFAULT 0,
+      industry_confirmed INTEGER NOT NULL DEFAULT 0,
+      contact_confirmed INTEGER NOT NULL DEFAULT 0,
+      evidence_notes TEXT NOT NULL DEFAULT '',
       completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -122,6 +128,19 @@ async function ensureClientVerificationAuditsTable(env) {
   }
   if (!columns.has("submitted_industry")) {
     await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN submitted_industry TEXT NOT NULL DEFAULT ''").run();
+  }
+  const checklistColumns = [
+    ["identity_confirmed", "INTEGER NOT NULL DEFAULT 0"],
+    ["employer_confirmed", "INTEGER NOT NULL DEFAULT 0"],
+    ["job_title_confirmed", "INTEGER NOT NULL DEFAULT 0"],
+    ["industry_confirmed", "INTEGER NOT NULL DEFAULT 0"],
+    ["contact_confirmed", "INTEGER NOT NULL DEFAULT 0"],
+    ["evidence_notes", "TEXT NOT NULL DEFAULT ''"]
+  ];
+  for (const [name, definition] of checklistColumns) {
+    if (!columns.has(name)) {
+      await env.DB.prepare(`ALTER TABLE client_verification_audits ADD COLUMN ${name} ${definition}`).run();
+    }
   }
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_client_verification_audits_client ON client_verification_audits(client_id, accepted_at DESC)").run();
 }
@@ -141,6 +160,12 @@ function verificationAuditPublicRecord(row) {
     submitted_employer: row.submitted_employer || "",
     submitted_job_title: row.submitted_job_title || "",
     submitted_industry: row.submitted_industry || "",
+    identity_confirmed: Number(row.identity_confirmed || 0) === 1,
+    employer_confirmed: Number(row.employer_confirmed || 0) === 1,
+    job_title_confirmed: Number(row.job_title_confirmed || 0) === 1,
+    industry_confirmed: Number(row.industry_confirmed || 0) === 1,
+    contact_confirmed: Number(row.contact_confirmed || 0) === 1,
+    evidence_notes: row.evidence_notes || "",
     completed_at: row.completed_at || "",
     updated_at: row.updated_at || ""
   };
@@ -390,7 +415,9 @@ export default {
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
                  authorization_version, accepted_at, verification_status,
                  verification_method, submitted_employer, submitted_job_title,
-                 submitted_industry, completed_at, updated_at
+                 submitted_industry, identity_confirmed, employer_confirmed,
+                 job_title_confirmed, industry_confirmed, contact_confirmed,
+                 evidence_notes, completed_at, updated_at
           FROM client_verification_audits
           WHERE client_id = ?
           ORDER BY accepted_at DESC, id DESC
@@ -421,14 +448,28 @@ export default {
         }
         const verificationMethod = String(data.verification_method || "").trim().slice(0, 240);
         const submittedIndustry = String(data.submitted_industry || "").trim().slice(0, 160);
+        const identityConfirmed = data.identity_confirmed ? 1 : 0;
+        const employerConfirmed = data.employer_confirmed ? 1 : 0;
+        const jobTitleConfirmed = data.job_title_confirmed ? 1 : 0;
+        const industryConfirmed = data.industry_confirmed ? 1 : 0;
+        const contactConfirmed = data.contact_confirmed ? 1 : 0;
+        const evidenceNotes = String(data.evidence_notes || "").trim().slice(0, 2000);
         const completedAt = verificationStatus === "pending_review"
           ? null
           : (idDocumentDate(data.completed_at) || idDocumentToday());
         const update = await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET verification_status = ?, verification_method = ?, submitted_industry = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
+          SET verification_status = ?, verification_method = ?, submitted_industry = ?,
+              identity_confirmed = ?, employer_confirmed = ?, job_title_confirmed = ?,
+              industry_confirmed = ?, contact_confirmed = ?, evidence_notes = ?,
+              completed_at = ?, updated_at = CURRENT_TIMESTAMP
           WHERE id = ? AND client_id = ?
-        `).bind(verificationStatus, verificationMethod, submittedIndustry, completedAt, auditId, clientId).run();
+        `).bind(
+          verificationStatus, verificationMethod, submittedIndustry,
+          identityConfirmed, employerConfirmed, jobTitleConfirmed,
+          industryConfirmed, contactConfirmed, evidenceNotes,
+          completedAt, auditId, clientId
+        ).run();
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
         }
@@ -436,7 +477,9 @@ export default {
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
                  authorization_version, accepted_at, verification_status,
                  verification_method, submitted_employer, submitted_job_title,
-                 submitted_industry, completed_at, updated_at
+                 submitted_industry, identity_confirmed, employer_confirmed,
+                 job_title_confirmed, industry_confirmed, contact_confirmed,
+                 evidence_notes, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
