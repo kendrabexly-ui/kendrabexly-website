@@ -723,7 +723,7 @@
               <option value="canceled">Canceled</option>
               <option value="blacklisted_submission">🚩 Blacklisted submissions</option>
             </select>
-            <input id="request-search" type="search" placeholder="Search client, date, or location" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+            <input id="request-search" type="search" placeholder="Search client, date, or location" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><span id="request-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span>
           </div>
           <div id="request-records">
             <div class="empty">Loading requests...</div>
@@ -2388,6 +2388,15 @@ async function loadRequests() {
           return haystack.includes(query);
         });
       }
+      const resultCount=document.getElementById("request-result-count");
+      if(resultCount) resultCount.textContent=filtered.length+" result"+(filtered.length===1?"":"s");
+      document.querySelectorAll("[data-request-summary]").forEach(button=>{
+        const active=selected===button.dataset.requestSummary;
+        button.setAttribute("aria-pressed",active?"true":"false");
+        button.style.background=active?"var(--ink)":"white";
+        button.style.color=active?"white":"var(--ink)";
+        button.style.borderColor=active?"var(--ink)":"var(--line)";
+      });
       recordsContainer.innerHTML = filtered.length ? renderRequestCards(filtered) : '<div class="empty">No requests match your search or filter.</div>';
       wireRequestCards(recordsContainer);
     };
