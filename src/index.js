@@ -420,14 +420,15 @@ export default {
           return Response.json({ ok: false, message: "Choose a valid verification status." }, { status: 400 });
         }
         const verificationMethod = String(data.verification_method || "").trim().slice(0, 240);
+        const submittedIndustry = String(data.submitted_industry || "").trim().slice(0, 160);
         const completedAt = verificationStatus === "pending_review"
           ? null
           : (idDocumentDate(data.completed_at) || idDocumentToday());
         const update = await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET verification_status = ?, verification_method = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
+          SET verification_status = ?, verification_method = ?, submitted_industry = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
           WHERE id = ? AND client_id = ?
-        `).bind(verificationStatus, verificationMethod, completedAt, auditId, clientId).run();
+        `).bind(verificationStatus, verificationMethod, submittedIndustry, completedAt, auditId, clientId).run();
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
         }
@@ -2316,9 +2317,6 @@ My journal will continue to be a place where I share a little more of that side 
         const jobTitle =
           String(data.job_title || "").trim().slice(0, 160);
 
-        const industry =
-          String(data.industry || "").trim().slice(0, 160);
-
         const requestedDate =
           String(data.requested_date || "").trim();
 
@@ -2449,7 +2447,6 @@ My journal will continue to be a place where I share a little more of that side 
           !preferredContact ||
           !currentEmployer ||
           !jobTitle ||
-          !industry ||
           !requestedDate ||
           !requestedTime ||
           !dateType ||
@@ -2740,10 +2737,6 @@ My journal will continue to be a place where I share a little more of that side 
             ? `Job title: ${jobTitle}`
             : null,
 
-          industry
-            ? `Industry: ${industry}`
-            : null,
-
           appointmentType === "outcall" && outcallAddress
             ? `Outcall address: ${outcallAddress}`
             : null,
@@ -2847,7 +2840,7 @@ My journal will continue to be a place where I share a little more of that side 
           SCREENING_ACKNOWLEDGEMENT_VERSION,
           currentEmployer,
           jobTitle,
-          industry
+          ""
         ).run();
 
 
@@ -4227,6 +4220,8 @@ Date: ${existingRequest.requested_date}
 Time: ${existingRequest.requested_time}
 
 To complete final approval, please reply directly to this email with your ID attached and complete your ${depositDisplay} deposit.
+
+In your reply, please also tell me the industry you currently work in.
 
 You selected: ${depositPaymentMethod === "gift-card" ? "Gift Card" : depositPaymentMethod === "stripe" ? "Stripe" : "Crypto"}.
 ${depositProcessingFee > 0 ? `Your deposit request includes the 10% payment processing fee (${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(depositProcessingFee)}).` : "No processing fee is added for Gift Card deposits."}
