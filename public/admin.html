@@ -236,6 +236,8 @@
       display: block;
     }
 
+    .section-hard-hidden { display: none !important; }
+
     /* Hard section isolation: only the section selected by navigation may render.
        This also protects against nested/legacy section markup leaking into another view. */
     .main .section:not(.active) {
@@ -3906,9 +3908,13 @@ loadRequests();
       navButtons.forEach((item) => item.classList.remove("active"));
       sections.forEach((item) => {
         item.classList.remove("active");
+        item.classList.add("section-hard-hidden");
         item.setAttribute("aria-hidden","true");
+        item.hidden = true;
       });
       button.classList.add("active");
+      section.hidden = false;
+      section.classList.remove("section-hard-hidden");
       section.classList.add("active");
       section.setAttribute("aria-hidden","false");
     };
@@ -3948,6 +3954,9 @@ loadRequests();
       const preview=document.getElementById("retention-preview-generate"); if(preview){preview.hidden=false;preview.disabled=false;preview.textContent="Preview Email";}
       modal.hidden=false;
     });
+
+    const initialSectionName = new URLSearchParams(window.location.search).get("section") || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
+    openSection(initialSectionName);
 
     navButtons.forEach((button) => {
       button.addEventListener("click", () => {
