@@ -1272,3 +1272,24 @@ input:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Our Time service descriptions */
+.rate-service-heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.service-description {
+  display: grid;
+  gap: 16px;
+}
+
+.rate-service-heading .service-description p {
+  margin: 0;
+}
+
+.rate-service .rate-list {
+  width: 100%;
+}
