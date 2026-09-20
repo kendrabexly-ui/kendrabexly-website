@@ -3562,12 +3562,12 @@ if (
     // =========================================================
 
     const portalAssets = new Map([
-      ["/portal", "/admin.html"],
-      ["/portal/", "/admin.html"],
-      ["/portal/request", "/admin-request.html"],
-      ["/portal/request/", "/admin-request.html"],
-      ["/portal/emails", "/admin-emails.html"],
-      ["/portal/emails/", "/admin-emails.html"]
+      ["/portal", "/portal.html"],
+      ["/portal/", "/portal.html"],
+      ["/portal/request", "/portal-request.html"],
+      ["/portal/request/", "/portal-request.html"],
+      ["/portal/emails", "/portal-emails.html"],
+      ["/portal/emails/", "/portal-emails.html"]
     ]);
 
     if (portalAssets.has(url.pathname)) {
