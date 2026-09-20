@@ -3076,17 +3076,32 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
     if (url.pathname === "/api/admin/retention/follow-up-status" && request.method === "GET") {
       try {
         const result = await env.DB.prepare(`
-          SELECT client_id,
-            MAX(CASE WHEN status='sent' THEN sent_at END) AS sent_at,
-            MAX(CASE WHEN status='draft' THEN created_at END) AS draft_at,
-            CASE
-              WHEN MAX(CASE WHEN status='sent' THEN sent_at END) IS NOT NULL THEN 'sent'
-              WHEN MAX(CASE WHEN status='draft' THEN created_at END) IS NOT NULL THEN 'draft'
-              ELSE 'none'
-            END AS status
-          FROM email_drafts
-          WHERE email_type='retention_follow_up'
-          GROUP BY client_id
+          WITH retention AS (
+            SELECT client_id,
+              MAX(CASE WHEN status='sent' THEN sent_at END) AS sent_at,
+              MAX(CASE WHEN status='draft' THEN created_at END) AS draft_at
+            FROM email_drafts
+            WHERE email_type='retention_follow_up'
+            GROUP BY client_id
+          )
+          SELECT r.client_id, r.sent_at, r.draft_at,
+            CASE WHEN r.sent_at IS NOT NULL THEN 'sent' WHEN r.draft_at IS NOT NULL THEN 'draft' ELSE 'none' END AS status,
+            (
+              SELECT MIN(dr.requested_date)
+              FROM date_requests dr
+              WHERE dr.client_id=r.client_id
+                AND r.sent_at IS NOT NULL
+                AND datetime(COALESCE(dr.created_at, dr.requested_date || ' 00:00:00')) > datetime(r.sent_at)
+            ) AS requested_after_contact,
+            (
+              SELECT MIN(dr.requested_date)
+              FROM date_requests dr
+              WHERE dr.client_id=r.client_id
+                AND r.sent_at IS NOT NULL
+                AND lower(COALESCE(dr.status,'')) IN ('approved','completed')
+                AND datetime(COALESCE(dr.created_at, dr.requested_date || ' 00:00:00')) > datetime(r.sent_at)
+            ) AS booked_after_contact
+          FROM retention r
         `).all();
         return Response.json({ok:true,clients:result.results||[]});
       } catch(error) {
