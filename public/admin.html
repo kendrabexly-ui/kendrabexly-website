@@ -3887,9 +3887,12 @@ loadRequests();
       const end=new Date(monday); end.setDate(end.getDate()+6);
       if(label) label.textContent=monday.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" – "+end.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
       const open=readCalendarAvailability().filter(x=>!availabilityIsBlocked(x,calendarApprovedDates));
-      box.innerHTML=Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(d.getDate()+i);const key=calendarDateKey(d);
-        const entries=[...calendarApprovedDates.filter(x=>String(x.requested_date||"")===key).map(x=>({time:x.requested_time||"",label:"Confirmed"})),...open.filter(x=>String(x.date||"")===key).map(x=>({time:x.time||"",label:"Open"}))].sort((a,b)=>String(a.time).localeCompare(String(b.time)));
-        return '<div data-calendar-day="'+key+'" style="min-width:115px;border:1px solid var(--line);border-radius:10px;padding:9px;background:white;cursor:pointer;"><strong style="font-size:12px;">'+d.toLocaleDateString(undefined,{weekday:"short"})+'</strong><div style="font-size:11px;color:var(--muted);margin:2px 0 8px;">'+d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+'</div>'+(entries.length?entries.map(e=>'<div style="padding:6px;margin-top:5px;border:1px solid var(--line);border-radius:7px;font-size:11px;"><strong>'+escapeHtml(e.time||"Time TBD")+'</strong><br>'+e.label+'</div>').join(""):'<div style="font-size:11px;color:var(--muted);">No availability</div>')+'</div>';
+      const todayKey=calendarDateKey(new Date());
+      box.innerHTML=Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(d.getDate()+i);const key=calendarDateKey(d),isToday=key===todayKey,isPast=key<todayKey;
+        const entries=[...calendarApprovedDates.filter(x=>String(x.requested_date||"")===key).map(x=>({time:x.requested_time||"",label:"Confirmed",kind:"confirmed"})),...open.filter(x=>String(x.date||"")===key).map(x=>({time:x.time||"",label:"Open",kind:"open"}))].sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+        const dayStyle='min-width:115px;border:'+(isToday?'2px solid var(--ink)':'1px solid var(--line)')+';border-radius:10px;padding:9px;background:'+(isPast?'var(--cream)':'white')+';cursor:pointer;text-align:left;color:var(--ink);font:inherit;opacity:'+(isPast?'.72':'1')+';';
+        const entryStyle=e=>'padding:6px;margin-top:5px;border:1px solid '+(e.kind==="confirmed"?'var(--green)':'var(--line)')+';border-radius:7px;font-size:11px;background:'+(e.kind==="confirmed"?'#f1f6f2':'var(--white)')+';';
+        return '<button type="button" data-calendar-day="'+key+'" aria-label="Open '+escapeHtml(d.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"}))+'" style="'+dayStyle+'"><strong style="font-size:12px;">'+d.toLocaleDateString(undefined,{weekday:"short"})+(isToday?' · Today':'')+'</strong><div style="font-size:11px;color:var(--muted);margin:2px 0 8px;">'+d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+'</div>'+(entries.length?entries.map(e=>'<div style="'+entryStyle(e)+'"><strong>'+escapeHtml(e.time||"Time TBD")+'</strong><br>'+e.label+'</div>').join(""):'<div style="font-size:11px;color:var(--muted);">No availability</div>')+'</button>';
       }).join("");
       box.querySelectorAll("[data-calendar-day]").forEach(day=>day.addEventListener("click",()=>renderCalendarDay(day.dataset.calendarDay)));
     }
@@ -3926,7 +3929,12 @@ loadRequests();
     }
     document.getElementById("calendar-prev-week")?.addEventListener("click",()=>{calendarWeekOffset--;renderCalendarWeek();});
     document.getElementById("calendar-next-week")?.addEventListener("click",()=>{calendarWeekOffset++;renderCalendarWeek();});
-    document.getElementById("calendar-this-week")?.addEventListener("click",()=>{calendarWeekOffset=0;renderCalendarWeek();});
+    document.getElementById("calendar-this-week")?.addEventListener("click",()=>{
+      calendarWeekOffset=0;
+      renderCalendarWeek();
+      const dayView=document.getElementById("calendar-day-view");
+      if(dayView) dayView.style.display="none";
+    });
 
     async function loadCalendarCompletedDates() {
       const box=document.getElementById("calendar-completed-dates");
