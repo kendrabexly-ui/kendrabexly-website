@@ -1201,3 +1201,56 @@ input:focus-visible {
     font-size: 16px;
   }
 }
+
+
+/* The Muse introduction */
+.muse-page .page-hero {
+  min-height: auto;
+  padding-top: clamp(90px, 12vh, 140px);
+  padding-bottom: clamp(80px, 10vh, 120px);
+}
+
+.muse-page .page-hero h1 {
+  max-width: 900px;
+}
+
+.muse-intro-copy {
+  max-width: 720px;
+  margin-top: 32px;
+}
+
+.muse-intro-copy .lede {
+  margin: 0 0 20px;
+  font-size: clamp(19px, 2vw, 22px);
+  line-height: 1.65;
+}
+
+.muse-intro-copy p:not(.lede) {
+  margin: 0 0 18px;
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+.muse-intro-copy p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .muse-page .page-hero {
+    padding-top: 76px;
+    padding-bottom: 72px;
+  }
+
+  .muse-intro-copy {
+    margin-top: 26px;
+  }
+
+  .muse-intro-copy .lede {
+    font-size: 18px;
+  }
+
+  .muse-intro-copy p:not(.lede) {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+}
