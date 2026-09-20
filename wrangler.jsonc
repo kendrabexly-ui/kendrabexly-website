@@ -7,7 +7,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/portal", "/portal/*", "/admin", "/admin.html", "/admin-request", "/admin-request.html", "/admin-emails", "/admin-emails.html"],
     "not_found_handling": "single-page-application"
   },
 

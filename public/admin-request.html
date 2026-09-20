@@ -158,12 +158,12 @@
 <body>
 
   <div class="admin-top">
-    <a href="/admin">← Back to Kendra's Dashboard</a>
+    <a href="/portal">← Back to Kendra's Dashboard</a>
   </div>
 
   <main class="page">
 
-    <a class="back" href="/admin">
+    <a class="back" href="/portal">
       ← All Requests
     </a>
 
@@ -454,7 +454,7 @@ if (viewClientProfileButton) {
       client_id: String(item.client_id || ""),
       client_email: String(item.email || "")
     });
-    window.location.href = "/admin?" + params.toString();
+    window.location.href = "/portal?" + params.toString();
   });
 }
 
@@ -511,7 +511,7 @@ if(markDateCompletedButton){
       let followupButton=document.getElementById("review-after-date-followup");
       if(!followupButton){followupButton=document.createElement("button");followupButton.id="review-after-date-followup";followupButton.type="button";followupButton.style.cssText="margin-top:12px;background:transparent;border:1px solid #cfc6ba;padding:10px 16px;border-radius:999px;font-family:inherit;cursor:pointer;";completedDateStatus.after(followupButton);}
       followupButton.textContent="Review After Date Follow Up";
-      followupButton.onclick=()=>{window.location.href="/admin?section=emails&request_id="+encodeURIComponent(id);};
+      followupButton.onclick=()=>{window.location.href="/portal?section=emails&request_id="+encodeURIComponent(id);};
     }catch(error){completedDateStatus.textContent=error.message||"Unable to complete date.";markDateCompletedButton.disabled=false;}
   });
 }
@@ -522,7 +522,7 @@ if (["pending_final_approval", "screening_pending"].includes(item.status)) {
   openEmailDraftsButton.style.display = "inline-block";
 }
 openEmailDraftsButton.addEventListener("click", () => {
-  window.location.href = "/admin?section=emails&request_id=" + encodeURIComponent(id);
+  window.location.href = "/portal?section=emails&request_id=" + encodeURIComponent(id);
 });
 
 moveForwardButton.addEventListener(

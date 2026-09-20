@@ -3558,6 +3558,40 @@ if (
 }
 
     // =========================================================
+    // PRIVATE PORTAL ROUTING
+    // =========================================================
+
+    const portalAssets = new Map([
+      ["/portal", "/admin.html"],
+      ["/portal/", "/admin.html"],
+      ["/portal/request", "/admin-request.html"],
+      ["/portal/request/", "/admin-request.html"],
+      ["/portal/emails", "/admin-emails.html"],
+      ["/portal/emails/", "/admin-emails.html"]
+    ]);
+
+    if (portalAssets.has(url.pathname)) {
+      const assetUrl = new URL(request.url);
+      assetUrl.pathname = portalAssets.get(url.pathname);
+      return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
+    }
+
+    const legacyPortalRoutes = new Map([
+      ["/admin", "/portal"],
+      ["/admin.html", "/portal"],
+      ["/admin-request", "/portal/request"],
+      ["/admin-request.html", "/portal/request"],
+      ["/admin-emails", "/portal/emails"],
+      ["/admin-emails.html", "/portal/emails"]
+    ]);
+
+    if (legacyPortalRoutes.has(url.pathname)) {
+      const destination = new URL(request.url);
+      destination.pathname = legacyPortalRoutes.get(url.pathname);
+      return Response.redirect(destination.toString(), 302);
+    }
+
+    // =========================================================
     // SERVE THE EXISTING WEBSITE
     // =========================================================
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Kendra Admin | Kendra Bexly</title>
+  <title>Kendra Portal | Kendra Bexly</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -552,7 +552,7 @@
     <aside class="sidebar">
 
       <div class="brand">Kendra Bexly</div>
-      <div class="admin-label">Private Admin</div>
+      <div class="admin-label">Private Portal</div>
 
       <nav class="nav">
         <button type="button" class="active" data-section="dashboard">Dashboard</button>
@@ -577,7 +577,7 @@
 
       <div class="topbar">
         <div>
-          <div class="eyebrow">Private Administration</div>
+          <div class="eyebrow">Private Portal</div>
           <h1>Kendra's Dashboard</h1>
         </div>
 
@@ -1875,7 +1875,7 @@ async function loadRequests() {
           </div>
           <div style="display:flex;gap:7px;flex-wrap:wrap;">
             <button type="button" class="retention-create-draft" data-client-id="${escapeHtml(String(client.client_id || ""))}" ${recentlyContacted ? 'disabled title="This client has not reached the selected retention frequency yet."' : ""} style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:#2f2a25;color:white;cursor:pointer;font-size:12px;font-weight:700;">${recentlyContacted ? "Not Yet Eligible" : contact.status === "draft" ? "Refresh Follow-Up Draft" : "Create Follow-Up Draft"}</button>
-            <a href="/admin?section=clients&client_email=${encodeURIComponent(lookup)}" style="display:inline-block;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;color:inherit;text-decoration:none;font-size:12px;font-weight:700;">Open Client Profile</a>
+            <a href="/portal?section=clients&client_email=${encodeURIComponent(lookup)}" style="display:inline-block;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;color:inherit;text-decoration:none;font-size:12px;font-weight:700;">Open Client Profile</a>
           </div>
         </div>`;
       }).join("") : '<div class="empty">'+(document.getElementById("retention-offer-eligibility")?.value==="manual" ? "Manual Selection is active. Open a Client Profile to choose a completed client individually." : "No clients match this follow-up group right now.")+'</div>';
@@ -2294,7 +2294,7 @@ async function loadRequests() {
       });
       clientRecords.querySelectorAll(".client-history-request").forEach((button) => {
         button.addEventListener("click", () => {
-          window.location.href = `/admin-request?id=${encodeURIComponent(button.dataset.requestId)}`;
+          window.location.href = `/portal/request?id=${encodeURIComponent(button.dataset.requestId)}`;
         });
       });
     };
@@ -2356,7 +2356,7 @@ async function loadRequests() {
       if (!container) return;
       container.querySelectorAll(".request-card").forEach((card) => {
         card.addEventListener("click", () => {
-          window.location.href = `/admin-request?id=${encodeURIComponent(card.dataset.requestId)}`;
+          window.location.href = `/portal/request?id=${encodeURIComponent(card.dataset.requestId)}`;
         });
       });
     };
