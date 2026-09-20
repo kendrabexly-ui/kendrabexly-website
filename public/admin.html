@@ -758,7 +758,7 @@
                 <option value="watch">Watch</option>
                 <option value="high">High attention</option>
                 <option value="repeat">Repeat blocked attempts</option>
-              </select><select id="client-value-filter" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All activity</option><option value="repeat">Repeat clients</option><option value="recent">Seen recently</option><option value="inactive">Due for reconnect</option><option value="upcoming">Upcoming date</option></select>
+              </select><select id="client-value-filter" aria-label="Filter clients by activity" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All Activity</option><option value="repeat">Repeat Clients</option><option value="recent">Seen Recently</option><option value="inactive">Due for Reconnect</option><option value="upcoming">Upcoming Date</option></select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span>
             </div>
           </div>
           <div id="client-records">
@@ -1962,6 +1962,15 @@ async function loadRequests() {
         if(valueFilter==="inactive")return daysSince!==null&&daysSince>=90&&!upcoming;
         if(valueFilter==="upcoming")return upcoming;
         return true;
+      });
+      const clientResultCount=document.getElementById("client-result-count");
+      if(clientResultCount) clientResultCount.textContent=filtered.length+" client"+(filtered.length===1?"":"s");
+      document.querySelectorAll("[data-client-retention]").forEach(button=>{
+        const active=valueFilter===button.dataset.clientRetention;
+        button.setAttribute("aria-pressed",active?"true":"false");
+        button.style.background=active?"var(--ink)":"white";
+        button.style.color=active?"white":"var(--ink)";
+        button.style.borderColor=active?"var(--ink)":"var(--line)";
       });
       clientRecords.innerHTML = filtered.length ? filtered.map((client) => {
         const sorted = [...client.requests].sort((a,b) => String(b.requested_date || "").localeCompare(String(a.requested_date || "")));
