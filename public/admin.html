@@ -947,10 +947,21 @@
           </div>
         </details>
 
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header"><div><div class="panel-title">Weekly Performance Insights</div><div class="panel-subtitle">See engagement patterns from your recent X posts. Insights are informational and never change your schedule automatically.</div></div><button id="x-load-insights" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh Insights</button></div>
-          <div style="padding:14px 24px;border-bottom:1px solid var(--line);"><label style="font-size:13px;font-weight:600;">Content Strategy <select id="x-content-strategy" style="margin-left:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;"><option value="balanced">Balanced</option><option value="performance">Performance Focused</option><option value="experimental">Experimental</option></select></label><label style="font-size:13px;margin-left:12px;"><input id="x-no-repeat" type="checkbox" checked> Don’t Repeat Too Soon</label><div id="x-strategy-note" style="font-size:12px;color:var(--muted);margin-top:7px;">Uses winning patterns while preserving variety.</div></div><div id="x-performance-insights"><div class="empty">Load insights to review your recent post performance.</div></div>
-        </div>
+        <details class="panel" style="margin-bottom:18px;">
+          <summary class="panel-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel-title">Weekly Performance Insights</div><div class="panel-subtitle">Review recent engagement patterns and use them to inform future content.</div></div>
+            <button id="x-load-insights" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;" onclick="event.stopPropagation();">Refresh Insights</button>
+          </summary>
+          <div style="padding:14px 24px;">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Insights are informational. They never change your schedule or publish content automatically.</div>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+              <label style="font-size:13px;font-weight:600;">Content Strategy <select id="x-content-strategy" style="margin-left:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;"><option value="balanced">Balanced</option><option value="performance">Performance Focused</option><option value="experimental">Experimental</option></select></label>
+              <label style="font-size:13px;"><input id="x-no-repeat" type="checkbox" checked> Don’t Repeat Too Soon</label>
+            </div>
+            <div id="x-strategy-note" style="font-size:12px;color:var(--muted);margin-top:7px;">Uses winning patterns while preserving variety.</div>
+            <div id="x-performance-insights" style="margin-top:12px;"><div class="empty">Refresh insights when you want to review recent performance.</div></div>
+          </div>
+        </details>
 
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header"><div><div class="panel-title" data-x-anchor="planner">2. Plan Your Week</div><div class="panel-subtitle">Set your goals and themes, generate each day, then review the planned posts before approval.</div></div></div>
