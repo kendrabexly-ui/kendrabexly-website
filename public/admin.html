@@ -1011,14 +1011,16 @@
 
   <div class="section-heading">
     <h2>Newsletter Agent</h2>
-    <p>
-      Create, edit, approve, and send your monthly newsletter.
-      Nothing is sent without your approval.
-    </p>
+    <p>Create one polished monthly newsletter, review every part of it, and send only after approval.</p>
+  </div>
+
+  <div style="margin-bottom:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:white;">
+    <strong>Monthly Newsletter Workflow</strong>
+    <div style="margin-top:4px;font-size:13px;color:var(--muted);line-height:1.5;">Generate a draft → review the newsletter and special offer → approve → send. Nothing is sent automatically.</div>
   </div>
 
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-    <button type="button" onclick="document.getElementById('generate-newsletter')?.scrollIntoView({behavior:'smooth',block:'center'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Create Newsletter</button>
+    <button type="button" onclick="document.getElementById('generate-newsletter')?.scrollIntoView({behavior:'smooth',block:'center'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Create Draft</button>
     <button type="button" onclick="document.getElementById('newsletter-subscriber-count')?.scrollIntoView({behavior:'smooth',block:'center'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Subscribers</button>
     <button type="button" onclick="document.getElementById('newsletter-drafts')?.scrollIntoView({behavior:'smooth',block:'start'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Drafts</button>
   </div>
@@ -1026,15 +1028,15 @@
   <div class="panel" style="margin-bottom:18px;">
     <div class="panel-header">
       <div>
-        <div class="panel-title">Create Monthly Newsletter</div>
+        <div class="panel-title">Create This Month’s Newsletter</div>
         <div class="panel-subtitle">
-          Generate a new newsletter draft for review.
+          Start a fresh draft while keeping your newsletter instructions and offer rules.
         </div>
       </div>
     </div>
 
     <button id="generate-newsletter" type="button">
-      Generate Newsletter Draft
+      Generate New Draft
     </button>
   </div>
 
@@ -1058,9 +1060,9 @@
   <div class="panel">
     <div class="panel-header">
       <div>
-        <div class="panel-title">Newsletter Drafts</div>
+        <div class="panel-title">Review & Send</div>
         <div class="panel-subtitle">
-          Edit drafts, approve them, then send when you are ready.
+          Finish the current draft first; older approved and sent newsletters remain available for reference.
         </div>
       </div>
     </div>
