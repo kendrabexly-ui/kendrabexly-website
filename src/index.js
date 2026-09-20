@@ -4156,8 +4156,50 @@ Kendra`
           "SELECT id, status, deposit_amount, deposit_paid, requested_date, requested_time, notes FROM date_requests WHERE id = ? LIMIT 1"
         ).bind(requestId).first();
         if (!item) return Response.json({ ok:false, message:"Request not found." }, { status:404 });
-        if (Number(item.deposit_amount || 0) <= 0) {
-          return Response.json({ ok:false, message:"Expected deposit must be calculated before confirming payment." }, { status:400 });
+        // Older/in-flight requests may have reached final approval before a
+        // deposit amount was stored. Recalculate it from the same rate source used
+        // by Move Forward so an already-sent request is not permanently stuck.
+        let depositAmount = Number(item.deposit_amount || 0);
+        if (depositAmount <= 0) {
+          const notes = String(item.notes || "");
+          const dateTypeKey = (notes.match(/Date type:\s*([^\n]+)/i)?.[1] || "").trim().toLowerCase();
+          const appointmentTypeKey = (notes.match(/Appointment type:\s*([^\n]+)/i)?.[1] || "").trim().toLowerCase();
+          const durationKey = (notes.match(/Duration:\s*([^\n]+)/i)?.[1] || "").trim().toLowerCase();
+          const specialRateMatch = notes.match(/Selected monthly special:[^\n]*?\bat\s*\$([\d,]+(?:\.\d{1,2})?)/i);
+          const specialRate = specialRateMatch ? Number(specialRateMatch[1].replace(/,/g, "")) : 0;
+          const configuredServices = await readSiteRates(env);
+          const serviceNameByDateType = {
+            "private-introduction": "private introductions",
+            "private-uncovered-introduction": "private introductions",
+            "signature-brief-introduction": "brief experiences",
+            "greek-princess-brief-introduction": "brief experiences",
+            "signature-girlfriend-experience": "signature girlfriend experience",
+            "greek-princess-experience": "greek princess experience"
+          };
+          const selectedService = configuredServices.find(service =>
+            String(service.name || "").trim().toLowerCase() === serviceNameByDateType[dateTypeKey]
+          );
+          const configuredRate = selectedService?.rates?.find(rate => {
+            const label = String(rate?.[0] || "").trim().toLowerCase();
+            if (dateTypeKey === "private-introduction") return label.startsWith("private introduction");
+            if (dateTypeKey === "private-uncovered-introduction") return label.includes("private uncovered introduction");
+            if (dateTypeKey === "signature-brief-introduction") return label.includes("signature brief introduction");
+            if (dateTypeKey === "greek-princess-brief-introduction") return label.includes("greek princess brief introduction");
+            return siteDurationMinutes(label) === siteDurationMinutes(durationKey);
+          });
+          const standardBookingRate = Number(configuredRate?.[1]) || 0;
+          const outcallService = configuredServices.find(service =>
+            service.add_on || String(service.name || "").trim().toLowerCase() === "outcall"
+          );
+          const outcallAddOn = appointmentTypeKey === "outcall" ? (Number(outcallService?.rates?.[0]?.[1]) || 100) : 0;
+          const bookingRate = (specialRate || standardBookingRate) + outcallAddOn;
+          depositAmount = bookingRate > 0 ? Math.round(bookingRate * 0.25 * 100) / 100 : 0;
+          if (depositAmount > 0) {
+            await env.DB.prepare("UPDATE date_requests SET deposit_amount = ? WHERE id = ?").bind(depositAmount, requestId).run();
+            item.deposit_amount = depositAmount;
+          } else {
+            return Response.json({ ok:false, message:"Unable to calculate the deposit from this request. Verify the selected experience and duration." }, { status:400 });
+          }
         }
 
         const appointmentLocal = new Date(String(item.requested_date || "") + "T" + String(item.requested_time || "") + ":00-07:00");
