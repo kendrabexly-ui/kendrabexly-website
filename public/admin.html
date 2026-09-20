@@ -1165,7 +1165,19 @@
 
       <details style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
         <summary style="cursor:pointer;font-weight:700;">Retention Activity History <span style="font-weight:400;color:var(--muted);">— contact and outcome log</span></summary>
-        <div id="retention-activity-history" style="margin-top:12px;"><div class="empty">Loading retention activity...</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;margin-bottom:8px;">
+          <label for="retention-history-filter" style="font-size:12px;color:var(--muted);">Show</label>
+          <select id="retention-history-filter" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:white;">
+            <option value="all">All Activity</option>
+            <option value="sent">Sent</option>
+            <option value="awaiting">Awaiting Response</option>
+            <option value="requests">New Requests</option>
+            <option value="bookings">Bookings</option>
+            <option value="drafts">Drafts</option>
+          </select>
+          <span id="retention-history-count" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+        <div id="retention-activity-history"><div class="empty">Loading retention activity...</div></div>
       </details>
 
       <details open style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
@@ -1554,9 +1566,20 @@ async function loadRequests() {
     const renderRetentionActivityHistory = () => {
       const container = document.getElementById("retention-activity-history");
       if (!container) return;
+      const filter = document.getElementById("retention-history-filter")?.value || "all";
       const rows = Array.from(retentionOutcomeByClient.values())
         .filter(item => item.sent_at || item.draft_at)
+        .filter(item => {
+          if (filter === "sent") return Boolean(item.sent_at);
+          if (filter === "awaiting") return Boolean(item.sent_at && !item.requested_after_contact && !item.booked_after_contact);
+          if (filter === "requests") return Boolean(item.requested_after_contact);
+          if (filter === "bookings") return Boolean(item.booked_after_contact);
+          if (filter === "drafts") return Boolean(item.draft_at && !item.sent_at);
+          return true;
+        })
         .sort((a,b) => new Date(b.sent_at || b.draft_at || 0) - new Date(a.sent_at || a.draft_at || 0));
+      const count = document.getElementById("retention-history-count");
+      if (count) count.textContent = rows.length + (rows.length === 1 ? " record" : " records");
       container.innerHTML = rows.length ? rows.map(item => {
         const name = [item.first_name,item.last_name].filter(Boolean).join(" ") || "Client";
         const eventDate = item.sent_at || item.draft_at;
@@ -1569,6 +1592,7 @@ async function loadRequests() {
       }).join("") : '<div class="empty">No retention follow-up activity yet.</div>';
     };
     renderRetentionActivityHistory();
+    document.getElementById("retention-history-filter")?.addEventListener("change", renderRetentionActivityHistory);
 
     const renderRetentionPerformance = () => {
       const tracked = Array.from(retentionOutcomeByClient.values());
