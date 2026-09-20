@@ -521,7 +521,13 @@
       }
     }
 
-    /* Final dashboard section firewall. Use the selected section recorded on
+        /* Element-level X Agent firewall. Even if the browser repairs malformed
+       legacy X markup and reparents a panel outside #x-agent, the panel remains
+       tagged and cannot render on Newsletter or any other dashboard tab. */
+    body:not([data-admin-section="x-agent"]) .x-agent-only { display:none !important; }
+    body[data-admin-section="newsletter"] .x-agent-only { display:none !important; }
+
+/* Final dashboard section firewall. Use the selected section recorded on
        <body> so malformed/legacy child markup cannot bleed into another tab. */
     body[data-admin-section] main.main > section.section { display:none !important; }
     body[data-admin-section="dashboard"] main.main > #dashboard,
@@ -1217,29 +1223,29 @@
           <button type="button" data-x-jump="social">Conversations</button>
           <button type="button" id="x-jump-top" onclick="document.getElementById('x-agent')?.scrollIntoView({behavior:'smooth',block:'start'})">Back to Top</button>
         </div>
-        <div id="x-today-workflow" class="panel" style="margin-bottom:18px;"><div class="panel-header"><div><div class="panel-title">Today’s Workflow</div><div class="panel-subtitle">One next step based on the work already waiting in X Agent.</div></div><button type="button" onclick="document.querySelector('[data-x-anchor=&quot;create&quot;]')?.scrollIntoView({behavior:'smooth',block:'start'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Create a Post</button></div><div style="padding:16px 24px;"><button id="x-flow-next" type="button" style="width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:15px;background:var(--cream);cursor:pointer;"><small style="display:block;color:var(--muted);margin-bottom:4px;">NEXT ACTION</small><strong id="x-flow-next-title" style="display:block;font-size:16px;">Checking your workflow…</strong><span id="x-flow-next-text" style="display:block;margin-top:4px;color:var(--muted);">Loading the work that needs attention.</span></button><div style="margin-top:10px;font-size:12px;color:var(--muted);">Detailed daily slot counts and posting status are shown in Today’s Posting Plan below.</div><span id="x-flow-drafts" hidden>—</span><span id="x-flow-approval" hidden>—</span><span id="x-flow-scheduled" hidden>—</span><span id="x-flow-published" hidden>—</span></div></div>
-        <div id="x-today-plan" class="panel" style="margin-bottom:18px;"><div class="panel-header"><div><div id="x-today-plan-title" class="panel-title">Today’s Posting Plan</div><div id="x-today-plan-subtitle" class="panel-subtitle">See today’s planned posts and take quick actions from each slot.</div><div id="x-plan-week-indicator" style="font-size:12px;color:var(--muted);margin-top:5px;"></div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button type="button" onclick="document.querySelector('[data-x-anchor=&quot;planner&quot;]')?.scrollIntoView({behavior:'smooth',block:'start'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Open Planner</button><button id="x-plan-today" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Today</button><button id="x-plan-prev" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Previous</button><button id="x-plan-next" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Next</button></div></div><div style="padding:10px 24px 0;"><div id="x-plan-week-summary" style="margin-top:0;"></div><div id="x-plan-week-strip" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;"></div></div><div id="x-today-plan-slots" style="padding:10px 24px 18px;"><div class="empty">Open Review Drafts or Schedule to update today’s plan.</div></div></div>
-        <div id="x-content-library-note" data-x-anchor="library" class="panel" style="margin-bottom:18px;">
-          <div class="panel-header"><div><div class="panel-title">Content Library</div><div class="panel-subtitle">Save reusable post ideas, finished copy, and images. Library items never publish automatically.</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button type="button" onclick="document.getElementById('x-library-content')?.focus({preventScroll:false})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Add Content</button><button id="x-refresh-library" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div></div>
+        <div id="x-today-workflow" class="panel x-agent-only" style="margin-bottom:18px;"><div class="panel x-agent-only-header"><div><div class="panel x-agent-only-title">Today’s Workflow</div><div class="panel x-agent-only-subtitle">One next step based on the work already waiting in X Agent.</div></div><button type="button" onclick="document.querySelector('[data-x-anchor=&quot;create&quot;]')?.scrollIntoView({behavior:'smooth',block:'start'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Create a Post</button></div><div style="padding:16px 24px;"><button id="x-flow-next" type="button" style="width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:15px;background:var(--cream);cursor:pointer;"><small style="display:block;color:var(--muted);margin-bottom:4px;">NEXT ACTION</small><strong id="x-flow-next-title" style="display:block;font-size:16px;">Checking your workflow…</strong><span id="x-flow-next-text" style="display:block;margin-top:4px;color:var(--muted);">Loading the work that needs attention.</span></button><div style="margin-top:10px;font-size:12px;color:var(--muted);">Detailed daily slot counts and posting status are shown in Today’s Posting Plan below.</div><span id="x-flow-drafts" hidden>—</span><span id="x-flow-approval" hidden>—</span><span id="x-flow-scheduled" hidden>—</span><span id="x-flow-published" hidden>—</span></div></div>
+        <div id="x-today-plan" class="panel x-agent-only" style="margin-bottom:18px;"><div class="panel x-agent-only-header"><div><div id="x-today-plan-title" class="panel x-agent-only-title">Today’s Posting Plan</div><div id="x-today-plan-subtitle" class="panel x-agent-only-subtitle">See today’s planned posts and take quick actions from each slot.</div><div id="x-plan-week-indicator" style="font-size:12px;color:var(--muted);margin-top:5px;"></div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button type="button" onclick="document.querySelector('[data-x-anchor=&quot;planner&quot;]')?.scrollIntoView({behavior:'smooth',block:'start'})" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Open Planner</button><button id="x-plan-today" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Today</button><button id="x-plan-prev" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Previous</button><button id="x-plan-next" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:white;cursor:pointer;">Next</button></div></div><div style="padding:10px 24px 0;"><div id="x-plan-week-summary" style="margin-top:0;"></div><div id="x-plan-week-strip" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;"></div></div><div id="x-today-plan-slots" style="padding:10px 24px 18px;"><div class="empty">Open Review Drafts or Schedule to update today’s plan.</div></div></div>
+        <div id="x-content-library-note" data-x-anchor="library" class="panel x-agent-only" style="margin-bottom:18px;">
+          <div class="panel x-agent-only-header"><div><div class="panel x-agent-only-title">Content Library</div><div class="panel x-agent-only-subtitle">Save reusable post ideas, finished copy, and images. Library items never publish automatically.</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button type="button" onclick="document.getElementById('x-library-content')?.focus({preventScroll:false})" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Add Content</button><button id="x-refresh-library" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div></div>
           <div style="padding:20px 24px;border-bottom:1px solid var(--line);"><input id="x-library-title" placeholder="Title (optional)" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;"><select id="x-library-style" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:8px;"><option>Personal / Lifestyle</option><option>Conversational Question</option><option>Helpful Insight</option><option>Behind the Scenes</option><option>Website / Service Mention</option><option>Engaging Observation</option><option>Light Personality</option><option>Story / Experience</option><option>Community Conversation</option><option>Soft Call to Action</option></select><textarea id="x-library-content" placeholder="Post, idea, caption, or reusable content..." style="width:100%;min-height:100px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;"></textarea><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;"><label style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Upload Image<input id="x-library-image" type="file" accept="image/jpeg,image/png,image/webp" style="display:none;"></label><span id="x-library-image-name" style="font-size:12px;color:var(--muted);"></span><button id="x-library-save" type="button" style="border:0;border-radius:8px;padding:10px 14px;background:var(--ink);color:white;cursor:pointer;">Save to Library</button></div></div>
           <div id="x-library-controls" style="padding:12px 24px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;"><input id="x-library-search" type="search" placeholder="Search Content Library" style="flex:1 1 190px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;"><select id="x-library-filter" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:white;"><option value="all">All Content Types</option><option>Personal / Lifestyle</option><option>Conversational Question</option><option>Helpful Insight</option><option>Behind the Scenes</option><option>Website / Service Mention</option><option>Engaging Observation</option><option>Light Personality</option><option>Story / Experience</option><option>Community Conversation</option><option>Soft Call to Action</option><option>Top Performer</option></select><select id="x-library-performance" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:white;"><option value="all">All Performance</option><option value="top">Top Performers</option><option value="unused">Not Used Yet</option><option value="used">Previously Used</option></select><select id="x-library-archive-filter" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:white;"><option value="active">Active</option><option value="archived">Archived</option><option value="all">All Items</option></select></div><div id="x-library-items"><div class="empty">Content Library loads when you open this section.</div></div>
         </div>
 
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header">
+        <div class="panel x-agent-only" style="margin-bottom:18px;">
+          <div class="panel x-agent-only-header">
             <div>
-              <div class="panel-title">X Connection</div>
-              <div class="panel-subtitle" id="x-status">Checking connection...</div>
+              <div class="panel x-agent-only-title">X Connection</div>
+              <div class="panel x-agent-only-subtitle" id="x-status">Checking connection...</div>
             </div>
             <a href="/api/auth/x/start" style="color:var(--ink);">Reconnect X</a>
           </div>
         </div>
 
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header">
+        <div class="panel x-agent-only" style="margin-bottom:18px;">
+          <div class="panel x-agent-only-header">
             <div>
-              <div class="panel-title" data-x-anchor="create">Create a Post</div>
-              <div class="panel-subtitle">Write or generate → edit → adjust settings → preview → save or schedule.</div>
+              <div class="panel x-agent-only-title" data-x-anchor="create">Create a Post</div>
+              <div class="panel x-agent-only-subtitle">Write or generate → edit → adjust settings → preview → save or schedule.</div>
             </div>
           </div>
           <div style="padding:24px;">
@@ -1258,11 +1264,11 @@
           </div>
         </div>
 
-        <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header">
+        <div class="panel x-agent-only" style="margin-bottom:18px;">
+          <div class="panel x-agent-only-header">
             <div>
-              <div class="panel-title">Create a Conversation Series</div>
-              <div class="panel-subtitle">Build connected posts as one series. Choose a topic, generate, review, then save or schedule.</div>
+              <div class="panel x-agent-only-title">Create a Conversation Series</div>
+              <div class="panel x-agent-only-subtitle">Build connected posts as one series. Choose a topic, generate, review, then save or schedule.</div>
             </div>
           </div>
           <div style="padding:24px;">
@@ -1278,11 +1284,11 @@
           </div>
         </div>
 
-        <details class="panel" style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
+        <details class="panel x-agent-only" style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
             <div>
-              <div class="panel-title" data-x-anchor="social">Conversations</div>
-              <div class="panel-subtitle">Browse your feed, your recent posts, and replies when you want to work on engagement.</div>
+              <div class="panel x-agent-only-title" data-x-anchor="social">Conversations</div>
+              <div class="panel x-agent-only-subtitle">Browse your feed, your recent posts, and replies when you want to work on engagement.</div>
             </div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
@@ -1310,9 +1316,9 @@
           </div>
         </details>
 
-        <details class="panel" style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel-title">Daily Posting Schedule</div><div class="panel-subtitle">Set your recurring planning times. Scheduling still requires explicit approval.</div></div>
+        <details class="panel x-agent-only" style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel x-agent-only-title">Daily Posting Schedule</div><div class="panel x-agent-only-subtitle">Set your recurring planning times. Scheduling still requires explicit approval.</div></div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
           <div style="padding:18px 24px;">
@@ -1325,9 +1331,9 @@
           </div>
         </details>
 
-        <details class="panel" style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel-title">Brand Voice</div><div class="panel-subtitle">Set the writing style used by X draft generation.</div></div>
+        <details class="panel x-agent-only" style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel x-agent-only-title">Brand Voice</div><div class="panel x-agent-only-subtitle">Set the writing style used by X draft generation.</div></div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
           <div style="padding:18px 24px;">
@@ -1342,9 +1348,9 @@
           </div>
         </details>
 
-        <details class="panel" style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel-title">Weekly Performance Insights</div><div class="panel-subtitle">Review recent engagement patterns and use them to inform future content.</div></div>
+        <details class="panel x-agent-only" style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel x-agent-only-title">Weekly Performance Insights</div><div class="panel x-agent-only-subtitle">Review recent engagement patterns and use them to inform future content.</div></div>
             <button id="x-load-insights" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;" onclick="event.stopPropagation();">Refresh Insights</button>
           </summary>
           <div style="padding:14px 24px;">
@@ -1358,17 +1364,17 @@
           </div>
         </details>
 
-        <details class="panel" open style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel-title" data-x-anchor="planner">2. Plan Your Week</div><div class="panel-subtitle">Set goals and themes, then generate and review the week before approval.</div></div>
+        <details class="panel x-agent-only" open style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel x-agent-only-title" data-x-anchor="planner">2. Plan Your Week</div><div class="panel x-agent-only-subtitle">Set goals and themes, then generate and review the week before approval.</div></div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
           <div style="padding:18px 24px;"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px;"><label style="font-size:13px;font-weight:600;">Primary Goal<select id="x-primary-goal" style="display:block;width:100%;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;"><option>Build Personality / Trust</option><option>Start Conversations</option><option>Drive Website Visits</option><option>Promote a Service</option><option>Grow Engagement</option><option>Maintain Visibility</option></select></label><label style="font-size:13px;font-weight:600;">Secondary Goal <span style="font-weight:400;color:var(--muted);">(optional)</span><select id="x-secondary-goal" style="display:block;width:100%;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;"><option value="">None</option><option>Build Personality / Trust</option><option>Start Conversations</option><option>Drive Website Visits</option><option>Promote a Service</option><option>Grow Engagement</option><option>Maintain Visibility</option></select></label></div><label style="font-size:13px;font-weight:600;">Week starting</label><input id="x-week-start" type="date" style="display:block;margin:6px 0 14px;border:1px solid var(--line);border-radius:8px;padding:9px;"><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Monday</strong><input data-week-theme="0" placeholder="Monday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Tuesday</strong><input data-week-theme="1" placeholder="Tuesday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Wednesday</strong><input data-week-theme="2" placeholder="Wednesday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Thursday</strong><input data-week-theme="3" placeholder="Thursday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Friday</strong><input data-week-theme="4" placeholder="Friday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Saturday</strong><input data-week-theme="5" placeholder="Saturday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin:8px 0;"><strong>Sunday</strong><input data-week-theme="6" placeholder="Sunday theme or topic" style="border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;"></div><div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);"><div style="font-weight:700;">Weekly Content Balance</div><div style="font-size:12px;color:var(--muted);margin:4px 0 10px;">Assign a different voice or purpose to each of your 10 daily posting slots. These styles guide Generate My Day.</div><div id="x-content-balance" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;"></div><button id="x-reset-balance" type="button" style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:white;cursor:pointer;">Reset Mix</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"><button id="x-generate-week" type="button" style="border:0;border-radius:8px;padding:10px 14px;background:var(--ink);color:white;cursor:pointer;">Generate My Week</button><button id="x-save-week" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Save Weekly Plan</button><button id="x-clear-week" type="button" style="border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Clear</button></div><div id="x-week-generation-progress" style="display:none;margin-top:14px;"></div><div id="x-week-actions" style="margin-top:14px;"></div></div>
         </div></details>
 
-        <details class="panel" style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel-title">Weekly Review & Approve</div><div class="panel-subtitle">Review planned posts before anything is approved or scheduled.</div></div>
+        <details class="panel x-agent-only" style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel x-agent-only-title">Weekly Review & Approve</div><div class="panel x-agent-only-subtitle">Review planned posts before anything is approved or scheduled.</div></div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
           <div id="x-week-review"><div class="empty">Choose a week in Plan Your Week to review its planned posts.</div></div>
@@ -1379,13 +1385,13 @@
           </div>
         </details>
 
-                <div class="panel" style="margin-bottom:18px;">
-          <details class="panel" open style="margin-bottom:18px;"><summary class="panel-header" style="cursor:pointer;list-style:none;"><div><div class="panel-title">Generate My Day</div><div class="panel-subtitle">Generate a day of posts, review them, then save or schedule what you approve.</div></div><span style="font-size:12px;color:var(--muted);">Open</span></summary>
+                <div class="panel x-agent-only" style="margin-bottom:18px;">
+          <details class="panel x-agent-only" open style="margin-bottom:18px;"><summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;"><div><div class="panel x-agent-only-title">Generate My Day</div><div class="panel x-agent-only-subtitle">Generate a day of posts, review them, then save or schedule what you approve.</div></div><span style="font-size:12px;color:var(--muted);">Open</span></summary>
           <div style="padding:18px 24px;"><div id="x-day-image-note" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div><textarea id="x-day-theme" placeholder="Theme or topic for today's posts..." style="width:100%;min-height:80px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box;"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button id="x-generate-day" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Generate 10 Posts</button><button id="x-day-regen-selected" type="button" style="display:none;border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Regenerate Selected</button><button id="x-day-approve-selected" type="button" style="display:none;border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Approve Selected</button><button id="x-save-all-day" type="button" style="display:none;border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:var(--ink);color:white;cursor:pointer;">Save All Drafts</button><button id="x-schedule-day" type="button" style="display:none;border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Schedule Approved</button><div id="x-schedule-day-picker" style="display:none;width:100%;margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--cream);"><label style="font-size:13px;font-weight:600;">Schedule date<input id="x-schedule-day-date" type="date" style="display:block;margin-top:5px;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"></label><div style="display:flex;gap:8px;margin-top:10px;"><button id="x-confirm-schedule-day" type="button" style="border:0;border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">Continue</button><button id="x-cancel-schedule-day" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Cancel</button></div></div></div><div id="x-day-results" style="margin-top:12px;"></div></div>
         </div></details>
-        <details class="panel" style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel-title">Fill My Schedule</div><div class="panel-subtitle">Assign saved drafts to open posting slots, then confirm.</div></div>
+        <details class="panel x-agent-only" style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel x-agent-only-title">Fill My Schedule</div><div class="panel x-agent-only-subtitle">Assign saved drafts to open posting slots, then confirm.</div></div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
           <div style="padding:18px 24px;">
@@ -1395,9 +1401,9 @@
           </div>
         </details>
 
-        <details class="panel" style="margin-bottom:18px;">
-          <summary class="panel-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel-title" data-x-anchor="schedule">4. Schedule & Calendar</div><div class="panel-subtitle">See exactly what is scheduled and when it will publish.</div></div>
+        <details class="panel x-agent-only" style="margin-bottom:18px;">
+          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel x-agent-only-title" data-x-anchor="schedule">4. Schedule & Calendar</div><div class="panel x-agent-only-subtitle">See exactly what is scheduled and when it will publish.</div></div>
             <div style="display:flex;gap:8px;align-items:center;"><button id="x-cal-prev" type="button">‹</button><strong id="x-cal-label"></strong><button id="x-cal-next" type="button">›</button></div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
@@ -1405,9 +1411,9 @@
           <div style="padding:0 24px 18px;"><button id="x-toggle-all-scheduled" type="button" aria-expanded="false" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">View All Scheduled</button><button id="x-refresh-scheduled" type="button" style="margin-left:7px;border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button><div id="x-all-scheduled-wrap" style="display:none;margin-top:12px;border-top:1px solid var(--line);"><div id="x-scheduled"><div class="empty">Scheduled posts load when you open this section.</div></div></div></div>
         </details>
 
-        <details class="panel" open><summary class="panel-header" style="cursor:pointer;list-style:none;"><div>
-              <div class="panel-title" data-x-anchor="drafts">3. Review Drafts</div>
-              <div class="panel-subtitle">Review saved posts and make final edits before approval, scheduling, or publishing.</div>
+        <details class="panel x-agent-only" open><summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;"><div>
+              <div class="panel x-agent-only-title" data-x-anchor="drafts">3. Review Drafts</div>
+              <div class="panel x-agent-only-subtitle">Review saved posts and make final edits before approval, scheduling, or publishing.</div>
             </div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
