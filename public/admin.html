@@ -3622,9 +3622,14 @@ loadRequests();
         "<strong>Frequency:</strong> " + escapeHtml(selectedText(frequency)) + "<br>" +
         "<strong>Expiration:</strong> " + escapeHtml(selectedText(expiration)) + "<br>" +
         "<strong>Delivery:</strong> " + escapeHtml(selectedText(delivery)) + "<br>" +
-        "<strong>Tone:</strong> " + escapeHtml(selectedText(tone));
+        "<strong>Tone:</strong> " + escapeHtml(selectedText(tone)) + "<br>" +
+        "<strong>Personalization:</strong> " + [
+          useFirstName.checked ? "first name" : "",
+          usePreferences.checked ? "saved preferences" : "",
+          useHistory.checked ? "client history" : ""
+        ].filter(Boolean).join(", ") || "none";
     };
-    [strategy, eligibility, frequency, expiration, delivery, tone].forEach(select => select.addEventListener("change", update));
+    [strategy, eligibility, frequency, expiration, delivery, tone, useFirstName, usePreferences, useHistory].forEach(el => el.addEventListener("change", update));
     update();
   })();
   (() => {
@@ -3654,18 +3659,20 @@ loadRequests();
       if (typeof saved.useHistory === "boolean") useHistory.checked = saved.useHistory;
       [strategy, eligibility, frequency, expiration, delivery, tone].forEach(el => el.dispatchEvent(new Event("change")));
     } catch {}
+    const fields = [strategy, eligibility, frequency, expiration, delivery, tone, useFirstName, usePreferences, useHistory];
+    const snapshot = () => JSON.stringify({
+      strategy: strategy.value, eligibility: eligibility.value, frequency: frequency.value,
+      expiration: expiration.value, delivery: delivery.value, tone: tone.value,
+      useFirstName: useFirstName.checked, usePreferences: usePreferences.checked, useHistory: useHistory.checked
+    });
+    const markDirty = () => {
+      if (status && snapshot() !== (localStorage.getItem(key) || "")) status.textContent = "Unsaved changes";
+      summary.style.outline = "1px solid var(--line)";
+    };
+    fields.forEach(el => el.addEventListener("change", markDirty));
     save.addEventListener("click", () => {
-      localStorage.setItem(key, JSON.stringify({
-        strategy: strategy.value,
-        eligibility: eligibility.value,
-        frequency: frequency.value,
-        expiration: expiration.value,
-        delivery: delivery.value,
-        tone: tone.value,
-        useFirstName: useFirstName.checked,
-        usePreferences: usePreferences.checked,
-        useHistory: useHistory.checked
-      }));
+      const value = snapshot();
+      localStorage.setItem(key, value);
       if (status) {
         status.textContent = "Saved";
         setTimeout(() => { if (status.textContent === "Saved") status.textContent = ""; }, 2000);
