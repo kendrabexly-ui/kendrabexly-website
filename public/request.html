@@ -645,7 +645,11 @@
         return;
       }
       const baseRate = selectedRate();
-      const outcallFee = appointmentType.value === "outcall" ? 100 : 0;
+      const outcallService = publicRateServices.find(item =>
+        item.add_on || String(item.name || "").toLowerCase() === "outcall"
+      );
+      const configuredOutcallFee = Number(outcallService?.rates?.[0]?.[1]) || 100;
+      const outcallFee = appointmentType.value === "outcall" ? configuredOutcallFee : 0;
       const total = baseRate + outcallFee;
       const rows = [
         ["Experience", selectedOptionText(dateType)],
