@@ -494,24 +494,21 @@
 
 
         <div class="field full-width">
+          <label for="deposit-payment-method">How would you like to secure the date? *</label>
+          <select id="deposit-payment-method" name="deposit_payment_method" required>
+            <option value="">Choose a deposit payment method</option>
+            <option value="gift-card">Gift Card</option>
+            <option value="stripe">Stripe (10% processing fee)</option>
+            <option value="crypto">Crypto (10% processing fee)</option>
+          </select>
+          <small>The deposit is 25% of the date total. Stripe and Crypto include a 10% processing fee on the deposit. If your request moves forward, your payment instructions and ID request will be included together in the next email.</small>
+        </div>
 
+        <div class="field full-width">
           <label class="checkbox-label">
-
-            <input
-              type="checkbox"
-              id="deposit-acknowledgement"
-              name="deposit_acknowledgement"
-              value="yes"
-              required
-            >
-
-            <span>
-              I understand that a 25% deposit is required to confirm
-              an approved date.
-            </span>
-
+            <input type="checkbox" id="deposit-acknowledgement" name="deposit_acknowledgement" value="yes" required>
+            <span>I understand that my date is not confirmed until the required deposit and screening are completed.</span>
           </label>
-
         </div>
 
 
@@ -695,12 +692,17 @@
         ["Location", selectedOptionText(appointmentType)],
         ...(outcallFee ? [["Outcall add-on", money(outcallFee)]] : []),
         ["Estimated total", money(total)],
-        ["Estimated 25% deposit", money(total * 0.25)]
+        ["Base deposit (25%)", money(total * 0.25)],
+        ...(document.getElementById("deposit-payment-method")?.value === "stripe" || document.getElementById("deposit-payment-method")?.value === "crypto"
+          ? [["Payment processing fee (10% of deposit)", money(total * 0.25 * 0.10)], ["Deposit request total", money(total * 0.25 * 1.10)]]
+          : [["Deposit request total", money(total * 0.25)]])
       ];
       details.innerHTML = rows.map(row =>
         '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>'
       ).join("");
     }
+
+    document.getElementById("deposit-payment-method")?.addEventListener("change", updateBookingSummary);
 
     let availabilityRequestId = 0;
 
