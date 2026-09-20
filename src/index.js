@@ -3,16 +3,27 @@ async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env
 
 
 const SITE_TIME_ZONE = "America/Los_Angeles";
+const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v2";
 const DEFAULT_SITE_RATES = [
   {
-    name: "Signature Private Companionship Experience",
-    description: "My signature experience is romantic, flirtatious, and intentionally unhurried. It is designed for the gentleman who appreciates genuine chemistry, affectionate company, playful conversation, and the pleasure of having my complete attention.\n\nThere is no pressure to perform or rush the moment. We can relax, get comfortable, and allow our time to unfold naturally. Come ready to disconnect from everything else and enjoy an experience that feels personal, warm, and distinctly ours.",
-    rates: [["1 Hour", 500], ["2 Hours", 750], ["3 Hours", 1000], ["4 Hours", 1250]]
+    name: "Private Introductions",
+    description: "A discreet introduction for a shorter first meeting.",
+    rates: [["Private Introduction — 20 minutes", 200], ["Premium Introduction — 20 minutes", 250]]
   },
   {
-    name: "The Greek Princess",
-    description: "The Greek Princess is my more adventurous and elevated experience, created for the gentleman who enjoys a little extra indulgence with his time.\n\nExpect the same warmth, chemistry, and attentive companionship found in my signature experience, with a more daring and playful energy. The finer details are kept discreet.",
-    rates: [["1 Hour", 650], ["1.5 Hours", 800], ["2 Hours", 1050]]
+    name: "Brief Experiences",
+    description: "A brief experience when you want a little more time to settle in and enjoy the moment.",
+    rates: [["Signature Brief Introduction — 30 minutes", 300], ["Greek Princess Brief Introduction — 30 minutes", 400]]
+  },
+  {
+    name: "Signature Girlfriend Experience",
+    description: "My signature experience is romantic, flirtatious, and intentionally unhurried, with genuine chemistry, affectionate company, playful conversation, and my complete attention.",
+    rates: [["1 hour", 500], ["1½ hours", 750], ["Up to 2 hours", 1000], ["Up to 4 hours", 2600]]
+  },
+  {
+    name: "Greek Princess Experience",
+    description: "My more adventurous and elevated experience, with the same warmth and attentive companionship and a more daring, playful energy.",
+    rates: [["1 hour", 700], ["1½ hours", 1000], ["Up to 2 hours", 1300], ["Up to 4 hours", 3000]]
   },
   {
     name: "Outcall",
@@ -182,9 +193,27 @@ function normalizeSiteRates(value) {
 
 async function readSiteRates(env) {
   await ensureSiteContentTables(env);
-  const row = await env.DB.prepare(
-    "SELECT setting_value FROM site_settings WHERE setting_key = 'rate_services'"
-  ).first();
+  const rows = await env.DB.prepare(
+    "SELECT setting_key, setting_value FROM site_settings WHERE setting_key IN ('rate_services', 'rate_services_version')"
+  ).all();
+  const settings = Object.fromEntries((rows.results || []).map(row => [row.setting_key, row.setting_value]));
+  if (settings.rate_services_version !== DEFAULT_SITE_RATES_VERSION) {
+    const updatedRates = structuredClone(DEFAULT_SITE_RATES);
+    await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO site_settings (setting_key, setting_value, updated_at)
+        VALUES ('rate_services', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = CURRENT_TIMESTAMP
+      `).bind(JSON.stringify(updatedRates)),
+      env.DB.prepare(`
+        INSERT INTO site_settings (setting_key, setting_value, updated_at)
+        VALUES ('rate_services_version', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = CURRENT_TIMESTAMP
+      `).bind(DEFAULT_SITE_RATES_VERSION)
+    ]);
+    return updatedRates;
+  }
+  const row = { setting_value: settings.rate_services };
   if (!row?.setting_value) return structuredClone(DEFAULT_SITE_RATES);
   try {
     return normalizeSiteRates(JSON.parse(row.setting_value)) || structuredClone(DEFAULT_SITE_RATES);
@@ -201,6 +230,10 @@ function siteMinutesFromTime(value) {
 
 function siteDurationMinutes(value) {
   const normalized = String(value || "").toLowerCase();
+  const minuteMatch = normalized.match(/(\d+)\s*(?:minute|min)/);
+  if (minuteMatch) return Number(minuteMatch[1]);
+  const minuteSlug = normalized.match(/^(\d+)-minutes?$/);
+  if (minuteSlug) return Number(minuteSlug[1]);
   const match = normalized.match(/(\d+(?:\.\d+)?)\s*(?:hour|hr)/);
   if (match) return Math.round(Number(match[1]) * 60);
   const slug = normalized.match(/^(\d+(?:\.\d+)?)-hours?$/);
@@ -2385,12 +2418,9 @@ My journal will continue to be a place where I share a little more of that side 
         }
 
 
-        const allowedDateTypes = [
-          "signature-private-companionship",
-          "greek-princess"
-        ];
+        const allowedDateTypes = ["private-introduction", "premium-introduction", "signature-brief-introduction", "greek-princess-brief-introduction", "signature-girlfriend-experience", "greek-princess-experience"];
         const allowedAppointmentTypes = ["incall", "outcall"];
-        const allowedDurations = ["1-hour", "1.5-hours", "2-hours", "3-hours", "4-hours"];
+        const allowedDurations = ["20-minutes", "30-minutes", "1-hour", "1.5-hours", "2-hours", "4-hours"];
         const allowedContactMethods = ["email", "text"];
 
         if (
@@ -2406,8 +2436,12 @@ My journal will continue to be a place where I share a little more of that side 
         }
 
         const allowedDurationsByExperience = {
-          "signature-private-companionship": ["1-hour", "2-hours", "3-hours", "4-hours"],
-          "greek-princess": ["1-hour", "1.5-hours", "2-hours"]
+          "private-introduction": ["20-minutes"],
+          "premium-introduction": ["20-minutes"],
+          "signature-brief-introduction": ["30-minutes"],
+          "greek-princess-brief-introduction": ["30-minutes"],
+          "signature-girlfriend-experience": ["1-hour", "1.5-hours", "2-hours", "4-hours"],
+          "greek-princess-experience": ["1-hour", "1.5-hours", "2-hours", "4-hours"]
         };
 
         if (!allowedDurationsByExperience[dateType]?.includes(duration)) {

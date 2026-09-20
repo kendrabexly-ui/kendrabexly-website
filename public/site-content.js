@@ -18,8 +18,8 @@
         throw new Error(data.message || "Unable to load rates.");
       }
       menu.innerHTML = data.services.map((service, index) => {
-        const label = service.add_on ? "ADD-ON • UPSCALE LOCATIONS ONLY" :
-          index === 0 ? "SIGNATURE EXPERIENCE" : "ELEVATED EXPERIENCE";
+        const labels = ["PRIVATE INTRODUCTIONS", "BRIEF EXPERIENCES", "SIGNATURE EXPERIENCE", "ELEVATED EXPERIENCE"];
+        const label = service.add_on ? "ADD-ON • UPSCALE LOCATIONS ONLY" : (labels[index] || "EXPERIENCE");
         const paragraphs = String(service.description || "")
           .split(/\n\s*\n/)
           .filter(Boolean)
@@ -35,7 +35,7 @@
           '<h2>' + escapeHtml(service.name) + '</h2>' +
           '<div class="service-description">' + paragraphs + '</div>' +
           '</header><dl class="rate-list">' + rates + '</dl></article>';
-      }).join("");
+      }).join("") + '<p class="rates-itinerary-note"><em>Dates lasting longer than two hours must include appropriate refreshments or a meal as part of the planned itinerary.</em></p>';
     } catch (error) {
       console.error("Public rates failed to load:", error);
     }
