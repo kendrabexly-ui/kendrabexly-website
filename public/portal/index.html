@@ -704,6 +704,7 @@
         <div class="section-heading">
           <h2>Private Requests</h2>
           <p>Review and manage incoming date requests.</p>
+          <button id="clear-booking-submissions" type="button" class="btn btn-secondary" style="margin-top:14px;color:var(--red);border-color:rgba(138,85,85,.4);">Clear Test Submissions</button>
         </div>
 
         <div id="request-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-bottom:14px;">
@@ -1557,6 +1558,35 @@
 }
 
 loadBlacklist();
+
+async function clearBookingSubmissions() {
+  const button = document.getElementById("clear-booking-submissions");
+  if (!window.confirm("Permanently delete every booking submission and its linked email drafts and payment records? Client profiles will be preserved.")) return;
+
+  const originalLabel = button ? button.textContent : "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Clearing…";
+  }
+
+  try {
+    const response = await fetch("/api/admin/requests/clear", { method: "POST" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.message || "Unable to clear submissions.");
+
+    window.alert((data.deleted || 0) + " booking submissions deleted.");
+    await Promise.all([loadDashboard(), loadCalendar(), loadRequests(), loadClients(), loadEmailDrafts()]);
+  } catch (error) {
+    window.alert(error.message || "Unable to clear submissions.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+}
+
+document.getElementById("clear-booking-submissions")?.addEventListener("click", clearBookingSubmissions);
 
 async function loadRequests() {
   const recentContainer =
