@@ -244,6 +244,14 @@
     #x-agent.active:not([hidden]) > #x-agent-boundary { display: block !important; }
     #x-agent[hidden], #x-agent.section-hard-hidden { display: none !important; }
 
+    /* Newsletter containment guard: newsletter markup is only allowed to render
+       while Newsletter is the selected dashboard section. */
+    #newsletter-boundary { display: none !important; }
+    #newsletter.active:not([hidden]) > #newsletter-boundary { display: block !important; }
+    #newsletter[hidden], #newsletter.section-hard-hidden { display: none !important; }
+    /* Explicit cross-section protection for the X Agent bleed reported here. */
+    #newsletter.active ~ #x-agent, #newsletter.active #x-agent, #newsletter #x-agent-boundary { display:none !important; }
+
     /* Hard section isolation: only the section selected by navigation may render.
        This also protects against nested/legacy section markup leaking into another view. */
     .main .section:not(.active) {
@@ -1079,6 +1087,7 @@
      <!-- NEWSLETTER AGENT -->
 
 <section id="newsletter" class="section">
+  <div id="newsletter-boundary">
 
   <div class="section-heading">
     <h2>Newsletter Agent</h2>
@@ -1162,6 +1171,7 @@
     </div>
   </div>
 
+  </div><!-- /newsletter-boundary -->
 </section>
 
     
@@ -3982,6 +3992,9 @@ loadRequests();
       section.setAttribute("aria-hidden","false");
       const xBoundary = document.getElementById("x-agent-boundary");
       if (xBoundary) xBoundary.style.display = sectionName === "x-agent" ? "block" : "none";
+      const newsletterBoundary = document.getElementById("newsletter-boundary");
+      if (newsletterBoundary) newsletterBoundary.style.display = sectionName === "newsletter" ? "block" : "none";
+      if (sectionName === "newsletter" && xBoundary) xBoundary.style.display = "none";
     };
 
     const pageParams = new URLSearchParams(window.location.search);
