@@ -4039,7 +4039,10 @@ loadRequests();
             ${current ? '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:7px;">CURRENT REQUEST</div>' : ""}
             <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
               <div><strong style="font-size:15px;">${escapeHtml(name)}</strong><div style="margin-top:4px;font-size:12px;color:var(--muted);">${escapeHtml(typeLabel)} · Request #${escapeHtml(draft.date_request_id || "—")}</div></div>
-              <span style="font-size:11px;font-weight:700;padding:5px 9px;border-radius:999px;${sent ? "background:#e5f1e7;" : "background:#f3ead8;"}">${sent ? "✓ SENT" : "NEEDS REVIEW"}</span>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                <span style="font-size:11px;font-weight:700;padding:5px 9px;border-radius:999px;${sent ? "background:#e5f1e7;" : "background:#f3ead8;"}">${sent ? "✓ SENT" : "NEEDS REVIEW"}</span>
+                ${sent ? `<span style="font-size:11px;font-weight:700;padding:5px 9px;border-radius:999px;background:${draft.responded_at ? "#e5f1e7" : draft.opened_at ? "#fff0cf" : "#eeeae4"};">${draft.responded_at ? "RESPONDED" : draft.opened_at ? "OPENED · NO RESPONSE" : "UNOPENED"}</span>` : ""}
+              </div>
             </div>
             <div style="margin-top:7px;font-size:12px;color:var(--muted);">${escapeHtml(draft.email || "No email")} · ${sent ? "Sent " + escapeHtml(draft.sent_at || "—") : "Created " + escapeHtml(draft.created_at || "—")}</div>
             <details ${current && !sent ? "open" : ""} style="margin-top:12px;">
@@ -4054,6 +4057,7 @@ loadRequests();
                   <button type="button" data-preview-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Preview</button>
                   <button type="button" data-copy-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Copy</button>
                   ${sent ? "" : `<button type="button" data-send-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font-weight:700;">Send Email</button>`}
+                  ${sent && !draft.responded_at ? `<button type="button" data-responded-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Mark Responded</button>` : ""}
                   <button type="button" data-delete-email="${draft.id}" style="padding:9px 14px;border:1px solid #b86b6b;border-radius:8px;background:white;color:#8f3d3d;cursor:pointer;">Delete</button>
                 </div>
                 <div data-email-preview-panel style="display:none;margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
@@ -4117,6 +4121,16 @@ loadRequests();
           panel.append(subjectLine, bodyText);
           panel.style.display = "block";
           button.textContent = "Close Preview";
+        }));
+        box.querySelectorAll("[data-responded-email]").forEach((button) => button.addEventListener("click", async () => {
+          if(!confirm("Mark this email as responded?")) return;
+          button.disabled=true;
+          try{
+            const r=await fetch("/api/admin/email-drafts/"+button.dataset.respondedEmail+"/responded",{method:"POST"});
+            const d=await r.json();
+            if(!r.ok||!d.ok) throw new Error(d.message||"Unable to update email.");
+            await loadEmailDrafts();
+          }catch(e){button.disabled=false;alert(e.message||"Unable to update email.");}
         }));
         box.querySelectorAll("[data-delete-email]").forEach((button) => button.addEventListener("click", async () => {
           const card=button.closest("[data-email-draft]");
