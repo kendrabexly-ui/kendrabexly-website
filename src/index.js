@@ -59,6 +59,21 @@ async function ensureSiteContentTables(env) {
       UNIQUE(available_date, available_time)
     )
   `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS calendar_work_hours (
+      day_of_week INTEGER PRIMARY KEY CHECK (day_of_week BETWEEN 0 AND 6),
+      enabled INTEGER NOT NULL DEFAULT 0,
+      start_time TEXT NOT NULL DEFAULT '10:00',
+      end_time TEXT NOT NULL DEFAULT '22:00',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  const workHoursCount = await env.DB.prepare("SELECT COUNT(*) AS count FROM calendar_work_hours").first();
+  if (!Number(workHoursCount?.count || 0)) {
+    await env.DB.batch(Array.from({ length: 7 }, (_, day) =>
+      env.DB.prepare("INSERT INTO calendar_work_hours (day_of_week, enabled, start_time, end_time) VALUES (?, 0, '10:00', '22:00')").bind(day)
+    ));
+  }
 }
 
 
@@ -270,30 +285,43 @@ function siteZonedDateTime(dateValue, timeValue) {
 
 async function siteAvailableSlots(env, date, requestedDuration) {
   await ensureSiteContentTables(env);
-  const [availabilityResult, bookedResult] = await Promise.all([
+  const requestedDate = new Date(String(date) + "T12:00:00");
+  if (!Number.isFinite(requestedDate.getTime())) {
+    return { slots: [], availability_state: "not_configured" };
+  }
+  const dayOfWeek = requestedDate.getDay();
+  const [workHours, bookedResult] = await Promise.all([
     env.DB.prepare(
-      "SELECT available_time AS time FROM calendar_availability WHERE available_date = ? ORDER BY available_time"
-    ).bind(date).all(),
+      "SELECT enabled, start_time, end_time FROM calendar_work_hours WHERE day_of_week = ? LIMIT 1"
+    ).bind(dayOfWeek).first(),
     env.DB.prepare(`
       SELECT requested_date, requested_time, notes
       FROM date_requests
-      WHERE requested_date BETWEEN date(?, '-1 day') AND date(?, '+1 day')
+      WHERE requested_date = ?
         AND final_approval = 1
         AND status NOT IN ('canceled', 'declined', 'blacklisted_submission')
-    `).bind(date, date).all()
+    `).bind(date).all()
   ]);
 
-  const configuredTimes = (availabilityResult.results || [])
-    .map(item => String(item.time || "").slice(0, 5))
-    .filter(time => siteMinutesFromTime(time) !== null);
-
-  const candidateTimes = [...new Set(configuredTimes)];
-
-  if (!candidateTimes.length) {
+  if (!workHours || !Number(workHours.enabled)) {
     return { slots: [], availability_state: "not_configured" };
   }
 
-  const durationMs = Math.max(30, Number(requestedDuration) || 60) * 60 * 1000;
+  const workStart = siteMinutesFromTime(workHours.start_time);
+  const workEnd = siteMinutesFromTime(workHours.end_time);
+  if (workStart === null || workEnd === null || workEnd <= workStart) {
+    return { slots: [], availability_state: "not_configured" };
+  }
+
+  const durationMinutes = Math.max(20, Number(requestedDuration) || 60);
+  const candidateTimes = [];
+  for (let minute = workStart; minute + durationMinutes <= workEnd; minute += 30) {
+    candidateTimes.push(
+      String(Math.floor(minute / 60)).padStart(2, "0") + ":" +
+      String(minute % 60).padStart(2, "0")
+    );
+  }
+
   const bookings = (bookedResult.results || []).map(item => {
     const start = siteZonedDateTime(item.requested_date, item.requested_time).getTime();
     return {
@@ -309,7 +337,7 @@ async function siteAvailableSlots(env, date, requestedDuration) {
   });
   const slots = bookableCandidates.filter(time => {
     const start = siteZonedDateTime(date, time).getTime();
-    const end = start + durationMs;
+    const end = start + durationMinutes * 60 * 1000;
     return !bookings.some(booking => start < booking.end && end > booking.start);
   });
 
@@ -2967,6 +2995,71 @@ Kendra`
 
 
     // =========================================================
+    // ADMIN CALENDAR WORK HOURS
+    // =========================================================
+
+    if (url.pathname === "/api/admin/calendar/work-hours") {
+      await ensureSiteContentTables(env);
+
+      if (request.method === "GET") {
+        const result = await env.DB.prepare(
+          "SELECT day_of_week, enabled, start_time, end_time FROM calendar_work_hours ORDER BY day_of_week"
+        ).all();
+        return Response.json({
+          ok: true,
+          items: (result.results || []).map(item => ({
+            day_of_week: Number(item.day_of_week),
+            enabled: Number(item.enabled) === 1,
+            start_time: String(item.start_time || "10:00").slice(0, 5),
+            end_time: String(item.end_time || "22:00").slice(0, 5)
+          }))
+        });
+      }
+
+      if (request.method === "POST") {
+        const data = await request.json().catch(() => ({}));
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (items.length !== 7) {
+          return Response.json({ ok: false, message: "Work hours must include all seven days." }, { status: 400 });
+        }
+        const normalized = [];
+        for (const item of items) {
+          const day = Number(item.day_of_week);
+          const enabled = item.enabled ? 1 : 0;
+          const start = String(item.start_time || "").slice(0, 5);
+          const end = String(item.end_time || "").slice(0, 5);
+          const startMinutes = siteMinutesFromTime(start);
+          const endMinutes = siteMinutesFromTime(end);
+          if (!Number.isInteger(day) || day < 0 || day > 6 || startMinutes === null || endMinutes === null || (enabled && endMinutes <= startMinutes)) {
+            return Response.json({ ok: false, message: "Choose valid start and end times for each enabled work day." }, { status: 400 });
+          }
+          normalized.push({ day_of_week: day, enabled, start_time: start, end_time: end });
+        }
+        if (new Set(normalized.map(item => item.day_of_week)).size !== 7) {
+          return Response.json({ ok: false, message: "Each day can only appear once." }, { status: 400 });
+        }
+        await env.DB.batch(normalized.map(item =>
+          env.DB.prepare(`
+            INSERT INTO calendar_work_hours (day_of_week, enabled, start_time, end_time, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(day_of_week) DO UPDATE SET
+              enabled = excluded.enabled,
+              start_time = excluded.start_time,
+              end_time = excluded.end_time,
+              updated_at = CURRENT_TIMESTAMP
+          `).bind(item.day_of_week, item.enabled, item.start_time, item.end_time)
+        ));
+        return Response.json({
+          ok: true,
+          items: normalized.map(item => ({ ...item, enabled: item.enabled === 1 }))
+        });
+      }
+
+      return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+    }
+
+
+    // =========================================================
     // ADMIN CALENDAR AVAILABILITY
     // =========================================================
 
@@ -4417,25 +4510,11 @@ const approvedRequest = await env.DB
   .first();
 
 if (approvedRequest) {
+  // Availability is derived from daily work hours. Do not delete schedule rows.
+  // The booking engine excludes every final-approved appointment by its full duration,
+  // so the occupied block becomes unavailable immediately while the surrounding
+  // work-day hours remain bookable.
   await ensureSiteContentTables(env);
-  const bookedStart = siteMinutesFromTime(approvedRequest.requested_time);
-  const bookedEnd = bookedStart === null
-    ? null
-    : bookedStart + siteBookingDurationFromNotes(approvedRequest.notes);
-  if (bookedStart !== null && bookedEnd !== null) {
-    await env.DB.prepare(`
-      DELETE FROM calendar_availability
-      WHERE available_date = ?
-        AND (
-          CAST(substr(available_time, 1, 2) AS INTEGER) * 60 +
-          CAST(substr(available_time, 4, 2) AS INTEGER)
-        ) >= ?
-        AND (
-          CAST(substr(available_time, 1, 2) AS INTEGER) * 60 +
-          CAST(substr(available_time, 4, 2) AS INTEGER)
-        ) < ?
-    `).bind(approvedRequest.requested_date, bookedStart, bookedEnd).run();
-  }
 }
 
 await env.DB
