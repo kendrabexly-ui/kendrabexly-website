@@ -1185,6 +1185,11 @@
       </div>
 
       <details style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
+        <summary style="cursor:pointer;font-weight:700;">Offer Performance <span style="font-weight:400;color:var(--muted);">— compare retention incentives</span></summary>
+        <div id="retention-offer-performance" style="margin-top:12px;"><div class="empty">Offer results will appear after retention follow-ups are sent.</div></div>
+      </details>
+
+      <details style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
         <summary style="cursor:pointer;font-weight:700;">Retention Insights <span style="font-weight:400;color:var(--muted);">— what is producing return activity</span></summary>
         <div id="retention-insights" style="margin-top:12px;"><div class="empty">No retention results to analyze yet.</div></div>
       </details>
@@ -1589,6 +1594,30 @@ async function loadRequests() {
       }
     } catch (error) {}
 
+    const renderRetentionOfferPerformance = () => {
+      const container=document.getElementById("retention-offer-performance");
+      if(!container) return;
+      const labels={"extra-time":"Extra 30 Minutes","experience-upgrade":"Experience Upgrade","special-rate":"Special Rate"};
+      const range=document.getElementById("retention-date-range")?.value||"90";
+      const cutoff=range==="all"?0:Date.now()-Number(range)*86400000;
+      const groups={};
+      Array.from(retentionOutcomeByClient.values()).forEach(item=>{
+        const when=new Date(item.sent_at||0).getTime();
+        if(!item.sent_at||(cutoff&&(!Number.isFinite(when)||when<cutoff))) return;
+        const key=item.offer_strategy||"untracked";
+        if(!groups[key]) groups[key]={sent:0,requests:0,bookings:0};
+        groups[key].sent++;
+        if(item.requested_after_contact) groups[key].requests++;
+        if(item.booked_after_contact) groups[key].bookings++;
+      });
+      const rows=Object.entries(groups).sort((a,b)=>(b[1].bookings/b[1].sent)-(a[1].bookings/a[1].sent));
+      container.innerHTML=rows.length?rows.map(([key,g])=>{
+        const rate=Math.round((g.bookings/g.sent)*100);
+        return `<div style="padding:10px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(145px,1fr) repeat(4,minmax(60px,auto));gap:10px;align-items:center;font-size:12px;"><strong>${escapeHtml(labels[key]||"Untracked")}</strong><span>${g.sent} sent</span><span>${g.requests} request${g.requests===1?"":"s"}</span><span>${g.bookings} booking${g.bookings===1?"":"s"}</span><strong>${rate}%</strong></div>`;
+      }).join(""):'<div class="empty">No sent retention offers in this date range yet.</div>';
+    };
+    renderRetentionOfferPerformance();
+
     let retentionBestGroup = "";
     const renderRetentionInsights = () => {
       const container = document.getElementById("retention-insights");
@@ -1685,6 +1714,7 @@ async function loadRequests() {
       renderRetentionPerformance();
       renderRetentionActivityHistory();
       renderRetentionInsights();
+      renderRetentionOfferPerformance();
       renderRetentionTargets();
     });
 
@@ -1749,7 +1779,7 @@ async function loadRequests() {
         button.disabled = true;
         button.textContent = "Creating Draft...";
         try {
-          const response = await fetch("/api/admin/retention/follow-up-draft", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId)})});
+          const response = await fetch("/api/admin/retention/follow-up-draft", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId),offer_strategy:document.getElementById("retention-offer-strategy")?.value||"extra-time"})});
           const data = await response.json();
           if (!response.ok || !data.ok) throw new Error(data.message || "Unable to create follow-up draft.");
           button.textContent = "Draft Created";
