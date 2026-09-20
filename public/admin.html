@@ -2302,7 +2302,22 @@ loadRequests();
               }
               const payload = {};
               card.querySelectorAll("[data-field]").forEach(el => payload[el.dataset.field] = el.value.trim());
-              if (action === "approve") payload.status = "approved";
+              if (action === "approve") {
+                const required = [
+                  ["subject","subject"],
+                  ["content","newsletter message"],
+                  ["blog_title","blog post title"],
+                  ["blog_content","blog post"],
+                  ["special_offer","monthly special offer"]
+                ];
+                const missing = required.filter(([field]) => !String(payload[field] || "").trim()).map(([,label]) => label);
+                if (missing.length) {
+                  alert("Finish the " + missing.join(", ") + " before approving this newsletter.");
+                  return;
+                }
+                if (!confirm("Approve this newsletter as ready to send?\n\nThis confirms you reviewed the newsletter message, featured blog post, and monthly special offer. You can still preview it before sending.")) return;
+                payload.status = "approved";
+              }
               button.disabled = true;
               try {
                 const r = await fetch("/api/admin/newsletter/drafts/" + id, {
