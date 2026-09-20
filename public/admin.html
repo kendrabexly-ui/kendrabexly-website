@@ -2058,11 +2058,13 @@ loadRequests();
 
     function newsletterDraftCard(item) {
       const readOnly = item.status === "sent";
+      const status = String(item.status || "draft").toLowerCase();
+      const statusLabel = status === "draft" ? "NEEDS REVIEW" : status === "approved" ? "READY TO SEND" : "✓ SENT";
       return `
-        <div style="padding:22px 24px;border-bottom:1px solid var(--line);" data-newsletter-draft="${item.id}">
-          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:14px;">
-            <strong>Newsletter #${item.id}</strong>
-            <span class="status">${escapeHtml(item.status)}</span>
+        <div style="padding:22px 24px;border-bottom:1px solid var(--line);${status === "draft" ? "border-left:4px solid #b28a45;" : status === "approved" ? "border-left:4px solid #58755d;" : ""}" data-newsletter-draft="${item.id}">
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:14px;align-items:flex-start;">
+            <div><strong>Newsletter #${item.id}</strong><div style="margin-top:4px;font-size:12px;color:var(--muted);">${status === "draft" ? "Review content and offer before approval." : status === "approved" ? "Approved and waiting for you to send." : "Completed newsletter — kept for reference."}</div></div>
+            <span class="status" style="font-weight:700;">${statusLabel}</span>
           </div>
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">Subject</label>
           <input data-field="subject" ${readOnly ? "disabled" : ""} value="${escapeHtml(item.subject || "")}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;margin-bottom:12px;">
@@ -2078,11 +2080,10 @@ loadRequests();
           <label style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);">One-Time Special Rate Offer</label>
           <textarea data-field="special_offer" ${readOnly ? "disabled" : ""} style="width:100%;min-height:90px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;resize:vertical;">${escapeHtml(item.special_offer || "")}</textarea>
           ${item.status === "draft" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button type="button" data-newsletter-action="regenerate-offer">Change Offer Wording</button><button type="button" data-newsletter-action="change-offer-experience">Choose Monthly Offers</button></div>' : ""}
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
-            <button type="button" data-newsletter-action="preview">Preview</button>
-            ${item.status === "draft" ? '<button type="button" data-newsletter-action="regenerate">Regenerate Newsletter</button><button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="approve">Approve</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
-            ${item.status === "approved" ? '<button type="button" data-newsletter-action="send">Send Newsletter</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
-            ${item.status === "sent" ? '<button type="button" data-newsletter-action="delete">Delete Newsletter</button>' : ""}
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+            ${item.status === "draft" ? '<button type="button" data-newsletter-action="save">Save Changes</button><button type="button" data-newsletter-action="preview">Preview</button><button type="button" data-newsletter-action="approve">Approve Newsletter</button><details style="align-self:center;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">More Draft Tools</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button type="button" data-newsletter-action="regenerate">Regenerate Newsletter</button><button type="button" data-newsletter-action="delete">Delete Draft</button></div></details>' : ""}
+            ${item.status === "approved" ? '<button type="button" data-newsletter-action="preview">Preview</button><button type="button" data-newsletter-action="send">Send Newsletter</button><button type="button" data-newsletter-action="delete">Delete Draft</button>' : ""}
+            ${item.status === "sent" ? '<button type="button" data-newsletter-action="preview">View Newsletter</button><button type="button" data-newsletter-action="delete">Delete Newsletter</button>' : ""}
           </div>
         </div>`;
     }
@@ -2103,6 +2104,7 @@ loadRequests();
           summary.innerHTML = "<strong>" + drafts.length + "</strong> total · <strong>" + draftCount + "</strong> draft" + (draftCount === 1 ? "" : "s") + " · <strong>" + approvedCount + "</strong> approved · <strong>" + sentCount + "</strong> sent";
         }
         const statusFilter = document.getElementById("newsletter-draft-status-filter");
+        if (statusFilter) statusFilter.value = drafts.some(item => String(item.status || "").toLowerCase() === "draft") ? "draft" : (drafts.some(item => String(item.status || "").toLowerCase() === "approved") ? "approved" : "all");
         const sortSelect = document.getElementById("newsletter-draft-sort");
         const renderNewsletterDrafts = () => {
           const selectedStatus = statusFilter ? statusFilter.value : "all";
