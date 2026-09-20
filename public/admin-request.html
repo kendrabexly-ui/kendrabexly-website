@@ -670,16 +670,30 @@ updateFinalApprovalReadiness();
     );
   }
 
-      finalApprovalStatus.textContent =
-  "Final approval complete.";
+      finalApprovalStatus.innerHTML =
+  '<strong>✓ Date confirmed.</strong><div style="margin-top:5px;">The confirmation email draft is ready for review.</div>';
 
-finalApproveButton.textContent =
-  "Approved";
-
+finalApproveButton.textContent = "✓ Confirmed";
 finalApproveButton.disabled = true;
+finalApproveButton.style.opacity = "1";
+finalApproveButton.style.cursor = "default";
 
 idReceivedCheckbox.disabled = true;
 confirmDepositButton.disabled = true;
+if(newsletterSpecialApprovalCheckbox) newsletterSpecialApprovalCheckbox.disabled = true;
+if(finalApprovalReadiness) finalApprovalReadiness.textContent = "✓ Final approval complete.";
+
+const statusBadge=container.querySelector(".status");
+if(statusBadge) statusBadge.textContent="Confirmed";
+
+const workflow=document.getElementById("request-workflow");
+if(workflow) workflow.innerHTML='<strong>3 of 3 · Confirmed</strong><div style="margin-top:5px;font-size:13px;color:#6f675f;line-height:1.5;">This date is confirmed. Review the confirmation email draft, then return here after the appointment to mark it Successfully Completed.</div>';
+
+finalApprovalControls.style.display="none";
+const completedControls=document.getElementById("completed-date-controls");
+if(completedControls) completedControls.style.display="block";
+openEmailDraftsButton.style.display="inline-block";
+openEmailDraftsButton.textContent="Review Confirmation Email";
 
       } catch (error) {
   console.error(
