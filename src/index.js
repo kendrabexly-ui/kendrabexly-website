@@ -3,7 +3,7 @@ async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env
 
 
 const SITE_TIME_ZONE = "America/Los_Angeles";
-const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v3";
+const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v4";
 const DEFAULT_SITE_RATES = [
   {
     name: "Private Introductions",
@@ -18,12 +18,12 @@ const DEFAULT_SITE_RATES = [
   {
     name: "Signature Girlfriend Experience",
     description: "My signature experience is romantic, flirtatious, and intentionally unhurried, with genuine chemistry, affectionate company, playful conversation, and my complete attention.",
-    rates: [["1 hour", 500], ["1½ hours", 750], ["Up to 2 hours", 1000], ["Up to 4 hours", 2600]]
+    rates: [["1 hour", 500], ["1½ hours", 750], ["Up to 2 hours", 1000], ["Up to 4 hours", 2300]]
   },
   {
     name: "Greek Princess Experience",
     description: "My more adventurous and elevated experience, with the same warmth and attentive companionship and a more daring, playful energy.",
-    rates: [["1 hour", 700], ["1½ hours", 1000], ["Up to 2 hours", 1300], ["Up to 4 hours", 3000]]
+    rates: [["1 hour", 700], ["1½ hours", 1000], ["Up to 2 hours", 1300], ["Up to 4 hours", 2800]]
   },
   {
     name: "Outcall",
@@ -1696,11 +1696,11 @@ My journal will continue to be a place where I share a little more of that side 
       { experience: "Signature Girlfriend Experience", duration: "1 hour", regular: 500, incentive: "30 extra minutes" },
       { experience: "Signature Girlfriend Experience", duration: "1.5 hours", regular: 750, incentive: "30 extra minutes" },
       { experience: "Signature Girlfriend Experience", duration: "2 hours", regular: 1000, incentive: "30 extra minutes" },
-      { experience: "Signature Girlfriend Experience", duration: "4 hours", regular: 2600, incentive: "30 extra minutes" },
+      { experience: "Signature Girlfriend Experience", duration: "4 hours", regular: 2300, incentive: "30 extra minutes" },
       { experience: "Greek Princess Experience", duration: "1 hour", regular: 700, incentive: "30 extra minutes" },
       { experience: "Greek Princess Experience", duration: "1.5 hours", regular: 1000, incentive: "30 extra minutes" },
       { experience: "Greek Princess Experience", duration: "2 hours", regular: 1300, incentive: "30 extra minutes" },
-      { experience: "Greek Princess Experience", duration: "4 hours", regular: 3000, incentive: "30 extra minutes" }
+      { experience: "Greek Princess Experience", duration: "4 hours", regular: 2800, incentive: "30 extra minutes" }
     ];
     // The experiences stay fixed; the monthly incentive rotates.
     // Each month selects a base duration from 1–4 hours and adds 30 bonus minutes,
@@ -1709,13 +1709,13 @@ My journal will continue to be a place where I share a little more of that side 
       { base:"1 hour", special:"1.5 hours", price:500 },
       { base:"1.5 hours", special:"2 hours", price:750 },
       { base:"2 hours", special:"2.5 hours", price:1000 },
-      { base:"4 hours", special:"4.5 hours", price:2600 }
+      { base:"4 hours", special:"4.5 hours", price:2300 }
     ];
     const greekRates = [
       { base:"1 hour", special:"1.5 hours", price:700 },
       { base:"1.5 hours", special:"2 hours", price:1000 },
       { base:"2 hours", special:"2.5 hours", price:1300 },
-      { base:"4 hours", special:"4.5 hours", price:3000 }
+      { base:"4 hours", special:"4.5 hours", price:2800 }
     ];
     const monthIndex = now.getFullYear() * 12 + now.getMonth();
     const classicMonthlySpecial = classicRates[monthIndex % classicRates.length];
@@ -1794,28 +1794,28 @@ My journal will continue to be a place where I share a little more of that side 
     const data = await request.json().catch(() => ({}));
 
     // Monthly specials are aligned with the current published experience menu.
-    // Signature: $500 / $750 / $1,000 / $2,600.
-    // Greek Princess: $700 / $1,000 / $1,300 / $3,000.
+    // Signature: $500 / $750 / $1,000 / $2,300.
+    // Greek Princess: $700 / $1,000 / $1,300 / $2,800.
     // Price-only specials remain under 10% off; combination offers use a smaller
     // reduction because they also include 30 extra minutes.
     const classicOptions = [
       {id:"classic-time-1",base:"1 hour",special:"1.5 hours",price:500,regular:500,type:"Extra Time",label:"Extra Time · $500 for 1 hour · enjoy 1.5 hours"},
       {id:"classic-time-15",base:"1.5 hours",special:"2 hours",price:750,regular:750,type:"Extra Time",label:"Extra Time · $750 for 1.5 hours · enjoy 2 hours"},
       {id:"classic-time-2",base:"2 hours",special:"2.5 hours",price:1000,regular:1000,type:"Extra Time",label:"Extra Time · $1,000 for up to 2 hours · enjoy 2.5 hours"},
-      {id:"classic-time-4",base:"4 hours",special:"4.5 hours",price:2600,regular:2600,type:"Extra Time",label:"Extra Time · $2,600 for up to 4 hours · enjoy 4.5 hours"},
+      {id:"classic-time-4",base:"4 hours",special:"4.5 hours",price:2300,regular:2300,type:"Extra Time",label:"Extra Time · $2,300 for up to 4 hours · enjoy 4.5 hours"},
       {id:"classic-price-15",base:"1.5 hours",special:"1.5 hours",price:700,regular:750,type:"Special Price",label:"Special Price · 1.5 hours $700 · normally $750 · save $50"},
       {id:"classic-price-2",base:"2 hours",special:"2 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · up to 2 hours $925 · normally $1,000 · save $75"},
-      {id:"classic-price-4",base:"4 hours",special:"4 hours",price:2400,regular:2600,type:"Special Price",label:"Special Price · up to 4 hours $2,400 · normally $2,600 · save $200"},
+      {id:"classic-price-4",base:"4 hours",special:"4 hours",price:2150,regular:2300,type:"Special Price",label:"Special Price · up to 4 hours $2,150 · normally $2,300 · save $150"},
       {id:"classic-combo-2",base:"2 hours",special:"2.5 hours",price:950,regular:1000,type:"Price + Extra Time",label:"Combo · $950 + 30 extra minutes · normally $1,000"}
     ];
     const greekOptions = [
       {id:"greek-time-1",base:"1 hour",special:"1.5 hours",price:700,regular:700,type:"Extra Time",label:"Extra Time · $700 for 1 hour · enjoy 1.5 hours"},
       {id:"greek-time-15",base:"1.5 hours",special:"2 hours",price:1000,regular:1000,type:"Extra Time",label:"Extra Time · $1,000 for 1.5 hours · enjoy 2 hours"},
       {id:"greek-time-2",base:"2 hours",special:"2.5 hours",price:1300,regular:1300,type:"Extra Time",label:"Extra Time · $1,300 for up to 2 hours · enjoy 2.5 hours"},
-      {id:"greek-time-4",base:"4 hours",special:"4.5 hours",price:3000,regular:3000,type:"Extra Time",label:"Extra Time · $3,000 for up to 4 hours · enjoy 4.5 hours"},
+      {id:"greek-time-4",base:"4 hours",special:"4.5 hours",price:2800,regular:2800,type:"Extra Time",label:"Extra Time · $2,800 for up to 4 hours · enjoy 4.5 hours"},
       {id:"greek-price-15",base:"1.5 hours",special:"1.5 hours",price:925,regular:1000,type:"Special Price",label:"Special Price · 1.5 hours $925 · normally $1,000 · save $75"},
       {id:"greek-price-2",base:"2 hours",special:"2 hours",price:1200,regular:1300,type:"Special Price",label:"Special Price · up to 2 hours $1,200 · normally $1,300 · save $100"},
-      {id:"greek-price-4",base:"4 hours",special:"4 hours",price:2800,regular:3000,type:"Special Price",label:"Special Price · up to 4 hours $2,800 · normally $3,000 · save $200"},
+      {id:"greek-price-4",base:"4 hours",special:"4 hours",price:2600,regular:2800,type:"Special Price",label:"Special Price · up to 4 hours $2,600 · normally $2,800 · save $200"},
       {id:"greek-combo-2",base:"2 hours",special:"2.5 hours",price:1235,regular:1300,type:"Price + Extra Time",label:"Combo · $1,235 + 30 extra minutes · normally $1,300"}
     ];
 
