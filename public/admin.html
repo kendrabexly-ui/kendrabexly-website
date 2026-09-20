@@ -236,6 +236,15 @@
       display: block;
     }
 
+    /* Hard section isolation: only the section selected by navigation may render.
+       This also protects against nested/legacy section markup leaking into another view. */
+    .main .section:not(.active) {
+      display: none !important;
+    }
+    .main .section.active {
+      display: block !important;
+    }
+
     /* Dashboard vertical layout guard: inactive sections must never reserve space. */
     .main > .section:not(.active) {
       display: none !important;
@@ -3895,9 +3904,13 @@ loadRequests();
       const section = document.getElementById(sectionName);
       if (!button || !section) return;
       navButtons.forEach((item) => item.classList.remove("active"));
-      sections.forEach((item) => item.classList.remove("active"));
+      sections.forEach((item) => {
+        item.classList.remove("active");
+        item.setAttribute("aria-hidden","true");
+      });
       button.classList.add("active");
       section.classList.add("active");
+      section.setAttribute("aria-hidden","false");
     };
 
     const pageParams = new URLSearchParams(window.location.search);
