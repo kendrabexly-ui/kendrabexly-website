@@ -2978,7 +2978,8 @@ My journal will continue to be a place where I share a little more of that side 
           pendingRequests,
           clients,
           approvedDates,
-          recordedPayments
+          recordedPayments,
+          recentRequests
         ] = await Promise.all([
           env.DB
             .prepare(
@@ -3019,7 +3020,18 @@ My journal will continue to be a place where I share a little more of that side 
               WHERE payment_status = 'paid'
               `
             )
-            .first()
+            .first(),
+
+          env.DB
+            .prepare(
+              `
+              SELECT id, first_name, last_name, status, requested_date, requested_time, created_at
+              FROM date_requests
+              ORDER BY datetime(created_at) DESC, id DESC
+              LIMIT 6
+              `
+            )
+            .all()
         ]);
 
 
@@ -3038,7 +3050,10 @@ My journal will continue to be a place where I share a little more of that side 
 
             recorded_payments:
               recordedPayments?.count ?? 0
-          }
+          },
+
+          recent_requests:
+            recentRequests?.results ?? []
         });
 
       } catch (error) {
