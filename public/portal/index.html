@@ -654,12 +654,25 @@
         nextUrl.searchParams.set("section", sectionName);
         nextUrl.searchParams.delete("client_email");
         window.history.replaceState({}, "", nextUrl);
+
+        // Queue the data load too. The lightweight tab controller may run before
+        // the full admin loader has finished defining itself on mobile.
+        if (typeof window.__loadAdminSectionData === "function") {
+          requestAnimationFrame(() => window.__loadAdminSectionData(sectionName));
+        } else {
+          window.__pendingAdminSectionLoad = sectionName;
+        }
       }, true);
 
       document.addEventListener("DOMContentLoaded", () => {
         const requested = new URLSearchParams(window.location.search).get("section");
         const initial = requested || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
         switchAdminSection(initial);
+        if (typeof window.__loadAdminSectionData === "function") {
+          requestAnimationFrame(() => window.__loadAdminSectionData(initial));
+        } else {
+          window.__pendingAdminSectionLoad = initial;
+        }
       }, { once: true });
     })();
   </script>
@@ -6371,6 +6384,13 @@ function escapeHtml(value) {
         console.error("Section load failed:", sectionName, error);
       }
     };
+
+    window.__loadAdminSectionData = loadAdminSectionData;
+    if (window.__pendingAdminSectionLoad) {
+      const pendingSection = window.__pendingAdminSectionLoad;
+      window.__pendingAdminSectionLoad = "";
+      requestAnimationFrame(() => loadAdminSectionData(pendingSection));
+    }
 
     const initialSectionName = new URLSearchParams(window.location.search).get("section") || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
     openSection(initialSectionName);
