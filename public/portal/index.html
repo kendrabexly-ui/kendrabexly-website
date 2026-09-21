@@ -4275,7 +4275,17 @@ async function loadRequests(options = {}) {
         const submitPersona=async(retryPersona,forceNewPersona=false)=>{
           const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),newTestButton=section.querySelector(".client-persona-new-test"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
           if(section.dataset.personaConnected!=="1"&&!forceNewPersona){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
-          normalizePersonaFields(section);capturePersonaDraft(section);await saveVerificationDraft(section);
+          if(status)status.textContent=forceNewPersona?"Preparing a new Persona test inquiry…":(retryPersona?"Preparing Persona retry…":"Preparing Persona submission…");
+          normalizePersonaFields(section);
+          capturePersonaDraft(section);
+          try{
+            await saveVerificationDraft(section);
+          }catch(draftError){
+            if(technical&&technicalDetails){
+              technical.hidden=false;
+              technicalDetails.textContent="Draft save did not complete, but the Persona submission will continue using the fields currently shown in the Admin Portal.";
+            }
+          }
           const validation=validatePersonaFields(section,{show:true,force:true});
           if(!validation.valid){
             if(status)status.textContent="Complete the required verification information before submitting to Persona.";
@@ -4370,13 +4380,17 @@ async function loadRequests(options = {}) {
         };
         section.querySelector(".client-persona-verify")?.addEventListener("click",()=>submitPersona(false));
         section.querySelector(".client-persona-retry")?.addEventListener("click",()=>submitPersona(true));
-        section.querySelector(".client-persona-new-test")?.addEventListener("click",()=>{
-          const latest=section._verificationAuditRecords?.[0]||{};
-          const oldId=String(latest.persona_transaction_id||"");
-          const oldStatus=String(latest.persona_transaction_status||"pending").replaceAll("_"," ");
-          const warning="Start a brand-new Persona inquiry for this client?\n\nThe existing inquiry ("+(oldId||"current inquiry")+", "+oldStatus+") will remain in Audit History and Persona attempt history. The new inquiry becomes the current Persona result.\n\nUse this after changing the Persona workflow or configuration.";
-          if(!window.confirm(warning))return;
-          submitPersona(false,true);
+        section.querySelector(".client-persona-new-test")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget;
+          const status=section.querySelector(".client-persona-status");
+          if(button.disabled)return;
+          button.disabled=true;
+          if(status)status.textContent="Starting a brand-new Persona test inquiry…";
+          try{
+            await submitPersona(false,true);
+          }finally{
+            button.disabled=false;
+          }
         });
         section.querySelector(".client-persona-workflow-check")?.addEventListener("click",async(event)=>{
           const button=event.currentTarget;
