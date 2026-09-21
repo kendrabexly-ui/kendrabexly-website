@@ -110,6 +110,46 @@ async function verifyPersonaWebhookSignature(rawBody,signatureHeader,secret){
   return signatures.some(sig=>timingSafeEqualHex(sig,expected));
 }
 
+function personaStatusLabel(value) {
+  const status = String(value || "unknown").toLowerCase();
+  return status.replaceAll("_", " ").replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function personaResultSummary(data) {
+  const transaction = data?.data || data || {};
+  const attrs = transaction?.attributes || {};
+  const status = String(attrs.status || "unknown").toLowerCase();
+  const failures = [];
+  const checks = [];
+  const addFailure = (value) => {
+    const text = String(value || "").trim();
+    if (text && !failures.includes(text)) failures.push(text.slice(0, 300));
+  };
+  const addCheck = (label, outcome, reason = "") => {
+    const cleanLabel = String(label || "Persona check").replaceAll("_", " ").trim();
+    const cleanOutcome = String(outcome || "unknown").replaceAll("_", " ").trim();
+    if (!checks.some(item => item.label === cleanLabel && item.outcome === cleanOutcome)) {
+      checks.push({label:cleanLabel.slice(0,120), outcome:cleanOutcome.slice(0,80), reason:String(reason || "").slice(0,300)});
+    }
+  };
+  const walk = (value, path = "") => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) return value.slice(0, 50).forEach((item, index) => walk(item, path + "." + index));
+    const outcome = value.status || value.outcome || value.result;
+    const label = value.name || value.type || value.label || path.split(".").pop();
+    const reason = value.reason || value.message || value.failure_reason || value.failureReason || "";
+    if (outcome && label) addCheck(label, outcome, reason);
+    if (reason && /fail|declin|reject|error|mismatch|not[_ -]?found/i.test(String(outcome || reason))) addFailure(reason);
+    Object.entries(value).slice(0, 100).forEach(([key, item]) => {
+      if (["fields","name","address","email-address","phone-number","birthdate"].includes(key)) return;
+      walk(item, path ? path + "." + key : key);
+    });
+  };
+  walk(attrs, "transaction");
+  (data?.errors || []).forEach(error => addFailure(error?.detail || error?.title));
+  return {status, status_label:personaStatusLabel(status), checks:checks.slice(0,30), failure_reasons:failures.slice(0,20)};
+}
+
 const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that a valid ID is required for screening before final approval.";
 const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-id-v1";
 
@@ -142,6 +182,8 @@ async function ensureClientVerificationAuditsTable(env) {
       persona_transaction_status TEXT NOT NULL DEFAULT '',
       persona_submitted_at TEXT,
       persona_updated_at TEXT,
+      persona_last_checked_at TEXT,
+      persona_result_json TEXT NOT NULL DEFAULT '{}',
       completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -168,7 +210,9 @@ async function ensureClientVerificationAuditsTable(env) {
     ["persona_transaction_id", "TEXT NOT NULL DEFAULT ''"],
     ["persona_transaction_status", "TEXT NOT NULL DEFAULT ''"],
     ["persona_submitted_at", "TEXT"],
-    ["persona_updated_at", "TEXT"]
+    ["persona_updated_at", "TEXT"],
+    ["persona_last_checked_at", "TEXT"],
+    ["persona_result_json", "TEXT NOT NULL DEFAULT '{}'"]
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) await env.DB.prepare(`ALTER TABLE client_verification_audits ADD COLUMN ${name} ${definition}`).run();
@@ -222,6 +266,8 @@ function verificationAuditPublicRecord(row) {
     persona_transaction_status: row.persona_transaction_status || "",
     persona_submitted_at: row.persona_submitted_at || "",
     persona_updated_at: row.persona_updated_at || "",
+    persona_last_checked_at: row.persona_last_checked_at || "",
+    persona_result: (() => { try { return JSON.parse(row.persona_result_json || "{}"); } catch { return {}; } })(),
     completed_at: row.completed_at || "",
     updated_at: row.updated_at || ""
   };
@@ -235,6 +281,18 @@ async function ensureVerificationWorkspaceTables(env) {
       birthdate TEXT NOT NULL DEFAULT '',
       persona_fields_json TEXT NOT NULL DEFAULT '{}',
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS persona_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      event_name TEXT NOT NULL DEFAULT '',
+      object_id TEXT NOT NULL DEFAULT '',
+      reference_id TEXT NOT NULL DEFAULT '',
+      processing_status TEXT NOT NULL DEFAULT '',
+      details TEXT NOT NULL DEFAULT '',
+      received_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      processed_at TEXT
     )
   `).run();
   await env.DB.prepare(`
@@ -782,7 +840,7 @@ export default {
         };
         const order={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
         const queue=[...clients]
-          .filter(x=>["pending_review","needs_more_information"].includes(x.verification_status) || x.persona_pending || x.review_flag)
+          .filter(x=>["pending_review","needs_more_information"].includes(x.verification_status) || x.persona_pending || x.review_flag || x.retention_due)
           .sort((a,b)=>(order[a.queue_category]??9)-(order[b.queue_category]??9) || a.client_id-b.client_id);
         return Response.json({ok:true,clients,counts,queue}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
@@ -805,7 +863,8 @@ export default {
           submitted_industry, identity_confirmed, employer_confirmed,
           job_title_confirmed, industry_confirmed, contact_confirmed,
           evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-          persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
+          persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at,
+          persona_last_checked_at, persona_result_json, completed_at, updated_at
         `;
         let result = await env.DB.prepare(`
           SELECT ${selectColumns}
@@ -1228,6 +1287,7 @@ export default {
         }
         const deleteData = await request.json().catch(() => ({}));
         const deletionReason = String(deleteData.reason || "").trim().slice(0,500);
+        if (!deletionReason) return Response.json({ok:false,message:"A deletion reason is required."},{status:400});
         const row = await env.DB.prepare(
           "SELECT object_key, file_name, created_at, received_at FROM client_id_documents WHERE client_id = ? LIMIT 1"
         ).bind(clientId).first();
@@ -4603,6 +4663,99 @@ if (
       }, {headers:{"Cache-Control":"private, no-store"}});
     }
 
+    if (url.pathname === "/api/admin/clients/persona-test" && request.method === "POST") {
+      const transactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
+      if (!env.PERSONA_API_KEY) {
+        return Response.json({ok:false,state:"invalid_credentials",label:"Invalid credentials",message:"PERSONA_API_KEY is missing."},{status:401});
+      }
+      if (!/^txntp_[A-Za-z0-9]+$/.test(transactionTypeId)) {
+        return Response.json({ok:false,state:"incorrect_transaction_type",label:"Incorrect Transaction Type",message:"The Transaction Type ID must begin with txntp_."},{status:400});
+      }
+      try {
+        const headers = {Authorization:"Bearer " + String(env.PERSONA_API_KEY), "Key-Inflection":"kebab"};
+        if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
+        const response = await fetch("https://api.withpersona.com/api/v1/transaction-types/" + encodeURIComponent(transactionTypeId), {headers});
+        const body = await response.json().catch(() => ({}));
+        if (response.status === 401 || response.status === 403) {
+          return Response.json({ok:false,state:"invalid_credentials",label:"Invalid credentials",message:"Persona rejected the configured API key."},{status:401});
+        }
+        if (response.status === 404 || response.status === 400) {
+          return Response.json({ok:false,state:"incorrect_transaction_type",label:"Incorrect Transaction Type",message:"Persona could not find this Transaction Type for the configured account."},{status:400});
+        }
+        if (!response.ok) {
+          const detail = body?.errors?.[0]?.detail || body?.errors?.[0]?.title || "Persona could not complete the connection test.";
+          return Response.json({ok:false,state:"connection_error",label:"Connection error",message:String(detail)},{status:502});
+        }
+        return Response.json({ok:true,state:"connected",label:"Connected",message:"The API key and Transaction Type are valid.",transaction_type_id:transactionTypeId,tested_at:new Date().toISOString()},{headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        return Response.json({ok:false,state:"connection_error",label:"Connection error",message:String(error?.message || error)},{status:502});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/persona-refresh" && request.method === "POST") {
+      try {
+        const data = await request.json().catch(() => ({}));
+        const clientId = Number(data.client_id);
+        if (!Number.isInteger(clientId) || clientId < 1) return Response.json({ok:false,message:"Choose a valid client."},{status:400});
+        if (!env.PERSONA_API_KEY) return Response.json({ok:false,message:"Persona credentials are not configured."},{status:503});
+        await ensureVerificationWorkspaceTables(env);
+        const audit = await env.DB.prepare(`
+          SELECT id, client_id, persona_transaction_id, persona_transaction_status
+          FROM client_verification_audits WHERE client_id=?
+          ORDER BY accepted_at DESC, id DESC LIMIT 1
+        `).bind(clientId).first();
+        const transactionId = String(data.transaction_id || audit?.persona_transaction_id || "").trim();
+        if (!audit || !/^txn_[A-Za-z0-9]+$/.test(transactionId)) return Response.json({ok:false,message:"No Persona transaction is available to refresh."},{status:404});
+        const headers = {Authorization:"Bearer " + String(env.PERSONA_API_KEY), "Key-Inflection":"kebab"};
+        if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
+        const response = await fetch("https://api.withpersona.com/api/v1/transactions/" + encodeURIComponent(transactionId), {headers});
+        const body = await response.json().catch(() => ({}));
+        if (response.status === 401 || response.status === 403) return Response.json({ok:false,message:"Persona rejected the configured API key.",code:"invalid_credentials"},{status:401});
+        if (!response.ok) return Response.json({ok:false,message:body?.errors?.[0]?.detail || "Persona could not refresh this transaction."},{status:response.status === 404 ? 404 : 502});
+        const summary = personaResultSummary(body);
+        await env.DB.prepare(`
+          UPDATE client_verification_audits
+          SET persona_transaction_status=?, persona_result_json=?, persona_last_checked_at=CURRENT_TIMESTAMP,
+              persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+          WHERE id=?
+        `).bind(summary.status, JSON.stringify(summary), audit.id).run();
+        await logVerificationActivity(env, clientId, audit.id, "persona_refresh", "Persona status refreshed", "Status: " + summary.status_label);
+        return Response.json({ok:true,message:"Persona status refreshed. Your manual decision was not changed.",transaction_id:transactionId,transaction_status:summary.status,result:summary,last_checked_at:new Date().toISOString()},{headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        return Response.json({ok:false,message:"Unable to refresh the Persona transaction.",technical_details:String(error?.message || error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-export" && request.method === "GET") {
+      const clientId = Number(url.searchParams.get("client_id"));
+      const format = String(url.searchParams.get("format") || "csv").toLowerCase();
+      if (!Number.isInteger(clientId) || clientId < 1) return Response.json({ok:false,message:"Choose a valid client."},{status:400});
+      await ensureVerificationWorkspaceTables(env);
+      const row = await env.DB.prepare("SELECT * FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC, id DESC LIMIT 1").bind(clientId).first();
+      if (!row) return Response.json({ok:false,message:"No verification audit is available."},{status:404});
+      const record = verificationAuditPublicRecord(row);
+      const fields = [
+        ["Client ID",record.client_id],["Booking request ID",record.booking_request_id],["Authorization accepted",record.accepted ? "Yes" : "No"],
+        ["Authorization wording",record.authorization_wording],["Authorization version",record.authorization_version],["Authorization accepted at",record.accepted_at],
+        ["Identity confirmed",record.identity_confirmed ? "Yes" : "No"],["Employer confirmed",record.employer_confirmed ? "Yes" : "No"],
+        ["Job title confirmed",record.job_title_confirmed ? "Yes" : "No"],["Industry confirmed",record.industry_confirmed ? "Yes" : "No"],
+        ["Contact information confirmed",record.contact_confirmed ? "Yes" : "No"],["Verification method",record.verification_method],
+        ["Persona transaction ID",record.persona_transaction_id],["Persona result",personaStatusLabel(record.persona_transaction_status)],
+        ["Persona submitted at",record.persona_submitted_at],["Persona last checked at",record.persona_last_checked_at || record.persona_updated_at],
+        ["Final manual decision",personaStatusLabel(record.verification_status)],["Decision reason",record.decision_reason],["Decision notes",record.decision_notes],
+        ["Completed by",record.completed_by],["Completed at",record.completed_at],["Audit updated at",record.updated_at]
+      ];
+      if (format === "html") {
+        const esc = value => String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+        const rows = fields.map(([label,value]) => `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`).join("");
+        const checks = (record.persona_result?.checks || []).map(item => `<li>${esc(item.label)}: ${esc(item.outcome)}${item.reason ? " — " + esc(item.reason) : ""}</li>`).join("") || "<li>No detailed Persona checks were returned.</li>";
+        return new Response(`<!doctype html><html><head><meta charset="utf-8"><title>Verification Audit</title><style>body{font:14px Arial;margin:32px;color:#222}h1{font-size:22px}table{border-collapse:collapse;width:100%}th,td{padding:8px;border:1px solid #ccc;text-align:left;vertical-align:top}th{width:34%;background:#f5f2ec}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Save as PDF</button><h1>Verification Audit</h1><p>This report excludes the stored ID image.</p><table>${rows}</table><h2>Persona checks</h2><ul>${checks}</ul></body></html>`,{headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"private, no-store"}});
+      }
+      const quote = value => `"${String(value ?? "").replaceAll('"','""')}"`;
+      const csv = "Field,Value\r\n" + fields.map(([label,value]) => quote(label) + "," + quote(value)).join("\r\n") + "\r\n";
+      return new Response(csv,{headers:{"Content-Type":"text/csv; charset=utf-8","Content-Disposition":`attachment; filename="verification-audit-${clientId}.csv"`,"Cache-Control":"private, no-store"}});
+    }
+
     if (url.pathname === "/api/admin/clients/persona-verify" && request.method === "POST") {
       try {
         const personaTransactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
@@ -4765,17 +4918,18 @@ if (
         const transaction = personaData?.data || {};
         const transactionId = String(transaction?.id || "");
         const transactionStatus = String(transaction?.attributes?.status || "created").toLowerCase();
-        const identityConfirmed = transactionStatus === "approved" ? 1 : 0;
+        const personaSummary = personaResultSummary(personaData);
         await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
-              persona_transaction_id=?,
+          SET persona_transaction_id=?,
               persona_transaction_status=?,
+              persona_result_json=?,
               persona_submitted_at=COALESCE(persona_submitted_at,CURRENT_TIMESTAMP),
+              persona_last_checked_at=CURRENT_TIMESTAMP,
               persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
-        `).bind(identityConfirmed, transactionId, transactionStatus, audit.id).run();
+        `).bind(transactionId, transactionStatus, JSON.stringify(personaSummary), audit.id).run();
         await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction: " + transactionId);
         await logVerificationActivity(env, clientId, audit.id, "persona_response", "Persona response received", "Status: " + transactionStatus);
 
@@ -4797,6 +4951,7 @@ if (
             : "Persona status: " + transactionStatus.replaceAll("_"," ") + ". Manual verification remains the final decision.",
           transaction_id:transactionId,
           transaction_status:transactionStatus,
+          result:personaSummary,
           record:verificationAuditPublicRecord(updated)
         }, {headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
@@ -4813,9 +4968,14 @@ if (
         const rawBody = await request.text();
         const signature = request.headers.get("Persona-Signature") || "";
         const verified = await verifyPersonaWebhookSignature(rawBody, signature, env.PERSONA_WEBHOOK_SECRET);
-        if (!verified) return Response.json({ok:false,message:"Invalid webhook signature."},{status:401});
+        if (!verified) {
+          console.warn("Persona webhook rejected: invalid signature", new Date().toISOString());
+          return Response.json({ok:false,code:"invalid_signature",message:"Invalid webhook signature.",rejected_at:new Date().toISOString()},{status:401});
+        }
 
         const event = JSON.parse(rawBody || "{}");
+        await ensureVerificationWorkspaceTables(env);
+        const eventId = String(event?.data?.id || event?.id || "").trim() || "derived_" + Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(rawBody))),byte=>byte.toString(16).padStart(2,"0")).join("").slice(0,40);
         const eventName = String(event?.data?.attributes?.name || event?.type || "").toLowerCase();
         const payload = event?.data?.attributes?.payload?.data || event?.data?.attributes?.payload || event?.data || {};
         const attrs = payload?.attributes || {};
@@ -4823,20 +4983,17 @@ if (
         const referenceId = String(attrs?.["reference-id"] || attrs?.reference_id || "").trim();
         const objectStatus = String(attrs?.status || "").toLowerCase();
 
-        let verificationStatus = "";
-        let identityConfirmed = 0;
         let transactionStatus = "";
+
+        const priorEvent = await env.DB.prepare("SELECT event_id, processing_status, processed_at FROM persona_webhook_events WHERE event_id=? LIMIT 1").bind(eventId).first();
+        if (priorEvent) return Response.json({ok:true,duplicate:true,event_id:eventId,processed_at:priorEvent.processed_at || ""});
+        await env.DB.prepare(`INSERT INTO persona_webhook_events (event_id,event_name,object_id,reference_id,processing_status,received_at) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)`)
+          .bind(eventId,eventName,objectId,referenceId,"received").run();
 
         if (eventName.includes("transaction.status-updated")) {
           transactionStatus = objectStatus;
-          if (objectStatus === "approved") {
-            verificationStatus = "verified";
-            identityConfirmed = 1;
-          } else if (["declined","errored"].includes(objectStatus)) {
-            verificationStatus = "unable_to_verify";
-          } else if (["created","needs_review","pending_fallback_inquiry"].includes(objectStatus)) {
-            verificationStatus = "pending_review";
-          } else {
+          if (!["approved","declined","errored","failed","created","pending","processing","needs_review","pending_fallback_inquiry"].includes(objectStatus)) {
+            await env.DB.prepare("UPDATE persona_webhook_events SET processing_status='ignored',details=?,processed_at=CURRENT_TIMESTAMP WHERE event_id=?").bind("Unhandled transaction status: " + objectStatus,eventId).run();
             return Response.json({ok:true,ignored:true,reason:"unhandled_transaction_status"});
           }
         } else if (
@@ -4845,48 +5002,52 @@ if (
           objectStatus === "completed" ||
           objectStatus === "approved"
         ) {
-          verificationStatus = "verified";
-          identityConfirmed = 1;
+          transactionStatus = objectStatus || "approved";
         } else if (
           eventName.includes("inquiry.failed") ||
           eventName.includes("inquiry.declined") ||
           objectStatus === "failed" ||
           objectStatus === "declined"
         ) {
-          verificationStatus = "unable_to_verify";
+          transactionStatus = objectStatus || "failed";
         } else {
+          await env.DB.prepare("UPDATE persona_webhook_events SET processing_status='ignored',details='Unhandled event',processed_at=CURRENT_TIMESTAMP WHERE event_id=?").bind(eventId).run();
           return Response.json({ok:true,ignored:true});
         }
 
         const requestId = Number(referenceId);
         if (!Number.isInteger(requestId) || requestId < 1) {
           console.warn("Persona webhook missing valid booking request reference ID:", referenceId, objectId);
-          return Response.json({ok:true,ignored:true,reason:"missing_reference_id"});
+          await env.DB.prepare("UPDATE persona_webhook_events SET processing_status='unmatched',details='Missing valid booking request reference ID',processed_at=CURRENT_TIMESTAMP WHERE event_id=?").bind(eventId).run();
+          return Response.json({ok:true,ignored:true,flagged:true,event_id:eventId,reason:"missing_reference_id"});
         }
 
-        await ensureVerificationWorkspaceTables(env);
         const audit = await env.DB.prepare(
           "SELECT id, client_id FROM client_verification_audits WHERE date_request_id=? LIMIT 1"
         ).bind(requestId).first();
         if (!audit) {
           console.warn("Persona webhook has no matching verification audit:", requestId, objectId);
-          return Response.json({ok:true,ignored:true,reason:"audit_not_found"});
+          await env.DB.prepare("UPDATE persona_webhook_events SET processing_status='unmatched',details=?,processed_at=CURRENT_TIMESTAMP WHERE event_id=?").bind("No verification audit for booking request " + requestId,eventId).run();
+          return Response.json({ok:true,ignored:true,flagged:true,event_id:eventId,reason:"audit_not_found"});
         }
+
+        const summary = personaResultSummary({data:{id:objectId,attributes:attrs}});
 
         await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
-              persona_transaction_id=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_id END,
+          SET persona_transaction_id=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_id END,
               persona_transaction_status=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_status END,
+              persona_result_json=?,
+              persona_last_checked_at=CURRENT_TIMESTAMP,
               persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE date_request_id=?
         `).bind(
-          identityConfirmed,
           transactionStatus,
           transactionStatus ? objectId : "",
           transactionStatus,
           transactionStatus,
+          JSON.stringify(summary),
           requestId
         ).run();
         await logVerificationActivity(
@@ -4897,9 +5058,11 @@ if (
           "Persona response received",
           "Status: " + (transactionStatus || objectStatus)
         );
+        await env.DB.prepare("UPDATE persona_webhook_events SET processing_status='processed',details=?,processed_at=CURRENT_TIMESTAMP WHERE event_id=?").bind("Status: " + (transactionStatus || objectStatus),eventId).run();
 
         return Response.json({
           ok:true,
+          event_id:eventId,
           booking_request_id:requestId,
           status:"persona_updated",
           persona_status:transactionStatus || objectStatus

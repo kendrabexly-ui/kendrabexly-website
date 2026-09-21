@@ -839,7 +839,10 @@
               <button type="button" data-queue-filter="needs_more_information" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Needs More Information <span data-queue-count="needs_more_information">0</span></button>
               <button type="button" data-queue-filter="checklist_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Checklist Incomplete <span data-queue-count="checklist_incomplete">0</span></button>
               <button type="button" data-queue-filter="persona_pending" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Persona Pending <span data-queue-count="persona_pending">0</span></button>
+              <button type="button" data-queue-filter="action_required" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Action Required <span data-queue-count="action_required">0</span></button>
               <button type="button" data-queue-filter="ready_for_final_decision" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Ready for Final Decision <span data-queue-count="ready_for_final_decision">0</span></button>
+              <button type="button" data-queue-filter="flagged" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Flagged <span data-queue-count="flagged">0</span></button>
+              <button type="button" data-queue-filter="retention_due" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Retention Due <span data-queue-count="retention_due">0</span></button>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px;">
               <label style="font-size:12px;font-weight:700;">Sort
@@ -1950,15 +1953,26 @@ async function loadRequests() {
       persona_pending:"Persona Pending",needs_manual_review:"Needs Manual Review",ready_for_final_decision:"Ready for Final Decision"
     };
     const verificationQueueBox=document.getElementById("verification-queue");
-    let activeVerificationQueueFilter="all";
-    const queueCategoryCounts=verificationQueue.reduce((acc,item)=>{acc[item.queue_category]=(acc[item.queue_category]||0)+1;return acc;},{});
+    let activeVerificationQueueFilter=localStorage.getItem("verificationQueueFilter")||"all";
+    const actionRequiredCategories=new Set(["needs_id","needs_more_information","checklist_incomplete","needs_manual_review"]);
+    const queueCategoryCounts=verificationQueue.reduce((acc,item)=>{
+      acc[item.queue_category]=(acc[item.queue_category]||0)+1;
+      if(actionRequiredCategories.has(item.queue_category))acc.action_required=(acc.action_required||0)+1;
+      if(item.review_flag)acc.flagged=(acc.flagged||0)+1;
+      if(item.retention_due)acc.retention_due=(acc.retention_due||0)+1;
+      return acc;
+    },{});
     document.querySelectorAll("[data-queue-count]").forEach(el=>{
       const key=el.dataset.queueCount;
       el.textContent=String(key==="all"?verificationQueue.length:(queueCategoryCounts[key]||0));
     });
     const renderVerificationQueue=()=>{
       if(!verificationQueueBox)return;
-      let items=activeVerificationQueueFilter==="all"?[...verificationQueue]:verificationQueue.filter(item=>item.queue_category===activeVerificationQueueFilter);
+      let items=[...verificationQueue];
+      if(activeVerificationQueueFilter==="action_required")items=items.filter(item=>actionRequiredCategories.has(item.queue_category));
+      else if(activeVerificationQueueFilter==="flagged")items=items.filter(item=>item.review_flag);
+      else if(activeVerificationQueueFilter==="retention_due")items=items.filter(item=>item.retention_due);
+      else if(activeVerificationQueueFilter!=="all")items=items.filter(item=>item.queue_category===activeVerificationQueueFilter);
       const flaggedOnly=document.getElementById("verification-queue-flagged")?.checked;
       if(flaggedOnly)items=items.filter(item=>item.review_flag);
       const sortMode=document.getElementById("verification-queue-sort")?.value||"urgent";
@@ -1990,11 +2004,13 @@ async function loadRequests() {
     };
     document.querySelectorAll("[data-queue-filter]").forEach(button=>button.addEventListener("click",()=>{
       activeVerificationQueueFilter=button.dataset.queueFilter||"all";
+      localStorage.setItem("verificationQueueFilter",activeVerificationQueueFilter);
       renderVerificationQueue();
       document.querySelectorAll("[data-queue-filter]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
     }));
     document.getElementById("verification-queue-sort")?.addEventListener("change",renderVerificationQueue);
     document.getElementById("verification-queue-flagged")?.addEventListener("change",renderVerificationQueue);
+    document.querySelectorAll("[data-queue-filter]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.queueFilter===activeVerificationQueueFilter)));
     renderVerificationQueue();
     const retentionSnapshot=clientProfiles.map(client=>{
       const completed=client.requests.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();}).sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")));
@@ -2510,6 +2526,7 @@ async function loadRequests() {
                     <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Checking for a saved ID document…</div>
                     <img class="client-id-preview" alt="Private client ID preview" hidden style="display:block;width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
                     <div class="client-id-meta" hidden style="margin-top:8px;padding:9px 10px;border-radius:8px;background:#f8f6f2;font-size:12px;color:var(--muted);line-height:1.55;"></div>
+                    <div class="client-id-retention-warning" role="alert" hidden style="margin-top:10px;padding:10px 12px;border:1px solid #d7a33d;border-radius:8px;background:#fff4d8;color:#74520b;font-size:12px;font-weight:700;">Retention due — review this ID record and either extend the reminder or permanently delete the image.</div>
                     <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ID image<input class="client-id-file" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font:inherit;"></label>
                     <div style="margin-top:5px;font-size:11px;color:var(--muted);">JPG, PNG, or WebP. Maximum 10 MB.</div>
                     <div class="verification-grid">
@@ -2523,6 +2540,7 @@ async function loadRequests() {
                     <div class="verification-actions">
                       <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
                       <button type="button" class="client-id-retention-save" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Deletion Reminder</button>
+                      <button type="button" class="client-id-retention-review" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Review Retention</button>
                       <span style="flex:1;"></span>
                       <button type="button" class="client-id-delete" hidden aria-label="Permanently delete this client's private ID image" style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:#fff7f7;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete ID</button>
                     </div>
@@ -2632,17 +2650,24 @@ async function loadRequests() {
                     <div class="client-persona-validation" role="alert" aria-live="assertive"></div>
                     <div class="client-persona-current" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
                     <div class="verification-actions client-persona-submit-area">
+                      <button type="button" class="client-persona-test persona-button" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Test Persona Connection</button>
                       <button type="button" class="client-persona-verify persona-button" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
                       <button type="button" class="client-persona-retry persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Retry Persona</button>
+                      <button type="button" class="client-persona-refresh persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Refresh Persona Status</button>
                     </div>
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
                     <div class="client-persona-transaction-card" hidden style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:9px;background:#faf8f4;font-size:12px;line-height:1.55;"></div>
+                    <div class="client-persona-result-details" hidden style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:9px;background:white;font-size:12px;line-height:1.55;"></div>
                     <details class="client-persona-transaction-details" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-transaction-details-body" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;overflow-wrap:anywhere;"></div></details>
                   </section>
 
                   <details class="verification-card client-audit-history">
                     <summary style="cursor:pointer;font-size:13px;font-weight:700;">4. Audit History</summary>
+                    <div class="verification-actions" style="margin-top:9px;">
+                      <a class="client-verification-export-csv" href="#" download style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);text-decoration:none;font-size:12px;font-weight:700;">Export CSV</a>
+                      <a class="client-verification-export-pdf" href="#" target="_blank" rel="noopener" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);text-decoration:none;font-size:12px;font-weight:700;">Export PDF</a>
+                    </div>
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification history…</div>
                     <details style="margin-top:10px;padding-top:9px;border-top:1px solid var(--line);">
                       <summary style="cursor:pointer;font-size:12px;font-weight:700;">Verification Activity Log</summary>
@@ -3260,6 +3285,8 @@ async function loadRequests() {
         const upload = section.querySelector(".client-id-upload");
         const deleteButton = section.querySelector(".client-id-delete");
         const retentionButton = section.querySelector(".client-id-retention-save");
+        const retentionReview = section.querySelector(".client-id-retention-review");
+        const retentionWarning = section.querySelector(".client-id-retention-warning");
         const retentionInput = section.querySelector(".client-id-retention-reminder");
         const uploadedAt = section.querySelector(".client-id-uploaded-at");
         const clientId = Number(section.dataset.clientId);
@@ -3272,6 +3299,8 @@ async function loadRequests() {
           if (upload) upload.textContent = "Upload ID";
           if (deleteButton) deleteButton.hidden = true;
           if (retentionButton) retentionButton.hidden = true;
+          if (retentionReview) retentionReview.hidden = true;
+          if (retentionWarning) retentionWarning.hidden = true;
           if (retentionInput) retentionInput.value = "";
           if (uploadedAt) uploadedAt.textContent = "Not uploaded";
           if (received && !received.value) received.value = new Date().toISOString().slice(0,10);
@@ -3294,6 +3323,9 @@ async function loadRequests() {
         if (upload) upload.textContent = "Replace ID";
         if (deleteButton) deleteButton.hidden = false;
         if (retentionButton) retentionButton.hidden = false;
+        const retentionDue=Boolean(documentRecord.retention_reminder_at)&&String(documentRecord.retention_reminder_at)<=new Date().toISOString().slice(0,10);
+        if (retentionReview) retentionReview.hidden = !retentionDue;
+        if (retentionWarning) retentionWarning.hidden = !retentionDue;
         if (retentionInput) retentionInput.value = documentRecord.retention_reminder_at || "";
         if (uploadedAt) uploadedAt.textContent = documentRecord.created_at ? new Date(documentRecord.created_at+(String(documentRecord.created_at).endsWith("Z")?"":"Z")).toLocaleString() : "Stored";
         updateVerificationSummary(section);
@@ -3432,6 +3464,7 @@ async function loadRequests() {
         const badge=section.querySelector(".client-persona-badge");
         const run=section.querySelector(".client-persona-verify");
         const retry=section.querySelector(".client-persona-retry");
+        const refresh=section.querySelector(".client-persona-refresh");
         const statusBox=section.querySelector(".client-persona-status");
         const latest=section._verificationAuditRecords?.[0]||{};
         const state=personaReadiness(section,connected);
@@ -3445,6 +3478,7 @@ async function loadRequests() {
           run.style.opacity=!run.disabled?"1":".72";
         }
         if(retry){retry.hidden=state.key!=="failed";retry.disabled=state.key!=="failed";}
+        if(refresh){refresh.hidden=!hasExisting;refresh.disabled=!hasExisting;}
         if(statusBox){
           statusBox.textContent={
             pending_setup:"Persona setup is still pending. You can still complete and review all required Persona fields now.",
@@ -3468,9 +3502,20 @@ async function loadRequests() {
             card.innerHTML="<strong>Persona transaction</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
               "<span><strong>Result:</strong> "+escapeHtml(state.label)+"</span>"+
               "<span><strong>Submitted:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_submitted_at)||"—")+"</span>"+
-              "<span><strong>Last updated:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_updated_at||latest.updated_at)||"—")+"</span>"+
+              "<span><strong>Last checked:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_last_checked_at||latest.persona_updated_at||latest.updated_at)||"—")+"</span>"+
               "<span><strong>Retry:</strong> "+escapeHtml(retryLabel)+"</span></div>";
           }
+        }
+        const resultDetails=section.querySelector(".client-persona-result-details");
+        if(resultDetails){
+          const result=latest.persona_result||{};
+          const checks=Array.isArray(result.checks)?result.checks:[];
+          const failures=Array.isArray(result.failure_reasons)?result.failure_reasons:[];
+          resultDetails.hidden=!hasExisting;
+          if(hasExisting)resultDetails.innerHTML="<strong>Persona result details</strong>"+
+            "<div style=\"margin-top:5px;color:var(--muted);\">This external result is separate from your final manual decision.</div>"+
+            (checks.length?"<ul style=\"margin:7px 0 0;padding-left:18px;\">"+checks.map(item=>"<li><strong>"+escapeHtml(item.label||"Check")+":</strong> "+escapeHtml(item.outcome||"Unknown")+(item.reason?" — "+escapeHtml(item.reason):"")+"</li>").join("")+"</ul>":"<div style=\"margin-top:7px;\">No detailed checks were returned by Persona.</div>")+
+            (failures.length?"<div style=\"margin-top:8px;color:#8a2424;\"><strong>Failure reasons</strong><br>"+failures.map(escapeHtml).join("<br>")+"</div>":"");
         }
         const txDetails=section.querySelector(".client-persona-transaction-details");
         const txBody=section.querySelector(".client-persona-transaction-details-body");
@@ -3528,6 +3573,11 @@ async function loadRequests() {
         });
       });
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
+        const exportBase="/api/admin/clients/verification-export?client_id="+encodeURIComponent(section.dataset.clientId);
+        const csvLink=section.querySelector(".client-verification-export-csv");
+        const pdfLink=section.querySelector(".client-verification-export-pdf");
+        if(csvLink)csvLink.href=exportBase+"&format=csv";
+        if(pdfLink)pdfLink.href=exportBase+"&format=html";
         const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
         personaInputs.forEach(input=>{
           input.addEventListener("input",()=>{
@@ -3703,6 +3753,36 @@ async function loadRequests() {
             if(status)status.textContent=reminder?"Deletion reminder saved.":"Deletion reminder cleared.";
           }catch(error){if(status)status.textContent=error.message||"Unable to save deletion reminder.";}finally{button.disabled=false;}
         });
+        section.querySelector(".client-id-retention-review")?.addEventListener("click",()=>{
+          const input=section.querySelector(".client-id-retention-reminder");
+          input?.scrollIntoView({behavior:"smooth",block:"center"});
+          input?.focus();
+        });
+
+        section.querySelector(".client-persona-test")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget,status=section.querySelector(".client-persona-status");
+          button.disabled=true;if(status)status.textContent="Testing Persona credentials and Transaction Type…";
+          try{
+            const response=await fetch("/api/admin/clients/persona-test",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+            const result=await response.json();
+            section.dataset.personaConnected=result.state==="connected"?"1":"0";
+            if(status){status.textContent=result.label+(result.message?" — "+result.message:"");status.style.color=result.state==="connected"?"#2f6b45":"#8a2424";}
+            renderPersonaReadiness(section,result.state==="connected");
+          }catch(error){if(status){status.textContent="Connection error — "+(error.message||"Unable to test Persona.");status.style.color="#8a2424";}}
+          finally{button.disabled=false;}
+        });
+
+        section.querySelector(".client-persona-refresh")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget,status=section.querySelector(".client-persona-status");
+          button.disabled=true;if(status)status.textContent="Refreshing Persona status…";
+          try{
+            const response=await fetch("/api/admin/clients/persona-refresh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId)})});
+            const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Unable to refresh Persona status.");
+            await loadVerificationAudits(section);await loadVerificationActivity(section);
+            if(status){status.textContent=result.message;status.style.color="var(--muted)";}
+          }catch(error){if(status){status.textContent=error.message||"Unable to refresh Persona status.";status.style.color="#8a2424";}}
+          finally{button.disabled=false;}
+        });
 
         const submitPersona=async(retryPersona)=>{
           const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
@@ -3792,7 +3872,8 @@ async function loadRequests() {
           const fileName=record.file_name||"ID document";
           const confirmation=window.prompt("Permanently delete "+fileName+" for "+clientName+"? Uploaded: "+uploaded+". Type DELETE to continue.");
           if(confirmation!=="DELETE")return;
-          const deletionReason=window.prompt("Optional: enter a private reason for deleting this ID image. Leave blank to skip.")||"";
+          const deletionReason=window.prompt("Enter the private reason for permanently deleting this ID image.");
+          if(!String(deletionReason||"").trim()){window.alert("A deletion reason is required.");return;}
           const button=event.currentTarget,status=section.querySelector(".client-id-status");button.disabled=true;
           try{
             const response=await fetch("/api/admin/clients/id-document?client_id="+encodeURIComponent(section.dataset.clientId),{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({reason:deletionReason})});const result=await response.json();
