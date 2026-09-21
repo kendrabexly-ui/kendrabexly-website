@@ -3666,11 +3666,15 @@ async function loadRequests() {
         const label=(value,type)=>{
           const v=String(value||"").toLowerCase();
           if(type==="api"){
+            if(v==="testing")return ["Testing…","var(--muted)"];
             if(v==="connected")return ["Connected","#2f6b45"];
             if(v==="invalid")return ["Invalid credentials","#8a2424"];
+            if(v==="permission_denied")return ["Permission denied","#8a2424"];
+            if(v==="timeout")return ["Timed out","#8a2424"];
             if(v==="unknown")return ["Connection error","#8a2424"];
             return ["Not tested","var(--muted)"];
           }
+          if(v==="testing")return ["Testing…","var(--muted)"];
           if(v==="connected")return ["Connected","#2f6b45"];
           if(v==="not_validated")return ["Not validated (Sandbox)","#9a6700"];
           if(v==="rejected")return ["Rejected","#8a2424"];
@@ -3688,11 +3692,34 @@ async function loadRequests() {
         const button=section.querySelector(".client-persona-test");
         const technical=section.querySelector(".client-persona-technical");
         const technicalDetails=section.querySelector(".client-persona-technical-details");
-        if(button)button.disabled=true;
+        const originalButtonText=button?.textContent||"Test Persona Connection";
+        if(button){button.disabled=true;button.textContent="Testing Persona…";button.setAttribute("aria-busy","true");}
         if(!silent)setPersonaConnectionStatuses(section,"testing","testing");
+        const controller=new AbortController();
+        const timeout=setTimeout(()=>controller.abort(),20000);
         try{
-          const response=await fetch("/api/admin/clients/persona-test",{method:"POST",headers:{"Content-Type":"application/json"}});
+          const response=await fetch("/api/admin/clients/persona-test",{
+            method:"POST",
+            credentials:"same-origin",
+            cache:"no-store",
+            headers:{"Content-Type":"application/json","Accept":"application/json"},
+            body:"{}",
+            signal:controller.signal
+          });
+          const contentType=response.headers.get("content-type")||"";
+          if(!contentType.includes("application/json")){
+            const text=await response.text().catch(()=>"");
+            throw new Error("Persona test endpoint returned "+response.status+" instead of JSON"+(text?" · "+text.slice(0,160):"."));
+          }
           const result=await response.json();
+          if(response.status===403){
+            section.dataset.personaConnected="0";
+            section.dataset.personaConnectionState="permission_denied";
+            setPersonaConnectionStatuses(section,"permission_denied","not_checked");
+            if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.message||"Your current admin session does not have permission to run Persona connection tests.";}
+            renderPersonaReadiness(section,false);
+            return {...result,ok:false,state:"permission_denied"};
+          }
           section.dataset.personaConnectionState=result.state||"connection_error";
           section.dataset.personaConnected=result.ok?"1":"0";
           const apiStatus=result.api_key_status||(result.ok?"connected":result.state==="invalid_credentials"?"invalid":"unknown");
@@ -3701,7 +3728,7 @@ async function loadRequests() {
           if(result.ok){
             applyPersonaRequiredFields(section,result.required_fields||[],true,result.supported_fields||[]);
             section.dataset.personaIdNumberSupported=result.id_number_supported?"1":"0";
-            if(technical&&technicalDetails&&result.sandbox){technical.hidden=false;technicalDetails.textContent=result.technical_details||"Sandbox API key connected. Inquiry Template will be validated when an inquiry is created.";}
+            if(technical&&technicalDetails&&result.technical_details){technical.hidden=false;technicalDetails.textContent=result.technical_details;}
             else if(technical)technical.hidden=true;
           }else{
             if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.technical_details||result.message||"Persona connection failed.";}
@@ -3710,13 +3737,22 @@ async function loadRequests() {
           validatePersonaFields(section,{show:true,force:false});
           return result;
         }catch(error){
+          const timedOut=error?.name==="AbortError";
           section.dataset.personaConnected="0";
-          section.dataset.personaConnectionState="connection_error";
-          setPersonaConnectionStatuses(section,"unknown","not_checked");
+          section.dataset.personaConnectionState=timedOut?"timeout":"connection_error";
+          setPersonaConnectionStatuses(section,timedOut?"timeout":"unknown","not_checked");
           renderPersonaReadiness(section,false);
-          if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||"Unable to test Persona connection.";}
-          return {ok:false,state:"connection_error",api_key_status:"unknown",inquiry_template_status:"not_checked"};
-        }finally{if(button)button.disabled=false;}
+          if(technical&&technicalDetails){
+            technical.hidden=false;
+            technicalDetails.textContent=timedOut
+              ? "Persona connection test timed out after 20 seconds. The dashboard reached the test action, but the backend did not finish in time."
+              : (error.message||"Unable to reach the Persona test endpoint.");
+          }
+          return {ok:false,state:timedOut?"timeout":"connection_error",api_key_status:timedOut?"timeout":"unknown",inquiry_template_status:"not_checked"};
+        }finally{
+          clearTimeout(timeout);
+          if(button){button.disabled=false;button.textContent=originalButtonText;button.removeAttribute("aria-busy");}
+        }
       };
       const loadPersonaStatus = async (section) => {
         const technical=section.querySelector(".client-persona-technical");
@@ -3820,7 +3856,11 @@ async function loadRequests() {
         normalizePersonaFields(section);
         capturePersonaDraft(section);
         section.querySelector(".client-verification-save-draft-now")?.addEventListener("click",()=>saveVerificationDraft(section,{retry:true}));
-        section.querySelector(".client-persona-test")?.addEventListener("click",()=>testPersonaConnection(section));
+        section.querySelector(".client-persona-test")?.addEventListener("click",async(event)=>{
+          event.preventDefault();
+          event.stopPropagation();
+          await testPersonaConnection(section);
+        });
         section.addEventListener("toggle",()=>{
           if(section.open){
             loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);loadVerificationActivity(section);
