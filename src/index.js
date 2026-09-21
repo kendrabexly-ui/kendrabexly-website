@@ -449,7 +449,8 @@ export default {
                  verification_method, submitted_employer, submitted_job_title,
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
-                 evidence_notes, completed_at, updated_at
+                 evidence_notes, persona_transaction_id, persona_transaction_status,
+                 completed_at, updated_at
           FROM client_verification_audits
           WHERE client_id = ?
           ORDER BY accepted_at DESC, id DESC
@@ -511,7 +512,8 @@ export default {
                  verification_method, submitted_employer, submitted_job_title,
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
-                 evidence_notes, completed_at, updated_at
+                 evidence_notes, persona_transaction_id, persona_transaction_status,
+                 completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
@@ -4074,6 +4076,20 @@ if (
     // The client never enters Persona. An authorized admin uploads
     // the ID in ClearPath, then this route submits that stored image.
     // =========================================================
+    if (url.pathname === "/api/admin/clients/persona-status" && request.method === "GET") {
+      const apiKeyConfigured = Boolean(env.PERSONA_API_KEY);
+      const transactionTypeConfigured = Boolean(env.PERSONA_TRANSACTION_TYPE_ID);
+      const webhookSecretConfigured = Boolean(env.PERSONA_WEBHOOK_SECRET);
+      return Response.json({
+        ok:true,
+        connected:apiKeyConfigured && transactionTypeConfigured && webhookSecretConfigured,
+        api_key_configured:apiKeyConfigured,
+        transaction_type_configured:transactionTypeConfigured,
+        webhook_secret_configured:webhookSecretConfigured,
+        webhook_url:"https://kendrabexly.com/api/webhooks/persona"
+      }, {headers:{"Cache-Control":"private, no-store"}});
+    }
+
     if (url.pathname === "/api/admin/clients/persona-verify" && request.method === "POST") {
       try {
         if (!env.PERSONA_API_KEY || !env.PERSONA_TRANSACTION_TYPE_ID) {

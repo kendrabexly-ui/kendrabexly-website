@@ -2324,6 +2324,7 @@ async function loadRequests() {
                     <button type="button" class="client-id-delete" hidden style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:white;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete</button>
                   </div>
                   <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+                  <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:6px;font-size:12px;color:var(--muted);">Checking Persona connection…</div>
                   <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
                     <strong style="font-size:13px;">Verification Audit</strong>
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification records...</div>
@@ -2609,6 +2610,28 @@ async function loadRequests() {
         }
       };
 
+      const loadPersonaStatus = async (section) => {
+        const status = section.querySelector(".client-persona-status");
+        const button = section.querySelector(".client-persona-verify");
+        try {
+          const response = await fetch("/api/admin/clients/persona-status", { cache: "no-store" });
+          const result = await response.json();
+          if (!response.ok || !result.ok) throw new Error(result.message || "Unable to check Persona connection.");
+          section.dataset.personaConnected = result.connected ? "1" : "0";
+          if (status) {
+            status.textContent = result.connected
+              ? "Persona connected · Admin-run verification"
+              : "Persona setup incomplete · Add the API key, transaction type ID, and webhook secret to the Worker environment.";
+            status.style.color = result.connected ? "#2f6b45" : "#8a5a16";
+          }
+          if (button) button.disabled = !result.connected;
+        } catch (error) {
+          section.dataset.personaConnected = "0";
+          if (button) button.disabled = true;
+          if (status) status.textContent = error.message || "Unable to check Persona connection.";
+        }
+      };
+
       const loadIdDocument = async (section, force) => {
         if (!section || (section.dataset.loaded === "1" && !force)) return;
         const status = section.querySelector(".client-id-status");
@@ -2629,6 +2652,7 @@ async function loadRequests() {
           if (section.open) {
             loadIdDocument(section, false);
             loadVerificationAudits(section);
+            loadPersonaStatus(section);
           }
         });
         const verificationStatus = section.querySelector(".client-id-verification-status");
@@ -2719,6 +2743,10 @@ async function loadRequests() {
             : null;
           if (!latestAudit?.booking_request_id) {
             if (status) status.textContent = "No booking verification record is available for Persona.";
+            return;
+          }
+          if (section.dataset.personaConnected !== "1") {
+            if (status) status.textContent = "Persona setup is incomplete. Add the required Worker secrets before verifying this ID.";
             return;
           }
           button.disabled = true;
