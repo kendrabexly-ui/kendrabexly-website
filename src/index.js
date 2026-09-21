@@ -5592,67 +5592,84 @@ if (
         const databaseVerifications=verifications.filter(isDatabaseVerification);
         const latestDatabase=databaseVerifications[0]||null;
 
-        // Inspect Workflow Runs directly so ClearPath can distinguish:
-        // trigger never fired vs workflow errored vs workflow completed.
+        // Inspect the inquiry.created Event first, then match Workflow Runs by creator event.
+        // Persona's workflow-run.created payload links a run to the event that created it.
         let matchedWorkflowRun=null;
         let matchedWorkflow=null;
+        let matchedTriggerEvent=null;
         let workflowLookupError="";
         let workflowRequestId="";
+        let eventLookupError="";
+        let eventRequestId="";
         const workflowHeaders={...headers};
-        const extractEventInquiryId=event=>{
-          const eventAttrs=event?.attributes||{};
-          const payload=eventAttrs?.payload?.data||eventAttrs?.payload||{};
-          return String(payload?.id||payload?.data?.id||payload?.attributes?.inquiry_id||payload?.attributes?.["inquiry-id"]||"");
+
+        const eventMatchesInquiry=event=>{
+          const attrs=event?.attributes||{};
+          const eventName=String(attrs.name||"").toLowerCase();
+          const payload=attrs?.payload?.data||attrs?.payload||{};
+          const payloadId=String(payload?.id||payload?.data?.id||"");
+          return eventName==="inquiry.created" && payloadId===inquiryId;
         };
-        const workflowNameMatches=workflow=>{
-          const name=String(workflow?.attributes?.name||"").trim().toLowerCase();
-          return !name || name==="clearpath - inquiry created - database verification".toLowerCase();
-        };
-        const matchRunFromPayload=payload=>{
-          const runs=Array.isArray(payload?.data)?payload.data:[payload?.data].filter(Boolean);
-          const related=Array.isArray(payload?.included)?payload.included:[];
-          const byKey=new Map(related.map(item=>[String(item?.type||"")+":"+String(item?.id||""),item]));
-          for(const run of runs){
-            const creatorRel=run?.relationships?.creator?.data||null;
-            const workflowRel=run?.relationships?.workflow?.data||null;
-            const creator=creatorRel?byKey.get(String(creatorRel.type||"")+":"+String(creatorRel.id||"")):null;
-            const workflow=workflowRel?byKey.get(String(workflowRel.type||"")+":"+String(workflowRel.id||"")):null;
-            if(creator && extractEventInquiryId(creator)===inquiryId && workflowNameMatches(workflow)){
-              return {run,workflow,creator};
-            }
+
+        try{
+          const eventsResponse=await fetch(
+            "https://api.withpersona.com/api/v1/events?page%5Bsize%5D=100",
+            {headers:workflowHeaders}
+          );
+          eventRequestId=eventsResponse.headers.get("Request-Id")||"";
+          const eventsPayload=await eventsResponse.json().catch(()=>({}));
+          if(eventsResponse.ok){
+            const events=Array.isArray(eventsPayload?.data)?eventsPayload.data:[];
+            matchedTriggerEvent=events.find(eventMatchesInquiry)||null;
+          }else{
+            const detail=eventsPayload?.errors?.[0]?.detail||eventsPayload?.errors?.[0]?.title||eventsPayload?.message||"Persona could not list events.";
+            eventLookupError=String(detail);
           }
-          return null;
-        };
+        }catch(error){
+          eventLookupError=String(error?.message||error);
+        }
+
         try{
           const workflowListResponse=await fetch(
-            "https://api.withpersona.com/api/v1/workflow-runs?page%5Bsize%5D=50&include=workflow,creator",
+            "https://api.withpersona.com/api/v1/workflow-runs?page%5Bsize%5D=100",
             {headers:workflowHeaders}
           );
           workflowRequestId=workflowListResponse.headers.get("Request-Id")||"";
           const workflowListPayload=await workflowListResponse.json().catch(()=>({}));
           if(workflowListResponse.ok){
-            let match=matchRunFromPayload(workflowListPayload);
-            if(!match){
-              // Some Persona versions do not serialize creator events on the list endpoint.
-              // Inspect the most recent runs individually with includes until the inquiry is found.
-              const recentRuns=Array.isArray(workflowListPayload?.data)?workflowListPayload.data.slice(0,15):[];
-              for(const recentRun of recentRuns){
-                const runId=String(recentRun?.id||"");
-                if(!runId)continue;
-                const runResponse=await fetch(
-                  "https://api.withpersona.com/api/v1/workflow-runs/"+encodeURIComponent(runId)+"?include=workflow,creator",
-                  {headers:workflowHeaders}
-                );
-                const runPayload=await runResponse.json().catch(()=>({}));
-                if(runResponse.ok){
-                  match=matchRunFromPayload(runPayload);
-                  if(match)break;
-                }
-              }
+            const runs=Array.isArray(workflowListPayload?.data)?workflowListPayload.data:[];
+            if(matchedTriggerEvent){
+              const eventId=String(matchedTriggerEvent.id||"");
+              matchedWorkflowRun=runs.find(run=>String(run?.relationships?.creator?.data?.id||"")===eventId)||null;
             }
-            if(match){
-              matchedWorkflowRun=match.run;
-              matchedWorkflow=match.workflow;
+
+            // Fallback for Persona responses that omit creator relationship data:
+            // match a recent run created immediately after this inquiry's creation.
+            if(!matchedWorkflowRun){
+              const inquiryCreatedAt=String(personaPayload?.data?.attributes?.created_at||personaPayload?.data?.attributes?.["created-at"]||"");
+              const inquiryCreatedMs=inquiryCreatedAt?Date.parse(inquiryCreatedAt):0;
+              const candidates=runs.filter(run=>{
+                const runCreated=String(run?.attributes?.created_at||run?.attributes?.["created-at"]||"");
+                const runMs=runCreated?Date.parse(runCreated):0;
+                if(!inquiryCreatedMs||!runMs)return false;
+                const delta=runMs-inquiryCreatedMs;
+                return delta>=-5000 && delta<=120000;
+              });
+              if(candidates.length===1)matchedWorkflowRun=candidates[0];
+            }
+
+            if(matchedWorkflowRun){
+              const workflowId=String(matchedWorkflowRun?.relationships?.workflow?.data?.id||"");
+              if(workflowId){
+                try{
+                  const wfResponse=await fetch(
+                    "https://api.withpersona.com/api/v1/workflows/"+encodeURIComponent(workflowId),
+                    {headers:workflowHeaders}
+                  );
+                  const wfPayload=await wfResponse.json().catch(()=>({}));
+                  if(wfResponse.ok)matchedWorkflow=wfPayload?.data||null;
+                }catch(_error){}
+              }
             }
           }else{
             const detail=workflowListPayload?.errors?.[0]?.detail||workflowListPayload?.errors?.[0]?.title||workflowListPayload?.message||"Persona could not list workflow runs.";
@@ -5714,6 +5731,11 @@ if (
           } : null,
           verification_count:verifications.length,
           database_verification_count:databaseVerifications.length,
+          trigger_event:matchedTriggerEvent ? {
+            id:String(matchedTriggerEvent.id||""),
+            name:String(matchedTriggerEvent?.attributes?.name||"inquiry.created"),
+            created_at:String(matchedTriggerEvent?.attributes?.created_at||matchedTriggerEvent?.attributes?.["created-at"]||"")
+          } : null,
           workflow_run:matchedWorkflowRun ? {
             id:String(matchedWorkflowRun.id||""),
             status:workflowRunStatus||"unknown",
@@ -5738,9 +5760,14 @@ if (
               ? (workflowRunStatus==="errored"
                   ? "Persona reports the workflow run as errored. Open the matching Workflow Run in Persona using the Workflow Run ID to inspect the failing step."
                   : "Persona reports that the workflow triggered. Database (US) has not been attached to the inquiry yet.")
-              : (workflowLookupError
-                  ? "ClearPath could not inspect Persona Workflow Runs: "+workflowLookupError
-                  : "The inquiry exists, but no matching ClearPath inquiry-created Workflow Run was found. The event trigger may not have fired for this inquiry/environment."),
+              : (eventLookupError
+                  ? "ClearPath could not inspect Persona Events: "+eventLookupError
+                  : !matchedTriggerEvent
+                    ? "Persona did not return an inquiry.created event for this inquiry in the current environment."
+                    : workflowLookupError
+                      ? "The inquiry.created event exists, but ClearPath could not inspect Persona Workflow Runs: "+workflowLookupError
+                      : "Persona created the inquiry.created event, but no Workflow Run was linked to that event. The workflow trigger or environment/template scope needs attention."),
+          event_request_id:eventRequestId,
           workflow_request_id:workflowRequestId,
           persona_request_id:personaResponse.headers.get("Request-Id")||"",
           persona_environment_id:personaResponse.headers.get("Persona-Environment-Id")||""
