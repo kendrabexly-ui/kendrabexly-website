@@ -651,14 +651,21 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     }
     const options=discovered?.options||[];
     const optionText=options.length ? " Active templates: "+options.map(item=>(item.name?item.name+" ":"")+item.id).join(", ")+".":"";
+    const detectedPrefix=!inquiryTemplateId ? "" :
+      inquiryTemplateId.startsWith("txntp_") ? "txntp_" :
+      inquiryTemplateId.startsWith("inq_") ? "inq_" :
+      inquiryTemplateId.startsWith("tmpl_") ? "tmpl_" :
+      inquiryTemplateId.includes("_") ? inquiryTemplateId.slice(0,inquiryTemplateId.indexOf("_")+1) :
+      inquiryTemplateId.slice(0,Math.min(8,inquiryTemplateId.length));
     return {
       ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
       api_key_status:"connected",
       inquiry_template_status:!inquiryTemplateId?"missing":"invalid_format",
       template_id_format_valid:false,
+      detected_template_prefix:detectedPrefix,
       technical_details:(!inquiryTemplateId
         ? "PERSONA_INQUIRY_TEMPLATE_ID is missing."
-        : "The saved PERSONA_INQUIRY_TEMPLATE_ID is not an Inquiry Template ID. Replace its Cloudflare secret value with the Persona Inquiry Template ID beginning with itmpl_. Do not use a txntp_ Transaction Type ID or an inq_ Inquiry ID.")+
+        : "The saved PERSONA_INQUIRY_TEMPLATE_ID is not an Inquiry Template ID. Detected prefix: "+(detectedPrefix||"unknown")+". Replace its Cloudflare secret value with the Persona Inquiry Template ID beginning with itmpl_. Do not use a txntp_ Transaction Type ID or an inq_ Inquiry ID.")+
         (discovered&&discovered.active_count!==undefined ? " Persona has "+discovered.active_count+" active Inquiry Template"+(discovered.active_count===1?"":"s")+".":"")+
         optionText
     };
