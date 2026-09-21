@@ -1023,12 +1023,22 @@ export default {
 
         const previous = await env.DB.prepare(`
           SELECT id, client_id, verification_status, decision_reason, decision_notes,
-                 verification_method, completed_at, completed_by, review_flag,
+                 verification_method, completed_at, completed_by, review_flag, updated_at,
                  identity_confirmed, employer_confirmed, job_title_confirmed, industry_confirmed, contact_confirmed
           FROM client_verification_audits
           WHERE id=? AND client_id=? LIMIT 1
         `).bind(auditId, clientId).first();
         if (!previous) return Response.json({ok:false,message:"Verification record not found."},{status:404});
+        const expectedUpdatedAt=String(data.expected_updated_at||"").trim();
+        if(expectedUpdatedAt && String(previous.updated_at||"") !== expectedUpdatedAt){
+          return Response.json({
+            ok:false,
+            code:"verification_record_changed",
+            requires_reload:true,
+            message:"This verification record was updated in another session. The latest version has been reloaded so your changes do not overwrite newer work.",
+            current_updated_at:String(previous.updated_at||"")
+          },{status:409,headers:{"Cache-Control":"private, no-store"}});
+        }
         if (previous.verification_status !== "pending_review" && verificationStatus === "pending_review" && !data.confirm_reopen) {
           return Response.json({
             ok:false,
