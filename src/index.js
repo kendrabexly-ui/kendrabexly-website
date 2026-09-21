@@ -767,7 +767,7 @@ export default {
         };
         const order={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
         const queue=[...clients]
-          .filter(x=>x.verification_status!=="verified" || x.review_flag)
+          .filter(x=>["pending_review","needs_more_information"].includes(x.verification_status) || x.persona_pending || x.review_flag)
           .sort((a,b)=>(order[a.queue_category]??9)-(order[b.queue_category]??9) || a.client_id-b.client_id);
         return Response.json({ok:true,clients,counts,queue}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
