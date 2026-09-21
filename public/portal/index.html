@@ -2852,7 +2852,7 @@ async function loadRequests() {
       const statusLabel = value => ({
         pending_review:"Pending Review", needs_more_information:"Needs More Information", verified:"Verified", unable_to_verify:"Unable to Verify", declined:"Declined"
       }[value] || String(value || "Pending Review").replaceAll("_"," "));
-      const updateVerificationSummary = (section) => {
+      const updateVerificationSummary=(section)=>{
         const summary=section.closest(".client-profile-actions")?.querySelector(".client-verification-summary");
         if(!summary)return;
         const latest=Array.isArray(section._verificationAuditRecords)&&section._verificationAuditRecords.length?section._verificationAuditRecords[0]:null;
@@ -2860,26 +2860,26 @@ async function loadRequests() {
         const age=section.dataset.verificationAge||(latest?.birthdate?verificationAge(latest.birthdate):null);
         const idLabel=section.dataset.hasDocument==="1"?"Received":"Not received";
         const manualDecision=statusLabel(latest?.verification_status||"pending_review");
-        const personaStatus=String(latest?.persona_transaction_status||"").toLowerCase();
-        const personaLabel=section.dataset.personaConnected!=="1"
-          ?"Pending Setup"
-          : !latest?.persona_transaction_id
-            ?"Ready"
-            : personaStatus==="approved"?"Approved"
-              : personaStatus==="needs_review"?"Needs Review"
-                : ["declined","errored","failed"].includes(personaStatus)?"Failed":"Pending";
-        const completed=latest?.completed_at?new Date(latest.completed_at+(String(latest.completed_at).endsWith("Z")?"":"Z")).toLocaleString():"Not completed";
+        const pState=personaReadiness(section,section.dataset.personaConnected==="1");
+        const validation=section._personaValidation||{missing:[]};
+        const dobPresent=Boolean(section.querySelector(".client-persona-birthdate")?.value||latest?.birthdate);
+        const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};
+        const queueLabel=queueLabels?.[overview.queue_category]||overview.queue_category||"—";
+        const completed=latest?.completed_at?formatVerificationTimestamp(latest.completed_at):"Not completed";
         const badgeStyle=latest?.verification_status==="verified"?"background:#e8f6ec;color:#22613b;"
           :latest?.verification_status==="needs_more_information"?"background:#fff4d8;color:#74520b;"
           :["declined","unable_to_verify"].includes(latest?.verification_status)?"background:#fdeaea;color:#8a2424;"
           :"background:#eef2f8;color:#38506f;";
         summary.innerHTML="<div style=\"display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;\"><strong>Verification summary</strong><span class=\"verification-status-pill\" style=\""+badgeStyle+"\">"+escapeHtml(manualDecision)+"</span></div>"+
-          "<div style=\"margin-top:7px;display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:5px 12px;color:var(--muted);\">"+
+          "<div style=\"margin-top:7px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:5px 12px;color:var(--muted);\">"+
           "<span><strong>ID:</strong> "+escapeHtml(idLabel)+"</span>"+
+          "<span><strong>DOB:</strong> "+(dobPresent?"Saved":"Missing")+"</span>"+
           "<span><strong>Age:</strong> "+escapeHtml(age===null||age===""?"Not checked":String(age))+"</span>"+
           "<span><strong>Checklist:</strong> "+checklist+" of 5</span>"+
-          "<span><strong>Manual Decision:</strong> "+escapeHtml(manualDecision)+"</span>"+
-          "<span><strong>Persona Result:</strong> "+escapeHtml(personaLabel)+"</span>"+
+          "<span><strong>Manual:</strong> "+escapeHtml(manualDecision)+"</span>"+
+          "<span><strong>Persona readiness:</strong> "+escapeHtml(pState.label)+"</span>"+
+          "<span><strong>Missing fields:</strong> "+Number(validation.missing?.length||0)+"</span>"+
+          "<span><strong>Queue:</strong> "+escapeHtml(queueLabel)+"</span>"+
           "<span><strong>Completed:</strong> "+escapeHtml(completed)+"</span></div>"+
           "<div style=\"margin-top:6px;font-weight:700;\">Open verification →</div>";
       };
@@ -3234,6 +3234,12 @@ async function loadRequests() {
         if (uploadedAt) uploadedAt.textContent = documentRecord.created_at ? new Date(documentRecord.created_at+(String(documentRecord.created_at).endsWith("Z")?"":"Z")).toLocaleString() : "Stored";
         updateVerificationSummary(section);
       };
+      const formatVerificationTimestamp=(value)=>{
+        if(!value)return "";
+        const raw=String(value);
+        const d=new Date(raw+(raw.includes("T")||raw.endsWith("Z")?"":"Z"));
+        return Number.isNaN(d.getTime())?raw:d.toLocaleString();
+      };
       const setVerificationAuditState = (section, records, decisionHistory=[]) => {
         const list = section.querySelector(".client-verification-audit-list");
         const editor = section.querySelector(".client-verification-editor");
@@ -3273,7 +3279,7 @@ async function loadRequests() {
           <div style="padding:10px 0;color:var(--ink);line-height:1.55;">
             <div><strong>Manual Decision:</strong> ${escapeHtml(statusLabel(latest.verification_status))}</div>
             <div style="margin-top:3px;"><strong>Persona Result:</strong> ${escapeHtml(latest.persona_transaction_id ? (latest.persona_transaction_status || "pending").replaceAll("_"," ") : "Not submitted")}</div>
-            <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5 · Completed: ${escapeHtml(latest.completed_at || "—")}</div>
+            <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5 · Completed: ${escapeHtml(formatVerificationTimestamp(latest.completed_at)||"—")}</div>
             ${latest.decision_reason ? `<div style="margin-top:3px;"><strong>Private reason:</strong> ${escapeHtml(String(latest.decision_reason).replaceAll("_"," "))}</div>` : ""}
             ${latest.decision_notes ? `<div style="margin-top:3px;"><strong>Private note:</strong> ${escapeHtml(latest.decision_notes)}</div>` : ""}
             <details style="margin-top:6px;"><summary style="cursor:pointer;font-weight:700;">View details</summary>
@@ -3287,14 +3293,14 @@ async function loadRequests() {
         const older=(records || []).slice(1).map(record=>`
           <details style="padding:9px 0;border-top:1px solid var(--line);">
             <summary style="cursor:pointer;font-weight:700;">Older record · ${escapeHtml(statusLabel(record.verification_status))}${record.authorization_version==="legacy-unrecorded"?" · Legacy":""}</summary>
-            <div style="margin-top:7px;line-height:1.55;">Completed: ${escapeHtml(record.completed_at || "—")} · Method: ${escapeHtml(record.verification_method || "Not entered")}
+            <div style="margin-top:7px;line-height:1.55;">Completed: ${escapeHtml(formatVerificationTimestamp(record.completed_at)||"—")} · Method: ${escapeHtml(record.verification_method || "Not entered")}
               <details style="margin-top:5px;"><summary style="cursor:pointer;">View details</summary><div style="margin-top:5px;">Booking Request ID: ${escapeHtml(record.booking_request_id)} · Audit ID: ${escapeHtml(record.id)}${record.persona_transaction_id ? `<br>Persona transaction: ${escapeHtml(record.persona_transaction_id)}` : ""}</div></details>
             </div>
           </details>`).join("");
         const decisions=(decisionHistory || []).length ? `
           <details style="padding:9px 0;border-top:1px solid var(--line);">
             <summary style="cursor:pointer;font-weight:700;">Previous decisions (${decisionHistory.length})</summary>
-            <div style="margin-top:7px;">${decisionHistory.map(item=>`<div style="padding:7px 0;border-top:1px solid #eee7dc;"><strong>${escapeHtml(statusLabel(item.verification_status))}</strong> · ${escapeHtml(item.changed_at || "—")}${item.decision_reason ? `<div>Reason: ${escapeHtml(String(item.decision_reason).replaceAll("_"," "))}</div>` : ""}</div>`).join("")}</div>
+            <div style="margin-top:7px;">${decisionHistory.map(item=>`<div style="padding:7px 0;border-top:1px solid #eee7dc;"><strong>${escapeHtml(statusLabel(item.verification_status))}</strong> · ${escapeHtml(formatVerificationTimestamp(item.changed_at)||"—")}${item.decision_reason ? `<div>Reason: ${escapeHtml(String(item.decision_reason).replaceAll("_"," "))}</div>` : ""}</div>`).join("")}</div>
           </details>` : "";
         if(list) list.innerHTML=currentHtml+older+decisions;
         updatePersonaAgeStatus(section);
@@ -3312,7 +3318,7 @@ async function loadRequests() {
           loadVerificationActivity(section);
         }catch(error){if(list)list.textContent=error.message||"Unable to load verification records.";}
       };
-      const applyPersonaRequiredFields = (section, requiredFields, configured) => {
+      const applyPersonaRequiredFields=(section,requiredFields,configured)=>{
         const required=new Set(Array.isArray(requiredFields)?requiredFields:[]);
         section._personaRequiredFields=[...required];
         section._personaFieldsConfigured=Boolean(configured);
@@ -3321,17 +3327,25 @@ async function loadRequests() {
           const isRequired=required.has(field);
           label.hidden=Boolean(configured)&&!isRequired;
           let marker=label.querySelector(".persona-required-marker");
-          if(!marker){marker=document.createElement("span");marker.className="persona-required-marker";marker.style.marginLeft="4px";label.insertBefore(marker,label.firstChild?.nextSibling||null);}
-          marker.textContent=isRequired?"*":" optional";
-          marker.style.color=isRequired?"#8a2424":"var(--muted)";
-          marker.style.fontSize=isRequired?"12px":"10px";
+          if(!marker){
+            marker=document.createElement("span");
+            marker.className="persona-required-marker verification-status-pill";
+            marker.style.marginLeft="6px";
+            marker.style.fontSize="10px";
+            marker.style.padding="2px 6px";
+            const input=label.querySelector("input,select,textarea");
+            label.insertBefore(marker,input||null);
+          }
+          marker.textContent=isRequired?"Required":"Optional";
+          marker.style.background=isRequired?"#fdeaea":"#f1f1f1";
+          marker.style.color=isRequired?"#8a2424":"#666";
           const input=label.querySelector("input,select,textarea");
           if(input){input.required=isRequired;input.setAttribute("aria-required",String(isRequired));}
         });
         const legend=section.querySelector(".client-persona-field-legend");
         if(legend)legend.innerHTML=configured
-          ? 'Only fields required by your Persona Transaction Type are shown. <strong style="color:#8a2424;">*</strong> Required.'
-          : 'Persona field requirements are not finalized yet. Current defaults are marked <strong style="color:#8a2424;">*</strong>.';
+          ? 'Only fields required by your Persona Transaction Type are shown. <span class="verification-status-pill" style="background:#fdeaea;color:#8a2424;padding:2px 6px;font-size:10px;">Required</span>'
+          : 'Persona field requirements are not finalized yet. Fields are labeled <strong>Required</strong> or <strong>Optional</strong> using the current configuration.';
         validatePersonaFields(section);
       };
       const personaReadiness=(section,connected)=>{
@@ -3355,11 +3369,12 @@ async function loadRequests() {
         const hasExisting=Boolean(latest.persona_transaction_id);
         if(run){
           run.hidden=hasExisting;
-          run.disabled=state.key!=="ready";
-          run.style.cursor=state.key==="ready"?"pointer":"not-allowed";
-          run.style.opacity=state.key==="ready"?"1":".72";
+          const validation=section._personaValidation||validatePersonaFields(section,{show:false});
+          run.disabled=state.key!=="ready"||!validation.allReady;
+          run.style.cursor=!run.disabled?"pointer":"not-allowed";
+          run.style.opacity=!run.disabled?"1":".72";
         }
-        if(retry)retry.hidden=state.key!=="failed";
+        if(retry){retry.hidden=state.key!=="failed";retry.disabled=state.key!=="failed";}
         if(statusBox){
           statusBox.textContent={
             pending_setup:"Persona setup is still pending. You can still complete and review all required Persona fields now.",
@@ -3371,19 +3386,29 @@ async function loadRequests() {
           }[state.key]||"";
           statusBox.style.color=state.color;
         }
+        const current=section.querySelector(".client-persona-current");
+        if(current)current.innerHTML=
+          '<span class="verification-status-pill" style="background:#eef2f8;color:#38506f;margin-right:6px;">Manual: '+escapeHtml(statusLabel(latest.verification_status||"pending_review"))+'</span>'+
+          '<span class="verification-status-pill" style="background:'+state.bg+';color:'+state.color+';">Persona: '+escapeHtml(hasExisting?state.label:"Not submitted")+"</span>";
+        const card=section.querySelector(".client-persona-transaction-card");
+        if(card){
+          card.hidden=!hasExisting;
+          if(hasExisting){
+            const retryLabel=state.key==="failed"?"Eligible":"Not needed";
+            card.innerHTML="<strong>Persona transaction</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
+              "<span><strong>Result:</strong> "+escapeHtml(state.label)+"</span>"+
+              "<span><strong>Submitted:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_submitted_at)||"—")+"</span>"+
+              "<span><strong>Last updated:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_updated_at||latest.updated_at)||"—")+"</span>"+
+              "<span><strong>Retry:</strong> "+escapeHtml(retryLabel)+"</span></div>";
+          }
+        }
         const txDetails=section.querySelector(".client-persona-transaction-details");
         const txBody=section.querySelector(".client-persona-transaction-details-body");
         if(txDetails&&txBody){
           txDetails.hidden=!hasExisting;
-          if(hasExisting)txBody.innerHTML=
-            "<strong>Status:</strong> "+escapeHtml(state.label)+
-            "<br><strong>Submitted:</strong> "+escapeHtml(latest.persona_submitted_at||"—")+
-            "<br><strong>Last update:</strong> "+escapeHtml(latest.persona_updated_at||latest.updated_at||"—")+
-            "<br><strong>Transaction ID:</strong> "+escapeHtml(latest.persona_transaction_id);
+          if(hasExisting)txBody.innerHTML="<strong>Transaction ID:</strong> "+escapeHtml(latest.persona_transaction_id)+
+            "<br><strong>Raw status:</strong> "+escapeHtml(latest.persona_transaction_status||"pending");
         }
-        const current=section.querySelector(".client-persona-current");
-        if(current)current.innerHTML="<strong>Manual Decision:</strong> "+escapeHtml(statusLabel(latest.verification_status||"pending_review"))+
-          "<br><strong>Persona Result:</strong> "+escapeHtml(hasExisting?state.label:"Not submitted");
         updateVerificationSummary(section);
       };
       const loadPersonaStatus = async (section) => {
