@@ -4316,7 +4316,21 @@ async function loadRequests(options = {}) {
                   box.scrollIntoView({behavior:"smooth",block:"center"});
                 }
               }
-              if(result.technical_details&&technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.technical_details;}
+              if(result.configuration_error){
+                section.dataset.personaConnected="0";
+                section.dataset.personaConnectionState=result.code||"configuration_error";
+                const badge=section.querySelector(".client-persona-badge");
+                if(badge){badge.textContent="Persona: Setup Issue";badge.style.background="#fdeaea";badge.style.color="#8a2424";}
+                if(status)status.textContent="Persona setup needs attention. The API key works, but this Inquiry Template is not being accepted in the current Sandbox environment.";
+                if(runButton){runButton.disabled=true;runButton.style.opacity=".72";runButton.style.cursor="not-allowed";}
+              }
+              if(result.technical_details&&technical&&technicalDetails){
+                technical.hidden=false;
+                technicalDetails.textContent=result.technical_details+
+                  (result.configuration_error
+                    ? " Update PERSONA_INQUIRY_TEMPLATE_ID in Cloudflare with the itmpl_ ID from the same Persona Sandbox environment shown above, then run Test Persona Connection again."
+                    : "");
+              }
               if(result.existing_transaction){
                 const current=section.querySelector(".client-persona-current");
                 if(current)current.textContent="Existing Persona result: "+String(result.existing_transaction.status||"pending").replaceAll("_"," ");
