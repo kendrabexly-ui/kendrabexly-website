@@ -3737,7 +3737,7 @@ async function loadRequests() {
             setPersonaConnectionStatuses(
               section,
               result.api_key_configured ? "not_tested" : "invalid",
-              result.inquiry_template_configured ? "not_checked" : (result.api_key_configured ? "rejected" : "not_checked")
+              "not_checked"
             );
             renderPersonaReadiness(section,false);
             if(result.configuration_message&&technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.configuration_message;}
