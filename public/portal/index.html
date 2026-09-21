@@ -2618,9 +2618,12 @@ async function loadRequests() {
                       <span class="verification-badge client-persona-badge">Persona: Checking…</span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
-                    <div class="verification-actions" style="margin-top:9px;">
+                    <div class="verification-actions" style="margin-top:9px;align-items:flex-start;">
                       <button type="button" class="client-persona-test persona-button" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Test Persona Connection</button>
-                      <span class="client-persona-connection-result" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);">Not tested yet</span>
+                      <div class="client-persona-connection-result" role="status" aria-live="polite" style="display:grid;gap:3px;font-size:12px;color:var(--muted);">
+                        <span class="client-persona-api-status"><strong>API Key:</strong> Not tested</span>
+                        <span class="client-persona-template-status"><strong>Inquiry Template:</strong> Not tested</span>
+                      </div>
                     </div>
                     <div class="client-persona-webhook-health" style="margin-top:7px;font-size:11px;color:var(--muted);">Webhook health: checking…</div>
                     <div class="verification-grid client-id-fallback-fields" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
@@ -3657,29 +3660,50 @@ async function loadRequests() {
         }
         updateVerificationSummary(section);
       };
+      const setPersonaConnectionStatuses=(section,apiStatus,templateStatus)=>{
+        const apiBox=section.querySelector(".client-persona-api-status");
+        const templateBox=section.querySelector(".client-persona-template-status");
+        const label=(value,type)=>{
+          const v=String(value||"").toLowerCase();
+          if(type==="api"){
+            if(v==="connected")return ["Connected","#2f6b45"];
+            if(v==="invalid")return ["Invalid credentials","#8a2424"];
+            if(v==="unknown")return ["Connection error","#8a2424"];
+            return ["Not tested","var(--muted)"];
+          }
+          if(v==="connected")return ["Connected","#2f6b45"];
+          if(v==="not_validated")return ["Not validated (Sandbox)","#9a6700"];
+          if(v==="rejected")return ["Rejected","#8a2424"];
+          if(v==="missing")return ["Missing","#8a2424"];
+          if(v==="unknown")return ["Connection error","#8a2424"];
+          if(v==="not_checked")return ["Not checked","var(--muted)"];
+          return ["Not tested","var(--muted)"];
+        };
+        const [apiLabel,apiColor]=label(apiStatus,"api");
+        const [templateLabel,templateColor]=label(templateStatus,"template");
+        if(apiBox){apiBox.innerHTML="<strong>API Key:</strong> "+escapeHtml(apiLabel);apiBox.style.color=apiColor;}
+        if(templateBox){templateBox.innerHTML="<strong>Inquiry Template:</strong> "+escapeHtml(templateLabel);templateBox.style.color=templateColor;}
+      };
       const testPersonaConnection=async(section,{silent=false}={})=>{
         const button=section.querySelector(".client-persona-test");
-        const resultBox=section.querySelector(".client-persona-connection-result");
         const technical=section.querySelector(".client-persona-technical");
         const technicalDetails=section.querySelector(".client-persona-technical-details");
         if(button)button.disabled=true;
-        if(resultBox&&!silent){resultBox.textContent="Testing…";resultBox.style.color="var(--muted)";}
+        if(!silent)setPersonaConnectionStatuses(section,"testing","testing");
         try{
           const response=await fetch("/api/admin/clients/persona-test",{method:"POST",headers:{"Content-Type":"application/json"}});
           const result=await response.json();
           section.dataset.personaConnectionState=result.state||"connection_error";
           section.dataset.personaConnected=result.ok?"1":"0";
+          const apiStatus=result.api_key_status||(result.ok?"connected":result.state==="invalid_credentials"?"invalid":"unknown");
+          const templateStatus=result.inquiry_template_status||(result.ok?(result.sandbox?"not_validated":"connected"):result.state==="incorrect_inquiry_template"?"rejected":"not_checked");
+          setPersonaConnectionStatuses(section,apiStatus,templateStatus);
           if(result.ok){
             applyPersonaRequiredFields(section,result.required_fields||[],true,result.supported_fields||[]);
             section.dataset.personaIdNumberSupported=result.id_number_supported?"1":"0";
-            if(resultBox){resultBox.textContent=result.message||"Connected";resultBox.style.color="#2f6b45";}
-            if(technical&&technicalDetails&&result.sandbox){technical.hidden=false;technicalDetails.textContent=result.technical_details||"Sandbox API key connected.";}
+            if(technical&&technicalDetails&&result.sandbox){technical.hidden=false;technicalDetails.textContent=result.technical_details||"Sandbox API key connected. Inquiry Template will be validated when an inquiry is created.";}
             else if(technical)technical.hidden=true;
           }else{
-            if(resultBox){
-              resultBox.textContent=result.state==="invalid_credentials"?"Invalid credentials":result.state==="incorrect_inquiry_template"?"Incorrect Inquiry Template":"Connection error";
-              resultBox.style.color="#8a2424";
-            }
             if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.technical_details||result.message||"Persona connection failed.";}
           }
           renderPersonaReadiness(section,result.ok);
@@ -3688,10 +3712,10 @@ async function loadRequests() {
         }catch(error){
           section.dataset.personaConnected="0";
           section.dataset.personaConnectionState="connection_error";
-          if(resultBox){resultBox.textContent="Connection error";resultBox.style.color="#8a2424";}
+          setPersonaConnectionStatuses(section,"unknown","not_checked");
           renderPersonaReadiness(section,false);
           if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||"Unable to test Persona connection.";}
-          return {ok:false,state:"connection_error"};
+          return {ok:false,state:"connection_error",api_key_status:"unknown",inquiry_template_status:"not_checked"};
         }finally{if(button)button.disabled=false;}
       };
       const loadPersonaStatus = async (section) => {
@@ -3710,11 +3734,11 @@ async function loadRequests() {
           applyPersonaRequiredFields(section,result.required_fields||[],false,[]);
           if(!result.api_key_configured||!result.inquiry_template_configured){
             section.dataset.personaConnected="0";
-            const resultBox=section.querySelector(".client-persona-connection-result");
-            if(resultBox){
-              resultBox.textContent=!result.api_key_configured?"Invalid credentials":"Incorrect Inquiry Template";
-              resultBox.style.color="#8a2424";
-            }
+            setPersonaConnectionStatuses(
+              section,
+              result.api_key_configured ? "not_tested" : "invalid",
+              result.inquiry_template_configured ? "not_checked" : (result.api_key_configured ? "rejected" : "not_checked")
+            );
             renderPersonaReadiness(section,false);
             if(result.configuration_message&&technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.configuration_message;}
             return;
