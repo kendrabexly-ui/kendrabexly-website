@@ -5344,9 +5344,9 @@ if (
             full:kebabInquiryFields,
             address:pickFields(kebabInquiryFields,[
               "name-first","name-middle","name-last","birthdate",
-              "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code","selected_country_code"
+              "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code","selected-country-code"
             ]),
-            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected_country_code"])
+            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected-country-code"])
           }
         ];
         if(!useCurrentPersonaFields)fieldSets.reverse();
@@ -5367,7 +5367,7 @@ if (
         // API version when no explicit PERSONA_API_VERSION is configured.
         uniqueProfiles.push({
           name:"persona_docs_workflow_safe",
-          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected_country_code"]),
+          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected-country-code"]),
           omitReferenceId:true,
           forceSandboxVersion:true
         });
