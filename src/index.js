@@ -4082,7 +4082,8 @@ if (
       const webhookSecretConfigured = Boolean(env.PERSONA_WEBHOOK_SECRET);
       return Response.json({
         ok:true,
-        connected:apiKeyConfigured && transactionTypeConfigured && webhookSecretConfigured,
+        connected:apiKeyConfigured && transactionTypeConfigured,
+        webhook_connected:webhookSecretConfigured,
         api_key_configured:apiKeyConfigured,
         transaction_type_configured:transactionTypeConfigured,
         webhook_secret_configured:webhookSecretConfigured,
@@ -4107,13 +4108,13 @@ if (
 
         const data = await request.json().catch(() => ({}));
         const clientId = Number(data.client_id);
-        const requestId = Number(data.booking_request_id);
+        let requestId = Number(data.booking_request_id);
         const idClass = String(data.id_class || "").trim().toLowerCase();
         const countryCode = String(data.address_country_code || "US").trim().toUpperCase();
 
         const allowedIdClasses = new Set(["dl","id","pp","ppc","pr","td","visa","wp"]);
-        if (!Number.isInteger(clientId) || clientId < 1 || !Number.isInteger(requestId) || requestId < 1) {
-          return Response.json({ok:false,message:"Choose a valid client and booking verification record."},{status:400});
+        if (!Number.isInteger(clientId) || clientId < 1) {
+          return Response.json({ok:false,message:"Choose a valid client."},{status:400});
         }
         if (!allowedIdClasses.has(idClass)) {
           return Response.json({ok:false,message:"Choose the ID type before running Persona verification."},{status:400});
@@ -4125,11 +4126,34 @@ if (
           return Response.json({ok:false,message:"Client not found."},{status:404});
         }
 
-        const audit = await env.DB.prepare(
+        if (!Number.isInteger(requestId) || requestId < 1) {
+          const latestRequest = await env.DB.prepare(
+            "SELECT id FROM date_requests WHERE client_id=? ORDER BY created_at DESC, id DESC LIMIT 1"
+          ).bind(clientId).first();
+          requestId = Number(latestRequest?.id || 0);
+        }
+        if (!requestId) {
+          return Response.json({ok:false,message:"This client does not have a booking request to attach the verification record to."},{status:400});
+        }
+
+        let audit = await env.DB.prepare(
           "SELECT id, date_request_id FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
         ).bind(clientId, requestId).first();
         if (!audit) {
-          return Response.json({ok:false,message:"No matching verification audit exists for this booking request."},{status:404});
+          await env.DB.prepare(`
+            INSERT INTO client_verification_audits
+              (client_id, date_request_id, accepted, authorization_wording,
+               authorization_version, accepted_at, verification_status, verification_method)
+            VALUES (?, ?, 0, 'Screening acknowledgement was not recorded for this legacy booking request.',
+                    'legacy-unrecorded', CURRENT_TIMESTAMP, 'pending_review', 'Admin verification')
+            ON CONFLICT(date_request_id) DO NOTHING
+          `).bind(clientId, requestId).run();
+          audit = await env.DB.prepare(
+            "SELECT id, date_request_id FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
+          ).bind(clientId, requestId).first();
+        }
+        if (!audit) {
+          return Response.json({ok:false,message:"Unable to create the verification audit for this booking request."},{status:500});
         }
 
         const documentRow = await env.DB.prepare(

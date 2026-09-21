@@ -2557,7 +2557,7 @@ async function loadRequests() {
         const latest = Array.isArray(records) && records.length ? records[0] : null;
         section._verificationAuditRecords = Array.isArray(records) ? records : [];
         if (!latest) {
-          if (list) list.innerHTML = "No booking-form screening acknowledgement is recorded for this client.";
+          if (list) list.innerHTML = "No booking-form screening acknowledgement is recorded for this client. Admin verification can still be run using the uploaded ID.";
           if (editor) editor.hidden = true;
           return;
         }
@@ -2565,7 +2565,7 @@ async function loadRequests() {
         if (list) list.innerHTML = section._verificationAuditRecords.map((record) => `
           <div style="padding:10px 0;border-top:1px solid var(--line);color:var(--ink);line-height:1.55;">
             <div><strong>${record.accepted ? "Accepted" : "Not accepted"}</strong> · Version ${escapeHtml(record.authorization_version || "—")}</div>
-            <div>Accepted: ${escapeHtml(record.accepted_at ? new Date(record.accepted_at + (String(record.accepted_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "—")}</div>
+            <div>${record.accepted ? "Accepted" : "Record created"}: ${escapeHtml(record.accepted_at ? new Date(record.accepted_at + (String(record.accepted_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "—")}</div>
             <div>Client ID: ${escapeHtml(record.client_id)} · Booking Request ID: ${escapeHtml(record.booking_request_id)}</div>
             <div><strong>Submitted employment:</strong> ${escapeHtml(record.submitted_employer || "—")} · ${escapeHtml(record.submitted_job_title || "—")} · ${escapeHtml(record.submitted_industry || "—")}</div>
             <div>Status: ${escapeHtml(String(record.verification_status || "pending_review").replaceAll("_", " "))} · Method: ${escapeHtml(record.verification_method || "Not entered")} · Completed: ${escapeHtml(record.completed_at || "—")}</div>
@@ -2620,8 +2620,10 @@ async function loadRequests() {
           section.dataset.personaConnected = result.connected ? "1" : "0";
           if (status) {
             status.textContent = result.connected
-              ? "Persona connected · Admin-run verification"
-              : "Persona setup incomplete · Add the API key, transaction type ID, and webhook secret to the Worker environment.";
+              ? (result.webhook_connected
+                  ? "Persona connected · Admin-run verification"
+                  : "Persona connected · Verification is available; webhook status updates still need configuration.")
+              : "Persona setup incomplete · Add the API key and transaction type ID to the Worker environment.";
             status.style.color = result.connected ? "#2f6b45" : "#8a5a16";
           }
           if (button) button.disabled = !result.connected;
@@ -2741,10 +2743,6 @@ async function loadRequests() {
           const latestAudit = Array.isArray(section._verificationAuditRecords) && section._verificationAuditRecords.length
             ? section._verificationAuditRecords[0]
             : null;
-          if (!latestAudit?.booking_request_id) {
-            if (status) status.textContent = "No booking verification record is available for Persona.";
-            return;
-          }
           if (section.dataset.personaConnected !== "1") {
             if (status) status.textContent = "Persona setup is incomplete. Add the required Worker secrets before verifying this ID.";
             return;
@@ -2757,7 +2755,7 @@ async function loadRequests() {
               headers:{"Content-Type":"application/json"},
               body:JSON.stringify({
                 client_id:Number(section.dataset.clientId),
-                booking_request_id:Number(latestAudit.booking_request_id),
+                booking_request_id:Number(latestAudit?.booking_request_id || 0),
                 id_class:section.querySelector(".client-persona-id-class")?.value || "dl",
                 address_country_code:"US"
               })
