@@ -2496,7 +2496,7 @@ async function loadRequests() {
                       <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
                     <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
-                    <div class="verification-field-note">Birthdate is maintained in Manual Verification. If your Persona Transaction Type requires birthdate, this saved value is submitted without duplicating the field in the Persona panel.</div>
+                    <div class="verification-field-note">Birthdate is entered once in Manual Verification. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
                     <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
                       <legend style="padding:0 5px;font-size:12px;font-weight:700;">Required checklist</legend>
                       <div style="display:grid;gap:8px;font-size:12px;">
@@ -2876,7 +2876,7 @@ async function loadRequests() {
         street.value=titleCaseAddress(line1);
         if(line2)line2.value=titleCaseAddress(second);
       };
-      const validatePersonaFields=(section,{show=true}={})=>{
+      const validatePersonaFields=(section,{show=true,force=false}={})=>{
         const errors=[];
         const warnings=[];
         const country=normalizeSpaces(section.querySelector(".client-persona-country")?.value||"US").toUpperCase();
@@ -2902,12 +2902,26 @@ async function loadRequests() {
           email_address:".client-persona-email",phone_number:".client-persona-phone",birthdate:".client-persona-birthdate"
         };
         const missing=required.filter(field=>!normalizeSpaces(section.querySelector(selectorByField[field])?.value));
-        if(missing.length)errors.push("Required Persona fields are missing: "+missing.map(x=>x.replaceAll("_"," ")).join(", ")+".");
+        if(missing.length){
+          const labels=missing.map(field=>field==="birthdate"?"Birthdate (enter it in Manual Verification)":field.replaceAll("_"," "));
+          errors.push("Required Persona fields are missing: "+labels.join(", ")+".");
+        }
         const box=section.querySelector(".client-persona-validation");
+        const personaConnected=section.dataset.personaConnected==="1";
         if(show&&box){
-          if(errors.length){box.className="client-persona-validation verification-error";box.innerHTML="<strong>Fix before Persona submission:</strong><br>"+errors.map(escapeHtml).join("<br>")+(warnings.length?"<br><br><strong>Warnings:</strong><br>"+warnings.map(escapeHtml).join("<br>"):"");}
-          else if(warnings.length){box.className="client-persona-validation verification-warning";box.innerHTML="<strong>Review:</strong><br>"+warnings.map(escapeHtml).join("<br>");}
-          else {box.className="client-persona-validation";box.textContent="";}
+          if(!force&&!personaConnected){
+            box.className="client-persona-validation";
+            box.textContent="";
+          }else if(errors.length){
+            box.className="client-persona-validation verification-error";
+            box.innerHTML="<strong>Fix before Persona submission:</strong><br>"+errors.map(escapeHtml).join("<br>")+(warnings.length?"<br><br><strong>Warnings:</strong><br>"+warnings.map(escapeHtml).join("<br>"):"");
+          }else if(warnings.length){
+            box.className="client-persona-validation verification-warning";
+            box.innerHTML="<strong>Review:</strong><br>"+warnings.map(escapeHtml).join("<br>");
+          }else{
+            box.className="client-persona-validation";
+            box.textContent="";
+          }
         }
         return {valid:errors.length===0,errors,warnings,missing};
       };
@@ -3005,6 +3019,8 @@ async function loadRequests() {
         });
         normalizePersonaFields(section);
         capturePersonaDraft(section);
+        updatePersonaAgeStatus(section);
+        validatePersonaFields(section,{show:true,force:false});
       };
       const loadVerificationDraft = async (section) => {
         try{
@@ -3274,6 +3290,7 @@ async function loadRequests() {
           section.dataset.personaConnected=result.connected?"1":"0";
           applyPersonaRequiredFields(section,result.required_fields||[],Boolean(result.required_fields_configured));
           renderPersonaReadiness(section,result.connected);
+          validatePersonaFields(section,{show:true,force:false});
           if(technical)technical.hidden=true;
         }catch(error){
           section.dataset.personaConnected="0";
@@ -3482,8 +3499,8 @@ async function loadRequests() {
           const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
           if(section.dataset.personaConnected!=="1"){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
           normalizePersonaFields(section);capturePersonaDraft(section);await saveVerificationDraft(section);
-          const validation=validatePersonaFields(section);
-          if(!validation.valid){if(status)status.textContent="Fix the highlighted verification fields before submitting to Persona.";return;}
+          const validation=validatePersonaFields(section,{show:true,force:true});
+          if(!validation.valid){if(status)status.textContent="Complete the required verification information before submitting to Persona.";return;}
           const personaFields={
             name_first:normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
             name_middle:normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
