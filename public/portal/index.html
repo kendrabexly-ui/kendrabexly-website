@@ -2602,8 +2602,18 @@ async function loadRequests() {
                       <strong style="font-size:13px;">3. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
                       <span class="verification-badge client-persona-badge">Persona: Checking…</span>
                     </div>
-                    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only the information entered in this section. Your uploaded ID image remains private in this dashboard.</div>
-                    <div class="client-persona-field-legend" style="margin-top:6px;font-size:11px;color:var(--muted);">Required fields will be marked <strong>*</strong> when your Transaction Type is configured.</div>
+                    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
+                    <div class="verification-actions" style="margin-top:9px;">
+                      <button type="button" class="client-persona-test persona-button" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Test Persona Connection</button>
+                      <span class="client-persona-connection-result" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);">Not tested yet</span>
+                    </div>
+                    <div class="verification-grid client-id-fallback-fields" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
+                      <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="80" placeholder="${escapeHtml(personaDraft.id_details?.id_number_masked || "Enter ID number")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note client-persona-id-number-note">${personaDraft.id_details?.has_id_number ? "Saved securely · "+escapeHtml(personaDraft.id_details.id_number_masked) : "Required only when address is unavailable."}</span></label>
+                      <label style="font-size:12px;font-weight:700;">Issuing State<input class="client-persona-issuing-state" value="${escapeHtml(personaDraft.id_details?.issuing_state || "")}" autocomplete="off" maxlength="40" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"><span class="verification-field-note">Required when address is unavailable.</span></label>
+                      <label style="font-size:12px;font-weight:700;">Expiration Date<input class="client-persona-id-expiration" type="date" value="${escapeHtml(personaDraft.id_details?.expiration_date || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note">Optional.</span></label>
+                    </div>
+                    <div class="client-persona-fallback-note" style="margin-top:7px;font-size:11px;color:var(--muted);"></div>
+                    <div class="client-persona-field-legend" style="margin-top:6px;font-size:11px;color:var(--muted);">Required and supported fields will be confirmed against the configured Persona Transaction Type.</div>
                     <div class="verification-grid client-persona-fields">
                       <label data-persona-field="name_first" style="font-size:12px;font-weight:700;">First name<input class="client-persona-name-first" value="${escapeHtml(personaDraft.name_first || client.first_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="name_middle" style="font-size:12px;font-weight:700;">Middle name<input class="client-persona-name-middle" value="${escapeHtml(personaDraft.name_middle || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2624,7 +2634,7 @@ async function loadRequests() {
                         <div class="persona-readiness-row" data-readiness="required"><span>Required fields complete</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="email"><span>Email valid</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="phone"><span>Phone valid</span><strong>—</strong></div>
-                        <div class="persona-readiness-row" data-readiness="address"><span>Address valid</span><strong>—</strong></div>
+                        <div class="persona-readiness-row" data-readiness="address"><span>Address valid or ID fallback complete</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="dob"><span>DOB present</span><strong>—</strong></div>
                       </div>
                       <div class="client-persona-ready-text" style="margin-top:8px;font-size:12px;font-weight:700;color:var(--muted);">Not ready to submit</div>
@@ -2634,6 +2644,7 @@ async function loadRequests() {
                     <div class="verification-actions client-persona-submit-area">
                       <button type="button" class="client-persona-verify persona-button" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
                       <button type="button" class="client-persona-retry persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Retry Persona</button>
+                      <button type="button" class="client-persona-refresh persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Refresh Persona Status</button>
                     </div>
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
@@ -2960,7 +2971,9 @@ async function loadRequests() {
         address_country_code:{selector:".client-persona-country",label:"Country code"},
         email_address:{selector:".client-persona-email",label:"Email"},
         phone_number:{selector:".client-persona-phone",label:"Phone"},
-        birthdate:{selector:".client-persona-birthdate",label:"Birthdate"}
+        birthdate:{selector:".client-persona-birthdate",label:"Birthdate"},
+        id_number:{selector:".client-persona-id-number",label:"DL/State ID Number"},
+        issuing_state:{selector:".client-persona-issuing-state",label:"Issuing State"}
       };
       const clearPersonaFieldStates=(section)=>{
         Object.values(personaFieldMeta).forEach(meta=>{
@@ -3007,15 +3020,33 @@ async function loadRequests() {
         const phone=section.querySelector(".client-persona-phone")?.value||"";
         const phoneDigits=phone.replace(/\D/g,"");
         const birthdate=personaFieldValue(section,"birthdate");
+        const enteredIdNumber=normalizeSpaces(section.querySelector(".client-persona-id-number")?.value);
+        const savedIdNumber=section.dataset.hasSavedIdNumber==="1";
+        const hasIdNumber=Boolean(enteredIdNumber||savedIdNumber);
+        const issuingState=normalizeStateValue(section.querySelector(".client-persona-issuing-state")?.value||"");
+        const addressComplete=Boolean(street&&city&&state&&postal);
+        const idFallbackComplete=Boolean(
+          personaFieldValue(section,"name_first")&&personaFieldValue(section,"name_last")&&birthdate&&hasIdNumber&&issuingState
+        );
         const required=section._personaRequiredFields||[];
+        const addressFields=new Set(["address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code"]);
         const missing=[];
         required.forEach(field=>{
+          if(idFallbackComplete&&addressFields.has(field))return;
           if(!personaFieldValue(section,field)){missing.push(field);fieldErrors[field]="Required field is missing.";}
         });
+        ["name_first","name_last","birthdate"].forEach(field=>{
+          if(!personaFieldValue(section,field)&&!fieldErrors[field]){missing.push(field);fieldErrors[field]="Required field is missing.";}
+        });
+        if(!addressComplete&&!idFallbackComplete){
+          if(!hasIdNumber)fieldErrors.id_number="Enter a DL/State ID number when address is unavailable.";
+          if(!issuingState)fieldErrors.issuing_state="Issuing state is required when address is unavailable.";
+        }
         if(country&&!/^[A-Z]{2}$/.test(country))fieldErrors.address_country_code="Country code must contain exactly two letters.";
         if(country==="US"&&state&&!VALID_US_STATES.has(state))fieldErrors.address_subdivision="Use a valid two-letter U.S. state code.";
         if(country==="US"&&postal&&!/^\d{5}(?:-\d{4})?$/.test(postal))fieldErrors.address_postal_code="ZIP must be 12345 or 12345-6789.";
-        if(street&&(!city||!state||!postal))warnings.push("Address is incomplete: city, state, and postal code should be filled in.");
+        if(issuingState&&!VALID_US_STATES.has(issuingState))fieldErrors.issuing_state="Use a valid two-letter U.S. state code.";
+        if(street&&!addressComplete&&!idFallbackComplete)warnings.push("Address is incomplete. Complete the address or use the DL/State ID fallback.");
         if(street&&line2&&street.toLowerCase()===line2.toLowerCase())warnings.push("Street address and Address line 2 contain the same value.");
         if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))fieldErrors.email_address="Email format is invalid.";
         if(phone&&!(phoneDigits.length===10||(phoneDigits.length===11&&phoneDigits.startsWith("1"))))fieldErrors.phone_number="Phone number is incomplete.";
@@ -3047,9 +3078,18 @@ async function loadRequests() {
         const requiredComplete=missing.length===0;
         const emailValid=!email||!fieldErrors.email_address;
         const phoneValid=!phone||!fieldErrors.phone_number;
-        const addressValid=!fieldErrors.address_country_code&&!fieldErrors.address_subdivision&&!fieldErrors.address_postal_code&&!(street&&(!city||!state||!postal));
+        const addressValid=Boolean((addressComplete&&!fieldErrors.address_country_code&&!fieldErrors.address_subdivision&&!fieldErrors.address_postal_code)||idFallbackComplete);
         const dobPresent=Boolean(birthdate);
-        const readiness={requiredComplete,emailValid,phoneValid,addressValid,dobPresent};
+        const readiness={requiredComplete,emailValid,phoneValid,addressValid,dobPresent,idFallbackComplete,addressComplete};
+        const fallbackNote=section.querySelector(".client-persona-fallback-note");
+        if(fallbackNote){
+          fallbackNote.textContent=!addressComplete&&idFallbackComplete
+            ? "Address unavailable — ID details used instead"
+            : addressComplete
+              ? "Address path complete."
+              : "Complete the address or the ID fallback.";
+          fallbackNote.style.color=addressValid?"#2f6b45":"#8a2424";
+        }
         section._personaValidation={valid:errors.length===0,errors,warnings,missing,readiness};
         const setReadyRow=(key,ok,label)=>{
           const row=section.querySelector('[data-readiness="'+key+'"]');
@@ -3058,7 +3098,7 @@ async function loadRequests() {
         setReadyRow("required",requiredComplete);
         setReadyRow("email",emailValid,email?"✓":(required.includes("email_address")?"Needs attention":"Optional / blank"));
         setReadyRow("phone",phoneValid,phone?"✓":(required.includes("phone_number")?"Needs attention":"Optional / blank"));
-        setReadyRow("address",addressValid,street?"✓":(required.some(x=>x.startsWith("address_"))?"Needs attention":"Optional / blank"));
+        setReadyRow("address",addressValid,addressComplete?"✓ Address":idFallbackComplete?"✓ ID fallback":"Needs attention");
         setReadyRow("dob",dobPresent,dobPresent?"✓":(required.includes("birthdate")?"Needs attention":"Optional / blank"));
         const readyText=section.querySelector(".client-persona-ready-text");
         const allReady=requiredComplete&&emailValid&&phoneValid&&addressValid&&dobPresent;
@@ -3111,7 +3151,15 @@ async function loadRequests() {
           address_postal_code:section.querySelector(".client-persona-postal")?.value || "",
           address_country_code:section.querySelector(".client-persona-country")?.value || "US",
           email_address:section.querySelector(".client-persona-email")?.value || "",
-          phone_number:section.querySelector(".client-persona-phone")?.value || ""
+          phone_number:section.querySelector(".client-persona-phone")?.value || "",
+          id_details:{
+            id_number:section.querySelector(".client-persona-id-number")?.value || "",
+            id_number_masked:section.dataset.savedIdMasked || "",
+            has_id_number:section.dataset.hasSavedIdNumber==="1" || Boolean(section.querySelector(".client-persona-id-number")?.value),
+            id_class:section.querySelector(".client-persona-id-class")?.value || "dl",
+            issuing_state:section.querySelector(".client-persona-issuing-state")?.value || "",
+            expiration_date:section.querySelector(".client-persona-id-expiration")?.value || ""
+          }
         };
         personaDraftByClient.set(id, draft);
         return draft;
@@ -3139,6 +3187,12 @@ async function loadRequests() {
             address_city:draft.address_city,address_subdivision:draft.address_subdivision,
             address_postal_code:draft.address_postal_code,address_country_code:draft.address_country_code,
             email_address:draft.email_address,phone_number:draft.phone_number
+          },
+          id_details:{
+            id_number:draft.id_details?.id_number||"",
+            id_class:draft.id_details?.id_class||"dl",
+            issuing_state:draft.id_details?.issuing_state||"",
+            expiration_date:draft.id_details?.expiration_date||""
           }
         });
         const attempt=async()=>{
@@ -3163,6 +3217,19 @@ async function loadRequests() {
       const applyVerificationDraft = (section, draft) => {
         if(!draft) return;
         const p=draft.persona_fields || {};
+        const idDetails=draft.id_details || {};
+        section.dataset.hasSavedIdNumber=idDetails.has_id_number?"1":"0";
+        section.dataset.savedIdMasked=idDetails.id_number_masked||"";
+        const idNumber=section.querySelector(".client-persona-id-number");
+        if(idNumber){
+          idNumber.value="";
+          idNumber.placeholder=idDetails.id_number_masked||"Enter ID number";
+          const note=section.querySelector(".client-persona-id-number-note");
+          if(note)note.textContent=idDetails.has_id_number?"Saved securely · "+(idDetails.id_number_masked||"Saved"):"Required only when address is unavailable.";
+        }
+        const idClassInput=section.querySelector(".client-persona-id-class");if(idClassInput&&idDetails.id_class)idClassInput.value=idDetails.id_class;
+        const issuingInput=section.querySelector(".client-persona-issuing-state");if(issuingInput)issuingInput.value=idDetails.issuing_state||"";
+        const expirationInput=section.querySelector(".client-persona-id-expiration");if(expirationInput)expirationInput.value=idDetails.expiration_date||"";
         const map={
           ".client-persona-name-first":p.name_first,
           ".client-persona-name-middle":p.name_middle,
@@ -3388,14 +3455,17 @@ async function loadRequests() {
           loadVerificationActivity(section);
         }catch(error){if(list)list.textContent=error.message||"Unable to load verification records.";}
       };
-      const applyPersonaRequiredFields=(section,requiredFields,configured)=>{
+      const applyPersonaRequiredFields=(section,requiredFields,configured,supportedFields=[])=>{
         const required=new Set(Array.isArray(requiredFields)?requiredFields:[]);
+        const supported=new Set(Array.isArray(supportedFields)?supportedFields:[]);
         section._personaRequiredFields=[...required];
+        section._personaSupportedFields=[...supported];
         section._personaFieldsConfigured=Boolean(configured);
         section.querySelectorAll("[data-persona-field]").forEach(label=>{
           const field=label.dataset.personaField;
           const isRequired=required.has(field);
-          label.hidden=Boolean(configured)&&!isRequired;
+          const confirmedSupported=supported.size>0;
+          label.hidden=Boolean(configured)&&confirmedSupported&&!isRequired;
           let marker=label.querySelector(".persona-required-marker");
           if(!marker){
             marker=document.createElement("span");
@@ -3413,9 +3483,9 @@ async function loadRequests() {
           if(input){input.required=isRequired;input.setAttribute("aria-required",String(isRequired));}
         });
         const legend=section.querySelector(".client-persona-field-legend");
-        if(legend)legend.innerHTML=configured
-          ? 'Only fields required by your Persona Transaction Type are shown. <span class="verification-status-pill" style="background:#fdeaea;color:#8a2424;padding:2px 6px;font-size:10px;">Required</span>'
-          : 'Persona field requirements are not finalized yet. Fields are labeled <strong>Required</strong> or <strong>Optional</strong> using the current configuration.';
+        if(legend)legend.innerHTML=configured&&supported.size
+          ? 'Persona connection confirmed. Only required fields from the final Transaction Type are shown. <span class="verification-status-pill" style="background:#fdeaea;color:#8a2424;padding:2px 6px;font-size:10px;">Required</span>'
+          : 'Persona field requirements will be finalized after the connection test.';
         validatePersonaFields(section);
       };
       const personaReadiness=(section,connected)=>{
@@ -3432,6 +3502,7 @@ async function loadRequests() {
         const badge=section.querySelector(".client-persona-badge");
         const run=section.querySelector(".client-persona-verify");
         const retry=section.querySelector(".client-persona-retry");
+        const refresh=section.querySelector(".client-persona-refresh");
         const statusBox=section.querySelector(".client-persona-status");
         const latest=section._verificationAuditRecords?.[0]||{};
         const state=personaReadiness(section,connected);
@@ -3445,6 +3516,7 @@ async function loadRequests() {
           run.style.opacity=!run.disabled?"1":".72";
         }
         if(retry){retry.hidden=state.key!=="failed";retry.disabled=state.key!=="failed";}
+        if(refresh){refresh.hidden=!hasExisting;refresh.disabled=!hasExisting;}
         if(statusBox){
           statusBox.textContent={
             pending_setup:"Persona setup is still pending. You can still complete and review all required Persona fields now.",
@@ -3481,18 +3553,62 @@ async function loadRequests() {
         }
         updateVerificationSummary(section);
       };
+      const testPersonaConnection=async(section,{silent=false}={})=>{
+        const button=section.querySelector(".client-persona-test");
+        const resultBox=section.querySelector(".client-persona-connection-result");
+        const technical=section.querySelector(".client-persona-technical");
+        const technicalDetails=section.querySelector(".client-persona-technical-details");
+        if(button)button.disabled=true;
+        if(resultBox&&!silent){resultBox.textContent="Testing…";resultBox.style.color="var(--muted)";}
+        try{
+          const response=await fetch("/api/admin/clients/persona-test",{method:"POST",headers:{"Content-Type":"application/json"}});
+          const result=await response.json();
+          section.dataset.personaConnectionState=result.state||"connection_error";
+          section.dataset.personaConnected=result.ok?"1":"0";
+          if(result.ok){
+            applyPersonaRequiredFields(section,result.required_fields||[],true,result.supported_fields||[]);
+            section.dataset.personaIdNumberSupported=result.id_number_supported?"1":"0";
+            if(resultBox){resultBox.textContent="Connected";resultBox.style.color="#2f6b45";}
+            if(technical)technical.hidden=true;
+          }else{
+            if(resultBox){
+              resultBox.textContent=result.state==="invalid_credentials"?"Invalid credentials":result.state==="incorrect_transaction_type"?"Incorrect Transaction Type":"Connection error";
+              resultBox.style.color="#8a2424";
+            }
+            if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.technical_details||result.message||"Persona connection failed.";}
+          }
+          renderPersonaReadiness(section,result.ok);
+          validatePersonaFields(section,{show:true,force:false});
+          return result;
+        }catch(error){
+          section.dataset.personaConnected="0";
+          section.dataset.personaConnectionState="connection_error";
+          if(resultBox){resultBox.textContent="Connection error";resultBox.style.color="#8a2424";}
+          renderPersonaReadiness(section,false);
+          if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||"Unable to test Persona connection.";}
+          return {ok:false,state:"connection_error"};
+        }finally{if(button)button.disabled=false;}
+      };
       const loadPersonaStatus = async (section) => {
         const technical=section.querySelector(".client-persona-technical");
         const technicalDetails=section.querySelector(".client-persona-technical-details");
         try{
           const response=await fetch("/api/admin/clients/persona-status",{cache:"no-store"});
           const result=await response.json();
-          if(!response.ok||!result.ok)throw new Error("Unable to check Persona connection.");
-          section.dataset.personaConnected=result.connected?"1":"0";
-          applyPersonaRequiredFields(section,result.required_fields||[],Boolean(result.required_fields_configured));
-          renderPersonaReadiness(section,result.connected);
-          validatePersonaFields(section,{show:true,force:false});
-          if(technical)technical.hidden=true;
+          if(!response.ok||!result.ok)throw new Error("Unable to check Persona configuration.");
+          applyPersonaRequiredFields(section,result.required_fields||[],false,[]);
+          if(!result.api_key_configured||!result.transaction_type_configured){
+            section.dataset.personaConnected="0";
+            const resultBox=section.querySelector(".client-persona-connection-result");
+            if(resultBox){
+              resultBox.textContent=!result.api_key_configured?"Invalid credentials":"Incorrect Transaction Type";
+              resultBox.style.color="#8a2424";
+            }
+            renderPersonaReadiness(section,false);
+            if(result.configuration_message&&technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.configuration_message;}
+            return;
+          }
+          await testPersonaConnection(section,{silent:true});
         }catch(error){
           section.dataset.personaConnected="0";
           renderPersonaReadiness(section,false);
@@ -3528,7 +3644,7 @@ async function loadRequests() {
         });
       });
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
-        const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
+        const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone,.client-persona-id-number,.client-persona-issuing-state,.client-persona-id-expiration,.client-persona-id-class");
         personaInputs.forEach(input=>{
           input.addEventListener("input",()=>{
             if(input.classList.contains("client-persona-phone")){
@@ -3549,6 +3665,7 @@ async function loadRequests() {
         normalizePersonaFields(section);
         capturePersonaDraft(section);
         section.querySelector(".client-verification-save-draft-now")?.addEventListener("click",()=>saveVerificationDraft(section,{retry:true}));
+        section.querySelector(".client-persona-test")?.addEventListener("click",()=>testPersonaConnection(section));
         section.addEventListener("toggle",()=>{
           if(section.open){
             loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);loadVerificationActivity(section);
@@ -3784,6 +3901,22 @@ async function loadRequests() {
         };
         section.querySelector(".client-persona-verify")?.addEventListener("click",()=>submitPersona(false));
         section.querySelector(".client-persona-retry")?.addEventListener("click",()=>submitPersona(true));
+        section.querySelector(".client-persona-refresh")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget,status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details");
+          button.disabled=true;if(status)status.textContent="Refreshing Persona status…";
+          try{
+            const response=await fetch("/api/admin/clients/persona-refresh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId)})});
+            const result=await response.json();
+            if(!response.ok||!result.ok)throw new Error(result.technical_details||result.message||"Unable to refresh Persona status.");
+            await loadVerificationAudits(section);await loadVerificationActivity(section);
+            renderPersonaReadiness(section,section.dataset.personaConnected==="1");
+            if(status)status.textContent="Persona status refreshed: "+String(result.transaction_status||"").replaceAll("_"," ")+". Manual Decision was not changed.";
+            if(technical)technical.hidden=true;
+          }catch(error){
+            if(status)status.textContent="Unable to refresh Persona status.";
+            if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||String(error);}
+          }finally{button.disabled=false;}
+        });
 
         section.querySelector(".client-id-delete")?.addEventListener("click",async(event)=>{
           const clientName=section.dataset.clientName||"this client";
