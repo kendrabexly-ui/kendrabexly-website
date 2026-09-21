@@ -3809,7 +3809,7 @@ async function loadRequests(options = {}) {
         }
         if(retry){retry.hidden=state.key!=="failed";retry.disabled=state.key!=="failed";}
         if(newTest){
-          const canStartNew=Boolean(hasExisting&&connected);
+          const canStartNew=Boolean(hasExisting);
           newTest.hidden=!canStartNew;
           newTest.disabled=!canStartNew;
         }
@@ -4274,7 +4274,7 @@ async function loadRequests(options = {}) {
 
         const submitPersona=async(retryPersona,forceNewPersona=false)=>{
           const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),newTestButton=section.querySelector(".client-persona-new-test"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
-          if(section.dataset.personaConnected!=="1"){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
+          if(section.dataset.personaConnected!=="1"&&!forceNewPersona){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
           normalizePersonaFields(section);capturePersonaDraft(section);await saveVerificationDraft(section);
           const validation=validatePersonaFields(section,{show:true,force:true});
           if(!validation.valid){
