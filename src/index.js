@@ -5184,6 +5184,10 @@ if (
           personaFields[key] = value;
         }
         personaFields = normalizeVerificationAddressFields(personaFields);
+        personaFields.selected_country_code = String(
+          incomingFields.selected_country_code || personaFields.address_country_code || "US"
+        ).trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(personaFields.selected_country_code)) personaFields.selected_country_code = "US";
         if (
           personaFields.address_street_1 &&
           personaFields.address_street_2 &&
@@ -5320,6 +5324,8 @@ if (
         let personaResponse,personaData={};
         const snakeInquiryFields=Object.fromEntries(Object.entries(personaFields));
         const kebabInquiryFields=Object.fromEntries(Object.entries(personaFields).map(([key,value])=>[key.replaceAll("_","-"),value]));
+        delete kebabInquiryFields["selected-country-code"];
+        kebabInquiryFields.selected_country_code = personaFields.selected_country_code;
         const pickFields=(source,keys)=>Object.fromEntries(keys.filter(key=>source[key]!==undefined&&source[key]!==null&&source[key]!=="").map(key=>[key,source[key]]));
 
         const useCurrentPersonaFields=String(env.PERSONA_API_VERSION||"")>="2025-10-27";
@@ -5329,18 +5335,18 @@ if (
             full:snakeInquiryFields,
             address:pickFields(snakeInquiryFields,[
               "name_first","name_middle","name_last","birthdate",
-              "address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code"
+              "address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code","selected_country_code"
             ]),
-            core:pickFields(snakeInquiryFields,["name_first","name_last","birthdate","address_country_code"])
+            core:pickFields(snakeInquiryFields,["name_first","name_last","birthdate","address_country_code","selected_country_code"])
           },
           {
             style:"kebab",
             full:kebabInquiryFields,
             address:pickFields(kebabInquiryFields,[
               "name-first","name-middle","name-last","birthdate",
-              "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code"
+              "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code","selected_country_code"
             ]),
-            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code"])
+            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected_country_code"])
           }
         ];
         if(!useCurrentPersonaFields)fieldSets.reverse();
@@ -5361,7 +5367,7 @@ if (
         // API version when no explicit PERSONA_API_VERSION is configured.
         uniqueProfiles.push({
           name:"persona_docs_workflow_safe",
-          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code"]),
+          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected_country_code"]),
           omitReferenceId:true,
           forceSandboxVersion:true
         });
