@@ -793,7 +793,7 @@
         .persona-readiness-row{display:flex;justify-content:space-between;gap:10px;align-items:center;}
         .persona-readiness-row strong{font-size:11px;}
         .verification-activity-filter[aria-pressed="true"],[data-queue-filter][aria-pressed="true"]{background:var(--ink)!important;color:white!important;border-color:var(--ink)!important;}
-        @media (max-width:640px){.client-persona-submit-area{position:sticky;bottom:0;z-index:5;background:white;padding:10px 0;border-top:1px solid var(--line);}.client-persona-validation{scroll-margin-top:20px;}}
+        @media (max-width:640px){.client-persona-submit-area{position:sticky;bottom:0;z-index:6;background:white;padding:10px 0 12px;border-top:1px solid var(--line);box-shadow:0 -8px 18px rgba(0,0,0,.06);}.client-persona-validation{scroll-margin-top:90px;}.persona-error-item{padding:7px 0;}}
         @media (max-width:640px){
           .verification-grid{grid-template-columns:1fr!important;}
           .verification-actions{display:grid!important;grid-template-columns:1fr!important;}
@@ -3030,9 +3030,9 @@ async function loadRequests() {
           if(errors.length){
             box.className="client-persona-validation verification-error";
             box.innerHTML="<strong>Fix before Persona submission:</strong>"+errors.map(item=>{
-              const jump=item.field==="birthdate"?' data-jump-target=".client-persona-birthdate"':"";
-              return '<button type="button" class="persona-error-item"'+jump+'>'+escapeHtml(item.label)+": "+escapeHtml(item.message)+"</button>";
-            }).join("")+(warnings.length?'<div style="margin-top:8px;padding-top:7px;border-top:1px solid #f1c7c0;"><strong>Warnings</strong><br>'+warnings.map(x=>"• "+escapeHtml(x)).join("<br>")+"</div>":"");
+              const selector=personaFieldMeta[item.field]?.selector||"";
+              return '<button type="button" class="persona-error-item" data-jump-target="'+escapeHtml(selector)+'">'+escapeHtml(item.label)+": "+escapeHtml(item.message)+"</button>";
+            }).join("")+(warnings.length?'<div class="persona-warning-list" style="margin-top:8px;padding-top:7px;border-top:1px solid #f1c7c0;color:#7b5214;"><strong>Warnings</strong><br>'+warnings.map(x=>"• "+escapeHtml(x)).join("<br>")+"</div>":"");
             box.querySelectorAll("[data-jump-target]").forEach(button=>button.addEventListener("click",()=>{
               const target=section.querySelector(button.dataset.jumpTarget);
               const editor=section.querySelector(".client-verification-editor");
@@ -3051,16 +3051,31 @@ async function loadRequests() {
         const dobPresent=Boolean(birthdate);
         const readiness={requiredComplete,emailValid,phoneValid,addressValid,dobPresent};
         section._personaValidation={valid:errors.length===0,errors,warnings,missing,readiness};
-        const setReadyRow=(key,ok)=>{
+        const setReadyRow=(key,ok,label)=>{
           const row=section.querySelector('[data-readiness="'+key+'"]');
-          if(row){const strong=row.querySelector("strong");if(strong){strong.textContent=ok?"✓":"Needs attention";strong.style.color=ok?"#2f6b45":"#8a2424";}}
+          if(row){const strong=row.querySelector("strong");if(strong){strong.textContent=label||(ok?"✓":"Needs attention");strong.style.color=ok?"#2f6b45":"#8a2424";}}
         };
-        setReadyRow("required",requiredComplete);setReadyRow("email",emailValid);setReadyRow("phone",phoneValid);setReadyRow("address",addressValid);setReadyRow("dob",dobPresent);
+        setReadyRow("required",requiredComplete);
+        setReadyRow("email",emailValid,email?"✓":(required.includes("email_address")?"Needs attention":"Optional / blank"));
+        setReadyRow("phone",phoneValid,phone?"✓":(required.includes("phone_number")?"Needs attention":"Optional / blank"));
+        setReadyRow("address",addressValid,street?"✓":(required.some(x=>x.startsWith("address_"))?"Needs attention":"Optional / blank"));
+        setReadyRow("dob",dobPresent,dobPresent?"✓":(required.includes("birthdate")?"Needs attention":"Optional / blank"));
         const readyText=section.querySelector(".client-persona-ready-text");
         const allReady=requiredComplete&&emailValid&&phoneValid&&addressValid&&dobPresent;
         if(readyText){readyText.textContent=allReady?"Ready to submit":"Not ready to submit";readyText.style.color=allReady?"#2f6b45":"#8a2424";}
         const dobHandoff=section.querySelector(".client-persona-dob-handoff");
-        if(dobHandoff)dobHandoff.innerHTML="<strong>DOB pulled from Manual Verification</strong><br>"+(birthdate?"Saved DOB is present and will be used automatically if Persona requires it.":"DOB is missing. Enter it in Manual Verification.");
+        if(dobHandoff){
+          dobHandoff.innerHTML="<strong>DOB pulled from Manual Verification</strong><br>"+(birthdate
+            ?"Saved DOB is present and will be used automatically if Persona requires it."
+            :'<button type="button" class="persona-dob-jump" style="border:0;background:transparent;padding:0;color:#8a2424;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">DOB is missing — go to Manual Verification</button>');
+          dobHandoff.querySelector(".persona-dob-jump")?.addEventListener("click",()=>{
+            const target=section.querySelector(".client-persona-birthdate");
+            const editor=section.querySelector(".client-verification-editor");
+            if(editor)editor.hidden=false;
+            target?.scrollIntoView({behavior:"smooth",block:"center"});
+            target?.focus();
+          });
+        }
         return {valid:errors.length===0,errors,warnings,missing,readiness,allReady};
       };
       const normalizePersonaFields=(section)=>{
@@ -3166,7 +3181,6 @@ async function loadRequests() {
           const input=section.querySelector(selector);
           if(input && value) input.value=value;
         });
-        section.querySelector(".client-verification-save-draft-now")?.addEventListener("click",()=>saveVerificationDraft(section,{retry:true}));
         normalizePersonaFields(section);
         capturePersonaDraft(section);
         updatePersonaAgeStatus(section);
@@ -3534,6 +3548,7 @@ async function loadRequests() {
         });
         normalizePersonaFields(section);
         capturePersonaDraft(section);
+        section.querySelector(".client-verification-save-draft-now")?.addEventListener("click",()=>saveVerificationDraft(section,{retry:true}));
         section.addEventListener("toggle",()=>{
           if(section.open){
             loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);loadVerificationActivity(section);
@@ -3696,7 +3711,10 @@ async function loadRequests() {
           const validation=validatePersonaFields(section,{show:true,force:true});
           if(!validation.valid){
             if(status)status.textContent="Complete the required verification information before submitting to Persona.";
-            section.querySelector(".client-persona-validation")?.scrollIntoView({behavior:"smooth",block:"center"});
+            const panel=section.querySelector(".client-persona-validation");
+            panel?.setAttribute("tabindex","-1");
+            panel?.scrollIntoView({behavior:"smooth",block:"center"});
+            panel?.focus({preventScroll:true});
             return;
           }
           const personaFields={
