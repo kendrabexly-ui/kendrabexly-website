@@ -4755,9 +4755,9 @@ if (
           return Response.json({ok:true,ignored:true,reason:"missing_reference_id"});
         }
 
-        await ensureClientVerificationAuditsTable(env);
+        await ensureVerificationWorkspaceTables(env);
         const audit = await env.DB.prepare(
-          "SELECT id FROM client_verification_audits WHERE date_request_id=? LIMIT 1"
+          "SELECT id, client_id FROM client_verification_audits WHERE date_request_id=? LIMIT 1"
         ).bind(requestId).first();
         if (!audit) {
           console.warn("Persona webhook has no matching verification audit:", requestId, objectId);
@@ -4779,6 +4779,14 @@ if (
           transactionStatus,
           requestId
         ).run();
+        await logVerificationActivity(
+          env,
+          Number(audit.client_id),
+          Number(audit.id),
+          "persona_response",
+          "Persona response received",
+          "Status: " + (transactionStatus || objectStatus)
+        );
 
         return Response.json({
           ok:true,
