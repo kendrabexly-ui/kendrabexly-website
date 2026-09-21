@@ -5536,6 +5536,119 @@ if (
       }
     }
 
+    if (url.pathname === "/api/admin/clients/persona-workflow-result" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const config=await fetchPersonaInquiryTemplateConfig(env);
+        if(!config.ok)return Response.json({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_inquiry_template"?400:502});
+
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+
+        const actor=accessIdentity(request).email||"admin";
+        const rate=await enforceVerificationRateLimit(env,"persona_workflow_result",actor+":"+clientId,20,300);
+        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona workflow checks. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+
+        const audit=await env.DB.prepare(
+          "SELECT * FROM client_verification_audits WHERE client_id=? AND persona_transaction_id<>'' ORDER BY persona_submitted_at DESC, id DESC LIMIT 1"
+        ).bind(clientId).first();
+        if(!audit)return Response.json({ok:false,message:"No Persona inquiry is available to inspect."},{status:404});
+
+        const headers={Authorization:"Bearer "+String(env.PERSONA_API_KEY),"Key-Inflection":"snake"};
+        if(env.PERSONA_API_VERSION)headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
+
+        const inquiryId=String(audit.persona_transaction_id||"");
+        const personaResponse=await fetch(
+          "https://api.withpersona.com/api/v1/inquiries/"+encodeURIComponent(inquiryId)+"?include=verifications",
+          {headers}
+        );
+        const personaPayload=await personaResponse.json().catch(()=>({}));
+        if(!personaResponse.ok){
+          const detail=personaPayload?.errors?.[0]?.detail||personaPayload?.errors?.[0]?.title||personaPayload?.message||"Persona could not inspect this inquiry.";
+          return Response.json({
+            ok:false,
+            message:"Unable to check Persona workflow result.",
+            technical_details:String(detail),
+            persona_request_id:personaResponse.headers.get("Request-Id")||""
+          },{status:personaResponse.status===404?404:502});
+        }
+
+        const inquiryStatus=String(personaPayload?.data?.attributes?.status||audit.persona_transaction_status||"created").toLowerCase();
+        const included=Array.isArray(personaPayload?.included)?personaPayload.included:[];
+        const verifications=included.filter(item=>String(item?.type||"").startsWith("verification/"));
+        const createdMs=item=>{
+          const raw=item?.attributes?.created_at||item?.attributes?.["created-at"]||"";
+          const ms=raw?Date.parse(raw):0;
+          return Number.isFinite(ms)?ms:0;
+        };
+        verifications.sort((a,b)=>createdMs(b)-createdMs(a));
+        const isDatabaseVerification=item=>{
+          const type=String(item?.type||"").toLowerCase();
+          return type==="verification/database" ||
+            type.startsWith("verification/database-") ||
+            type==="verification/aamva";
+        };
+        const databaseVerifications=verifications.filter(isDatabaseVerification);
+        const latestDatabase=databaseVerifications[0]||null;
+
+        const attrs=latestDatabase?.attributes||{};
+        const databaseStatus=String(attrs.status||"").toLowerCase();
+        const completedAt=String(attrs.completed_at||attrs["completed-at"]||"");
+        const createdAt=String(attrs.created_at||attrs["created-at"]||"");
+        const submittedAt=String(attrs.submitted_at||attrs["submitted-at"]||"");
+        const terminalStatuses=new Set(["passed","failed","requires_retry","confirmed","canceled","skipped"]);
+        const runningStatuses=new Set(["initiated","submitted","pending","processing"]);
+        let workflowState="not_run";
+        if(latestDatabase){
+          workflowState=terminalStatuses.has(databaseStatus)?"completed":runningStatuses.has(databaseStatus)?"running":"ran";
+        }
+
+        const checkList=Array.isArray(attrs.checks)?attrs.checks:[];
+        const checkSummary=checkList.map(check=>({
+          name:String(check?.name||check?.type||check?.attributes?.name||""),
+          status:String(check?.status||check?.attributes?.status||"")
+        })).filter(check=>check.name||check.status).slice(0,20);
+
+        await logVerificationActivity(
+          env,clientId,audit.id,"persona_workflow_check","Persona workflow result checked",
+          latestDatabase
+            ? "Database verification "+String(latestDatabase.id||"")+" · "+(databaseStatus||"status unavailable")
+            : "No Database verification attached to inquiry "+inquiryId
+        );
+
+        return Response.json({
+          ok:true,
+          inquiry_id:inquiryId,
+          inquiry_status:inquiryStatus,
+          database_ran:Boolean(latestDatabase),
+          workflow_state:workflowState,
+          database_verification:latestDatabase ? {
+            id:String(latestDatabase.id||""),
+            type:String(latestDatabase.type||""),
+            status:databaseStatus||"unknown",
+            created_at:createdAt,
+            submitted_at:submittedAt,
+            completed_at:completedAt,
+            checks:checkSummary
+          } : null,
+          verification_count:verifications.length,
+          database_verification_count:databaseVerifications.length,
+          message:latestDatabase
+            ? "Database (US) verification found for this Persona inquiry."
+            : "No Database (US) verification is attached to this inquiry yet.",
+          technical_details:latestDatabase
+            ? ""
+            : "The inquiry exists, but Persona did not return an associated database verification. The inquiry-created workflow may not have fired yet, may have errored before creating the verification, or the verification may not be attached to this inquiry.",
+          persona_request_id:personaResponse.headers.get("Request-Id")||"",
+          persona_environment_id:personaResponse.headers.get("Persona-Environment-Id")||""
+        },{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        console.error("Persona workflow result error:",error);
+        return Response.json({ok:false,message:"Unable to check Persona workflow result.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
     // =========================================================
     // IDENTITY VERIFICATION WEBHOOK (Persona)
     // =========================================================
