@@ -2742,7 +2742,7 @@ async function loadRequests() {
         updateVerificationSummary(section);
       };
       const statusLabel = value => ({
-        pending_review:"Pending Review", verified:"Verified", unable_to_verify:"Unable to Verify", declined:"Declined"
+        pending_review:"Pending Review", needs_more_information:"Needs More Information", verified:"Verified", unable_to_verify:"Unable to Verify", declined:"Declined"
       }[value] || String(value || "Pending Review").replaceAll("_"," "));
       const updateVerificationSummary = (section) => {
         const summary = section.closest(".client-profile-actions")?.querySelector(".client-verification-summary");
@@ -2781,8 +2781,8 @@ async function loadRequests() {
       };
       const capturePersonaDraft = (section) => {
         const id = Number(section.dataset.clientId);
-        if (!id) return;
-        personaDraftByClient.set(id, {
+        if (!id) return {};
+        const draft = {
           name_first:section.querySelector(".client-persona-name-first")?.value || "",
           name_middle:section.querySelector(".client-persona-name-middle")?.value || "",
           name_last:section.querySelector(".client-persona-name-last")?.value || "",
@@ -2795,8 +2795,92 @@ async function loadRequests() {
           address_country_code:section.querySelector(".client-persona-country")?.value || "US",
           email_address:section.querySelector(".client-persona-email")?.value || "",
           phone_number:section.querySelector(".client-persona-phone")?.value || ""
-        });
+        };
+        personaDraftByClient.set(id, draft);
+        return draft;
       };
+      const saveVerificationDraft = async (section) => {
+        const draft = capturePersonaDraft(section);
+        const clientId = Number(section.dataset.clientId);
+        if (!clientId) return;
+        await fetch("/api/admin/clients/verification-draft", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            client_id:clientId,
+            birthdate:draft.birthdate || "",
+            persona_fields:{
+              name_first:draft.name_first,name_middle:draft.name_middle,name_last:draft.name_last,
+              address_street_1:draft.address_street_1,address_street_2:draft.address_street_2,
+              address_city:draft.address_city,address_subdivision:draft.address_subdivision,
+              address_postal_code:draft.address_postal_code,address_country_code:draft.address_country_code,
+              email_address:draft.email_address,phone_number:draft.phone_number
+            }
+          })
+        }).catch(()=>{});
+      };
+      const applyVerificationDraft = (section, draft) => {
+        if(!draft) return;
+        const p=draft.persona_fields || {};
+        const map={
+          ".client-persona-name-first":p.name_first,
+          ".client-persona-name-middle":p.name_middle,
+          ".client-persona-name-last":p.name_last,
+          ".client-persona-address-1":p.address_street_1,
+          ".client-persona-address-2":p.address_street_2,
+          ".client-persona-city":p.address_city,
+          ".client-persona-state":p.address_subdivision,
+          ".client-persona-postal":p.address_postal_code,
+          ".client-persona-country":p.address_country_code,
+          ".client-persona-email":p.email_address,
+          ".client-persona-phone":p.phone_number,
+          ".client-persona-birthdate":draft.birthdate
+        };
+        Object.entries(map).forEach(([selector,value])=>{
+          const input=section.querySelector(selector);
+          if(input && value) input.value=value;
+        });
+        normalizePersonaFields(section);
+        capturePersonaDraft(section);
+      };
+      const loadVerificationDraft = async (section) => {
+        try{
+          const response=await fetch("/api/admin/clients/verification-draft?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(response.ok&&result.ok) applyVerificationDraft(section,result.draft);
+        }catch{}
+      };
+      const loadVerificationActivity = async (section) => {
+        const box=section.querySelector(".client-verification-activity-list");
+        if(!box) return;
+        try{
+          const response=await fetch("/api/admin/clients/verification-activity?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(!response.ok||!result.ok) throw new Error(result.message||"Unable to load activity.");
+          const items=result.activity||[];
+          box.innerHTML=items.length?items.map(item=>`
+            <div style="padding:7px 0;border-top:1px solid var(--line);">
+              <strong>${escapeHtml(item.event_label||"Verification activity")}</strong>
+              <div style="margin-top:2px;color:var(--muted);">${escapeHtml(item.created_at||"—")}</div>
+              ${item.details ? `<div style="margin-top:3px;">${escapeHtml(item.details)}</div>` : ""}
+            </div>`).join(""):'<div class="empty">No verification activity recorded yet.</div>';
+        }catch(error){box.textContent=error.message||"Unable to load activity.";}
+      };
+      const confirmVerificationDecision = (section) => new Promise((resolve)=>{
+        const dialog=document.getElementById("verification-decision-dialog");
+        const preview=document.getElementById("verification-decision-preview");
+        if(!dialog||!preview||typeof dialog.showModal!=="function"){resolve(window.confirm("Save this verification decision?"));return;}
+        const status=section.querySelector(".client-verification-status")?.value||"pending_review";
+        const reason=section.querySelector(".client-verification-reason")?.value||"";
+        const note=section.querySelector(".client-verification-decision-notes")?.value?.trim()||"";
+        const method=section.querySelector(".client-verification-method")?.value?.trim()||"Not entered";
+        const count=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"].filter(sel=>section.querySelector(sel)?.checked).length;
+        preview.innerHTML="<strong>"+escapeHtml(statusLabel(status))+"</strong><br>Checklist: "+count+" of 5<br>Method: "+escapeHtml(method)+(reason?"<br>Reason: "+escapeHtml(reason.replaceAll("_"," ")):"")+(note?"<br>Private note: "+escapeHtml(note):"");
+        const close=()=>{dialog.removeEventListener("close",close);resolve(dialog.returnValue==="confirm");};
+        dialog.addEventListener("close",close);
+        dialog.showModal();
+      });
+
       const setIdDocumentState = (section, documentRecord) => {
         const preview = section.querySelector(".client-id-preview");
         const empty = section.querySelector(".client-id-empty");
@@ -2804,6 +2888,9 @@ async function loadRequests() {
         const received = section.querySelector(".client-id-received");
         const upload = section.querySelector(".client-id-upload");
         const deleteButton = section.querySelector(".client-id-delete");
+        const retentionButton = section.querySelector(".client-id-retention-save");
+        const retentionInput = section.querySelector(".client-id-retention-reminder");
+        const uploadedAt = section.querySelector(".client-id-uploaded-at");
         const clientId = Number(section.dataset.clientId);
         section.dataset.hasDocument = documentRecord ? "1" : "0";
         if (!documentRecord) {
@@ -2812,6 +2899,9 @@ async function loadRequests() {
           if (meta) { meta.hidden = true; meta.textContent = ""; }
           if (upload) upload.textContent = "Upload ID";
           if (deleteButton) deleteButton.hidden = true;
+          if (retentionButton) retentionButton.hidden = true;
+          if (retentionInput) retentionInput.value = "";
+          if (uploadedAt) uploadedAt.textContent = "Not uploaded";
           if (received && !received.value) received.value = new Date().toISOString().slice(0,10);
           updateVerificationSummary(section);
           return;
@@ -2822,6 +2912,9 @@ async function loadRequests() {
         if (received) received.value = documentRecord.received_at || "";
         if (upload) upload.textContent = "Replace ID";
         if (deleteButton) deleteButton.hidden = false;
+        if (retentionButton) retentionButton.hidden = false;
+        if (retentionInput) retentionInput.value = documentRecord.retention_reminder_at || "";
+        if (uploadedAt) uploadedAt.textContent = documentRecord.created_at ? new Date(documentRecord.created_at+(String(documentRecord.created_at).endsWith("Z")?"":"Z")).toLocaleString() : "Stored";
         updateVerificationSummary(section);
       };
       const setVerificationAuditState = (section, records, decisionHistory=[]) => {
@@ -2857,6 +2950,22 @@ async function loadRequests() {
         if(completedDisplay) completedDisplay.textContent=latest.completed_at
           ? "Completion: "+new Date(latest.completed_at+(String(latest.completed_at).endsWith("Z")?"":"Z")).toLocaleString()+" · "+(latest.completed_by || "admin")+" · "+(latest.verification_method || "method not recorded")
           : "Completion: Not completed";
+        const personaCurrent=section.querySelector(".client-persona-current");
+        const retryButton=section.querySelector(".client-persona-retry");
+        const runButton=section.querySelector(".client-persona-verify");
+        const personaStatus=String(latest.persona_transaction_status||"").toLowerCase();
+        const retryable=["declined","errored","failed"].includes(personaStatus);
+        const active=Boolean(latest.persona_transaction_id)&&!["approved","declined","errored","failed"].includes(personaStatus);
+        if(personaCurrent) personaCurrent.textContent=latest.persona_transaction_id
+          ? "Existing Persona result: "+(personaStatus||"pending").replaceAll("_"," ")
+          : "No Persona transaction has been submitted yet.";
+        if(retryButton) retryButton.hidden=!retryable;
+        if(runButton && latest.persona_transaction_id) {
+          runButton.disabled=true;
+          runButton.style.opacity=".6";
+          runButton.style.cursor="not-allowed";
+          runButton.title=active?"A Persona transaction is already pending.":"Use the existing Persona result.";
+        }
 
         const currentHtml=`
           <div style="padding:10px 0;color:var(--ink);line-height:1.55;">
@@ -2896,6 +3005,7 @@ async function loadRequests() {
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load verification records.");
           setVerificationAuditState(section,result.records||[],result.history||[]);
+          loadVerificationActivity(section);
         }catch(error){if(list)list.textContent=error.message||"Unable to load verification records.";}
       };
       const applyPersonaRequiredFields = (section, requiredFields) => {
@@ -2961,11 +3071,12 @@ async function loadRequests() {
         const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
         personaInputs.forEach(input=>{
           input.addEventListener("input",()=>{capturePersonaDraft(section); if(input.classList.contains("client-persona-birthdate")) updatePersonaAgeStatus(section);});
-          input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);});
+          input.addEventListener("change",()=>saveVerificationDraft(section));
+          input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);saveVerificationDraft(section);});
         });
         normalizePersonaFields(section);
         capturePersonaDraft(section);
-        section.addEventListener("toggle",()=>{if(section.open){loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);}});
+        section.addEventListener("toggle",()=>{if(section.open){loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);loadVerificationActivity(section);}});
 
         const auditStatus=section.querySelector(".client-verification-status");
         const reasonWrap=section.querySelector(".client-verification-reason-wrap");
