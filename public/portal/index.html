@@ -4407,10 +4407,17 @@ async function loadRequests(options = {}) {
                 ? "<div style=\"margin-top:6px;\"><strong>Trigger event:</strong> Found · "+escapeHtml(triggerEvent.name||"inquiry.created")+"</div>"+
                   "<div><strong>Event ID:</strong> "+escapeHtml(triggerEvent.id||"—")+"</div>"
                 : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Trigger event:</strong> Not found.</div>";
+              const diagnostics=workflow?.diagnostics||{};
+              const diagnosticText=Object.entries(diagnostics).map(([key,value])=>{
+                const cleanKey=String(key).replace(/^meta_/,"").replaceAll("_"," ").replaceAll("-"," ");
+                const rendered=typeof value==="string"?value:JSON.stringify(value);
+                return "<div><strong>"+escapeHtml(cleanKey.replace(/\b\w/g,ch=>ch.toUpperCase()))+":</strong> "+escapeHtml(rendered||"—")+"</div>";
+              }).join("");
               const workflowHtml=workflow
                 ? "<div style=\"margin-top:6px;\"><strong>Workflow:</strong> "+escapeHtml(String(workflow.state||workflow.status||"triggered").replaceAll("_"," "))+
                   " · "+escapeHtml(workflow.workflow_name||"ClearPath - Inquiry Created - Database Verification")+"</div>"+
-                  "<div><strong>Workflow Run ID:</strong> "+escapeHtml(workflow.id||"—")+"</div>"
+                  "<div><strong>Workflow Run ID:</strong> "+escapeHtml(workflow.id||"—")+"</div>"+
+                  (diagnosticText?"<div style=\"margin-top:6px;padding:7px 8px;background:#fff7f7;border-radius:6px;\"><strong>Persona error details</strong>"+diagnosticText+"</div>":"")
                 : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Workflow:</strong> Not triggered / no matching run found.</div>";
               if(db){
                 const statusLabel=String(db.status||"unknown").replaceAll("_"," ");
