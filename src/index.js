@@ -238,6 +238,26 @@ async function ensureVerificationWorkspaceTables(env) {
     )
   `).run();
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_sensitive_fields (
+      client_id INTEGER PRIMARY KEY,
+      encrypted_id_number TEXT NOT NULL DEFAULT '',
+      id_last4 TEXT NOT NULL DEFAULT '',
+      id_class TEXT NOT NULL DEFAULT '',
+      issuing_state TEXT NOT NULL DEFAULT '',
+      expiration_date TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS persona_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL DEFAULT '',
+      transaction_id TEXT NOT NULL DEFAULT '',
+      resulting_status TEXT NOT NULL DEFAULT '',
+      received_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_verification_activity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER NOT NULL,
@@ -344,6 +364,100 @@ function normalizeVerificationPhone(value) {
 function verificationEmailValid(value) {
   const email=String(value||"").trim().toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function verificationBase64ToBytes(value) {
+  const binary = atob(String(value || ""));
+  return Uint8Array.from(binary, ch => ch.charCodeAt(0));
+}
+function verificationBytesToBase64(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+async function verificationEncryptionKey(env) {
+  const encoded = String(env.VERIFICATION_FIELD_ENCRYPTION_KEY || "").trim();
+  if (!encoded) throw new Error("VERIFICATION_FIELD_ENCRYPTION_KEY is not configured.");
+  let bytes;
+  try { bytes = verificationBase64ToBytes(encoded); } catch { throw new Error("VERIFICATION_FIELD_ENCRYPTION_KEY is not valid Base64."); }
+  if (bytes.length !== 32) throw new Error("VERIFICATION_FIELD_ENCRYPTION_KEY must decode to exactly 32 bytes.");
+  return crypto.subtle.importKey("raw", bytes, {name:"AES-GCM"}, false, ["encrypt","decrypt"]);
+}
+async function encryptVerificationField(env, value) {
+  const plain = String(value || "").trim();
+  if (!plain) return "";
+  const key = await verificationEncryptionKey(env);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({name:"AES-GCM",iv}, key, new TextEncoder().encode(plain));
+  return "v1." + verificationBytesToBase64(iv) + "." + verificationBytesToBase64(new Uint8Array(encrypted));
+}
+async function decryptVerificationField(env, value) {
+  const stored = String(value || "");
+  if (!stored) return "";
+  const parts = stored.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") throw new Error("Stored verification field uses an unsupported encryption format.");
+  const key = await verificationEncryptionKey(env);
+  const decrypted = await crypto.subtle.decrypt(
+    {name:"AES-GCM",iv:verificationBase64ToBytes(parts[1])},
+    key,
+    verificationBase64ToBytes(parts[2])
+  );
+  return new TextDecoder().decode(decrypted);
+}
+function safeVerificationSensitiveRecord(row) {
+  if (!row) return {has_id_number:false,id_number_masked:"",id_class:"",issuing_state:"",expiration_date:""};
+  const last4=String(row.id_last4 || "");
+  return {
+    has_id_number:Boolean(row.encrypted_id_number),
+    id_number_masked:last4 ? "••••" + last4 : (row.encrypted_id_number ? "Saved securely" : ""),
+    id_class:row.id_class || "",
+    issuing_state:row.issuing_state || "",
+    expiration_date:row.expiration_date || ""
+  };
+}
+
+const PERSONA_ID_NUMBER_FIELD_CANDIDATES = ["identification_number","id_number","license_number","document_number","government_id_number"];
+const PERSONA_ID_CLASS_FIELD_CANDIDATES = ["identification_class","id_class","document_class"];
+const PERSONA_ISSUING_STATE_FIELD_CANDIDATES = ["issuing_state","identification_subdivision","document_issuing_state"];
+const PERSONA_EXPIRATION_FIELD_CANDIDATES = ["expiration_date","identification_expiration_date","document_expiration_date"];
+function firstSupportedPersonaField(supported, candidates) {
+  return candidates.find(key => supported.has(key)) || "";
+}
+async function fetchPersonaTransactionTypeConfig(env) {
+  const apiKey=String(env.PERSONA_API_KEY || "").trim();
+  const transactionTypeId=String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
+  if (!apiKey) return {ok:false,state:"invalid_credentials",message:"Invalid credentials",technical_details:"PERSONA_API_KEY is missing."};
+  if (!/^txntp_[A-Za-z0-9]+$/.test(transactionTypeId)) {
+    return {ok:false,state:"incorrect_transaction_type",message:"Incorrect Transaction Type",technical_details:"PERSONA_TRANSACTION_TYPE_ID must be a Persona Transaction Type ID beginning with txntp_."};
+  }
+  const headers={Authorization:"Bearer "+apiKey,"Key-Inflection":"snake"};
+  if (env.PERSONA_API_VERSION) headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
+  const response=await fetch("https://api.withpersona.com/api/v1/transaction-types/"+encodeURIComponent(transactionTypeId),{headers});
+  const data=await response.json().catch(()=>({}));
+  if (!response.ok) {
+    const detail=String(data?.errors?.[0]?.detail || data?.errors?.[0]?.title || data?.message || "");
+    if (response.status===401 || response.status===403) {
+      return {ok:false,state:"invalid_credentials",message:"Invalid credentials",technical_details:detail || "Persona rejected the API key."};
+    }
+    if (response.status===404 || response.status===400) {
+      return {ok:false,state:"incorrect_transaction_type",message:"Incorrect Transaction Type",technical_details:detail || "Persona could not find this Transaction Type for the configured account."};
+    }
+    return {ok:false,state:"connection_error",message:"Persona connection error",technical_details:detail || ("Persona returned HTTP "+response.status+".")};
+  }
+  const schemas=Array.isArray(data?.data?.attributes?.field_schemas) ? data.data.attributes.field_schemas : [];
+  const supportedFields=schemas.map(item=>String(item?.key || "").trim()).filter(Boolean);
+  const requiredFields=schemas.filter(item=>Boolean(item?.config?.required)).map(item=>String(item?.key || "").trim()).filter(Boolean);
+  const supported=new Set(supportedFields);
+  const idNumberField=firstSupportedPersonaField(supported,PERSONA_ID_NUMBER_FIELD_CANDIDATES);
+  return {
+    ok:true,state:"connected",message:"Connected",
+    transaction_type_id:transactionTypeId,
+    transaction_type_name:String(data?.data?.attributes?.name || ""),
+    supported_fields:supportedFields,
+    required_fields:requiredFields,
+    id_number_supported:Boolean(idNumberField),
+    id_number_field:idNumberField
+  };
 }
 
 function safeVerificationDraft(row) {
@@ -617,7 +731,12 @@ export default {
         const row = await env.DB.prepare(
           "SELECT client_id, birthdate, persona_fields_json, updated_at FROM client_verification_drafts WHERE client_id=? LIMIT 1"
         ).bind(clientId).first();
-        return Response.json({ok:true,draft:row ? safeVerificationDraft(row) : {client_id:clientId,birthdate:"",persona_fields:{},updated_at:""}}, {headers:{"Cache-Control":"private, no-store"}});
+        const sensitive = await env.DB.prepare(
+          "SELECT encrypted_id_number, id_last4, id_class, issuing_state, expiration_date FROM client_verification_sensitive_fields WHERE client_id=? LIMIT 1"
+        ).bind(clientId).first();
+        const draft=row ? safeVerificationDraft(row) : {client_id:clientId,birthdate:"",persona_fields:{},updated_at:""};
+        draft.id_details=safeVerificationSensitiveRecord(sensitive);
+        return Response.json({ok:true,draft}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
         console.error("Verification draft load error:", error);
         return Response.json({ok:false,message:"Unable to load saved verification information."},{status:500});
@@ -642,6 +761,35 @@ export default {
           if (value) normalized[key] = value;
         }
         normalized = normalizeVerificationAddressFields(normalized);
+        const idDetails = data.id_details && typeof data.id_details === "object" ? data.id_details : {};
+        const enteredIdNumber = String(idDetails.id_number || "").trim().replace(/\s+/g," ").slice(0,80);
+        const issuingState = normalizeVerificationState(idDetails.issuing_state || "").slice(0,40);
+        const expirationDate = idDocumentDate(idDetails.expiration_date);
+        const idClass = ["dl","id"].includes(String(idDetails.id_class || "").toLowerCase()) ? String(idDetails.id_class).toLowerCase() : "";
+        const existingSensitive = await env.DB.prepare(
+          "SELECT encrypted_id_number, id_last4 FROM client_verification_sensitive_fields WHERE client_id=? LIMIT 1"
+        ).bind(clientId).first();
+        let encryptedIdNumber=String(existingSensitive?.encrypted_id_number || "");
+        let idLast4=String(existingSensitive?.id_last4 || "");
+        if (enteredIdNumber) {
+          encryptedIdNumber=await encryptVerificationField(env,enteredIdNumber);
+          idLast4=enteredIdNumber.replace(/[^A-Za-z0-9]/g,"").slice(-4);
+        }
+        if (data.clear_id_number === true) { encryptedIdNumber=""; idLast4=""; }
+        if (encryptedIdNumber || idClass || issuingState || expirationDate) {
+          await env.DB.prepare(`
+            INSERT INTO client_verification_sensitive_fields
+              (client_id, encrypted_id_number, id_last4, id_class, issuing_state, expiration_date, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(client_id) DO UPDATE SET
+              encrypted_id_number=excluded.encrypted_id_number,
+              id_last4=excluded.id_last4,
+              id_class=excluded.id_class,
+              issuing_state=excluded.issuing_state,
+              expiration_date=excluded.expiration_date,
+              updated_at=CURRENT_TIMESTAMP
+          `).bind(clientId, encryptedIdNumber, idLast4, idClass, issuingState, expirationDate).run();
+        }
         await env.DB.prepare(`
           INSERT INTO client_verification_drafts (client_id, birthdate, persona_fields_json, updated_at)
           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -653,7 +801,12 @@ export default {
         const row = await env.DB.prepare(
           "SELECT client_id, birthdate, persona_fields_json, updated_at FROM client_verification_drafts WHERE client_id=?"
         ).bind(clientId).first();
-        return Response.json({ok:true,draft:safeVerificationDraft(row)}, {headers:{"Cache-Control":"private, no-store"}});
+        const sensitive = await env.DB.prepare(
+          "SELECT encrypted_id_number, id_last4, id_class, issuing_state, expiration_date FROM client_verification_sensitive_fields WHERE client_id=? LIMIT 1"
+        ).bind(clientId).first();
+        const draft=safeVerificationDraft(row);
+        draft.id_details=safeVerificationSensitiveRecord(sensitive);
+        return Response.json({ok:true,draft}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
         console.error("Verification draft save error:", error);
         return Response.json({ok:false,message:"Unable to save verification information."},{status:500});
@@ -4603,6 +4756,15 @@ if (
       }, {headers:{"Cache-Control":"private, no-store"}});
     }
 
+    if (url.pathname === "/api/admin/clients/persona-test" && request.method === "POST") {
+      try {
+        const result=await fetchPersonaTransactionTypeConfig(env);
+        return Response.json(result,{status:result.ok?200:(result.state==="invalid_credentials"?401:result.state==="incorrect_transaction_type"?400:502),headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        return Response.json({ok:false,state:"connection_error",message:"Persona connection error",technical_details:String(error?.message||error)},{status:502,headers:{"Cache-Control":"private, no-store"}});
+      }
+    }
+
     if (url.pathname === "/api/admin/clients/persona-verify" && request.method === "POST") {
       try {
         const personaTransactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
@@ -4621,17 +4783,22 @@ if (
           }, {status:503});
         }
         await ensureVerificationWorkspaceTables(env);
+        const personaConfig=await fetchPersonaTransactionTypeConfig(env);
+        if(!personaConfig.ok){
+          return Response.json({ok:false,message:personaConfig.message,technical_details:personaConfig.technical_details,connection_state:personaConfig.state},{status:personaConfig.state==="invalid_credentials"?401:personaConfig.state==="incorrect_transaction_type"?400:502});
+        }
 
         const data = await request.json().catch(() => ({}));
         const clientId = Number(data.client_id);
         let requestId = Number(data.booking_request_id);
         const incomingFields = data.persona_fields && typeof data.persona_fields === "object" ? data.persona_fields : {};
+        const supportedPersonaFields = new Set(personaConfig.supported_fields || []);
         const allowedPersonaFields = [
           "name_first","name_middle","name_last","birthdate",
           "address_street_1","address_street_2","address_city",
           "address_subdivision","address_postal_code","address_country_code",
           "email_address","phone_number"
-        ];
+        ].filter(key=>supportedPersonaFields.has(key));
         let personaFields = {};
         const collapseSpaces = (value) => String(value || "").trim().replace(/\s+/g, " ");
         for (const key of allowedPersonaFields) {
@@ -4651,14 +4818,41 @@ if (
         if (!Number.isInteger(clientId) || clientId < 1) {
           return Response.json({ok:false,message:"Choose a valid client."},{status:400});
         }
-        const configuredRequiredFields = String(env.PERSONA_REQUIRED_FIELDS || "")
-          .split(",").map(value=>value.trim()).filter(Boolean);
-        const requiredFields = configuredRequiredFields.length
-          ? configuredRequiredFields
-          : ["name_first","name_last","birthdate"];
+        const sensitive = await env.DB.prepare(
+          "SELECT encrypted_id_number, id_class, issuing_state, expiration_date FROM client_verification_sensitive_fields WHERE client_id=? LIMIT 1"
+        ).bind(clientId).first();
+        let savedIdNumber="";
+        if (sensitive?.encrypted_id_number) {
+          try { savedIdNumber=await decryptVerificationField(env,sensitive.encrypted_id_number); }
+          catch(error) { return Response.json({ok:false,message:"Saved ID details could not be decrypted.",technical_details:String(error?.message||error)},{status:500}); }
+        }
+        const idNumberField=firstSupportedPersonaField(supportedPersonaFields,PERSONA_ID_NUMBER_FIELD_CANDIDATES);
+        const idClassField=firstSupportedPersonaField(supportedPersonaFields,PERSONA_ID_CLASS_FIELD_CANDIDATES);
+        const issuingStateField=firstSupportedPersonaField(supportedPersonaFields,PERSONA_ISSUING_STATE_FIELD_CANDIDATES);
+        const expirationField=firstSupportedPersonaField(supportedPersonaFields,PERSONA_EXPIRATION_FIELD_CANDIDATES);
+        if(idNumberField&&savedIdNumber)personaFields[idNumberField]=savedIdNumber;
+        if(idClassField&&sensitive?.id_class)personaFields[idClassField]=String(sensitive.id_class);
+        if(issuingStateField&&sensitive?.issuing_state)personaFields[issuingStateField]=String(sensitive.issuing_state);
+        if(expirationField&&sensitive?.expiration_date)personaFields[expirationField]=String(sensitive.expiration_date);
+
+        const addressComplete=Boolean(personaFields.address_street_1&&personaFields.address_city&&personaFields.address_subdivision&&personaFields.address_postal_code);
+        const idFallbackComplete=Boolean(personaFields.name_first&&personaFields.name_last&&personaFields.birthdate&&savedIdNumber&&sensitive?.issuing_state);
+        const fallbackErrors=[];
+        if(!personaFields.name_first)fallbackErrors.push({field:"name_first",message:"First name is required."});
+        if(!personaFields.name_last)fallbackErrors.push({field:"name_last",message:"Last name is required."});
+        if(!personaFields.birthdate)fallbackErrors.push({field:"birthdate",message:"DOB is required."});
+        if(!addressComplete&&!idFallbackComplete){
+          if(!savedIdNumber)fallbackErrors.push({field:"id_number",message:"Enter a DL/State ID number when address is unavailable."});
+          if(!sensitive?.issuing_state)fallbackErrors.push({field:"issuing_state",message:"Issuing state is required when address is unavailable."});
+        }
+        if(fallbackErrors.length){
+          return Response.json({ok:false,message:"Complete either the address or the DL/State ID fallback.",field_errors:fallbackErrors},{status:400});
+        }
+        const addressFields=new Set(["address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code"]);
+        const requiredFields=(personaConfig.required_fields || []).filter(field=>!(idFallbackComplete&&addressFields.has(field)));
         const missingRequired = requiredFields.filter(key=>!String(personaFields[key]||"").trim());
         if (missingRequired.length) {
-          return Response.json({ok:false,message:"Complete all required Persona fields before submitting.",missing_fields:missingRequired},{status:400});
+          return Response.json({ok:false,message:"Complete all fields required by the configured Persona Transaction Type.",missing_fields:missingRequired},{status:400});
         }
         if (personaFields.address_country_code && !/^[A-Z]{2}$/.test(personaFields.address_country_code)) {
           return Response.json({ok:false,message:"Country code must use a two-letter code such as US.",field_errors:["Country code must contain two letters."]},{status:400});
@@ -4765,18 +4959,16 @@ if (
         const transaction = personaData?.data || {};
         const transactionId = String(transaction?.id || "");
         const transactionStatus = String(transaction?.attributes?.status || "created").toLowerCase();
-        const identityConfirmed = transactionStatus === "approved" ? 1 : 0;
         await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
-              persona_transaction_id=?,
+          SET persona_transaction_id=?,
               persona_transaction_status=?,
               persona_submitted_at=COALESCE(persona_submitted_at,CURRENT_TIMESTAMP),
               persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
-        `).bind(identityConfirmed, transactionId, transactionStatus, audit.id).run();
-        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction: " + transactionId);
+        `).bind(transactionId, transactionStatus, audit.id).run();
+        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction: " + transactionId + (addressComplete ? " · Address supplied" : " · Address unavailable — ID details used instead"));
         await logVerificationActivity(env, clientId, audit.id, "persona_response", "Persona response received", "Status: " + transactionStatus);
 
         const updated = await env.DB.prepare(`
@@ -4805,6 +4997,38 @@ if (
       }
     }
 
+    if (url.pathname === "/api/admin/clients/persona-refresh" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const config=await fetchPersonaTransactionTypeConfig(env);
+        if(!config.ok)return Response.json({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_transaction_type"?400:502});
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const audit=await env.DB.prepare(
+          "SELECT * FROM client_verification_audits WHERE client_id=? AND persona_transaction_id<>'' ORDER BY persona_submitted_at DESC, id DESC LIMIT 1"
+        ).bind(clientId).first();
+        if(!audit)return Response.json({ok:false,message:"No Persona transaction is available to refresh."},{status:404});
+        const headers={Authorization:"Bearer "+String(env.PERSONA_API_KEY),"Key-Inflection":"snake"};
+        if(env.PERSONA_API_VERSION)headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
+        const response=await fetch("https://api.withpersona.com/api/v1/transactions/"+encodeURIComponent(audit.persona_transaction_id),{headers});
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok){
+          const detail=payload?.errors?.[0]?.detail||payload?.errors?.[0]?.title||payload?.message||"Persona could not refresh this transaction.";
+          return Response.json({ok:false,message:"Unable to refresh Persona status.",technical_details:String(detail)},{status:response.status===404?404:502});
+        }
+        const newStatus=String(payload?.data?.attributes?.status||"").toLowerCase()||String(audit.persona_transaction_status||"pending");
+        await env.DB.prepare("UPDATE client_verification_audits SET persona_transaction_status=?, persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(newStatus,audit.id).run();
+        await logVerificationActivity(env,clientId,audit.id,"persona_refresh","Persona status refreshed","Status: "+newStatus);
+        const updated=await env.DB.prepare("SELECT * FROM client_verification_audits WHERE id=? LIMIT 1").bind(audit.id).first();
+        return Response.json({ok:true,message:"Persona status refreshed.",transaction_status:newStatus,record:verificationAuditPublicRecord(updated)},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        console.error("Persona status refresh error:",error);
+        return Response.json({ok:false,message:"Unable to refresh Persona status.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
     // =========================================================
     // IDENTITY VERIFICATION WEBHOOK (Persona)
     // =========================================================
@@ -4816,12 +5040,21 @@ if (
         if (!verified) return Response.json({ok:false,message:"Invalid webhook signature."},{status:401});
 
         const event = JSON.parse(rawBody || "{}");
+        const eventId=String(event?.data?.id || event?.id || "").trim();
         const eventName = String(event?.data?.attributes?.name || event?.type || "").toLowerCase();
         const payload = event?.data?.attributes?.payload?.data || event?.data?.attributes?.payload || event?.data || {};
         const attrs = payload?.attributes || {};
         const objectId = String(payload?.id || attrs?.["inquiry-id"] || "");
         const referenceId = String(attrs?.["reference-id"] || attrs?.reference_id || "").trim();
         const objectStatus = String(attrs?.status || "").toLowerCase();
+
+        await ensureVerificationWorkspaceTables(env);
+        if(eventId){
+          const inserted=await env.DB.prepare(
+            "INSERT OR IGNORE INTO persona_webhook_events (event_id,event_type,transaction_id,resulting_status,received_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)"
+          ).bind(eventId,eventName,objectId,objectStatus).run();
+          if(!Number(inserted.meta?.changes||0))return Response.json({ok:true,duplicate:true,event_id:eventId});
+        }
 
         let verificationStatus = "";
         let identityConfirmed = 0;
@@ -4864,7 +5097,6 @@ if (
           return Response.json({ok:true,ignored:true,reason:"missing_reference_id"});
         }
 
-        await ensureVerificationWorkspaceTables(env);
         const audit = await env.DB.prepare(
           "SELECT id, client_id FROM client_verification_audits WHERE date_request_id=? LIMIT 1"
         ).bind(requestId).first();
@@ -4875,14 +5107,12 @@ if (
 
         await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
-              persona_transaction_id=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_id END,
+          SET persona_transaction_id=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_id END,
               persona_transaction_status=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_status END,
               persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE date_request_id=?
         `).bind(
-          identityConfirmed,
           transactionStatus,
           transactionStatus ? objectId : "",
           transactionStatus,
@@ -4895,8 +5125,12 @@ if (
           Number(audit.id),
           "persona_response",
           "Persona response received",
-          "Status: " + (transactionStatus || objectStatus)
+          "Status: " + (transactionStatus || objectStatus) + (eventId ? " · Event: " + eventId : "")
         );
+        if(eventId){
+          await env.DB.prepare("UPDATE persona_webhook_events SET transaction_id=?, resulting_status=? WHERE event_id=?")
+            .bind(objectId,transactionStatus||objectStatus,eventId).run();
+        }
 
         return Response.json({
           ok:true,
