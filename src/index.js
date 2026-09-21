@@ -4180,19 +4180,13 @@ if (
           String(documentRow.file_name || "id-document.jpg")
         );
 
-        const fingerprintBytes = await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(String(requestId) + ":" + String(documentRow.object_key))
-        );
-        const idempotencyKey = Array.from(new Uint8Array(fingerprintBytes))
-          .slice(0, 16)
-          .map(v => v.toString(16).padStart(2,"0"))
-          .join("");
-
         const headers = {
           Authorization: "Bearer " + String(env.PERSONA_API_KEY),
           "Key-Inflection": "kebab",
-          "Idempotency-Key": "clearpath-" + idempotencyKey
+          // A fresh key represents each intentional admin submission. Reusing a
+          // document-based key with multipart FormData can make Persona reject a
+          // later submission because the multipart boundary changes the payload.
+          "Idempotency-Key": "clearpath-" + crypto.randomUUID()
         };
         if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
 
