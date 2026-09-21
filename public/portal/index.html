@@ -1623,12 +1623,27 @@
         document.getElementById("payment-count").textContent =
           data.counts.recorded_payments ?? 0;
 
+        const recent = document.getElementById("recent-requests");
+        if (recent) {
+          const items = Array.isArray(data.recent_requests) ? data.recent_requests : [];
+          recent.innerHTML = items.length ? items.map((item) => {
+            const name = escapeHtml(((item.first_name || "") + " " + (item.last_name || "")).trim() || "Client");
+            const status = escapeHtml(String(item.status || "pending").replaceAll("_"," "));
+            const date = item.requested_date ? escapeHtml(item.requested_date) : "Date pending";
+            const time = item.requested_time ? escapeHtml(formatCalendarTime ? formatCalendarTime(item.requested_time) : item.requested_time) : "Time pending";
+            return '<button type="button" data-dashboard-request="'+item.id+'" style="width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:16px 24px;cursor:pointer;"><strong>'+name+'</strong><div style="margin-top:5px;font-size:12px;color:var(--muted);">'+date+' · '+time+' · '+status+'</div></button>';
+          }).join("") : '<div class="empty">No private requests yet.</div>';
+          recent.querySelectorAll("[data-dashboard-request]").forEach((button) => button.addEventListener("click", () => {
+            window.location.href = "/portal/request?id=" + encodeURIComponent(button.dataset.dashboardRequest);
+          }));
+        }
+
       } catch (error) {
         console.error("Dashboard loading error:", error);
       }
     }
 
-    loadDashboard();
+    const scheduleDashboardLoad = () => loadDashboard().then(() => { try { adminSectionLoadState?.set("dashboard","loaded"); } catch {} });
 
     async function loadBlacklist() {
   const container = document.getElementById("blacklist-records");
@@ -1732,7 +1747,7 @@
   }
 }
 
-loadBlacklist();
+// Blacklist loads on first section open.
 
 async function clearBookingSubmissions() {
   const button = document.getElementById("clear-booking-submissions");
@@ -3013,7 +3028,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-loadRequests();
+// Requests and Clients load on first section open.
     const xNewContent = document.getElementById("x-new-content");
     const xCharCount = document.getElementById("x-char-count");
     if (xNewContent) {
@@ -3050,7 +3065,7 @@ loadRequests();
         list.innerHTML = "";
       }
     }
-    loadNewsletterSubscribers();
+    // Newsletter subscribers load on first Newsletter open.
     document.getElementById("newsletter-toggle-subscribers")?.addEventListener("click",()=>{
       const directory=document.getElementById("newsletter-subscriber-directory");
       const button=document.getElementById("newsletter-toggle-subscribers");
@@ -3386,7 +3401,7 @@ loadRequests();
       subscriberCount.style.padding = "20px 24px";
     }
 
-    loadNewsletterDrafts();
+    // Newsletter drafts load on first Newsletter open.
 
     async function loadXStatus() {
       const el = document.getElementById("x-status");
@@ -3980,7 +3995,7 @@ loadRequests();
     });
 
     syncXNewAction();
-    loadXStatus();
+    // X status loads on first X Agent open.
 
     const xLibraryAddToggle=document.getElementById("x-library-add-toggle"),xLibraryAddForm=document.getElementById("x-library-add-form");xLibraryAddToggle?.addEventListener("click",()=>{const opening=xLibraryAddForm.style.display==="none";xLibraryAddForm.style.display=opening?"block":"none";xLibraryAddToggle.textContent=opening?"Close Add Form":"+ Add Content";if(opening)document.getElementById("x-library-content")?.focus({preventScroll:false});});document.getElementById("x-library-clear-filters")?.addEventListener("click",()=>{const s=document.getElementById("x-library-search"),t=document.getElementById("x-library-filter"),p=document.getElementById("x-library-performance"),a=document.getElementById("x-library-archive-filter"),sort=document.getElementById("x-library-sort");if(s)s.value="";if(t)t.value="all";if(p)p.value="all";if(a)a.value="active";if(sort)sort.value="newest";document.querySelectorAll("[data-library-storage]").forEach(b=>{const active=b.dataset.libraryStorage==="active";b.setAttribute("aria-pressed",active?"true":"false");b.style.background=active?"var(--ink)":"transparent";b.style.color=active?"white":"var(--ink)";});s?.dispatchEvent(new Event("input"));});
     let xLibraryImage=null;const xLibraryFile=document.getElementById("x-library-image");xLibraryFile?.addEventListener("change",async()=>{const f=xLibraryFile.files?.[0];if(!f)return;try{xLibraryImage=await prepareXImage(f);document.getElementById("x-library-image-name").textContent=f.name+" ✓";}catch(e){alert(e.message);}});
@@ -4116,7 +4131,7 @@ loadRequests();
       }catch(error){upload.disabled=false;upload.textContent="Upload";if(galleryManagerStatus)galleryManagerStatus.textContent=error.message||"Unable to upload photo.";}
     });
 
-    loadGalleryManager();
+    // Gallery data loads on first Gallery open.
 
 
     const defaultRateServices = [
@@ -4457,15 +4472,9 @@ loadRequests();
         document.getElementById("retry-email-drafts")?.addEventListener("click",loadEmailDrafts);
       }
     }
-    loadEmailDrafts();
+    // Email drafts load on first Email Drafts open.
 
-    // Keep Email Drafts resilient: if the initial request fires before the admin
-    // session is fully ready or a transient response fails, retry once instead
-    // of leaving the section blank.
-    window.setTimeout(() => {
-      const box=document.getElementById("email-draft-records");
-      if(box && !box.querySelector("[data-email-draft]") && !String(box.textContent||"").trim()) loadEmailDrafts();
-    }, 900);
+    // Email Drafts retry is now section-scoped to avoid background work.
 
     const calendarAvailabilityKey = "kendra_calendar_open_availability";
     let calendarApprovedDates = [];
@@ -4575,7 +4584,7 @@ loadRequests();
       const next=rows.slice(0,8);
       box.innerHTML=next.length ? '<div style="font-size:12px;color:var(--muted);margin-bottom:5px;">Next available starts</div>'+next.map(item=>'<div style="padding:7px 0;border-top:1px solid var(--line);font-size:13px;">'+escapeHtml(formatCalendarDate(item.date))+' · '+escapeHtml(formatCalendarTime(item.time))+'</div>').join("") : '<div style="font-size:13px;color:var(--muted);">No bookable work hours are currently open.</div>';
     }
-    loadCalendarAvailabilityRemote();
+    // Calendar availability loads on first Calendar open.
 
     let calendarWeekOffset=0;
     function calendarDateKey(date){return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");}
@@ -4819,14 +4828,48 @@ loadRequests();
       modal.hidden=false;
     });
 
+
+    const adminSectionLoadState = new Map();
+    const loadAdminSectionData = async (sectionName, force = false) => {
+      if (!force && adminSectionLoadState.get(sectionName) === "loaded") return;
+      if (adminSectionLoadState.get(sectionName) === "loading") return;
+      adminSectionLoadState.set(sectionName, "loading");
+      try {
+        if (sectionName === "dashboard") {
+          await loadDashboard();
+        } else if (sectionName === "requests" || sectionName === "clients") {
+          await loadRequests();
+          adminSectionLoadState.set("requests", "loaded");
+          adminSectionLoadState.set("clients", "loaded");
+          return;
+        } else if (sectionName === "blacklist") {
+          await loadBlacklist();
+        } else if (sectionName === "emails") {
+          await loadEmailDrafts();
+        } else if (sectionName === "calendar") {
+          await loadCalendarAvailabilityRemote();
+          await Promise.all([loadCalendarUpcomingDates(), loadCalendarCompletedDates()]);
+        } else if (sectionName === "gallery") {
+          await loadGalleryManager();
+        } else if (sectionName === "newsletter") {
+          await Promise.all([loadNewsletterSubscribers(), loadNewsletterDrafts()]);
+        } else if (sectionName === "x-agent") {
+          await Promise.all([
+            loadXStatus(),
+            typeof loadXDrafts === "function" ? loadXDrafts() : Promise.resolve(),
+            typeof loadXScheduled === "function" ? loadXScheduled() : Promise.resolve()
+          ]);
+        }
+        adminSectionLoadState.set(sectionName, "loaded");
+      } catch (error) {
+        adminSectionLoadState.set(sectionName, "error");
+        console.error("Section load failed:", sectionName, error);
+      }
+    };
+
     const initialSectionName = new URLSearchParams(window.location.search).get("section") || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
     openSection(initialSectionName);
-    if(initialSectionName==="calendar"){
-      loadCalendarAvailabilityRemote().finally(()=>{
-        loadCalendarUpcomingDates();
-        loadCalendarCompletedDates();
-      });
-    }
+    loadAdminSectionData(initialSectionName);
 
     navButtons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -4843,19 +4886,7 @@ loadRequests();
         nextUrl.searchParams.delete("client_email");
         window.history.replaceState({}, "", nextUrl);
 
-        if (sectionName === "calendar") {
-          loadCalendarAvailabilityRemote().finally(()=>{
-            loadCalendarUpcomingDates();
-            loadCalendarCompletedDates();
-          });
-        }
-        if (sectionName === "emails") {
-          const emailBox=document.getElementById("email-draft-records");
-          if(emailBox && !emailBox.dataset.loadingEmails){
-            emailBox.dataset.loadingEmails="1";
-            loadEmailDrafts().finally(()=>{ delete emailBox.dataset.loadingEmails; });
-          }
-        }
+        loadAdminSectionData(sectionName);
       });
     });
   </script>
