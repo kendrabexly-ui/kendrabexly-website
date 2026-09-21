@@ -530,11 +530,19 @@ function firstSupportedPersonaField(supported, candidates) {
   return candidates.find(key => supported.has(key)) || "";
 }
 function normalizePersonaConfigValue(value) {
-  const raw=String(value || "").trim();
+  let raw=String(value || "").trim();
   if (raw.length >= 2) {
     const first=raw[0], last=raw[raw.length-1];
-    if ((first === '"' && last === '"') || (first === "'" && last === "'")) return raw.slice(1,-1).trim();
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) raw=raw.slice(1,-1).trim();
   }
+  // Accept a clean secret value, or recover the ID if a full dashboard URL,
+  // KEY=value string, or copied label was pasted into Cloudflare.
+  const templateMatch=raw.match(/\bitmpl_[A-Za-z0-9]+\b/);
+  if(templateMatch)return templateMatch[0];
+  const apiKeyMatch=raw.match(/\bpersona_(?:sandbox|production)_[A-Za-z0-9_-]+\b/i);
+  if(apiKeyMatch)return apiKeyMatch[0];
+  const equalsIndex=raw.indexOf("=");
+  if(equalsIndex>=0)raw=raw.slice(equalsIndex+1).trim().replace(/^["']|["']$/g,"");
   return raw;
 }
 async function fetchPersonaInquiryTemplateConfig(env) {
