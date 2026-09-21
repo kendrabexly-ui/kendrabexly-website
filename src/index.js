@@ -570,7 +570,7 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     return {
       ok:true,state,message,sandbox,
       api_key_status:"connected",
-      inquiry_template_status:sandbox ? "not_validated" : "connected",
+      inquiry_template_status:(sandbox || state==="connected_template_unvalidated") ? "not_validated" : "connected",
       inquiry_template_id:effectiveTemplateId,
       inquiry_template_name:String(data?.data?.attributes?.name || ""),
       inquiry_template_source:templateSource,
@@ -674,7 +674,17 @@ async function fetchPersonaInquiryTemplateConfig(env) {
   const templateRequestId=response.headers.get("Request-Id") || "";
   if (!response.ok) {
     const detail=String(data?.errors?.[0]?.detail || data?.errors?.[0]?.title || data?.message || "");
-    if (response.status===404 || response.status===400 || response.status===403) {
+    if (response.status===403) {
+      return buildConfig({},{
+        state:"connected_template_unvalidated",
+        message:"Connected",
+        effectiveTemplateId:inquiryTemplateId,
+        templateSource:"configured_unvalidated",
+        technicalDetails:(detail || "The API key is valid, but it does not have Inquiry Template read permission. ClearPath will use the configured itmpl_ ID when creating the inquiry; Persona will validate it at submission time.")+
+          (templateRequestId ? " Persona request: "+templateRequestId+"." : "")
+      });
+    }
+    if (response.status===404 || response.status===400) {
       const discovered=await chooseSingleActiveTemplate("configured_template_rejected");
       if(discovered?.ok){
         return buildConfig(discovered.data,{
@@ -683,6 +693,18 @@ async function fetchPersonaInquiryTemplateConfig(env) {
           effectiveTemplateId:discovered.id,
           templateSource:"auto_discovered",
           technicalDetails:"The saved Inquiry Template was rejected, but the API key is valid. ClearPath found the only active Persona Inquiry Template and will use it automatically: "+(discovered.name||discovered.id)+". Update PERSONA_INQUIRY_TEMPLATE_ID in Cloudflare to "+discovered.id+" to make the configuration explicit."
+        });
+      }
+      // If template discovery itself is forbidden, the API key likely lacks Inquiry Template
+      // read permission. In that case do not falsely label the configured itmpl_ as rejected.
+      if(discovered===null){
+        return buildConfig({},{
+          state:"connected_template_unvalidated",
+          message:"Connected",
+          effectiveTemplateId:inquiryTemplateId,
+          templateSource:"configured_unvalidated",
+          technicalDetails:"The API key is valid, but ClearPath could not read Inquiry Templates with this key. The configured itmpl_ ID will be used when creating the inquiry and validated by Persona at submission time."+
+            (templateRequestId ? " Persona request: "+templateRequestId+"." : "")
         });
       }
       const options=discovered?.options||[];
