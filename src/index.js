@@ -540,13 +540,11 @@ function normalizePersonaConfigValue(value) {
 async function fetchPersonaInquiryTemplateConfig(env) {
   const apiKey=normalizePersonaConfigValue(env.PERSONA_API_KEY);
   const inquiryTemplateId=normalizePersonaConfigValue(env.PERSONA_INQUIRY_TEMPLATE_ID);
-  if (!apiKey) return {ok:false,state:"invalid_credentials",message:"Invalid credentials",technical_details:"PERSONA_API_KEY is missing."};
-  if (!inquiryTemplateId) {
-    return {ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",technical_details:"PERSONA_INQUIRY_TEMPLATE_ID is missing."};
-  }
-  if (!/^itmpl_[A-Za-z0-9]+$/.test(inquiryTemplateId)) {
-    return {ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",technical_details:"PERSONA_INQUIRY_TEMPLATE_ID must be the Inquiry Template ID from Persona and begin with itmpl_."};
-  }
+  if (!apiKey) return {
+    ok:false,state:"invalid_credentials",message:"Invalid credentials",
+    api_key_status:"invalid",inquiry_template_status:"not_checked",
+    technical_details:"PERSONA_API_KEY is missing."
+  };
   const headers={Authorization:"Bearer "+apiKey,"Key-Inflection":"snake"};
   if (env.PERSONA_API_VERSION) headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
   const configuredSupported=String(env.PERSONA_SUPPORTED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean);
@@ -571,6 +569,8 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     const idNumberField=firstSupportedPersonaField(supported,PERSONA_ID_NUMBER_FIELD_CANDIDATES);
     return {
       ok:true,state,message,sandbox,
+      api_key_status:"connected",
+      inquiry_template_status:sandbox ? "not_validated" : "connected",
       inquiry_template_id:inquiryTemplateId,
       inquiry_template_name:String(data?.data?.attributes?.name || ""),
       supported_fields:supportedFields,
@@ -590,12 +590,31 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     if (authResponse.status===401 || authResponse.status===403) {
       return {
         ok:false,state:"invalid_credentials",message:"Invalid credentials",
+        api_key_status:"invalid",inquiry_template_status:"not_checked",
         technical_details:(detail || "Persona rejected the API key.")+(authRequestId ? " Persona request: "+authRequestId+"." : "")
       };
     }
     return {
       ok:false,state:"connection_error",message:"Persona connection error",
+      api_key_status:"unknown",inquiry_template_status:"not_checked",
       technical_details:(detail || ("Persona returned HTTP "+authResponse.status+" while validating the API key."))+(authRequestId ? " Persona request: "+authRequestId+"." : "")
+    };
+  }
+
+  // The API key is valid. Validate the configured Inquiry Template separately
+  // so the dashboard can report the two connection states independently.
+  if (!inquiryTemplateId) {
+    return {
+      ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
+      api_key_status:"connected",inquiry_template_status:"missing",
+      technical_details:"PERSONA_INQUIRY_TEMPLATE_ID is missing."
+    };
+  }
+  if (!/^itmpl_[A-Za-z0-9]+$/.test(inquiryTemplateId)) {
+    return {
+      ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
+      api_key_status:"connected",inquiry_template_status:"rejected",
+      technical_details:"PERSONA_INQUIRY_TEMPLATE_ID must be the Inquiry Template ID from Persona and begin with itmpl_."
     };
   }
 
@@ -614,23 +633,27 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     if (response.status===404 || response.status===400) {
       return {
         ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
+        api_key_status:"connected",inquiry_template_status:"rejected",
         technical_details:(detail || "The API key is valid, but Persona could not find this Inquiry Template in the same environment/account.")+(templateRequestId ? " Persona request: "+templateRequestId+"." : "")
       };
     }
     if (response.status===403) {
       return {
         ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
+        api_key_status:"connected",inquiry_template_status:"rejected",
         technical_details:(detail || "The API key is valid, but it does not have access to this Inquiry Template. Confirm the template and API key belong to the same Persona environment.")+(templateRequestId ? " Persona request: "+templateRequestId+"." : "")
       };
     }
     if (response.status===401) {
       return {
         ok:false,state:"invalid_credentials",message:"Invalid credentials",
+        api_key_status:"invalid",inquiry_template_status:"not_checked",
         technical_details:(detail || "Persona rejected the API key.")+(templateRequestId ? " Persona request: "+templateRequestId+"." : "")
       };
     }
     return {
       ok:false,state:"connection_error",message:"Persona connection error",
+      api_key_status:"connected",inquiry_template_status:"unknown",
       technical_details:(detail || ("Persona returned HTTP "+response.status+" while validating the Inquiry Template."))+(templateRequestId ? " Persona request: "+templateRequestId+"." : "")
     };
   }
