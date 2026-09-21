@@ -3029,7 +3029,17 @@ async function loadRequests() {
           if(status) status.textContent=result.connected
             ? (result.webhook_connected?"Persona is connected and ready.":"Persona is connected. Live status updates are not enabled yet.")
             : "Persona setup is still pending. Manual verification is fully available.";
-          if(button){button.disabled=!result.connected;button.style.opacity=result.connected?"1":".6";button.style.cursor=result.connected?"pointer":"not-allowed";}
+          if(button){
+            const latest=section._verificationAuditRecords?.[0]||null;
+            const personaStatus=String(latest?.persona_transaction_status||"").toLowerCase();
+            const hasExisting=Boolean(latest?.persona_transaction_id);
+            const retryable=["declined","errored","failed"].includes(personaStatus);
+            const mayRun=result.connected&&!hasExisting;
+            button.disabled=!mayRun;
+            button.style.opacity=mayRun?"1":".6";
+            button.style.cursor=mayRun?"pointer":"not-allowed";
+            if(hasExisting) button.title=retryable?"Use Retry Persona for the previous result.":"An existing Persona transaction is already on file.";
+          }
           updateVerificationSummary(section);
         }catch(error){
           section.dataset.personaConnected="0";
