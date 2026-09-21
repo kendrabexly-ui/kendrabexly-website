@@ -5317,22 +5317,50 @@ if (
         if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
 
         let personaResponse,personaData={};
-        const allInquiryFields=Object.fromEntries(Object.entries(personaFields).map(([key,value])=>[key.replaceAll("_","-"),value]));
-        const pickFields=(keys)=>Object.fromEntries(keys.filter(key=>allInquiryFields[key]!==undefined&&allInquiryFields[key]!==null&&allInquiryFields[key]!=="").map(key=>[key,allInquiryFields[key]]));
-        const submissionProfiles=[
-          {name:"full",fields:allInquiryFields},
-          {name:"identity_address",fields:pickFields([
-            "name-first","name-middle","name-last","birthdate",
-            "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code"
-          ])},
-          {name:"core_identity",fields:pickFields(["name-first","name-last","birthdate"])}
-        ].filter((profile,index,array)=>Object.keys(profile.fields).length&&array.findIndex(other=>JSON.stringify(other.fields)===JSON.stringify(profile.fields))===index);
+        const snakeInquiryFields=Object.fromEntries(Object.entries(personaFields));
+        const kebabInquiryFields=Object.fromEntries(Object.entries(personaFields).map(([key,value])=>[key.replaceAll("_","-"),value]));
+        const pickFields=(source,keys)=>Object.fromEntries(keys.filter(key=>source[key]!==undefined&&source[key]!==null&&source[key]!=="").map(key=>[key,source[key]]));
+
+        const useCurrentPersonaFields=String(env.PERSONA_API_VERSION||"")>="2025-10-27";
+        const fieldSets=[
+          {
+            style:"snake",
+            full:snakeInquiryFields,
+            address:pickFields(snakeInquiryFields,[
+              "name_first","name_middle","name_last","birthdate",
+              "address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code"
+            ]),
+            core:pickFields(snakeInquiryFields,["name_first","name_last","birthdate"])
+          },
+          {
+            style:"kebab",
+            full:kebabInquiryFields,
+            address:pickFields(kebabInquiryFields,[
+              "name-first","name-middle","name-last","birthdate",
+              "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code"
+            ]),
+            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate"])
+          }
+        ];
+        if(!useCurrentPersonaFields)fieldSets.reverse();
+
+        const submissionProfiles=[];
+        for(const set of fieldSets){
+          submissionProfiles.push(
+            {name:set.style+"_full",fields:set.full},
+            {name:set.style+"_identity_address",fields:set.address},
+            {name:set.style+"_core_identity",fields:set.core}
+          );
+        }
+        const uniqueProfiles=submissionProfiles.filter((profile,index,array)=>
+          Object.keys(profile.fields).length&&array.findIndex(other=>JSON.stringify(other.fields)===JSON.stringify(profile.fields))===index
+        );
 
         let acceptedProfile="";
         let finalPersonaRequestId="";
         let lastErrorDetail="";
-        for(let profileIndex=0;profileIndex<submissionProfiles.length;profileIndex++){
-          const profile=submissionProfiles[profileIndex];
+        for(let profileIndex=0;profileIndex<uniqueProfiles.length;profileIndex++){
+          const profile=uniqueProfiles[profileIndex];
           const requestHeaders={...headers,"Idempotency-Key":profileIndex===0?idempotencyKey:idempotencyKey+"-"+profile.name};
           const controller=new AbortController();
           const timeout=setTimeout(()=>controller.abort(),12000);
@@ -5368,7 +5396,7 @@ if (
           const personaError=personaData?.errors?.[0]||{};
           lastErrorDetail=String(personaError.detail||personaError.title||personaData?.message||"Persona rejected the verification request.");
           const isGenericBadRequest=personaResponse.status===400&&/^bad request$/i.test(lastErrorDetail.trim());
-          const mayRetryWithFewerFields=personaResponse.status===400&&profileIndex<submissionProfiles.length-1&&isGenericBadRequest;
+          const mayRetryWithFewerFields=personaResponse.status===400&&profileIndex<uniqueProfiles.length-1&&isGenericBadRequest;
           if(mayRetryWithFewerFields)continue;
           break;
         }
@@ -5378,9 +5406,9 @@ if (
           const personaRequestId = finalPersonaRequestId;
           let detail = personaError.detail || personaError.title || personaData?.message || lastErrorDetail || "Persona rejected the verification request.";
           const errorPointer=String(personaError?.source?.pointer || personaError?.meta?.field || "");
-          const attemptedFields=Object.keys(submissionProfiles.at(-1)?.fields||allInquiryFields||{});
+          const attemptedFields=Object.keys(uniqueProfiles.at(-1)?.fields||snakeInquiryFields||{});
           if (personaResponse.status === 400 && /^bad request$/i.test(String(detail).trim())) {
-            detail = "Persona rejected the prefilled inquiry even after ClearPath retried with a minimal identity-only field set.";
+            detail = "Persona rejected the prefilled inquiry after ClearPath tried both current snake_case and legacy kebab-case field names, including a minimal identity-only field set.";
           }
           if(errorPointer) detail += " Field: " + errorPointer + ".";
           if(attemptedFields.length) detail += " Final attempted fields: " + attemptedFields.join(", ") + ".";
@@ -5391,8 +5419,8 @@ if (
           return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(detail),retry_allowed:true},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
         }
 
-        if(acceptedProfile && acceptedProfile!=="full"){
-          await logVerificationActivity(env,clientId,audit.id,"persona_prefill_fallback","Persona accepted reduced prefill","Profile: "+acceptedProfile);
+        if(acceptedProfile){
+          await logVerificationActivity(env,clientId,audit.id,"persona_prefill_profile","Persona accepted prefill profile","Profile: "+acceptedProfile);
         }
 
         const transaction = personaData?.data || {};
