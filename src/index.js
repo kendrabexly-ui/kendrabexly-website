@@ -716,7 +716,7 @@ export default {
           verification_method, submitted_employer, submitted_job_title,
           submitted_industry, identity_confirmed, employer_confirmed,
           job_title_confirmed, industry_confirmed, contact_confirmed,
-          evidence_notes, decision_reason, decision_notes, birthdate, completed_by,
+          evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
           persona_transaction_id, persona_transaction_status, completed_at, updated_at
         `;
         let result = await env.DB.prepare(`
