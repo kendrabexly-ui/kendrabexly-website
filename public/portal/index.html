@@ -2319,7 +2319,7 @@ async function loadRequests() {
                   </div>
                   <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#fbfaf7;">
                     <div style="font-size:12px;font-weight:700;">Persona manual verification</div>
-                    <div style="margin-top:4px;font-size:11px;color:var(--muted);line-height:1.5;">Enter the client information required by your Persona Database Verification transaction. These values are submitted to Persona when you click Run Persona Verification. The tax ID is not saved in this dashboard.</div>
+                    <div style="margin-top:4px;font-size:11px;color:var(--muted);line-height:1.5;">Enter the client information required by your Persona Database Verification transaction. These values are submitted to Persona when you click Run Persona Verification.</div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px;">
                       <label style="font-size:12px;font-weight:700;">First name<input class="client-persona-name-first" value="${escapeHtml(client.first_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Middle name<input class="client-persona-name-middle" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2331,8 +2331,6 @@ async function loadRequests() {
                       <label style="font-size:12px;font-weight:700;">State / subdivision<input class="client-persona-state" autocomplete="off" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Postal code<input class="client-persona-postal" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Country code<input class="client-persona-country" value="US" maxlength="2" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"></label>
-                      <label style="font-size:12px;font-weight:700;">Tax ID / SSN<input class="client-persona-tax-id" type="password" autocomplete="new-password" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Document number<input class="client-persona-document-number" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
@@ -2774,8 +2772,6 @@ async function loadRequests() {
             address_subdivision: section.querySelector(".client-persona-state")?.value?.trim().toUpperCase() || "",
             address_postal_code: section.querySelector(".client-persona-postal")?.value?.trim() || "",
             address_country_code: section.querySelector(".client-persona-country")?.value?.trim().toUpperCase() || "US",
-            tax_identification_number: section.querySelector(".client-persona-tax-id")?.value?.trim() || "",
-            document_number: section.querySelector(".client-persona-document-number")?.value?.trim() || "",
             email_address: section.querySelector(".client-persona-email")?.value?.trim() || "",
             phone_number: section.querySelector(".client-persona-phone")?.value?.trim() || ""
           };
