@@ -140,6 +140,8 @@ async function ensureClientVerificationAuditsTable(env) {
       completed_by TEXT NOT NULL DEFAULT '',
       persona_transaction_id TEXT NOT NULL DEFAULT '',
       persona_transaction_status TEXT NOT NULL DEFAULT '',
+      persona_submitted_at TEXT,
+      persona_updated_at TEXT,
       completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -164,7 +166,9 @@ async function ensureClientVerificationAuditsTable(env) {
     ["completed_by", "TEXT NOT NULL DEFAULT ''"],
     ["review_flag", "INTEGER NOT NULL DEFAULT 0"],
     ["persona_transaction_id", "TEXT NOT NULL DEFAULT ''"],
-    ["persona_transaction_status", "TEXT NOT NULL DEFAULT ''"]
+    ["persona_transaction_status", "TEXT NOT NULL DEFAULT ''"],
+    ["persona_submitted_at", "TEXT"],
+    ["persona_updated_at", "TEXT"]
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) await env.DB.prepare(`ALTER TABLE client_verification_audits ADD COLUMN ${name} ${definition}`).run();
@@ -216,6 +220,8 @@ function verificationAuditPublicRecord(row) {
     review_flag: Number(row.review_flag || 0) === 1,
     persona_transaction_id: row.persona_transaction_id || "",
     persona_transaction_status: row.persona_transaction_status || "",
+    persona_submitted_at: row.persona_submitted_at || "",
+    persona_updated_at: row.persona_updated_at || "",
     completed_at: row.completed_at || "",
     updated_at: row.updated_at || ""
   };
@@ -274,6 +280,59 @@ async function logVerificationActivity(env, clientId, auditId, eventType, eventL
     String(eventLabel || "Verification activity").slice(0,200),
     String(details || "").slice(0,2000)
   ).run();
+}
+
+const US_STATE_CODES = {
+  ALABAMA:"AL",ALASKA:"AK",ARIZONA:"AZ",ARKANSAS:"AR",CALIFORNIA:"CA",COLORADO:"CO",CONNECTICUT:"CT",
+  DELAWARE:"DE",FLORIDA:"FL",GEORGIA:"GA",HAWAII:"HI",IDAHO:"ID",ILLINOIS:"IL",INDIANA:"IN",IOWA:"IA",
+  KANSAS:"KS",KENTUCKY:"KY",LOUISIANA:"LA",MAINE:"ME",MARYLAND:"MD",MASSACHUSETTS:"MA",MICHIGAN:"MI",
+  MINNESOTA:"MN",MISSISSIPPI:"MS",MISSOURI:"MO",MONTANA:"MT",NEBRASKA:"NE",NEVADA:"NV",NEW_HAMPSHIRE:"NH",
+  NEW_JERSEY:"NJ",NEW_MEXICO:"NM",NEW_YORK:"NY",NORTH_CAROLINA:"NC",NORTH_DAKOTA:"ND",OHIO:"OH",
+  OKLAHOMA:"OK",OREGON:"OR",PENNSYLVANIA:"PA",RHODE_ISLAND:"RI",SOUTH_CAROLINA:"SC",SOUTH_DAKOTA:"SD",
+  TENNESSEE:"TN",TEXAS:"TX",UTAH:"UT",VERMONT:"VT",VIRGINIA:"VA",WASHINGTON:"WA",WEST_VIRGINIA:"WV",
+  WISCONSIN:"WI",WYOMING:"WY",DISTRICT_OF_COLUMBIA:"DC"
+};
+const VALID_US_STATE_CODES = new Set(Object.values(US_STATE_CODES));
+function normalizeVerificationState(value) {
+  const raw=String(value||"").trim().replace(/\s+/g," ");
+  if(!raw)return "";
+  const upper=raw.toUpperCase();
+  if(VALID_US_STATE_CODES.has(upper))return upper;
+  return US_STATE_CODES[upper.replace(/[ .-]+/g,"_")] || upper;
+}
+function titleCaseVerificationAddress(value) {
+  return String(value||"").trim().replace(/\s+/g," ").split(" ").map(word=>{
+    if(/^\d+[A-Za-z]?$/.test(word)||/^#\w+$/i.test(word))return word.toUpperCase();
+    const upper=word.toUpperCase();
+    if(["NE","NW","SE","SW","N","S","E","W","PO","US"].includes(upper))return upper;
+    return word.charAt(0).toUpperCase()+word.slice(1).toLowerCase();
+  }).join(" ");
+}
+function normalizeVerificationAddressFields(fields) {
+  const out={...fields};
+  let line1=String(out.address_street_1||"").trim().replace(/\s+/g," ");
+  let line2=String(out.address_street_2||"").trim().replace(/\s+/g," ");
+  if(!line2&&line1){
+    let match=line1.match(/^(.*?)[,\s]+(?:APT|APARTMENT|UNIT|SUITE|STE|#)\s*([A-Z0-9-]+)$/i);
+    if(!match) match=line1.match(/^(.*\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|BLVD|BOULEVARD|LN|LANE|CT|COURT|WAY|PL|PLACE|PKWY|PARKWAY))\s+(\d{1,6}[A-Z]?)$/i);
+    if(match){line1=match[1].trim().replace(/[, ]+$/,"");line2="Unit "+match[2].trim();}
+  }
+  out.address_street_1=titleCaseVerificationAddress(line1);
+  out.address_street_2=titleCaseVerificationAddress(line2);
+  out.address_city=titleCaseVerificationAddress(out.address_city||"");
+  out.address_subdivision=normalizeVerificationState(out.address_subdivision||"");
+  out.address_country_code=String(out.address_country_code||"US").trim().toUpperCase();
+  return out;
+}
+function normalizeVerificationPhone(value) {
+  const digits=String(value||"").replace(/\D/g,"");
+  if(digits.length===10)return "+1"+digits;
+  if(digits.length===11&&digits.startsWith("1"))return "+"+digits;
+  return String(value||"").trim();
+}
+function verificationEmailValid(value) {
+  const email=String(value||"").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function safeVerificationDraft(row) {
@@ -563,14 +622,15 @@ export default {
         const birthdate = idDocumentDate(data.birthdate);
         const incoming = data.persona_fields && typeof data.persona_fields === "object" ? data.persona_fields : {};
         const allowed = new Set(["name_first","name_middle","name_last","address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code","email_address","phone_number"]);
-        const normalized = {};
+        let normalized = {};
         for (const [key, raw] of Object.entries(incoming)) {
           if (!allowed.has(key)) continue;
           let value = String(raw || "").trim().replace(/\s+/g," ");
-          if (key === "address_subdivision" || key === "address_country_code") value = value.toUpperCase();
           if (key === "email_address") value = value.toLowerCase();
+          if (key === "phone_number") value = normalizeVerificationPhone(value);
           if (value) normalized[key] = value;
         }
+        normalized = normalizeVerificationAddressFields(normalized);
         await env.DB.prepare(`
           INSERT INTO client_verification_drafts (client_id, birthdate, persona_fields_json, updated_at)
           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -644,6 +704,8 @@ export default {
                  COALESCE(a.verification_method, '') AS verification_method,
                  COALESCE(a.persona_transaction_id, '') AS persona_transaction_id,
                  COALESCE(a.persona_transaction_status, '') AS persona_transaction_status,
+                 COALESCE(a.persona_submitted_at, '') AS persona_submitted_at,
+                 COALESCE(a.persona_updated_at, '') AS persona_updated_at,
                  COALESCE(a.completed_at, '') AS completed_at,
                  COALESCE(a.review_flag, 0) AS review_flag,
                  COALESCE(a.identity_confirmed,0)+COALESCE(a.employer_confirmed,0)+
@@ -680,6 +742,8 @@ export default {
             verification_method:row.verification_method || "",
             persona_transaction_id:row.persona_transaction_id || "",
             persona_transaction_status:row.persona_transaction_status || "",
+            persona_submitted_at:row.persona_submitted_at || "",
+            persona_updated_at:row.persona_updated_at || "",
             completed_at:row.completed_at || "",
             review_flag:Number(row.review_flag || 0)===1,
             checklist_count:checklistCount,
@@ -696,7 +760,10 @@ export default {
           declined:clients.filter(x=>x.verification_status==="declined").length,
           needs_more_information:clients.filter(x=>x.verification_status==="needs_more_information").length,
           persona_pending:clients.filter(x=>x.persona_pending).length,
-          no_id:clients.filter(x=>!x.has_id).length
+          no_id:clients.filter(x=>!x.has_id).length,
+          needs_id:clients.filter(x=>x.queue_category==="needs_id").length,
+          checklist_incomplete:clients.filter(x=>x.queue_category==="checklist_incomplete").length,
+          ready_for_final_decision:clients.filter(x=>x.queue_category==="ready_for_final_decision").length
         };
         const order={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
         const queue=[...clients]
@@ -723,7 +790,7 @@ export default {
           submitted_industry, identity_confirmed, employer_confirmed,
           job_title_confirmed, industry_confirmed, contact_confirmed,
           evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-          persona_transaction_id, persona_transaction_status, completed_at, updated_at
+          persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
         `;
         let result = await env.DB.prepare(`
           SELECT ${selectColumns}
@@ -919,7 +986,7 @@ export default {
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
                  evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-                 persona_transaction_id, persona_transaction_status, completed_at, updated_at
+                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
@@ -1144,13 +1211,15 @@ export default {
         if (!await requireIdDocumentClient(env, clientId)) {
           return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
         }
+        const deleteData = await request.json().catch(() => ({}));
+        const deletionReason = String(deleteData.reason || "").trim().slice(0,500);
         const row = await env.DB.prepare(
           "SELECT object_key FROM client_id_documents WHERE client_id = ? LIMIT 1"
         ).bind(clientId).first();
         if (!row) return Response.json({ ok: true, deleted: false });
         await env.ID_DOCUMENTS.delete(row.object_key);
         await env.DB.prepare("DELETE FROM client_id_documents WHERE client_id = ?").bind(clientId).run();
-        await logVerificationActivity(env, clientId, null, "id_deleted", "ID document permanently deleted", "");
+        await logVerificationActivity(env, clientId, null, "id_deleted", "ID document permanently deleted", deletionReason ? "Reason: " + deletionReason : "No deletion reason entered.");
         return Response.json({ ok: true, deleted: true }, {
           headers: { "Cache-Control": "private, no-store" }
         });
@@ -4497,11 +4566,13 @@ if (
       const webhookSecretConfigured = Boolean(env.PERSONA_WEBHOOK_SECRET);
       const requiredFields = String(env.PERSONA_REQUIRED_FIELDS || "")
         .split(",").map(value => value.trim()).filter(Boolean);
+      const effectiveRequiredFields = requiredFields.length ? requiredFields : ["name_first","name_last","birthdate"];
       return Response.json({
         ok:true,
         connected:apiKeyConfigured && transactionTypeConfigured,
         setup_state:apiKeyConfigured && transactionTypeConfigured ? "connected" : "pending_setup",
-        required_fields:requiredFields,
+        required_fields:effectiveRequiredFields,
+        required_fields_configured:requiredFields.length>0,
         webhook_connected:webhookSecretConfigured,
         api_key_configured:apiKeyConfigured,
         transaction_type_configured:transactionTypeConfigured,
@@ -4546,36 +4617,48 @@ if (
           "address_subdivision","address_postal_code","address_country_code",
           "email_address","phone_number"
         ];
-        const personaFields = {};
+        let personaFields = {};
         const collapseSpaces = (value) => String(value || "").trim().replace(/\s+/g, " ");
         for (const key of allowedPersonaFields) {
           let value = collapseSpaces(incomingFields[key]);
           if (!value) continue;
-          if (key === "address_country_code" || key === "address_subdivision") value = value.toUpperCase();
           if (key === "email_address") value = value.toLowerCase();
-          if (key === "phone_number") {
-            const digits = value.replace(/\D/g, "");
-            if (digits.length === 10) value = "+1" + digits;
-            else if (digits.length === 11 && digits.startsWith("1")) value = "+" + digits;
-          }
+          if (key === "phone_number") value = normalizeVerificationPhone(value);
           personaFields[key] = value;
         }
+        personaFields = normalizeVerificationAddressFields(personaFields);
         if (
           personaFields.address_street_1 &&
           personaFields.address_street_2 &&
           personaFields.address_street_1.toLowerCase() === personaFields.address_street_2.toLowerCase()
-        ) {
-          delete personaFields.address_street_2;
-        }
+        ) delete personaFields.address_street_2;
 
         if (!Number.isInteger(clientId) || clientId < 1) {
           return Response.json({ok:false,message:"Choose a valid client."},{status:400});
         }
-        if (!personaFields.name_first || !personaFields.name_last || !personaFields.birthdate) {
-          return Response.json({ok:false,message:"First name, last name, and birthdate are required before running Persona."},{status:400});
+        const configuredRequiredFields = String(env.PERSONA_REQUIRED_FIELDS || "")
+          .split(",").map(value=>value.trim()).filter(Boolean);
+        const requiredFields = configuredRequiredFields.length
+          ? configuredRequiredFields
+          : ["name_first","name_last","birthdate"];
+        const missingRequired = requiredFields.filter(key=>!String(personaFields[key]||"").trim());
+        if (missingRequired.length) {
+          return Response.json({ok:false,message:"Complete all required Persona fields before submitting.",missing_fields:missingRequired},{status:400});
         }
         if (personaFields.address_country_code && !/^[A-Z]{2}$/.test(personaFields.address_country_code)) {
-          return Response.json({ok:false,message:"Country code must use a two-letter code such as US."},{status:400});
+          return Response.json({ok:false,message:"Country code must use a two-letter code such as US.",field_errors:["Country code must contain two letters."]},{status:400});
+        }
+        if (personaFields.address_country_code === "US" && personaFields.address_subdivision && !VALID_US_STATE_CODES.has(personaFields.address_subdivision)) {
+          return Response.json({ok:false,message:"State must use a valid two-letter U.S. abbreviation.",field_errors:["State is invalid."]},{status:400});
+        }
+        if (personaFields.email_address && !verificationEmailValid(personaFields.email_address)) {
+          return Response.json({ok:false,message:"Enter a valid email address before submitting to Persona.",field_errors:["Email format is invalid."]},{status:400});
+        }
+        if (personaFields.phone_number) {
+          const digits=personaFields.phone_number.replace(/\D/g,"");
+          if (!(digits.length===11&&digits.startsWith("1"))) {
+            return Response.json({ok:false,message:"Enter a complete U.S. phone number before submitting to Persona.",field_errors:["Phone number is incomplete."]},{status:400});
+          }
         }
         if (!await requireIdDocumentClient(env, clientId)) {
           return Response.json({ok:false,message:"Client not found."},{status:404});
@@ -4670,6 +4753,8 @@ if (
           SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
               persona_transaction_id=?,
               persona_transaction_status=?,
+              persona_submitted_at=COALESCE(persona_submitted_at,CURRENT_TIMESTAMP),
+              persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
         `).bind(identityConfirmed, transactionId, transactionStatus, audit.id).run();
@@ -4683,7 +4768,7 @@ if (
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
                  evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-                 persona_transaction_id, persona_transaction_status, completed_at, updated_at
+                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
 
@@ -4775,6 +4860,7 @@ if (
           SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
               persona_transaction_id=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_id END,
               persona_transaction_status=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_status END,
+              persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE date_request_id=?
         `).bind(
