@@ -328,8 +328,10 @@ function normalizeVerificationAddressFields(fields) {
   out.address_street_1=titleCaseVerificationAddress(line1);
   out.address_street_2=titleCaseVerificationAddress(line2);
   out.address_city=titleCaseVerificationAddress(out.address_city||"");
-  out.address_subdivision=normalizeVerificationState(out.address_subdivision||"");
   out.address_country_code=String(out.address_country_code||"US").trim().toUpperCase();
+  out.address_subdivision=out.address_country_code==="US"
+    ? normalizeVerificationState(out.address_subdivision||"")
+    : String(out.address_subdivision||"").trim().replace(/\s+/g," ");
   out.address_postal_code=String(out.address_postal_code||"").trim().replace(/\s+/g,"");
   return out;
 }
@@ -635,7 +637,7 @@ export default {
         for (const [key, raw] of Object.entries(incoming)) {
           if (!allowed.has(key)) continue;
           let value = String(raw || "").trim().replace(/\s+/g," ");
-          if (key === "email_address") value = value.toLowerCase();
+          if (key === "email_address") value = value.toLowerCase().replace(/\s+/g,"").replace(/[;,]+$/,"");
           if (key === "phone_number") value = normalizeVerificationPhone(value);
           if (value) normalized[key] = value;
         }
@@ -4635,7 +4637,7 @@ if (
         for (const key of allowedPersonaFields) {
           let value = collapseSpaces(incomingFields[key]);
           if (!value) continue;
-          if (key === "email_address") value = value.toLowerCase();
+          if (key === "email_address") value = value.toLowerCase().replace(/\s+/g,"").replace(/[;,]+$/,"");
           if (key === "phone_number") value = normalizeVerificationPhone(value);
           personaFields[key] = value;
         }
@@ -4662,18 +4664,18 @@ if (
           return Response.json({ok:false,message:"Country code must use a two-letter code such as US.",field_errors:["Country code must contain two letters."]},{status:400});
         }
         if (personaFields.address_country_code === "US" && personaFields.address_subdivision && !VALID_US_STATE_CODES.has(personaFields.address_subdivision)) {
-          return Response.json({ok:false,message:"State must use a valid two-letter U.S. abbreviation.",field_errors:["State is invalid."]},{status:400});
+          return Response.json({ok:false,message:"State must use a valid two-letter U.S. abbreviation.",field_errors:[{field:"address_subdivision",message:"State is invalid."}]},{status:400});
         }
         if (personaFields.address_country_code === "US" && personaFields.address_postal_code && !/^\d{5}(?:-\d{4})?$/.test(personaFields.address_postal_code)) {
-          return Response.json({ok:false,message:"Enter a valid U.S. ZIP code.",field_errors:["Postal code must be 12345 or 12345-6789."]},{status:400});
+          return Response.json({ok:false,message:"Enter a valid U.S. ZIP code.",field_errors:[{field:"address_postal_code",message:"Postal code must be 12345 or 12345-6789."}]},{status:400});
         }
         if (personaFields.email_address && !verificationEmailValid(personaFields.email_address)) {
-          return Response.json({ok:false,message:"Enter a valid email address before submitting to Persona.",field_errors:["Email format is invalid."]},{status:400});
+          return Response.json({ok:false,message:"Enter a valid email address before submitting to Persona.",field_errors:[{field:"email_address",message:"Email format is invalid."}]},{status:400});
         }
         if (personaFields.phone_number) {
           const digits=personaFields.phone_number.replace(/\D/g,"");
           if (!(digits.length===11&&digits.startsWith("1"))) {
-            return Response.json({ok:false,message:"Enter a complete U.S. phone number before submitting to Persona.",field_errors:["Phone number is incomplete."]},{status:400});
+            return Response.json({ok:false,message:"Enter a complete U.S. phone number before submitting to Persona.",field_errors:[{field:"phone_number",message:"Phone number is incomplete."}]},{status:400});
           }
         }
         if (!await requireIdDocumentClient(env, clientId)) {
