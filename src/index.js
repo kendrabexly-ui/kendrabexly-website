@@ -162,6 +162,7 @@ async function ensureClientVerificationAuditsTable(env) {
     ["decision_notes", "TEXT NOT NULL DEFAULT ''"],
     ["birthdate", "TEXT NOT NULL DEFAULT ''"],
     ["completed_by", "TEXT NOT NULL DEFAULT ''"],
+    ["review_flag", "INTEGER NOT NULL DEFAULT 0"],
     ["persona_transaction_id", "TEXT NOT NULL DEFAULT ''"],
     ["persona_transaction_status", "TEXT NOT NULL DEFAULT ''"]
   ];
@@ -313,6 +314,11 @@ async function ensureClientIdDocumentsTable(env) {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+  const columnRows = await env.DB.prepare("PRAGMA table_info(client_id_documents)").all();
+  const columns = new Set((columnRows.results || []).map(row => String(row.name || "")));
+  if (!columns.has("retention_reminder_at")) {
+    await env.DB.prepare("ALTER TABLE client_id_documents ADD COLUMN retention_reminder_at TEXT").run();
+  }
 }
 
 function idDocumentDate(value) {
