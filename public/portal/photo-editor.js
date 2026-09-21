@@ -398,14 +398,14 @@
     ctx.putImageData(base,0,0);
     const before=state(),{x,y,w,h}=selection;
     const temp=document.createElement("canvas");temp.width=w;temp.height=h;temp.getContext("2d").drawImage(canvas,x,y,w,h,0,0,w,h);
-    canvas.width=w;canvas.height=h;ctx.drawImage(temp,0,0);base=ctx.getImageData(0,0,w,h);pushUndo("Crop",before);selection=null;$("photo-editor-apply-crop").disabled=true;setMode(null);updateMeta();fitToScreen();say("Crop applied.");
+    canvas.width=w;canvas.height=h;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(temp,0,0);base=ctx.getImageData(0,0,w,h);pushUndo("Crop",before);selection=null;$("photo-editor-apply-crop").disabled=true;setMode(null);updateMeta();fitToScreen();say("Crop applied.");
   });
 
   $("photo-editor-blur-strength")?.addEventListener("input",()=>{ if(mode==="blur-box"&&dragging) drawSelection(true); });
 
   $("photo-editor-blur-all")?.addEventListener("click",()=>{
     if(!canvas.width)return;const before=state();const temp=document.createElement("canvas");temp.width=canvas.width;temp.height=canvas.height;temp.getContext("2d").drawImage(canvas,0,0);
-    ctx.clearRect(0,0,canvas.width,canvas.height);ctx.filter="blur("+$("photo-editor-blur-strength").value+"px)";ctx.drawImage(temp,0,0);ctx.filter="none";base=ctx.getImageData(0,0,canvas.width,canvas.height);pushUndo("Blur entire photo",before);say("Entire photo blurred.");
+    ctx.clearRect(0,0,canvas.width,canvas.height);ctx.filter="blur("+$("photo-editor-blur-strength").value+"px)";ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(temp,0,0);ctx.filter="none";base=ctx.getImageData(0,0,canvas.width,canvas.height);pushUndo("Blur entire photo",before);say("Entire photo blurred.");
   });
 
   $("photo-editor-grayscale")?.addEventListener("click",()=>{
@@ -421,7 +421,7 @@
   $("photo-editor-rotate-right")?.addEventListener("click",()=>rotate90(1));
   $("photo-editor-flip")?.addEventListener("click",()=>{
     if(!canvas.width)return;const before=state(),temp=document.createElement("canvas");temp.width=canvas.width;temp.height=canvas.height;temp.getContext("2d").drawImage(canvas,0,0);
-    ctx.save();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.translate(canvas.width,0);ctx.scale(-1,1);ctx.drawImage(temp,0,0);ctx.restore();base=ctx.getImageData(0,0,canvas.width,canvas.height);pushUndo("Flip",before);
+    ctx.save();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.translate(canvas.width,0);ctx.scale(-1,1);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(temp,0,0);ctx.restore();base=ctx.getImageData(0,0,canvas.width,canvas.height);pushUndo("Flip",before);
   });
 
   $("photo-editor-zoom-in")?.addEventListener("click",()=>changeZoom(1.25));
@@ -474,18 +474,16 @@
       const source=await decodeFile(file);
       const sw=source.width||source.naturalWidth,sh=source.height||source.naturalHeight;
       const megapixels=sw*sh/1000000;
-      let scale=1;
       if(megapixels>18){
-        const proceed=confirm("This photo is "+megapixels.toFixed(1)+" MP. To reduce freezing, the editor will create a working copy capped near 18 MP. Continue?");
+        const proceed=confirm("This photo is "+megapixels.toFixed(1)+" MP. The editor will keep the full original resolution, which may use more memory. Continue?");
         if(!proceed)throw new Error("Image loading canceled.");
-        scale=Math.sqrt(18000000/(sw*sh));
       }
-      canvas.width=Math.max(1,Math.round(sw*scale));canvas.height=Math.max(1,Math.round(sh*scale));
-      ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(source,0,0,canvas.width,canvas.height);
+      canvas.width=Math.max(1,Math.round(sw));canvas.height=Math.max(1,Math.round(sh));
+      ctx.clearRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(source,0,0,canvas.width,canvas.height);
       source.close?.();
       original=state();base=ctx.getImageData(0,0,canvas.width,canvas.height);currentFile=file;
       fileNameBase=(file.name||"edited-photo").replace(/\.[^.]+$/,"")||"edited-photo";$("photo-editor-filename").value=fileNameBase;
-      undoStack=[];redoStack=[];updateHistory();setDirty(false);exported=false;enableImageControls(true);empty.style.display="none";canvas.style.display="block";updateMeta(file.type||"image");fitToScreen();say("Photo loaded. EXIF orientation is respected when supported by your browser.");
+      undoStack=[];redoStack=[];updateHistory();setDirty(false);exported=false;enableImageControls(true);empty.style.display="none";canvas.style.display="block";updateMeta(file.type||"image");fitToScreen();say("Photo loaded at full resolution. EXIF orientation is respected when supported by your browser.");
     }catch(err){say(err.message||"Unable to load photo.",true);}
     finally{setBusy(false);}
   }
@@ -498,22 +496,29 @@
     if(!canvas.width||busy)return;setBusy(true,"Exporting…");
     try{
       const quality=Number($("photo-editor-jpg-quality").value)/100;
+      if(type==="image/jpeg" && quality<.9 && !confirm("JPG quality is set below 90%. This can reduce image quality. Continue with a lossy export?")) return;
       const blob=await exportBlob(type,type==="image/jpeg"?quality:undefined);
       const url=URL.createObjectURL(blob),a=document.createElement("a"),name=($("photo-editor-filename").value||fileNameBase||"edited-photo").trim();
-      a.href=url;a.download=name+"."+(type==="image/png"?"png":"jpg");a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);exported=true;setDirty(false);say("Export complete.");
+      a.href=url;a.download=name+"."+(type==="image/png"?"png":"jpg");a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);exported=true;setDirty(false);say(type==="image/png"?"Export complete. PNG saved losslessly with transparency preserved.":"Export complete at "+Math.round(quality*100)+"% JPG quality.");
     }catch(err){say(err.message||"Export failed.",true);}finally{setBusy(false);}
   }
   $("photo-editor-download-jpg")?.addEventListener("click",()=>download("image/jpeg"));
   $("photo-editor-download-png")?.addEventListener("click",()=>download("image/png"));
 
   async function galleryPayload(){
-    let work=canvas,quality=.86;
-    for(let attempt=0;attempt<5;attempt++){
-      const dataUrl=work.toDataURL("image/webp",quality),b64=dataUrl.split(",")[1];
-      if(b64.length<=2850000)return {mime_type:"image/webp",image_base64:b64};
-      const smaller=document.createElement("canvas");smaller.width=Math.max(1,Math.round(work.width*.82));smaller.height=Math.max(1,Math.round(work.height*.82));smaller.getContext("2d").drawImage(work,0,0,smaller.width,smaller.height);work=smaller;quality=Math.max(.68,quality-.04);
+    const pngData=canvas.toDataURL("image/png");
+    const pngBase64=pngData.split(",")[1];
+    if(pngBase64.length<=2850000){
+      return {mime_type:"image/png",image_base64:pngBase64,quality_note:"Lossless PNG"};
     }
-    throw new Error("Edited photo is still too large for the gallery.");
+
+    const webpData=canvas.toDataURL("image/webp",.98);
+    const webpBase64=webpData.split(",")[1];
+    if(webpBase64.length<=2850000){
+      return {mime_type:"image/webp",image_base64:webpBase64,quality_note:"High-quality WebP 98%"};
+    }
+
+    throw new Error("This full-resolution edited photo is too large for the current gallery storage limit. Download the full-quality PNG/JPG first, or create a separate smaller gallery copy intentionally.");
   }
   $("photo-editor-save-gallery")?.addEventListener("click",async()=>{
     if(!canvas.width||busy)return;
@@ -525,7 +530,7 @@
       const image=await galleryPayload();if(progress)progress.value=60;
       const res=await fetch("/api/admin/gallery",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({slot,...image,alt_text:"Kendra Bexly gallery photo"})});
       const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to save gallery copy.");
-      if(progress)progress.value=100;exported=true;setDirty(false);say("Edited copy saved to Muse Gallery slot "+slot+".");
+      if(progress)progress.value=100;exported=true;setDirty(false);say("Edited copy saved to Muse Gallery slot "+slot+" using "+(image.quality_note||"high quality")+".");
     }catch(err){say(err.message||"Unable to save gallery copy.",true);}finally{setBusy(false);}
   });
 
