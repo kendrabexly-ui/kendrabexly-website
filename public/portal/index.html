@@ -2843,6 +2843,7 @@ async function loadRequests(options = {}) {
                     <div class="verification-actions client-persona-submit-area">
                       <button type="button" class="client-persona-verify persona-button" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
                       <button type="button" class="client-persona-retry persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Retry Persona</button>
+                      <button type="button" class="client-persona-new-test persona-button" hidden style="padding:8px 12px;border:1px solid #9a6700;border-radius:8px;background:#fffaf0;color:#74520b;cursor:pointer;font:inherit;font-weight:700;">Start New Persona Test</button>
                       <button type="button" class="client-persona-refresh persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Refresh Persona Status</button>
                     </div>
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
@@ -3789,6 +3790,7 @@ async function loadRequests(options = {}) {
         const badge=section.querySelector(".client-persona-badge");
         const run=section.querySelector(".client-persona-verify");
         const retry=section.querySelector(".client-persona-retry");
+        const newTest=section.querySelector(".client-persona-new-test");
         const refresh=section.querySelector(".client-persona-refresh");
         const statusBox=section.querySelector(".client-persona-status");
         const latest=section._verificationAuditRecords?.[0]||{};
@@ -3803,6 +3805,11 @@ async function loadRequests(options = {}) {
           run.style.opacity=!run.disabled?"1":".72";
         }
         if(retry){retry.hidden=state.key!=="failed";retry.disabled=state.key!=="failed";}
+        if(newTest){
+          const canStartNew=Boolean(hasExisting&&connected);
+          newTest.hidden=!canStartNew;
+          newTest.disabled=!canStartNew;
+        }
         if(refresh){refresh.hidden=!hasExisting;refresh.disabled=!hasExisting;}
         if(statusBox){
           statusBox.textContent={
@@ -4257,8 +4264,8 @@ async function loadRequests(options = {}) {
           }catch(error){if(status)status.textContent=error.message||"Unable to delete the saved ID number.";}finally{button.disabled=false;}
         });
 
-        const submitPersona=async(retryPersona)=>{
-          const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
+        const submitPersona=async(retryPersona,forceNewPersona=false)=>{
+          const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),newTestButton=section.querySelector(".client-persona-new-test"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
           if(section.dataset.personaConnected!=="1"){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
           normalizePersonaFields(section);capturePersonaDraft(section);await saveVerificationDraft(section);
           const validation=validatePersonaFields(section,{show:true,force:true});
@@ -4285,10 +4292,13 @@ async function loadRequests(options = {}) {
             phone_number:personaPhoneForApi(section.querySelector(".client-persona-phone")?.value)
           };
 
-          if(runButton)runButton.disabled=true;if(retryButton)retryButton.disabled=true;if(status)status.textContent=retryPersona?"Retrying Persona verification…":"Submitting information to Persona…";
+          if(runButton)runButton.disabled=true;
+          if(retryButton)retryButton.disabled=true;
+          if(newTestButton)newTestButton.disabled=true;
+          if(status)status.textContent=forceNewPersona?"Creating a new Persona test inquiry…":(retryPersona?"Retrying Persona verification…":"Submitting information to Persona…");
           if(technical)technical.hidden=true;
           try{
-            const response=await fetch("/api/admin/clients/persona-verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),booking_request_id:Number(latestAudit?.booking_request_id||0),persona_fields:personaFields,retry_persona:Boolean(retryPersona)})});
+            const response=await fetch("/api/admin/clients/persona-verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),booking_request_id:Number(latestAudit?.booking_request_id||0),persona_fields:personaFields,retry_persona:Boolean(retryPersona),force_new_persona:Boolean(forceNewPersona)})});
             const result=await response.json();
             if(!response.ok||!result.ok){
               if(status)status.textContent=result.message||"Persona could not complete this verification request.";
@@ -4346,11 +4356,20 @@ async function loadRequests(options = {}) {
             if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||String(error);}
           }finally{
             if(retryButton)retryButton.disabled=false;
+            if(newTestButton)newTestButton.disabled=false;
             renderPersonaReadiness(section,section.dataset.personaConnected==="1");
           }
         };
         section.querySelector(".client-persona-verify")?.addEventListener("click",()=>submitPersona(false));
         section.querySelector(".client-persona-retry")?.addEventListener("click",()=>submitPersona(true));
+        section.querySelector(".client-persona-new-test")?.addEventListener("click",()=>{
+          const latest=section._verificationAuditRecords?.[0]||{};
+          const oldId=String(latest.persona_transaction_id||"");
+          const oldStatus=String(latest.persona_transaction_status||"pending").replaceAll("_"," ");
+          const warning="Start a brand-new Persona inquiry for this client?\n\nThe existing inquiry ("+(oldId||"current inquiry")+", "+oldStatus+") will remain in Audit History and Persona attempt history. The new inquiry becomes the current Persona result.\n\nUse this after changing the Persona workflow or configuration.";
+          if(!window.confirm(warning))return;
+          submitPersona(false,true);
+        });
         section.querySelector(".client-persona-refresh")?.addEventListener("click",async(event)=>{
           const button=event.currentTarget,status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details");
           button.disabled=true;if(status)status.textContent="Refreshing Persona status…";
