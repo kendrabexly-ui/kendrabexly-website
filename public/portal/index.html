@@ -2200,9 +2200,9 @@ async function loadRequests() {
         const upcoming=client.requests.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now());
         const lastSeen=completedDates[0]?.requested_date?new Date(completedDates[0].requested_date+"T00:00:00").getTime():0;
         const daysSince=lastSeen?Math.floor((Date.now()-lastSeen)/86400000):null;
-        if(valueFilter==="repeat")return completedDates.length>=2;
-        if(valueFilter==="recent")return daysSince!==null&&daysSince<=60;
-        if(valueFilter==="inactive")return daysSince!==null&&daysSince>=90&&!upcoming;
+        if(valueFilter==="repeat" && completedDates.length<2)return false;
+        if(valueFilter==="recent" && !(daysSince!==null&&daysSince<=60))return false;
+        if(valueFilter==="inactive" && !(daysSince!==null&&daysSince>=90&&!upcoming))return false;
         if(valueFilter==="upcoming"&&!upcoming)return false;
         if(valueFilter!=="all" && !["repeat","recent","inactive","upcoming"].includes(valueFilter)) return false;
         const verification = verificationOverviewByClient.get(Number(client.client_id)) || {};
