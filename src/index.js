@@ -560,8 +560,7 @@ async function fetchPersonaInquiryTemplateConfig(env) {
   const defaultSupported=[
     "name_first","name_middle","name_last","birthdate","address_street_1","address_street_2",
     "address_city","address_subdivision","address_postal_code","address_country_code",
-    "email_address","phone_number","identification_number","identification_class",
-    "issuing_state","expiration_date"
+    "email_address","phone_number"
   ];
   const buildConfig=(data,{state="connected",message="Connected",sandbox=false,effectiveTemplateId=inquiryTemplateId,templateSource="configured",technicalDetails=""}={})=>{
     const schemas=Array.isArray(data?.data?.attributes?.field_schemas) ? data.data.attributes.field_schemas : [];
@@ -5347,9 +5346,13 @@ if (
           const personaError = personaData?.errors?.[0] || {};
           const personaRequestId = personaResponse.headers.get("Request-Id") || "";
           let detail = personaError.detail || personaError.title || personaData?.message || "Persona rejected the verification request.";
+          const errorPointer=String(personaError?.source?.pointer || personaError?.meta?.field || "");
+          const attemptedFields=Object.keys(inquiryFields||{});
           if (personaResponse.status === 400 && /^bad request$/i.test(String(detail).trim())) {
-            detail = "Persona rejected the prefilled inquiry. Confirm PERSONA_INQUIRY_TEMPLATE_ID points to the Inquiry Template whose inquiry-created workflow runs Database Verification, and confirm the field keys match that template.";
+            detail = "Persona rejected the prefilled inquiry.";
           }
+          if(errorPointer) detail += " Field: " + errorPointer + ".";
+          if(attemptedFields.length) detail += " Prefilled fields: " + attemptedFields.join(", ") + ".";
           if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
           console.error("Persona inquiry create failed:", personaResponse.status);
           await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status='request_failed',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(attempt.id).run();
