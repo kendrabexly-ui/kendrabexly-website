@@ -20,9 +20,11 @@ test("invalid Persona credentials produce a distinct state",()=>{
   assert.match(portal,/Invalid credentials/);
 });
 
-test("wrong transaction type is rejected",()=>{
-  assert.match(worker,/PERSONA_TRANSACTION_TYPE_ID must begin with txntp_/);
-  assert.match(worker,/incorrect_transaction_type/);
+test("wrong inquiry template is rejected",()=>{
+  assert.match(worker,/PERSONA_INQUIRY_TEMPLATE_ID must begin with itmpl_/);
+  assert.match(worker,/incorrect_inquiry_template/);
+  assert.match(worker,/api\/v1\/inquiries/);
+  assert.doesNotMatch(worker,/api\/v1\/transactions/);
 });
 
 test("duplicate Persona submissions are blocked",()=>{
