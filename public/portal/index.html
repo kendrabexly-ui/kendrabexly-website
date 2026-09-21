@@ -2629,7 +2629,7 @@ async function loadRequests() {
                       <label style="font-size:12px;font-weight:700;">Expiration Date<input class="client-persona-id-expiration" type="date" value="${escapeHtml(personaDraft.id_details?.expiration_date || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note">Optional.</span></label>
                     </div>
                     <div class="client-persona-fallback-note" style="margin-top:7px;font-size:11px;color:var(--muted);"></div>
-                    <div class="client-persona-field-legend" style="margin-top:6px;font-size:11px;color:var(--muted);">Required and supported fields will be confirmed against the configured Persona Transaction Type.</div>
+                    <div class="client-persona-field-legend" style="margin-top:6px;font-size:11px;color:var(--muted);">Required fields are prefilled into the configured Persona Inquiry Template. Its inquiry-created workflow runs Database Verification without client interaction.</div>
                     <div class="verification-grid client-persona-fields">
                       <label data-persona-field="name_first" style="font-size:12px;font-weight:700;">First name<input class="client-persona-name-first" value="${escapeHtml(personaDraft.name_first || client.first_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="name_middle" style="font-size:12px;font-weight:700;">Middle name<input class="client-persona-name-middle" value="${escapeHtml(personaDraft.name_middle || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -3487,7 +3487,7 @@ async function loadRequests() {
             <details style="margin-top:6px;"><summary style="cursor:pointer;font-weight:700;">View details</summary>
               <div style="margin-top:6px;padding:8px;background:#f7f2e9;border-radius:7px;">
                 Booking Request ID: ${escapeHtml(latest.booking_request_id)} · Audit ID: ${escapeHtml(latest.id)}
-                ${latest.persona_transaction_id ? `<br>Persona transaction: ${escapeHtml(latest.persona_transaction_id)} · ${escapeHtml(latest.persona_transaction_status || "submitted")}` : ""}
+                ${latest.persona_transaction_id ? `<br>Persona inquiry: ${escapeHtml(latest.persona_transaction_id)} · ${escapeHtml(latest.persona_transaction_status || "submitted")}` : ""}
                 <br>Authorization: ${latest.authorization_version === "legacy-unrecorded" ? "Authorization not recorded — legacy request" : (latest.accepted ? "Accepted" : "Not accepted")}
               </div>
             </details>
@@ -3496,7 +3496,7 @@ async function loadRequests() {
           <details style="padding:9px 0;border-top:1px solid var(--line);">
             <summary style="cursor:pointer;font-weight:700;">Older record · ${escapeHtml(statusLabel(record.verification_status))}${record.authorization_version==="legacy-unrecorded"?" · Legacy":""}</summary>
             <div style="margin-top:7px;line-height:1.55;">Created: ${escapeHtml(formatVerificationTimestamp(record.accepted_at)||"—")} · Updated: ${escapeHtml(formatVerificationTimestamp(record.updated_at)||"—")} · Completed: ${escapeHtml(formatVerificationTimestamp(record.completed_at)||"—")} · Method: ${escapeHtml(record.verification_method || "Not entered")}
-              <details style="margin-top:5px;"><summary style="cursor:pointer;">View details</summary><div style="margin-top:5px;">Booking Request ID: ${escapeHtml(record.booking_request_id)} · Audit ID: ${escapeHtml(record.id)}${record.persona_transaction_id ? `<br>Persona transaction: ${escapeHtml(record.persona_transaction_id)}` : ""}</div></details>
+              <details style="margin-top:5px;"><summary style="cursor:pointer;">View details</summary><div style="margin-top:5px;">Booking Request ID: ${escapeHtml(record.booking_request_id)} · Audit ID: ${escapeHtml(record.id)}${record.persona_transaction_id ? `<br>Persona inquiry: ${escapeHtml(record.persona_transaction_id)}` : ""}</div></details>
             </div>
           </details>`).join("");
         const decisions=(decisionHistory || []).length ? `
@@ -3566,7 +3566,7 @@ async function loadRequests() {
         });
         const legend=section.querySelector(".client-persona-field-legend");
         if(legend)legend.innerHTML=configured&&supported.size
-          ? 'Persona connection confirmed. Only required fields from the final Transaction Type are shown. <span class="verification-status-pill" style="background:#fdeaea;color:#8a2424;padding:2px 6px;font-size:10px;">Required</span>'
+          ? 'Persona connection confirmed. Required fields will be prefilled into the Inquiry Template. <span class="verification-status-pill" style="background:#fdeaea;color:#8a2424;padding:2px 6px;font-size:10px;">Required</span>'
           : 'Persona field requirements will be finalized after the connection test.';
         validatePersonaFields(section);
       };
@@ -3619,7 +3619,7 @@ async function loadRequests() {
           card.hidden=!hasExisting;
           if(hasExisting){
             const retryLabel=state.key==="failed"?"Eligible":"Not needed";
-            card.innerHTML="<strong>Persona transaction</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
+            card.innerHTML="<strong>Persona inquiry</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
               "<span><strong>Result:</strong> "+escapeHtml(state.label)+"</span>"+
               "<span><strong>Submitted:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_submitted_at)||"—")+"</span>"+
               "<span><strong>Last updated:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_updated_at||latest.updated_at)||"—")+"</span>"+
@@ -3630,7 +3630,7 @@ async function loadRequests() {
         const txBody=section.querySelector(".client-persona-transaction-details-body");
         if(txDetails&&txBody){
           txDetails.hidden=!hasExisting;
-          if(hasExisting)txBody.innerHTML="<strong>Transaction ID:</strong> "+escapeHtml(latest.persona_transaction_id)+
+          if(hasExisting)txBody.innerHTML="<strong>Inquiry ID:</strong> "+escapeHtml(latest.persona_transaction_id)+
             "<br><strong>Raw status:</strong> "+escapeHtml(latest.persona_transaction_status||"pending");
         }
         updateVerificationSummary(section);
@@ -3654,7 +3654,7 @@ async function loadRequests() {
             if(technical)technical.hidden=true;
           }else{
             if(resultBox){
-              resultBox.textContent=result.state==="invalid_credentials"?"Invalid credentials":result.state==="incorrect_transaction_type"?"Incorrect Transaction Type":"Connection error";
+              resultBox.textContent=result.state==="invalid_credentials"?"Invalid credentials":result.state==="incorrect_inquiry_template"?"Incorrect Inquiry Template":"Connection error";
               resultBox.style.color="#8a2424";
             }
             if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.technical_details||result.message||"Persona connection failed.";}
@@ -3681,15 +3681,15 @@ async function loadRequests() {
           const webhookBox=section.querySelector(".client-persona-webhook-health");
           if(webhookBox){
             const health=result.webhook_health||{};
-            webhookBox.textContent="Webhook · Last received: "+(formatVerificationTimestamp(health.last_received_at)||"Never")+" · Last success: "+(formatVerificationTimestamp(health.last_success_at)||"Never")+" · Last rejected: "+(formatVerificationTimestamp(health.last_rejected_at)||"Never")+(health.warning?" · ⚠ Active Persona transaction has no recent webhook update":"");
+            webhookBox.textContent="Webhook · Last received: "+(formatVerificationTimestamp(health.last_received_at)||"Never")+" · Last success: "+(formatVerificationTimestamp(health.last_success_at)||"Never")+" · Last rejected: "+(formatVerificationTimestamp(health.last_rejected_at)||"Never")+(health.warning?" · ⚠ Active Persona inquiry has no recent webhook update":"");
             webhookBox.style.color=health.warning?"#8a2424":"var(--muted)";
           }
           applyPersonaRequiredFields(section,result.required_fields||[],false,[]);
-          if(!result.api_key_configured||!result.transaction_type_configured){
+          if(!result.api_key_configured||!result.inquiry_template_configured){
             section.dataset.personaConnected="0";
             const resultBox=section.querySelector(".client-persona-connection-result");
             if(resultBox){
-              resultBox.textContent=!result.api_key_configured?"Invalid credentials":"Incorrect Transaction Type";
+              resultBox.textContent=!result.api_key_configured?"Invalid credentials":"Incorrect Inquiry Template";
               resultBox.style.color="#8a2424";
             }
             renderPersonaReadiness(section,false);

@@ -529,16 +529,16 @@ const PERSONA_EXPIRATION_FIELD_CANDIDATES = ["expiration_date","identification_e
 function firstSupportedPersonaField(supported, candidates) {
   return candidates.find(key => supported.has(key)) || "";
 }
-async function fetchPersonaTransactionTypeConfig(env) {
+async function fetchPersonaInquiryTemplateConfig(env) {
   const apiKey=String(env.PERSONA_API_KEY || "").trim();
-  const transactionTypeId=String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
+  const inquiryTemplateId=String(env.PERSONA_INQUIRY_TEMPLATE_ID || "").trim();
   if (!apiKey) return {ok:false,state:"invalid_credentials",message:"Invalid credentials",technical_details:"PERSONA_API_KEY is missing."};
-  if (!/^txntp_[A-Za-z0-9]+$/.test(transactionTypeId)) {
-    return {ok:false,state:"incorrect_transaction_type",message:"Incorrect Transaction Type",technical_details:"PERSONA_TRANSACTION_TYPE_ID must be a Persona Transaction Type ID beginning with txntp_."};
+  if (!/^itmpl_[A-Za-z0-9]+$/.test(inquiryTemplateId)) {
+    return {ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",technical_details:"PERSONA_INQUIRY_TEMPLATE_ID must be a Persona Inquiry Template ID beginning with itmpl_."};
   }
   const headers={Authorization:"Bearer "+apiKey,"Key-Inflection":"snake"};
   if (env.PERSONA_API_VERSION) headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
-  const response=await fetch("https://api.withpersona.com/api/v1/transaction-types/"+encodeURIComponent(transactionTypeId),{headers});
+  const response=await fetch("https://api.withpersona.com/api/v1/inquiry-templates/"+encodeURIComponent(inquiryTemplateId),{headers});
   const data=await response.json().catch(()=>({}));
   if (!response.ok) {
     const detail=String(data?.errors?.[0]?.detail || data?.errors?.[0]?.title || data?.message || "");
@@ -546,19 +546,33 @@ async function fetchPersonaTransactionTypeConfig(env) {
       return {ok:false,state:"invalid_credentials",message:"Invalid credentials",technical_details:detail || "Persona rejected the API key."};
     }
     if (response.status===404 || response.status===400) {
-      return {ok:false,state:"incorrect_transaction_type",message:"Incorrect Transaction Type",technical_details:detail || "Persona could not find this Transaction Type for the configured account."};
+      return {ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",technical_details:detail || "Persona could not find this Inquiry Template for the configured account."};
     }
     return {ok:false,state:"connection_error",message:"Persona connection error",technical_details:detail || ("Persona returned HTTP "+response.status+".")};
   }
   const schemas=Array.isArray(data?.data?.attributes?.field_schemas) ? data.data.attributes.field_schemas : [];
-  const supportedFields=schemas.map(item=>String(item?.key || "").trim()).filter(Boolean);
-  const requiredFields=schemas.filter(item=>Boolean(item?.config?.required)).map(item=>String(item?.key || "").trim()).filter(Boolean);
+  const configuredSupported=String(env.PERSONA_SUPPORTED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean);
+  const configuredRequired=String(env.PERSONA_REQUIRED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean);
+  const defaultSupported=[
+    "name_first","name_middle","name_last","birthdate","address_street_1","address_street_2",
+    "address_city","address_subdivision","address_postal_code","address_country_code",
+    "email_address","phone_number","identification_number","identification_class",
+    "issuing_state","expiration_date"
+  ];
+  const supportedFields=schemas.length
+    ? schemas.map(item=>String(item?.key || "").trim()).filter(Boolean)
+    : (configuredSupported.length ? configuredSupported : defaultSupported);
+  const requiredFields=configuredRequired.length
+    ? configuredRequired
+    : (schemas.length
+      ? schemas.filter(item=>Boolean(item?.config?.required)).map(item=>String(item?.key || "").trim()).filter(Boolean)
+      : ["name_first","name_last","birthdate"]);
   const supported=new Set(supportedFields);
   const idNumberField=firstSupportedPersonaField(supported,PERSONA_ID_NUMBER_FIELD_CANDIDATES);
   return {
     ok:true,state:"connected",message:"Connected",
-    transaction_type_id:transactionTypeId,
-    transaction_type_name:String(data?.data?.attributes?.name || ""),
+    inquiry_template_id:inquiryTemplateId,
+    inquiry_template_name:String(data?.data?.attributes?.name || ""),
     supported_fields:supportedFields,
     required_fields:requiredFields,
     id_number_supported:Boolean(idNumberField),
@@ -4930,27 +4944,27 @@ if (
     if (url.pathname === "/api/admin/clients/persona-status" && request.method === "GET") {
       await ensureVerificationWorkspaceTables(env);
       const apiKeyConfigured = Boolean(env.PERSONA_API_KEY);
-      const transactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
-      const transactionTypeConfigured = /^txntp_[A-Za-z0-9]+$/.test(transactionTypeId);
+      const inquiryTemplateId = String(env.PERSONA_INQUIRY_TEMPLATE_ID || "").trim();
+      const inquiryTemplateConfigured = /^itmpl_[A-Za-z0-9]+$/.test(inquiryTemplateId);
       const webhookSecretConfigured = Boolean(env.PERSONA_WEBHOOK_SECRET);
       const requiredFields = String(env.PERSONA_REQUIRED_FIELDS || "")
         .split(",").map(value => value.trim()).filter(Boolean);
       const effectiveRequiredFields = requiredFields.length ? requiredFields : ["name_first","name_last","birthdate"];
       return Response.json({
         ok:true,
-        connected:apiKeyConfigured && transactionTypeConfigured,
-        setup_state:apiKeyConfigured && transactionTypeConfigured ? "connected" : "pending_setup",
+        connected:apiKeyConfigured && inquiryTemplateConfigured,
+        setup_state:apiKeyConfigured && inquiryTemplateConfigured ? "connected" : "pending_setup",
         required_fields:effectiveRequiredFields,
         required_fields_configured:requiredFields.length>0,
         webhook_connected:webhookSecretConfigured,
         api_key_configured:apiKeyConfigured,
-        transaction_type_configured:transactionTypeConfigured,
+        inquiry_template_configured:inquiryTemplateConfigured,
         configuration_message:!apiKeyConfigured
           ? "Add PERSONA_API_KEY to the Worker environment."
-          : !transactionTypeId
-            ? "Add PERSONA_TRANSACTION_TYPE_ID to the Worker environment."
-            : !transactionTypeConfigured
-              ? "PERSONA_TRANSACTION_TYPE_ID must be a Persona Transaction Type ID beginning with txntp_."
+          : !inquiryTemplateId
+            ? "Add PERSONA_INQUIRY_TEMPLATE_ID to the Worker environment."
+            : !inquiryTemplateConfigured
+              ? "PERSONA_INQUIRY_TEMPLATE_ID must be a Persona Inquiry Template ID beginning with itmpl_."
               : "",
         webhook_secret_configured:webhookSecretConfigured,
         webhook_url:"https://kendrabexly.com/api/webhooks/persona",
@@ -4973,8 +4987,8 @@ if (
         const actor=accessIdentity(request).email||"admin";
         const rate=await enforceVerificationRateLimit(env,"persona_test",actor,10,300);
         if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona connection tests. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
-        const result=await fetchPersonaTransactionTypeConfig(env);
-        return Response.json(result,{status:result.ok?200:(result.state==="invalid_credentials"?401:result.state==="incorrect_transaction_type"?400:502),headers:{"Cache-Control":"private, no-store"}});
+        const result=await fetchPersonaInquiryTemplateConfig(env);
+        return Response.json(result,{status:result.ok?200:(result.state==="invalid_credentials"?401:result.state==="incorrect_inquiry_template"?400:502),headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
         return Response.json({ok:false,state:"connection_error",message:"Persona connection error",technical_details:String(error?.message||error)},{status:502,headers:{"Cache-Control":"private, no-store"}});
       }
@@ -4982,25 +4996,25 @@ if (
 
     if (url.pathname === "/api/admin/clients/persona-verify" && request.method === "POST") {
       try {
-        const personaTransactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
-        if (!env.PERSONA_API_KEY || !personaTransactionTypeId) {
+        const personaInquiryTemplateId = String(env.PERSONA_INQUIRY_TEMPLATE_ID || "").trim();
+        if (!env.PERSONA_API_KEY || !personaInquiryTemplateId) {
           return Response.json({
             ok:false,
             message:"Persona setup is still pending. Manual verification remains available.",
-            technical_details:"PERSONA_API_KEY or PERSONA_TRANSACTION_TYPE_ID is missing."
+            technical_details:"PERSONA_API_KEY or PERSONA_INQUIRY_TEMPLATE_ID is missing."
           }, {status:503});
         }
-        if (!/^txntp_[A-Za-z0-9]+$/.test(personaTransactionTypeId)) {
+        if (!/^itmpl_[A-Za-z0-9]+$/.test(personaInquiryTemplateId)) {
           return Response.json({
             ok:false,
             message:"Persona setup is still pending. Manual verification remains available.",
-            technical_details:"PERSONA_TRANSACTION_TYPE_ID must begin with txntp_."
+            technical_details:"PERSONA_INQUIRY_TEMPLATE_ID must begin with itmpl_."
           }, {status:503});
         }
         await ensureVerificationWorkspaceTables(env);
-        const personaConfig=await fetchPersonaTransactionTypeConfig(env);
+        const personaConfig=await fetchPersonaInquiryTemplateConfig(env);
         if(!personaConfig.ok){
-          return Response.json({ok:false,message:personaConfig.message,technical_details:personaConfig.technical_details,connection_state:personaConfig.state},{status:personaConfig.state==="invalid_credentials"?401:personaConfig.state==="incorrect_transaction_type"?400:502});
+          return Response.json({ok:false,message:personaConfig.message,technical_details:personaConfig.technical_details,connection_state:personaConfig.state},{status:personaConfig.state==="invalid_credentials"?401:personaConfig.state==="incorrect_inquiry_template"?400:502});
         }
 
         const data = await request.json().catch(() => ({}));
@@ -5067,7 +5081,7 @@ if (
         const requiredFields=(personaConfig.required_fields || []).filter(field=>!(idFallbackComplete&&addressFields.has(field)));
         const missingRequired = requiredFields.filter(key=>!String(personaFields[key]||"").trim());
         if (missingRequired.length) {
-          return Response.json({ok:false,message:"Complete all fields required by the configured Persona Transaction Type.",missing_fields:missingRequired},{status:400});
+          return Response.json({ok:false,message:"Complete all fields required by the configured Persona Inquiry Template.",missing_fields:missingRequired},{status:400});
         }
         if (personaFields.address_country_code && !/^[A-Z]{2}$/.test(personaFields.address_country_code)) {
           return Response.json({ok:false,message:"Country code must use a two-letter code such as US.",field_errors:["Country code must contain two letters."]},{status:400});
@@ -5157,19 +5171,20 @@ if (
         if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
 
         let personaResponse,personaData={};
+        const inquiryFields=Object.fromEntries(Object.entries(personaFields).map(([key,value])=>[key.replaceAll("_","-"),value]));
         const controller=new AbortController();
         const timeout=setTimeout(()=>controller.abort(),12000);
         try{
-          personaResponse = await fetch("https://api.withpersona.com/api/v1/transactions", {
+          personaResponse = await fetch("https://api.withpersona.com/api/v1/inquiries", {
             method:"POST",
             headers,
             signal:controller.signal,
             body:JSON.stringify({
               data:{
                 attributes:{
-                  transaction_type_id:personaTransactionTypeId,
-                  reference_id:String(requestId),
-                  fields:personaFields
+                  "inquiry-template-id":personaInquiryTemplateId,
+                  "reference-id":String(requestId),
+                  fields:inquiryFields
                 }
               }
             })
@@ -5186,10 +5201,10 @@ if (
           const personaRequestId = personaResponse.headers.get("Request-Id") || "";
           let detail = personaError.detail || personaError.title || personaData?.message || "Persona rejected the verification request.";
           if (personaResponse.status === 400 && /^bad request$/i.test(String(detail).trim())) {
-            detail = "Persona rejected the transaction fields. Confirm PERSONA_TRANSACTION_TYPE_ID points to your Database Verification transaction type and that the manually entered fields match its required field schema.";
+            detail = "Persona rejected the prefilled inquiry. Confirm PERSONA_INQUIRY_TEMPLATE_ID points to the Inquiry Template whose inquiry-created workflow runs Database Verification, and confirm the field keys match that template.";
           }
           if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
-          console.error("Persona transaction create failed:", personaResponse.status);
+          console.error("Persona inquiry create failed:", personaResponse.status);
           await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status='request_failed',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(attempt.id).run();
           await logVerificationActivity(env, clientId, audit.id, "persona_error", "Persona submission failed", "Persona rejected the request. Technical details were not stored in the audit log.");
           return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(detail),retry_allowed:true},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
@@ -5209,7 +5224,7 @@ if (
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
         `).bind(transactionId, transactionStatus, audit.id).run();
-        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction recorded"+(addressComplete ? " · Address supplied" : " · Address unavailable — ID details used instead"));
+        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona inquiry retried" : "Persona inquiry created", "Inquiry recorded"+(addressComplete ? " · Address supplied" : " · Address unavailable — ID details used instead"));
         await logVerificationActivity(env, clientId, audit.id, "persona_response", "Persona response received", "Status: " + transactionStatus);
 
         const updated = await env.DB.prepare(`
@@ -5241,8 +5256,8 @@ if (
     if (url.pathname === "/api/admin/clients/persona-refresh" && request.method === "POST") {
       try {
         await ensureVerificationWorkspaceTables(env);
-        const config=await fetchPersonaTransactionTypeConfig(env);
-        if(!config.ok)return Response.json({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_transaction_type"?400:502});
+        const config=await fetchPersonaInquiryTemplateConfig(env);
+        if(!config.ok)return Response.json({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_inquiry_template"?400:502});
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id);
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
@@ -5252,13 +5267,13 @@ if (
         const audit=await env.DB.prepare(
           "SELECT * FROM client_verification_audits WHERE client_id=? AND persona_transaction_id<>'' ORDER BY persona_submitted_at DESC, id DESC LIMIT 1"
         ).bind(clientId).first();
-        if(!audit)return Response.json({ok:false,message:"No Persona transaction is available to refresh."},{status:404});
+        if(!audit)return Response.json({ok:false,message:"No Persona inquiry is available to refresh."},{status:404});
         const headers={Authorization:"Bearer "+String(env.PERSONA_API_KEY),"Key-Inflection":"snake"};
         if(env.PERSONA_API_VERSION)headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
-        const response=await fetch("https://api.withpersona.com/api/v1/transactions/"+encodeURIComponent(audit.persona_transaction_id),{headers});
+        const response=await fetch("https://api.withpersona.com/api/v1/inquiries/"+encodeURIComponent(audit.persona_transaction_id),{headers});
         const payload=await response.json().catch(()=>({}));
         if(!response.ok){
-          const detail=payload?.errors?.[0]?.detail||payload?.errors?.[0]?.title||payload?.message||"Persona could not refresh this transaction.";
+          const detail=payload?.errors?.[0]?.detail||payload?.errors?.[0]?.title||payload?.message||"Persona could not refresh this inquiry.";
           return Response.json({ok:false,message:"Unable to refresh Persona status.",technical_details:String(detail)},{status:response.status===404?404:502});
         }
         const newStatus=String(payload?.data?.attributes?.status||"").toLowerCase()||String(audit.persona_transaction_status||"pending");
@@ -5329,6 +5344,7 @@ if (
           objectStatus === "completed" ||
           objectStatus === "approved"
         ) {
+          transactionStatus = objectStatus || "completed";
           verificationStatus = "verified";
           identityConfirmed = 1;
         } else if (
@@ -5337,6 +5353,7 @@ if (
           objectStatus === "failed" ||
           objectStatus === "declined"
         ) {
+          transactionStatus = objectStatus || "failed";
           verificationStatus = "unable_to_verify";
         } else {
           return Response.json({ok:true,ignored:true});
