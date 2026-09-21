@@ -2635,6 +2635,16 @@ async function loadRequests() {
                       <label data-persona-field="email_address" style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(personaDraft.email_address || client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
+                    <div class="client-id-fallback" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:9px;background:#faf8f4;">
+                      <strong style="font-size:12px;">ID details when address is unavailable</strong>
+                      <div style="margin-top:4px;font-size:11px;color:var(--muted);">The ID number is encrypted when saved and displayed only in masked form. It is sent to Persona only when the configured Transaction Type supports it.</div>
+                      <div class="verification-grid" style="margin-top:8px;">
+                        <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="64" placeholder="Enter ID number" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="client-persona-id-number-saved verification-field-note"></span></label>
+                        <label style="font-size:12px;font-weight:700;">Issuing State<input class="client-persona-id-state" autocomplete="off" maxlength="2" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"></label>
+                        <label style="font-size:12px;font-weight:700;">Expiration Date<input class="client-persona-id-expiration" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      </div>
+                      <div class="client-persona-address-fallback-note" hidden style="margin-top:8px;padding:8px;border-radius:7px;background:#fff4d8;color:#74520b;font-size:12px;font-weight:700;">Address unavailable—ID details used instead</div>
+                    </div>
                     <div class="client-persona-dob-handoff" style="margin-top:9px;padding:9px 10px;border-radius:8px;background:#f7f2e9;font-size:12px;color:var(--muted);"></div>
                     <div class="client-persona-readiness" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
                       <strong style="font-size:12px;">Persona readiness</strong>
@@ -2643,6 +2653,7 @@ async function loadRequests() {
                         <div class="persona-readiness-row" data-readiness="email"><span>Email valid</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="phone"><span>Phone valid</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="address"><span>Address valid</span><strong>—</strong></div>
+                        <div class="persona-readiness-row" data-readiness="id_fallback"><span>ID fallback valid</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="dob"><span>DOB present</span><strong>—</strong></div>
                       </div>
                       <div class="client-persona-ready-text" style="margin-top:8px;font-size:12px;font-weight:700;color:var(--muted);">Not ready to submit</div>
@@ -2985,6 +2996,9 @@ async function loadRequests() {
         address_country_code:{selector:".client-persona-country",label:"Country code"},
         email_address:{selector:".client-persona-email",label:"Email"},
         phone_number:{selector:".client-persona-phone",label:"Phone"},
+        identification_number:{selector:".client-persona-id-number",label:"DL/State ID Number"},
+        identification_issuing_subdivision:{selector:".client-persona-id-state",label:"Issuing State"},
+        identification_expiration_date:{selector:".client-persona-id-expiration",label:"Expiration Date"},
         birthdate:{selector:".client-persona-birthdate",label:"Birthdate"}
       };
       const clearPersonaFieldStates=(section)=>{
@@ -3032,15 +3046,32 @@ async function loadRequests() {
         const phone=section.querySelector(".client-persona-phone")?.value||"";
         const phoneDigits=phone.replace(/\D/g,"");
         const birthdate=personaFieldValue(section,"birthdate");
+        const enteredIdNumber=personaFieldValue(section,"identification_number");
+        const idNumberPresent=Boolean(enteredIdNumber||section.dataset.idNumberSaved==="1");
+        const idIssuingState=personaFieldValue(section,"identification_issuing_subdivision").toUpperCase();
+        const addressComplete=Boolean(street&&city&&state&&postal);
+        const idFallbackComplete=Boolean(idNumberPresent&&idIssuingState&&VALID_US_STATES.has(idIssuingState));
+        const usingIdFallback=!addressComplete&&idFallbackComplete;
         const required=section._personaRequiredFields||[];
         const missing=[];
         required.forEach(field=>{
+          if(usingIdFallback&&field.startsWith("address_"))return;
+          if(field==="identification_number"&&idNumberPresent)return;
           if(!personaFieldValue(section,field)){missing.push(field);fieldErrors[field]="Required field is missing.";}
         });
+        if(!addressComplete){
+          if(!personaFieldValue(section,"name_first"))fieldErrors.name_first="Required when address is unavailable.";
+          if(!personaFieldValue(section,"name_last"))fieldErrors.name_last="Required when address is unavailable.";
+          if(!birthdate)fieldErrors.birthdate="Required when address is unavailable.";
+          if(!idNumberPresent)fieldErrors.identification_number="Required when address is unavailable.";
+          if(!idIssuingState)fieldErrors.identification_issuing_subdivision="Required when address is unavailable.";
+          else if(!VALID_US_STATES.has(idIssuingState))fieldErrors.identification_issuing_subdivision="Use a valid two-letter U.S. state code.";
+          if(section.dataset.personaIdNumberSupported!=="1")fieldErrors.identification_number="This Persona Transaction Type is not configured to accept an ID number.";
+        }
         if(country&&!/^[A-Z]{2}$/.test(country))fieldErrors.address_country_code="Country code must contain exactly two letters.";
         if(country==="US"&&state&&!VALID_US_STATES.has(state))fieldErrors.address_subdivision="Use a valid two-letter U.S. state code.";
         if(country==="US"&&postal&&!/^\d{5}(?:-\d{4})?$/.test(postal))fieldErrors.address_postal_code="ZIP must be 12345 or 12345-6789.";
-        if(street&&(!city||!state||!postal))warnings.push("Address is incomplete: city, state, and postal code should be filled in.");
+        if(street&&!addressComplete&&!idFallbackComplete)warnings.push("Address is incomplete: city, state, and postal code should be filled in.");
         if(street&&line2&&street.toLowerCase()===line2.toLowerCase())warnings.push("Street address and Address line 2 contain the same value.");
         if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))fieldErrors.email_address="Email format is invalid.";
         if(phone&&!(phoneDigits.length===10||(phoneDigits.length===11&&phoneDigits.startsWith("1"))))fieldErrors.phone_number="Phone number is incomplete.";
@@ -3049,6 +3080,8 @@ async function loadRequests() {
         if(phone&&!fieldErrors.phone_number)markPersonaField(section,"phone_number","valid","Valid phone");
         if(country==="US"&&state&&!fieldErrors.address_subdivision)markPersonaField(section,"address_subdivision","valid","Valid state");
         if(country==="US"&&postal&&!fieldErrors.address_postal_code)markPersonaField(section,"address_postal_code","valid","Valid ZIP");
+        if(idNumberPresent&&!fieldErrors.identification_number)markPersonaField(section,"identification_number","valid","Encrypted ID number saved");
+        if(idIssuingState&&!fieldErrors.identification_issuing_subdivision)markPersonaField(section,"identification_issuing_subdivision","valid","Valid issuing state");
         const errors=Object.entries(fieldErrors).map(([field,message])=>({field,message,label:personaFieldMeta[field]?.label||field}));
         const box=section.querySelector(".client-persona-validation");
         if(show&&box){
@@ -3072,9 +3105,9 @@ async function loadRequests() {
         const requiredComplete=missing.length===0;
         const emailValid=!email||!fieldErrors.email_address;
         const phoneValid=!phone||!fieldErrors.phone_number;
-        const addressValid=!fieldErrors.address_country_code&&!fieldErrors.address_subdivision&&!fieldErrors.address_postal_code&&!(street&&(!city||!state||!postal));
+        const addressValid=addressComplete&&!fieldErrors.address_country_code&&!fieldErrors.address_subdivision&&!fieldErrors.address_postal_code;
         const dobPresent=Boolean(birthdate);
-        const readiness={requiredComplete,emailValid,phoneValid,addressValid,dobPresent};
+        const readiness={requiredComplete,emailValid,phoneValid,addressValid,idFallbackComplete,dobPresent};
         section._personaValidation={valid:errors.length===0,errors,warnings,missing,readiness};
         const setReadyRow=(key,ok,label)=>{
           const row=section.querySelector('[data-readiness="'+key+'"]');
@@ -3083,10 +3116,11 @@ async function loadRequests() {
         setReadyRow("required",requiredComplete);
         setReadyRow("email",emailValid,email?"✓":(required.includes("email_address")?"Needs attention":"Optional / blank"));
         setReadyRow("phone",phoneValid,phone?"✓":(required.includes("phone_number")?"Needs attention":"Optional / blank"));
-        setReadyRow("address",addressValid,street?"✓":(required.some(x=>x.startsWith("address_"))?"Needs attention":"Optional / blank"));
+        setReadyRow("address",addressValid,addressValid?"✓":usingIdFallback?"Not available":"Needs attention");
+        setReadyRow("id_fallback",idFallbackComplete,idFallbackComplete?"✓":addressValid?"Not needed":"Needs attention");
         setReadyRow("dob",dobPresent,dobPresent?"✓":(required.includes("birthdate")?"Needs attention":"Optional / blank"));
         const readyText=section.querySelector(".client-persona-ready-text");
-        const allReady=requiredComplete&&emailValid&&phoneValid&&addressValid&&dobPresent;
+        const allReady=errors.length===0&&requiredComplete&&emailValid&&phoneValid&&(addressValid||idFallbackComplete)&&dobPresent&&(!usingIdFallback||section.dataset.personaIdNumberSupported==="1");
         if(readyText){readyText.textContent=allReady?"Ready to submit":"Not ready to submit";readyText.style.color=allReady?"#2f6b45":"#8a2424";}
         const dobHandoff=section.querySelector(".client-persona-dob-handoff");
         if(dobHandoff){
@@ -3101,6 +3135,8 @@ async function loadRequests() {
             target?.focus();
           });
         }
+        const fallbackNote=section.querySelector(".client-persona-address-fallback-note");
+        if(fallbackNote)fallbackNote.hidden=!usingIdFallback;
         return {valid:errors.length===0,errors,warnings,missing,readiness,allReady};
       };
       const normalizePersonaFields=(section)=>{
@@ -3115,6 +3151,8 @@ async function loadRequests() {
         const email=section.querySelector(".client-persona-email");
         if(email)email.value=normalizeSpaces(email.value).toLowerCase().replace(/[\s]+/g,"").replace(/[;,]+$/,"");
         const phone=section.querySelector(".client-persona-phone");if(phone)phone.value=formatVerificationPhone(phone.value);
+        const idNumber=section.querySelector(".client-persona-id-number");if(idNumber)idNumber.value=String(idNumber.value||"").trim().replace(/\s+/g,"");
+        const idState=section.querySelector(".client-persona-id-state");if(idState)idState.value=normalizeStateValue(idState.value);
         const line1=normalizeSpaces(section.querySelector(".client-persona-address-1")?.value);
         const line2=section.querySelector(".client-persona-address-2");
         if(line2&&line1&&normalizeSpaces(line2.value).toLowerCase()===line1.toLowerCase())line2.value="";
@@ -3136,7 +3174,10 @@ async function loadRequests() {
           address_postal_code:section.querySelector(".client-persona-postal")?.value || "",
           address_country_code:section.querySelector(".client-persona-country")?.value || "US",
           email_address:section.querySelector(".client-persona-email")?.value || "",
-          phone_number:section.querySelector(".client-persona-phone")?.value || ""
+          phone_number:section.querySelector(".client-persona-phone")?.value || "",
+          identification_number:section.querySelector(".client-persona-id-number")?.value || "",
+          identification_issuing_subdivision:section.querySelector(".client-persona-id-state")?.value || "",
+          identification_expiration_date:section.querySelector(".client-persona-id-expiration")?.value || ""
         };
         personaDraftByClient.set(id, draft);
         return draft;
@@ -3164,7 +3205,8 @@ async function loadRequests() {
             address_city:draft.address_city,address_subdivision:draft.address_subdivision,
             address_postal_code:draft.address_postal_code,address_country_code:draft.address_country_code,
             email_address:draft.email_address,phone_number:draft.phone_number
-          }
+          },
+          id_details:{number:draft.identification_number,issuing_state:draft.identification_issuing_subdivision,expiration_date:draft.identification_expiration_date}
         });
         const attempt=async()=>{
           const response=await fetch("/api/admin/clients/verification-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:payload});
@@ -3188,6 +3230,7 @@ async function loadRequests() {
       const applyVerificationDraft = (section, draft) => {
         if(!draft) return;
         const p=draft.persona_fields || {};
+        const id=draft.id_details||{};
         const map={
           ".client-persona-name-first":p.name_first,
           ".client-persona-name-middle":p.name_middle,
@@ -3206,6 +3249,15 @@ async function loadRequests() {
           const input=section.querySelector(selector);
           if(input && value) input.value=value;
         });
+        const idNumber=section.querySelector(".client-persona-id-number");
+        const idState=section.querySelector(".client-persona-id-state");
+        const idExpiration=section.querySelector(".client-persona-id-expiration");
+        const idSaved=section.querySelector(".client-persona-id-number-saved");
+        section.dataset.idNumberSaved=id.number_saved?"1":"0";
+        if(idNumber)idNumber.value="";
+        if(idState)idState.value=id.issuing_state||"";
+        if(idExpiration)idExpiration.value=id.expiration_date||"";
+        if(idSaved)idSaved.textContent=id.number_saved?("Saved securely as "+(id.number_masked||"masked value")):"Not saved";
         normalizePersonaFields(section);
         capturePersonaDraft(section);
         updatePersonaAgeStatus(section);
@@ -3375,6 +3427,7 @@ async function loadRequests() {
           <div style="padding:10px 0;color:var(--ink);line-height:1.55;">
             <div><strong>Manual Decision:</strong> ${escapeHtml(statusLabel(latest.verification_status))}</div>
             <div style="margin-top:3px;"><strong>Persona Result:</strong> ${escapeHtml(latest.persona_transaction_id ? (latest.persona_transaction_status || "pending").replaceAll("_"," ") : "Not submitted")}</div>
+            ${latest.verification_basis ? `<div style="margin-top:3px;"><strong>Verification basis:</strong> ${escapeHtml(latest.verification_basis)}</div>` : ""}
             <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5</div>
             <div style="margin-top:5px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 12px;font-size:11px;color:var(--muted);">
               <span><strong>Created:</strong> ${escapeHtml(formatVerificationTimestamp(latest.accepted_at)||"—")}</span>
@@ -3534,6 +3587,8 @@ async function loadRequests() {
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error("Unable to check Persona connection.");
           section.dataset.personaConnected=result.connected?"1":"0";
+          section.dataset.personaIdNumberSupported=result.id_number_supported?"1":"0";
+          section.dataset.idNumberEncryptionConfigured=result.id_number_encryption_configured?"1":"0";
           applyPersonaRequiredFields(section,result.required_fields||[],Boolean(result.required_fields_configured));
           renderPersonaReadiness(section,result.connected);
           validatePersonaFields(section,{show:true,force:false});
@@ -3578,7 +3633,7 @@ async function loadRequests() {
         const pdfLink=section.querySelector(".client-verification-export-pdf");
         if(csvLink)csvLink.href=exportBase+"&format=csv";
         if(pdfLink)pdfLink.href=exportBase+"&format=html";
-        const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
+        const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone,.client-persona-id-number,.client-persona-id-state,.client-persona-id-expiration");
         personaInputs.forEach(input=>{
           input.addEventListener("input",()=>{
             if(input.classList.contains("client-persona-phone")){
