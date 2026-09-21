@@ -5331,7 +5331,7 @@ if (
               "name_first","name_middle","name_last","birthdate",
               "address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code"
             ]),
-            core:pickFields(snakeInquiryFields,["name_first","name_last","birthdate"])
+            core:pickFields(snakeInquiryFields,["name_first","name_last","birthdate","address_country_code"])
           },
           {
             style:"kebab",
@@ -5340,7 +5340,7 @@ if (
               "name-first","name-middle","name-last","birthdate",
               "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code"
             ]),
-            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate"])
+            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code"])
           }
         ];
         if(!useCurrentPersonaFields)fieldSets.reverse();
@@ -5356,12 +5356,12 @@ if (
         const uniqueProfiles=submissionProfiles.filter((profile,index,array)=>
           Object.keys(profile.fields).length&&array.findIndex(other=>JSON.stringify(other.fields)===JSON.stringify(profile.fields))===index
         );
-        // Final compatibility attempt mirrors Persona's documented Sandbox quickstart:
-        // kebab-case core fields, no reference-id, and the documented Sandbox API version
-        // when no explicit PERSONA_API_VERSION is configured.
+        // Final Sandbox compatibility attempt keeps the workflow-required country code
+        // while using kebab-case core fields, no reference-id, and the documented Sandbox
+        // API version when no explicit PERSONA_API_VERSION is configured.
         uniqueProfiles.push({
-          name:"persona_docs_exact",
-          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate"]),
+          name:"persona_docs_workflow_safe",
+          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code"]),
           omitReferenceId:true,
           forceSandboxVersion:true
         });
@@ -5437,7 +5437,7 @@ if (
             personaResponse.status===400 &&
             /^persona_sandbox_/i.test(String(env.PERSONA_API_KEY||"")) &&
             acceptedProfile==="" &&
-            uniqueProfiles.at(-1)?.name==="persona_docs_exact";
+            uniqueProfiles.at(-1)?.name==="persona_docs_workflow_safe";
           return Response.json({
             ok:false,
             code:sandboxTemplateMismatch?"persona_template_environment_mismatch":"persona_request_rejected",
