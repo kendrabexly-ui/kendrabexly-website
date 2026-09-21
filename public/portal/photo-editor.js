@@ -295,26 +295,60 @@
   }
   function blurBrushAt(p, erase=false){
     const radius=Number($("photo-editor-brush-size").value)/2;
-    if(erase&&lastBrushSource){
-      ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);ctx.clip();ctx.putImageData(lastBrushSource.data,0,0);ctx.restore();return;
-    }
-    const x=Math.max(0,Math.floor(p.x-radius)),y=Math.max(0,Math.floor(p.y-radius)),size=Math.max(2,Math.ceil(radius*2));
+    const x=Math.max(0,Math.floor(p.x-radius)),y=Math.max(0,Math.floor(p.y-radius)),size=Math.max(4,Math.ceil(radius*2));
     const w=Math.min(size,canvas.width-x),h=Math.min(size,canvas.height-y);
-    const temp=document.createElement("canvas");temp.width=w;temp.height=h;temp.getContext("2d").drawImage(canvas,x,y,w,h,0,0,w,h);
-    ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);ctx.clip();ctx.filter="blur("+$("photo-editor-blur-strength").value+"px)";ctx.drawImage(temp,x,y);ctx.restore();ctx.filter="none";
+    if(w<=0||h<=0)return;
+
+    const sourceCanvas=document.createElement("canvas");
+    sourceCanvas.width=w;sourceCanvas.height=h;
+    const sctx=sourceCanvas.getContext("2d");
+
+    if(erase&&lastBrushSource){
+      const patch=lastBrushSource.data;
+      const temp=document.createElement("canvas");temp.width=canvas.width;temp.height=canvas.height;temp.getContext("2d").putImageData(patch,0,0);
+      sctx.drawImage(temp,x,y,w,h,0,0,w,h);
+    } else {
+      sctx.drawImage(canvas,x,y,w,h,0,0,w,h);
+      const blurred=document.createElement("canvas");blurred.width=w;blurred.height=h;
+      const bctx=blurred.getContext("2d");bctx.filter="blur("+$("photo-editor-blur-strength").value+"px)";bctx.drawImage(sourceCanvas,0,0);bctx.filter="none";
+      sctx.clearRect(0,0,w,h);sctx.drawImage(blurred,0,0);
+    }
+
+    const mask=document.createElement("canvas");mask.width=w;mask.height=h;
+    const mctx=mask.getContext("2d");
+    const cx=p.x-x,cy=p.y-y;
+    const grad=mctx.createRadialGradient(cx,cy,0,cx,cy,radius);
+    grad.addColorStop(0,"rgba(255,255,255,0.96)");
+    grad.addColorStop(.65,"rgba(255,255,255,0.75)");
+    grad.addColorStop(1,"rgba(255,255,255,0)");
+    mctx.fillStyle=grad;mctx.fillRect(0,0,w,h);
+
+    sctx.globalCompositeOperation="destination-in";
+    sctx.drawImage(mask,0,0);
+    sctx.globalCompositeOperation="source-over";
+
+    ctx.save();
+    ctx.drawImage(sourceCanvas,x,y);
+    ctx.restore();
   }
 
   canvas.addEventListener("pointerdown",(e)=>{
     if(!mode||busy)return;
     e.preventDefault();
     if(mode==="pan"){panStart={x:e.clientX,y:e.clientY,left:wrap.scrollLeft,top:wrap.scrollTop};dragging=true;canvas.setPointerCapture(e.pointerId);return;}
-    dragging=true;startPoint=point(e);lastPoint=startPoint;selectionSnapshot=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const p=point(e);
+    if(mode==="crop"&&selection){
+      const handle=findCropHandle(p);
+      if(handle){cropHandle=handle;dragging=true;canvas.setPointerCapture(e.pointerId);return;}
+    }
+    dragging=true;startPoint=p;lastPoint=startPoint;selectionSnapshot=ctx.getImageData(0,0,canvas.width,canvas.height);
     canvas.setPointerCapture(e.pointerId);
     if(mode==="blur-brush"||mode==="erase-brush") blurBrushAt(startPoint,mode==="erase-brush");
   });
   canvas.addEventListener("pointermove",(e)=>{
     if(!dragging||!mode)return;e.preventDefault();
     if(mode==="pan"&&panStart){wrap.scrollLeft=panStart.left-(e.clientX-panStart.x);wrap.scrollTop=panStart.top-(e.clientY-panStart.y);return;}
+    if(mode==="crop"&&cropHandle){resizeCropSelection(cropHandle,point(e));return;}
     lastPoint=point(e);
     if(mode==="blur-box") drawSelection(true);
     else if(mode==="crop") drawSelection(false);
@@ -323,6 +357,7 @@
   canvas.addEventListener("pointerup",(e)=>{
     if(!dragging)return;e.preventDefault();dragging=false;
     if(mode==="pan"){panStart=null;return;}
+    if(mode==="crop"&&cropHandle){cropHandle=null;say("Crop resized. Choose Apply Crop when ready.");return;}
     const active=mode;
     if(active==="blur-brush"||active==="erase-brush"){
       if(selectionSnapshot) pushUndo(active==="blur-brush"?"Brush blur":"Erase blur",{width:canvas.width,height:canvas.height,data:selectionSnapshot});
