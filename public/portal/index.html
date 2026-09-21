@@ -3329,7 +3329,13 @@ async function loadRequests() {
           <div style="padding:10px 0;color:var(--ink);line-height:1.55;">
             <div><strong>Manual Decision:</strong> ${escapeHtml(statusLabel(latest.verification_status))}</div>
             <div style="margin-top:3px;"><strong>Persona Result:</strong> ${escapeHtml(latest.persona_transaction_id ? (latest.persona_transaction_status || "pending").replaceAll("_"," ") : "Not submitted")}</div>
-            <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5 · Completed: ${escapeHtml(formatVerificationTimestamp(latest.completed_at)||"—")}</div>
+            <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5</div>
+            <div style="margin-top:5px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 12px;font-size:11px;color:var(--muted);">
+              <span><strong>Created:</strong> ${escapeHtml(formatVerificationTimestamp(latest.accepted_at)||"—")}</span>
+              <span><strong>Persona submitted:</strong> ${escapeHtml(formatVerificationTimestamp(latest.persona_submitted_at)||"—")}</span>
+              <span><strong>Updated:</strong> ${escapeHtml(formatVerificationTimestamp(latest.updated_at)||"—")}</span>
+              <span><strong>Completed:</strong> ${escapeHtml(formatVerificationTimestamp(latest.completed_at)||"—")}</span>
+            </div>
             ${latest.decision_reason ? `<div style="margin-top:3px;"><strong>Private reason:</strong> ${escapeHtml(String(latest.decision_reason).replaceAll("_"," "))}</div>` : ""}
             ${latest.decision_notes ? `<div style="margin-top:3px;"><strong>Private note:</strong> ${escapeHtml(latest.decision_notes)}</div>` : ""}
             <details style="margin-top:6px;"><summary style="cursor:pointer;font-weight:700;">View details</summary>
@@ -3343,7 +3349,7 @@ async function loadRequests() {
         const older=(records || []).slice(1).map(record=>`
           <details style="padding:9px 0;border-top:1px solid var(--line);">
             <summary style="cursor:pointer;font-weight:700;">Older record · ${escapeHtml(statusLabel(record.verification_status))}${record.authorization_version==="legacy-unrecorded"?" · Legacy":""}</summary>
-            <div style="margin-top:7px;line-height:1.55;">Completed: ${escapeHtml(formatVerificationTimestamp(record.completed_at)||"—")} · Method: ${escapeHtml(record.verification_method || "Not entered")}
+            <div style="margin-top:7px;line-height:1.55;">Created: ${escapeHtml(formatVerificationTimestamp(record.accepted_at)||"—")} · Updated: ${escapeHtml(formatVerificationTimestamp(record.updated_at)||"—")} · Completed: ${escapeHtml(formatVerificationTimestamp(record.completed_at)||"—")} · Method: ${escapeHtml(record.verification_method || "Not entered")}
               <details style="margin-top:5px;"><summary style="cursor:pointer;">View details</summary><div style="margin-top:5px;">Booking Request ID: ${escapeHtml(record.booking_request_id)} · Audit ID: ${escapeHtml(record.id)}${record.persona_transaction_id ? `<br>Persona transaction: ${escapeHtml(record.persona_transaction_id)}` : ""}</div></details>
             </div>
           </details>`).join("");
@@ -3715,6 +3721,30 @@ async function loadRequests() {
             const result=await response.json();
             if(!response.ok||!result.ok){
               if(status)status.textContent=result.message||"Persona could not complete this verification request.";
+              const serverFieldErrors={};
+              (result.missing_fields||[]).forEach(field=>serverFieldErrors[field]="Required field is missing.");
+              (result.field_errors||[]).forEach(item=>{
+                if(item&&typeof item==="object"&&item.field)serverFieldErrors[item.field]=item.message||"Needs attention.";
+              });
+              Object.entries(serverFieldErrors).forEach(([field,message])=>markPersonaField(section,field,"error",message));
+              if(Object.keys(serverFieldErrors).length){
+                const box=section.querySelector(".client-persona-validation");
+                if(box){
+                  box.className="client-persona-validation verification-error";
+                  box.innerHTML="<strong>Fix before Persona submission:</strong>"+Object.entries(serverFieldErrors).map(([field,message])=>{
+                    const label=personaFieldMeta[field]?.label||field.replaceAll("_"," ");
+                    const jump=field==="birthdate"?' data-jump-target=".client-persona-birthdate"':"";
+                    return '<button type="button" class="persona-error-item"'+jump+'>'+escapeHtml(label)+": "+escapeHtml(message)+"</button>";
+                  }).join("");
+                  box.querySelectorAll("[data-jump-target]").forEach(button=>button.addEventListener("click",()=>{
+                    const target=section.querySelector(button.dataset.jumpTarget);
+                    const editor=section.querySelector(".client-verification-editor");
+                    if(editor)editor.hidden=false;
+                    target?.scrollIntoView({behavior:"smooth",block:"center"});target?.focus();
+                  }));
+                  box.scrollIntoView({behavior:"smooth",block:"center"});
+                }
+              }
               if(result.technical_details&&technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.technical_details;}
               if(result.existing_transaction){
                 const current=section.querySelector(".client-persona-current");
@@ -3730,8 +3760,8 @@ async function loadRequests() {
             if(status)status.textContent="Persona could not complete this verification request. Manual verification remains available.";
             if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||String(error);}
           }finally{
-            if(runButton)runButton.disabled=section.dataset.personaConnected!=="1";
             if(retryButton)retryButton.disabled=false;
+            renderPersonaReadiness(section,section.dataset.personaConnected==="1");
           }
         };
         section.querySelector(".client-persona-verify")?.addEventListener("click",()=>submitPersona(false));
