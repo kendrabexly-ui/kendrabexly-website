@@ -777,6 +777,13 @@
         .verification-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px;}
         .verification-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
         .verification-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#f7f2e9;}
+        .verification-card input:focus-visible,.verification-card select:focus-visible,.verification-card textarea:focus-visible,.verification-card button:focus-visible,[data-verification-summary-filter]:focus-visible,.verification-queue-item:focus-visible{outline:3px solid #6d8ec7;outline-offset:2px;}
+        .verification-field-note{display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--muted);}
+        .verification-warning{margin-top:9px;padding:9px 10px;border-radius:8px;background:#fff7e8;color:#7b5214;font-size:12px;line-height:1.45;}
+        .verification-error{margin-top:9px;padding:9px 10px;border-radius:8px;background:#fff0ee;color:#8a2424;font-size:12px;line-height:1.45;}
+        .verification-save-indicator{font-size:11px;color:var(--muted);min-height:16px;}
+        .verification-status-pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;}
+        .persona-button[disabled]{opacity:.72!important;color:#555!important;border-color:#aaa!important;background:#f4f4f4!important;cursor:not-allowed!important;}
         @media (max-width:640px){
           .verification-grid{grid-template-columns:1fr!important;}
           .verification-actions{display:grid!important;grid-template-columns:1fr!important;}
@@ -815,6 +822,14 @@
           <details style="margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
             <summary style="cursor:pointer;font-size:13px;font-weight:700;">Verification Queue</summary>
             <div style="margin-top:5px;font-size:12px;color:var(--muted);">Prioritized by what needs attention next.</div>
+            <div id="verification-queue-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;">
+              <button type="button" data-queue-filter="all" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">All <span data-queue-count="all">0</span></button>
+              <button type="button" data-queue-filter="needs_id" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Needs ID <span data-queue-count="needs_id">0</span></button>
+              <button type="button" data-queue-filter="needs_more_information" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Needs More Information <span data-queue-count="needs_more_information">0</span></button>
+              <button type="button" data-queue-filter="checklist_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Checklist Incomplete <span data-queue-count="checklist_incomplete">0</span></button>
+              <button type="button" data-queue-filter="persona_pending" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Persona Pending <span data-queue-count="persona_pending">0</span></button>
+              <button type="button" data-queue-filter="ready_for_final_decision" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Ready for Final Decision <span data-queue-count="ready_for_final_decision">0</span></button>
+            </div>
             <div id="verification-queue" style="margin-top:8px;"><div class="empty">Loading verification queue…</div></div>
           </details>
         </div>
@@ -1911,14 +1926,34 @@ async function loadRequests() {
       persona_pending:"Persona Pending",needs_manual_review:"Needs Manual Review",ready_for_final_decision:"Ready for Final Decision"
     };
     const verificationQueueBox=document.getElementById("verification-queue");
-    if(verificationQueueBox){
-      verificationQueueBox.innerHTML=verificationQueue.length?verificationQueue.map(item=>`
+    let activeVerificationQueueFilter="all";
+    const queueCategoryCounts=verificationQueue.reduce((acc,item)=>{acc[item.queue_category]=(acc[item.queue_category]||0)+1;return acc;},{});
+    document.querySelectorAll("[data-queue-count]").forEach(el=>{
+      const key=el.dataset.queueCount;
+      el.textContent=String(key==="all"?verificationQueue.length:(queueCategoryCounts[key]||0));
+    });
+    const renderVerificationQueue=()=>{
+      if(!verificationQueueBox)return;
+      const items=activeVerificationQueueFilter==="all"?verificationQueue:verificationQueue.filter(item=>item.queue_category===activeVerificationQueueFilter);
+      verificationQueueBox.innerHTML=items.length?items.map(item=>`
         <button type="button" class="verification-queue-item" data-client-id="${item.client_id}" data-client-email="${escapeHtml(item.email||"")}" style="display:block;width:100%;text-align:left;padding:10px 0;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;font:inherit;">
           <strong>${escapeHtml(((item.first_name||"")+" "+(item.last_name||"")).trim()||"Client")}</strong>
           <span style="margin-left:7px;padding:3px 7px;border-radius:999px;background:#f7f2e9;font-size:11px;font-weight:700;">${escapeHtml(queueLabels[item.queue_category]||item.queue_category)}</span>
           <div style="margin-top:3px;font-size:12px;color:var(--muted);">Checklist ${Number(item.checklist_count||0)} of 5 · ${escapeHtml(String(item.verification_status||"pending_review").replaceAll("_"," "))}</div>
-        </button>`).join(""):'<div class="empty">No clients currently need verification review.</div>';
-    }
+        </button>`).join(""):'<div class="empty">No clients in this queue category.</div>';
+      verificationQueueBox.querySelectorAll(".verification-queue-item").forEach(button=>button.addEventListener("click",()=>{
+        if(clientSearch)clientSearch.value=button.dataset.clientEmail||"";
+        renderClients();
+        setTimeout(()=>document.querySelector("#client-records .client-profile-toggle")?.click(),50);
+        document.getElementById("client-records")?.scrollIntoView({behavior:"smooth",block:"start"});
+      }));
+    };
+    document.querySelectorAll("[data-queue-filter]").forEach(button=>button.addEventListener("click",()=>{
+      activeVerificationQueueFilter=button.dataset.queueFilter||"all";
+      renderVerificationQueue();
+      document.querySelectorAll("[data-queue-filter]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
+    }));
+    renderVerificationQueue();
     const retentionSnapshot=clientProfiles.map(client=>{
       const completed=client.requests.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();}).sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")));
       const upcoming=client.requests.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now());
@@ -2335,11 +2370,17 @@ async function loadRequests() {
           pending_review:"Pending Review",needs_more_information:"Needs More Information",verified:"Verified",
           unable_to_verify:"Unable to Verify",declined:"Declined"
         }[verificationCard.verification_status] || "Pending Review");
-        const verificationCardStyle = verificationCard.verification_status==="verified"
-          ? "background:#edf7ef;color:#2f6b45;"
-          : ["declined","unable_to_verify"].includes(verificationCard.verification_status)
-            ? "background:#fff0ee;color:#8a2424;"
-            : "background:#f7f2e9;color:var(--ink);";
+        const verificationCardStyle = !verificationCard.has_id
+          ? "background:#f1f1f1;color:#555;"
+          : verificationCard.verification_status==="verified"
+            ? "background:#e8f6ec;color:#22613b;"
+            : verificationCard.verification_status==="needs_more_information"
+              ? "background:#fff4d8;color:#74520b;"
+              : verificationCard.verification_status==="unable_to_verify"
+                ? "background:#fff0e5;color:#8a4918;"
+                : verificationCard.verification_status==="declined"
+                  ? "background:#fdeaea;color:#8a2424;"
+                  : "background:#eef2f8;color:#38506f;"
         return `
           <div style="padding:22px;border-bottom:1px solid #ddd6ca;${blacklistRecord ? "border-left:4px solid #8f3d3d;" : ""}">
             <strong style="font-size:18px;">${escapeHtml(name)}</strong>
@@ -2413,7 +2454,7 @@ async function loadRequests() {
                 <div style="display:flex;align-items:center;gap:10px;margin-top:9px;"><button type="button" class="save-client-profile" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Save Notes & Preferences</button><span class="client-profile-save-status" style="font-size:12px;color:var(--muted);"></span></div>
                 </div>
               </details>
-              <details class="client-profile-section client-id-documents" data-client-id="${client.client_id}" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+              <details class="client-profile-section client-id-documents" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:700;">Verification</summary>
                 <div style="margin-top:10px;">
 
@@ -2425,7 +2466,7 @@ async function loadRequests() {
                     <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">The ID image is stored for your private review and records. It is never sent to Persona.</div>
                     <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Checking for a saved ID document…</div>
                     <img class="client-id-preview" alt="Private client ID preview" hidden style="display:block;width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
-                    <div class="client-id-meta" hidden style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+                    <div class="client-id-meta" hidden style="margin-top:8px;padding:9px 10px;border-radius:8px;background:#f8f6f2;font-size:12px;color:var(--muted);line-height:1.55;"></div>
                     <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ID image<input class="client-id-file" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font:inherit;"></label>
                     <div style="margin-top:5px;font-size:11px;color:var(--muted);">JPG, PNG, or WebP. Maximum 10 MB.</div>
                     <div class="verification-grid">
@@ -2439,7 +2480,8 @@ async function loadRequests() {
                     <div class="verification-actions">
                       <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
                       <button type="button" class="client-id-retention-save" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Deletion Reminder</button>
-                      <button type="button" class="client-id-delete" hidden style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:white;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete</button>
+                      <span style="flex:1;"></span>
+                      <button type="button" class="client-id-delete" hidden aria-label="Permanently delete this client's private ID image" style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:#fff7f7;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete ID</button>
                     </div>
                     <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
                   </section>
@@ -2448,12 +2490,13 @@ async function loadRequests() {
                     <strong style="font-size:13px;">2. Manual Verification</strong>
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">This section controls the final verification decision. Persona does not automatically approve or decline a client.</div>
                     <div class="verification-grid">
-                      <label style="font-size:12px;font-weight:700;">Birthdate<input class="client-persona-birthdate" type="date" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="date" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="needs_more_information">Needs More Information</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
                       <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
                     <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
+                    <div class="verification-field-note">Birthdate is maintained in Manual Verification. If your Persona Transaction Type requires birthdate, this saved value is submitted without duplicating the field in the Persona panel.</div>
                     <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
                       <legend style="padding:0 5px;font-size:12px;font-weight:700;">Required checklist</legend>
                       <div style="display:grid;gap:8px;font-size:12px;">
@@ -2469,6 +2512,10 @@ async function loadRequests() {
                       <label style="display:block;font-size:12px;font-weight:700;">Decision reason
                         <select class="client-verification-reason" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
                           <option value="">Choose a reason</option>
+                          <option value="missing_id">Missing ID</option>
+                          <option value="employer_information_incomplete">Employer information incomplete</option>
+                          <option value="contact_information_incomplete">Contact information incomplete</option>
+                          <option value="address_mismatch">Address mismatch</option>
                           <option value="information_mismatch">Information mismatch</option>
                           <option value="employer_not_confirmed">Employer not confirmed</option>
                           <option value="contact_not_confirmed">Contact information not confirmed</option>
@@ -2488,6 +2535,7 @@ async function loadRequests() {
                     </div>
                     <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
                     <div class="client-verification-completed-display" style="margin-top:9px;font-size:12px;color:var(--muted);">Completion: Not completed</div>
+                    <div class="verification-save-indicator client-verification-draft-status" role="status" aria-live="polite"></div>
                     <div class="verification-actions verification-sticky-actions">
                       <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
                       <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
@@ -2502,6 +2550,7 @@ async function loadRequests() {
                       <span class="verification-badge client-persona-badge">Persona: Checking…</span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only the information entered in this section. Your uploaded ID image remains private in this dashboard.</div>
+                    <div class="client-persona-field-legend" style="margin-top:6px;font-size:11px;color:var(--muted);">Required fields will be marked <strong>*</strong> when your Transaction Type is configured.</div>
                     <div class="verification-grid client-persona-fields">
                       <label data-persona-field="name_first" style="font-size:12px;font-weight:700;">First name<input class="client-persona-name-first" value="${escapeHtml(personaDraft.name_first || client.first_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="name_middle" style="font-size:12px;font-weight:700;">Middle name<input class="client-persona-name-middle" value="${escapeHtml(personaDraft.name_middle || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2515,13 +2564,15 @@ async function loadRequests() {
                       <label data-persona-field="email_address" style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(personaDraft.email_address || client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
+                    <div class="client-persona-validation" role="status" aria-live="polite"></div>
                     <div class="client-persona-current" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
                     <div class="verification-actions">
-                      <button type="button" class="client-persona-verify" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
-                      <button type="button" class="client-persona-retry" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Retry Persona</button>
+                      <button type="button" class="client-persona-verify persona-button" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
+                      <button type="button" class="client-persona-retry persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Retry Persona</button>
                     </div>
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
+                    <details class="client-persona-transaction-details" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View transaction details</summary><div class="client-persona-transaction-details-body" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;overflow-wrap:anywhere;"></div></details>
                   </section>
 
                   <details class="verification-card client-audit-history">
@@ -3388,12 +3439,7 @@ async function loadRequests() {
       renderClients();
       document.getElementById("client-records")?.scrollIntoView({behavior:"smooth",block:"start"});
     }));
-    document.querySelectorAll(".verification-queue-item").forEach(button=>button.addEventListener("click",()=>{
-      if(clientSearch){clientSearch.value=button.dataset.clientEmail||"";}
-      renderClients();
-      setTimeout(()=>document.querySelector("#client-records .client-profile-toggle")?.click(),50);
-      document.getElementById("client-records")?.scrollIntoView({behavior:"smooth",block:"start"});
-    }));
+
     document.getElementById("client-clear-filters")?.addEventListener("click",()=>{
       if(clientSearch){clientSearch.value="";clientSearch.focus();}
       if(clientSafetyFilter) clientSafetyFilter.value="all";
