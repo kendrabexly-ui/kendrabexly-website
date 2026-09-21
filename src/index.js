@@ -5355,6 +5355,15 @@ if (
         const uniqueProfiles=submissionProfiles.filter((profile,index,array)=>
           Object.keys(profile.fields).length&&array.findIndex(other=>JSON.stringify(other.fields)===JSON.stringify(profile.fields))===index
         );
+        // Final compatibility attempt mirrors Persona's documented Sandbox quickstart:
+        // kebab-case core fields, no reference-id, and the documented Sandbox API version
+        // when no explicit PERSONA_API_VERSION is configured.
+        uniqueProfiles.push({
+          name:"persona_docs_exact",
+          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate"]),
+          omitReferenceId:true,
+          forceSandboxVersion:true
+        });
 
         let acceptedProfile="";
         let finalPersonaRequestId="";
@@ -5362,6 +5371,9 @@ if (
         for(let profileIndex=0;profileIndex<uniqueProfiles.length;profileIndex++){
           const profile=uniqueProfiles[profileIndex];
           const requestHeaders={...headers,"Idempotency-Key":profileIndex===0?idempotencyKey:idempotencyKey+"-"+profile.name};
+          if(profile.forceSandboxVersion && /^persona_sandbox_/i.test(String(env.PERSONA_API_KEY||"")) && !env.PERSONA_API_VERSION){
+            requestHeaders["Persona-Version"]="2023-01-05";
+          }
           const controller=new AbortController();
           const timeout=setTimeout(()=>controller.abort(),12000);
           try{
@@ -5373,7 +5385,7 @@ if (
                 data:{
                   attributes:{
                     "inquiry-template-id":personaInquiryTemplateId,
-                    "reference-id":String(requestId),
+                    ...(profile.omitReferenceId?{}:{"reference-id":String(requestId)}),
                     fields:profile.fields
                   }
                 }
@@ -5408,10 +5420,14 @@ if (
           const errorPointer=String(personaError?.source?.pointer || personaError?.meta?.field || "");
           const attemptedFields=Object.keys(uniqueProfiles.at(-1)?.fields||snakeInquiryFields||{});
           if (personaResponse.status === 400 && /^bad request$/i.test(String(detail).trim())) {
-            detail = "Persona rejected the prefilled inquiry after ClearPath tried both current snake_case and legacy kebab-case field names, including a minimal identity-only field set.";
+            detail = /^persona_sandbox_/i.test(String(env.PERSONA_API_KEY||""))
+              ? "Persona rejected the inquiry even after ClearPath sent the exact documented Sandbox quickstart format. The API key is valid, so the configured Inquiry Template is likely not available in this Sandbox environment or is not the template Persona Support configured for the inquiry-created workflow."
+              : "Persona rejected the prefilled inquiry after ClearPath tried both current snake_case and legacy kebab-case field names, including a minimal identity-only field set.";
           }
           if(errorPointer) detail += " Field: " + errorPointer + ".";
           if(attemptedFields.length) detail += " Final attempted fields: " + attemptedFields.join(", ") + ".";
+          const personaEnvironmentId=personaResponse.headers.get("Persona-Environment-Id")||"";
+          if(personaEnvironmentId)detail += " Persona environment: "+personaEnvironmentId+".";
           if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
           console.error("Persona inquiry create failed:", personaResponse.status);
           await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status='request_failed',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(attempt.id).run();
