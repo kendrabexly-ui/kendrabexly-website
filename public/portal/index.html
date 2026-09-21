@@ -1996,9 +1996,6 @@ async function loadRequests() {
     document.getElementById("verification-queue-sort")?.addEventListener("change",renderVerificationQueue);
     document.getElementById("verification-queue-flagged")?.addEventListener("change",renderVerificationQueue);
     renderVerificationQueue();
-      document.querySelectorAll("[data-queue-filter]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
-    }));
-    renderVerificationQueue();
     const retentionSnapshot=clientProfiles.map(client=>{
       const completed=client.requests.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();}).sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")));
       const upcoming=client.requests.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now());
