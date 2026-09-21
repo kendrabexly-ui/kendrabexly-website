@@ -2246,6 +2246,7 @@ async function loadRequests() {
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Profile</strong>
               <div style="margin-top:8px;font-size:12px;color:var(--muted);">Relationship notes, follow-up communication, and safety controls.</div>
+              <div class="client-verification-summary" style="margin-top:10px;padding:10px 12px;border:1px solid #eee7dc;border-radius:9px;background:white;font-size:12px;line-height:1.55;"><strong>Verification summary</strong><br><span style="color:var(--muted);">Loading ID, manual review, Persona, and checklist status…</span></div>
               <details class="client-profile-section client-followup-agent" style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:700;">Follow Up</summary>
                 <div style="margin-top:10px;">
@@ -2325,8 +2326,9 @@ async function loadRequests() {
                       <label style="font-size:12px;font-weight:700;">Middle name<input class="client-persona-name-middle" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Last name<input class="client-persona-name-last" value="${escapeHtml(client.last_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Birthdate<input class="client-persona-birthdate" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <div class="client-persona-age-status" style="display:none;grid-column:1/-1;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"></div>
                       <label style="font-size:12px;font-weight:700;">Street address<input class="client-persona-address-1" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Address line 2<input class="client-persona-address-2" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Address line 2<input class="client-persona-address-2" autocomplete="off" placeholder="Apartment, unit, or suite (optional)" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">City<input class="client-persona-city" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">State / subdivision<input class="client-persona-state" autocomplete="off" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Postal code<input class="client-persona-postal" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2426,6 +2428,15 @@ async function loadRequests() {
           const opening = controls.style.display === "none";
           controls.style.display = opening ? "block" : "none";
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
+          if (opening) {
+            const verificationSection = controls.querySelector(".client-id-documents");
+            if (verificationSection) {
+              loadIdDocument(verificationSection, false);
+              loadVerificationAudits(verificationSection);
+              loadPersonaStatus(verificationSection);
+              normalizePersonaFields(verificationSection);
+            }
+          }
         });
       });
       clientRecords.querySelectorAll(".jump-followup-agent").forEach((button)=>button.addEventListener("click",()=>{
@@ -2525,6 +2536,66 @@ async function loadRequests() {
         if (size < 1024 * 1024) return Math.round(size / 1024) + " KB";
         return (size / (1024 * 1024)).toFixed(1) + " MB";
       };
+      const verificationMinimumAge = 21;
+      const normalizeSpaces = (value) => String(value || "").trim().replace(/\s+/g, " ");
+      const formatVerificationPhone = (value) => {
+        const digits = String(value || "").replace(/\D/g, "");
+        if (digits.length === 10) return "(" + digits.slice(0,3) + ") " + digits.slice(3,6) + "-" + digits.slice(6);
+        if (digits.length === 11 && digits.startsWith("1")) return "+1 (" + digits.slice(1,4) + ") " + digits.slice(4,7) + "-" + digits.slice(7);
+        return normalizeSpaces(value);
+      };
+      const personaPhoneForApi = (value) => {
+        const digits = String(value || "").replace(/\D/g, "");
+        if (digits.length === 10) return "+1" + digits;
+        if (digits.length === 11 && digits.startsWith("1")) return "+" + digits;
+        return normalizeSpaces(value);
+      };
+      const updatePersonaAgeStatus = (section) => {
+        const input = section.querySelector(".client-persona-birthdate");
+        const status = section.querySelector(".client-persona-age-status");
+        if (!input || !status || !input.value) { if (status) status.style.display = "none"; return; }
+        const parts = input.value.split("-").map(Number);
+        if (parts.length !== 3 || !parts.every(Number.isFinite)) { status.style.display = "none"; return; }
+        const today = new Date();
+        let age = today.getFullYear() - parts[0];
+        const beforeBirthday = (today.getMonth() + 1 < parts[1]) || ((today.getMonth() + 1 === parts[1]) && today.getDate() < parts[2]);
+        if (beforeBirthday) age -= 1;
+        status.style.display = "block";
+        status.textContent = age < verificationMinimumAge
+          ? "Age check: " + age + " · Under " + verificationMinimumAge + " — review required."
+          : "Age check: " + age + " · Meets " + verificationMinimumAge + "+ screening minimum.";
+        status.style.background = age < verificationMinimumAge ? "#fff0ee" : "#edf7ef";
+        status.style.color = age < verificationMinimumAge ? "#8a2424" : "#2f6b45";
+      };
+      const updateVerificationSummary = (section) => {
+        const summary = section.closest(".client-profile-actions")?.querySelector(".client-verification-summary");
+        if (!summary) return;
+        const latest = Array.isArray(section._verificationAuditRecords) && section._verificationAuditRecords.length ? section._verificationAuditRecords[0] : null;
+        const checklist = latest ? [latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length : 0;
+        const auditStatus = String(latest?.verification_status || "pending_review").replaceAll("_"," ");
+        const finalDecision = latest?.verification_status && latest.verification_status !== "pending_review" ? auditStatus : "pending";
+        const idLabel = section.dataset.hasDocument === "1" ? "ID received" : "No ID stored";
+        const personaLabel = section.dataset.personaConnected === "1" ? "Connected" : "Connection pending";
+        summary.innerHTML = "<strong>Verification summary</strong><br>" +
+          "ID: " + escapeHtml(idLabel) +
+          " · Manual review: " + escapeHtml(auditStatus) +
+          " · Persona: " + escapeHtml(personaLabel) +
+          " · Checklist: " + checklist + "/5" +
+          " · Final decision: " + escapeHtml(finalDecision);
+      };
+      const normalizePersonaFields = (section) => {
+        [".client-persona-name-first",".client-persona-name-middle",".client-persona-name-last",".client-persona-address-1",".client-persona-address-2",".client-persona-city",".client-persona-postal"].forEach(selector => {
+          const input = section.querySelector(selector); if (input) input.value = normalizeSpaces(input.value);
+        });
+        const state = section.querySelector(".client-persona-state"); if (state) state.value = normalizeSpaces(state.value).toUpperCase();
+        const country = section.querySelector(".client-persona-country"); if (country) country.value = (normalizeSpaces(country.value) || "US").toUpperCase();
+        const email = section.querySelector(".client-persona-email"); if (email) email.value = normalizeSpaces(email.value).toLowerCase();
+        const phone = section.querySelector(".client-persona-phone"); if (phone) phone.value = formatVerificationPhone(phone.value);
+        const line1 = normalizeSpaces(section.querySelector(".client-persona-address-1")?.value);
+        const line2 = section.querySelector(".client-persona-address-2");
+        if (line2 && line1 && normalizeSpaces(line2.value).toLowerCase() === line1.toLowerCase()) line2.value = "";
+        updatePersonaAgeStatus(section);
+      };
       const setIdDocumentState = (section, documentRecord) => {
         const preview = section.querySelector(".client-id-preview");
         const empty = section.querySelector(".client-id-empty");
@@ -2547,6 +2618,8 @@ async function loadRequests() {
           if (received && !received.value) received.value = new Date().toISOString().slice(0,10);
           if (verificationStatus) verificationStatus.value = "pending_review";
           if (verified) verified.value = "";
+          section.dataset.documentVerificationStatus = "pending_review";
+          updateVerificationSummary(section);
           return;
         }
         if (preview) {
@@ -2564,6 +2637,8 @@ async function loadRequests() {
         if (upload) upload.textContent = "Replace ID";
         if (saveStatus) saveStatus.hidden = false;
         if (deleteButton) deleteButton.hidden = false;
+        section.dataset.documentVerificationStatus = documentRecord.verification_status || "pending_review";
+        updateVerificationSummary(section);
       };
       const setVerificationAuditState = (section, records) => {
         const list = section.querySelector(".client-verification-audit-list");
@@ -2578,7 +2653,7 @@ async function loadRequests() {
         const acceptedLabel = latest.accepted ? "Accepted" : "Not accepted";
         if (list) list.innerHTML = section._verificationAuditRecords.map((record) => `
           <div style="padding:10px 0;border-top:1px solid var(--line);color:var(--ink);line-height:1.55;">
-            <div><strong>${record.accepted ? "Accepted" : "Not accepted"}</strong> · Version ${escapeHtml(record.authorization_version || "—")}</div>
+            <div><strong>${record.authorization_version === "legacy-unrecorded" ? "Authorization not recorded — legacy request" : (record.accepted ? "Accepted" : "Not accepted")}</strong>${record.authorization_version === "legacy-unrecorded" ? "" : " · Version " + escapeHtml(record.authorization_version || "—")}</div>
             <div>${record.accepted ? "Accepted" : "Record created"}: ${escapeHtml(record.accepted_at ? new Date(record.accepted_at + (String(record.accepted_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "—")}</div>
             <div>Client ID: ${escapeHtml(record.client_id)} · Booking Request ID: ${escapeHtml(record.booking_request_id)}</div>
             <div><strong>Submitted employment:</strong> ${escapeHtml(record.submitted_employer || "—")} · ${escapeHtml(record.submitted_job_title || "—")} · ${escapeHtml(record.submitted_industry || "—")}</div>
@@ -2611,6 +2686,7 @@ async function loadRequests() {
         const evidenceInput = section.querySelector(".client-verification-evidence");
         if (evidenceInput) evidenceInput.value = latest.evidence_notes || "";
         if (editor) editor.hidden = false;
+        updateVerificationSummary(section);
       };
       const loadVerificationAudits = async (section) => {
         const list = section.querySelector(".client-verification-audit-list");
@@ -2637,14 +2713,19 @@ async function loadRequests() {
               ? (result.webhook_connected
                   ? "Persona connected · Admin-run verification"
                   : "Persona connected · Verification is available; webhook status updates still need configuration.")
-              : "Persona setup incomplete · " + (result.configuration_message || "Add the API key and transaction type ID to the Worker environment.");
-            status.style.color = result.connected ? "#2f6b45" : "#8a5a16";
+              : "Persona connection pending — manual verification remains available.";
+            status.style.color = result.connected ? "#2f6b45" : "var(--muted)";
           }
-          if (button) button.disabled = !result.connected;
+          if (button) {
+            button.disabled = !result.connected;
+            button.title = result.connected ? "" : "Persona connection is pending. You can still complete and save manual verification below.";
+          }
+          updateVerificationSummary(section);
         } catch (error) {
           section.dataset.personaConnected = "0";
-          if (button) button.disabled = true;
-          if (status) status.textContent = error.message || "Unable to check Persona connection.";
+          if (button) { button.disabled = true; button.title = "Persona connection is pending. Manual verification remains available."; }
+          if (status) { status.textContent = "Persona connection pending — manual verification remains available."; status.style.color = "var(--muted)"; }
+          updateVerificationSummary(section);
         }
       };
 
@@ -2664,6 +2745,10 @@ async function loadRequests() {
         }
       };
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
+        const personaInputs = section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
+        personaInputs.forEach(input => input.addEventListener("blur", () => normalizePersonaFields(section)));
+        section.querySelector(".client-persona-birthdate")?.addEventListener("change", () => updatePersonaAgeStatus(section));
+        normalizePersonaFields(section);
         section.addEventListener("toggle", () => {
           if (section.open) {
             loadIdDocument(section, false);
@@ -2673,17 +2758,25 @@ async function loadRequests() {
         });
         const verificationStatus = section.querySelector(".client-id-verification-status");
         const verifiedDate = section.querySelector(".client-id-verified");
-        verificationStatus?.addEventListener("change", () => {
-          if (!verifiedDate) return;
-          if (verificationStatus.value === "verified" && !verifiedDate.value) verifiedDate.value = new Date().toISOString().slice(0,10);
-          if (verificationStatus.value !== "verified") verifiedDate.value = "";
-        });
         const auditStatus = section.querySelector(".client-verification-status");
         const auditCompleted = section.querySelector(".client-verification-completed");
+        verificationStatus?.addEventListener("change", () => {
+          const today = new Date().toISOString().slice(0,10);
+          if (verificationStatus.value === "verified" && verifiedDate && !verifiedDate.value) verifiedDate.value = today;
+          if (verificationStatus.value !== "verified" && verifiedDate) verifiedDate.value = "";
+          if (auditStatus) auditStatus.value = verificationStatus.value === "verified" ? "verified" : verificationStatus.value === "rejected" ? "unable_to_verify" : "pending_review";
+          if (auditCompleted) auditCompleted.value = auditStatus?.value && auditStatus.value !== "pending_review" ? (auditCompleted.value || today) : "";
+          updateVerificationSummary(section);
+        });
         auditStatus?.addEventListener("change", () => {
-          if (!auditCompleted) return;
-          if (auditStatus.value !== "pending_review" && !auditCompleted.value) auditCompleted.value = new Date().toISOString().slice(0,10);
-          if (auditStatus.value === "pending_review") auditCompleted.value = "";
+          const today = new Date().toISOString().slice(0,10);
+          if (auditCompleted) {
+            if (auditStatus.value !== "pending_review" && !auditCompleted.value) auditCompleted.value = today;
+            if (auditStatus.value === "pending_review") auditCompleted.value = "";
+          }
+          if (verificationStatus) verificationStatus.value = auditStatus.value === "verified" ? "verified" : ["unable_to_verify","declined"].includes(auditStatus.value) ? "rejected" : "pending_review";
+          if (verifiedDate) verifiedDate.value = verificationStatus?.value === "verified" ? (verifiedDate.value || today) : "";
+          updateVerificationSummary(section);
         });
         section.querySelector(".client-verification-save")?.addEventListener("click", async (event) => {
           const button = event.currentTarget;
@@ -2758,22 +2851,23 @@ async function loadRequests() {
             ? section._verificationAuditRecords[0]
             : null;
           if (section.dataset.personaConnected !== "1") {
-            if (status) status.textContent = "Persona setup is incomplete. Add the required Worker secrets before running verification.";
+            if (status) status.textContent = "Persona connection pending. Complete and save the manual verification checklist while you wait.";
             return;
           }
+          normalizePersonaFields(section);
           const personaFields = {
-            name_first: section.querySelector(".client-persona-name-first")?.value?.trim() || "",
-            name_middle: section.querySelector(".client-persona-name-middle")?.value?.trim() || "",
-            name_last: section.querySelector(".client-persona-name-last")?.value?.trim() || "",
+            name_first: normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
+            name_middle: normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
+            name_last: normalizeSpaces(section.querySelector(".client-persona-name-last")?.value),
             birthdate: section.querySelector(".client-persona-birthdate")?.value || "",
-            address_street_1: section.querySelector(".client-persona-address-1")?.value?.trim() || "",
-            address_street_2: section.querySelector(".client-persona-address-2")?.value?.trim() || "",
-            address_city: section.querySelector(".client-persona-city")?.value?.trim() || "",
-            address_subdivision: section.querySelector(".client-persona-state")?.value?.trim().toUpperCase() || "",
-            address_postal_code: section.querySelector(".client-persona-postal")?.value?.trim() || "",
-            address_country_code: section.querySelector(".client-persona-country")?.value?.trim().toUpperCase() || "US",
-            email_address: section.querySelector(".client-persona-email")?.value?.trim() || "",
-            phone_number: section.querySelector(".client-persona-phone")?.value?.trim() || ""
+            address_street_1: normalizeSpaces(section.querySelector(".client-persona-address-1")?.value),
+            address_street_2: normalizeSpaces(section.querySelector(".client-persona-address-2")?.value),
+            address_city: normalizeSpaces(section.querySelector(".client-persona-city")?.value),
+            address_subdivision: normalizeSpaces(section.querySelector(".client-persona-state")?.value).toUpperCase(),
+            address_postal_code: normalizeSpaces(section.querySelector(".client-persona-postal")?.value),
+            address_country_code: (normalizeSpaces(section.querySelector(".client-persona-country")?.value) || "US").toUpperCase(),
+            email_address: normalizeSpaces(section.querySelector(".client-persona-email")?.value).toLowerCase(),
+            phone_number: personaPhoneForApi(section.querySelector(".client-persona-phone")?.value)
           };
           if (!personaFields.name_first || !personaFields.name_last || !personaFields.birthdate) {
             if (status) status.textContent = "Enter the client's first name, last name, and birthdate before running Persona.";
