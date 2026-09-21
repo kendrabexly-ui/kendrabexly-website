@@ -2907,12 +2907,8 @@ async function loadRequests() {
           errors.push("Required Persona fields are missing: "+labels.join(", ")+".");
         }
         const box=section.querySelector(".client-persona-validation");
-        const personaConnected=section.dataset.personaConnected==="1";
         if(show&&box){
-          if(!force&&!personaConnected){
-            box.className="client-persona-validation";
-            box.textContent="";
-          }else if(errors.length){
+          if(errors.length){
             box.className="client-persona-validation verification-error";
             box.innerHTML="<strong>Fix before Persona submission:</strong><br>"+errors.map(escapeHtml).join("<br>")+(warnings.length?"<br><br><strong>Warnings:</strong><br>"+warnings.map(escapeHtml).join("<br>"):"");
           }else if(warnings.length){
@@ -3256,7 +3252,7 @@ async function loadRequests() {
         if(retry)retry.hidden=state.key!=="failed";
         if(statusBox){
           statusBox.textContent={
-            pending_setup:"Persona setup is still pending. Manual verification is fully available.",
+            pending_setup:"Persona setup is still pending. You can still complete and review all required Persona fields now.",
             ready:"Persona is ready for an optional external check.",
             pending:"Persona verification is pending.",
             approved:"Persona returned Approved. Manual Decision remains separate and authoritative.",
