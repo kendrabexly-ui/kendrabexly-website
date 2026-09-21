@@ -2412,7 +2412,7 @@ async function loadRequests() {
             ? "WATCH"
             : "BLOCKED";
         const verificationCard = verificationOverviewByClient.get(Number(client.client_id)) || {};
-        const verificationCardLabel = !verificationCard.has_id ? "No ID" : ({
+        const verificationCardLabel = !verificationCard.has_id ? "No ID" : verificationCard.retention_due ? "Retention Due" : ({
           pending_review:"Pending Review",needs_more_information:"Needs More Information",verified:"Verified",
           unable_to_verify:"Unable to Verify",declined:"Declined"
         }[verificationCard.verification_status] || "Pending Review");
@@ -2939,8 +2939,14 @@ async function loadRequests() {
         let second=normalizeSpaces(line2?.value);
         if(!second&&line1){
           let match=line1.match(/^(.*?)[,\s]+(?:APT|APARTMENT|UNIT|SUITE|STE|#)\s*([A-Z0-9-]+)$/i);
-          if(!match)match=line1.match(/^(.*\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|BLVD|BOULEVARD|LN|LANE|CT|COURT|WAY|PL|PLACE|PKWY|PARKWAY))\s+(\d{1,6}[A-Z]?)$/i);
-          if(match){line1=match[1].trim().replace(/[, ]+$/,"");second="Unit "+match[2].trim();}
+          if(!match)match=line1.match(/^(.*\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|BLVD|BOULEVARD|LN|LANE|CT|COURT|WAY|PL|PLACE|PKWY|PARKWAY)(?:\s+(?:N|S|E|W|NE|NW|SE|SW))?)\s+(\d{1,6}[A-Z]?)$/i);
+          if(match){
+            const possibleBase=match[1].trim().replace(/[, ]+$/,"");
+            const unit=match[2].trim();
+            const baseHasHouseNumber=/^\d+\s+/.test(possibleBase);
+            const unitLooksLikeZip=/^\d{5}(?:-\d{4})?$/.test(unit);
+            if(baseHasHouseNumber&&!unitLooksLikeZip){line1=possibleBase;second="Unit "+unit;}
+          }
         }
         street.value=titleCaseAddress(line1);
         if(line2)line2.value=titleCaseAddress(second);
@@ -2982,6 +2988,14 @@ async function loadRequests() {
         else{input.removeAttribute("aria-invalid");status.textContent=message||"";}
       };
       const personaFieldValue=(section,field)=>normalizeSpaces(section.querySelector(personaFieldMeta[field]?.selector)?.value);
+      const formatPhoneWhileTyping=(value)=>{
+        const digits=String(value||"").replace(/\D/g,"").replace(/^1(?=\d{10})/,"").slice(0,10);
+        if(!digits)return "";
+        if(digits.length<4)return "("+digits;
+        if(digits.length<7)return "("+digits.slice(0,3)+") "+digits.slice(3);
+        return "("+digits.slice(0,3)+") "+digits.slice(3,6)+"-"+digits.slice(6);
+      };
+      const sanitizeEmailWhileTyping=(value)=>String(value||"").replace(/\s+/g,"").toLowerCase().replace(/[;,]+$/,"");
       const validatePersonaFields=(section,{show=true,force=false}={})=>{
         clearPersonaFieldStates(section);
         const fieldErrors={};
@@ -3058,8 +3072,8 @@ async function loadRequests() {
         });
         normalizeAddressParts(section);
         const city=section.querySelector(".client-persona-city");if(city)city.value=titleCaseAddress(city.value);
-        const state=section.querySelector(".client-persona-state");if(state)state.value=normalizeStateValue(state.value);
         const country=section.querySelector(".client-persona-country");if(country)country.value=(normalizeSpaces(country.value)||"US").toUpperCase();
+        const state=section.querySelector(".client-persona-state");if(state)state.value=country?.value==="US"?normalizeStateValue(state.value):normalizeSpaces(state.value);
         const postal=section.querySelector(".client-persona-postal");if(postal)postal.value=normalizeSpaces(postal.value).replace(/\s+/g,"");
         const email=section.querySelector(".client-persona-email");
         if(email)email.value=normalizeSpaces(email.value).toLowerCase().replace(/[\s]+/g,"").replace(/[;,]+$/,"");
@@ -3155,6 +3169,7 @@ async function loadRequests() {
           const input=section.querySelector(selector);
           if(input && value) input.value=value;
         });
+        section.querySelector(".client-verification-save-draft-now")?.addEventListener("click",()=>saveVerificationDraft(section,{retry:true}));
         normalizePersonaFields(section);
         capturePersonaDraft(section);
         updatePersonaAgeStatus(section);
@@ -3238,6 +3253,7 @@ async function loadRequests() {
         const uploadedAt = section.querySelector(".client-id-uploaded-at");
         const clientId = Number(section.dataset.clientId);
         section.dataset.hasDocument = documentRecord ? "1" : "0";
+        section._idDocumentRecord=documentRecord||null;
         if (!documentRecord) {
           if (preview) { preview.hidden = true; preview.removeAttribute("src"); }
           if (empty) { empty.hidden = false; empty.textContent = "No ID document is stored for this client."; }
@@ -3498,10 +3514,17 @@ async function loadRequests() {
         const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
         personaInputs.forEach(input=>{
           input.addEventListener("input",()=>{
+            if(input.classList.contains("client-persona-phone")){
+              const cursor=input.selectionStart;
+              input.value=formatPhoneWhileTyping(input.value);
+              try{input.setSelectionRange(input.value.length,input.value.length);}catch{}
+            }
+            if(input.classList.contains("client-persona-email"))input.value=sanitizeEmailWhileTyping(input.value);
             capturePersonaDraft(section);
             setVerificationDraftState(section,"dirty","Unsaved changes");
             if(input.classList.contains("client-persona-birthdate"))updatePersonaAgeStatus(section);
             validatePersonaFields(section);
+            renderPersonaReadiness(section,section.dataset.personaConnected==="1");
           });
           input.addEventListener("change",()=>saveVerificationDraft(section));
           input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);saveVerificationDraft(section);});
@@ -3668,7 +3691,11 @@ async function loadRequests() {
           if(section.dataset.personaConnected!=="1"){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
           normalizePersonaFields(section);capturePersonaDraft(section);await saveVerificationDraft(section);
           const validation=validatePersonaFields(section,{show:true,force:true});
-          if(!validation.valid){if(status)status.textContent="Complete the required verification information before submitting to Persona.";return;}
+          if(!validation.valid){
+            if(status)status.textContent="Complete the required verification information before submitting to Persona.";
+            section.querySelector(".client-persona-validation")?.scrollIntoView({behavior:"smooth",block:"center"});
+            return;
+          }
           const personaFields={
             name_first:normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
             name_middle:normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
@@ -3715,7 +3742,10 @@ async function loadRequests() {
 
         section.querySelector(".client-id-delete")?.addEventListener("click",async(event)=>{
           const clientName=section.dataset.clientName||"this client";
-          const confirmation=window.prompt("Permanently delete the private ID image for "+clientName+"? Type DELETE to continue.");
+          const record=section._idDocumentRecord||{};
+          const uploaded=record.created_at?formatVerificationTimestamp(record.created_at):"unknown upload date";
+          const fileName=record.file_name||"ID document";
+          const confirmation=window.prompt("Permanently delete "+fileName+" for "+clientName+"? Uploaded: "+uploaded+". Type DELETE to continue.");
           if(confirmation!=="DELETE")return;
           const deletionReason=window.prompt("Optional: enter a private reason for deleting this ID image. Leave blank to skip.")||"";
           const button=event.currentTarget,status=section.querySelector(".client-id-status");button.disabled=true;
@@ -3726,6 +3756,7 @@ async function loadRequests() {
             const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,has_id:false});
             await loadVerificationActivity(section);
             if(status)status.textContent="ID document permanently deleted.";
+            window.alert("The private ID image for "+clientName+" was permanently deleted.");
           }catch(error){if(status)status.textContent=error.message||"Unable to delete ID document.";}finally{button.disabled=false;}
         });
 
