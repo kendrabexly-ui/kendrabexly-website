@@ -555,7 +555,7 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     "email_address","phone_number","identification_number","identification_class",
     "issuing_state","expiration_date"
   ];
-  const buildConfig=(data,{state="connected",message="Connected",sandbox=false}={})=>{
+  const buildConfig=(data,{state="connected",message="Connected",sandbox=false,effectiveTemplateId=inquiryTemplateId,templateSource="configured",technicalDetails=""}={})=>{
     const schemas=Array.isArray(data?.data?.attributes?.field_schemas) ? data.data.attributes.field_schemas : [];
     const supportedFields=schemas.length
       ? schemas.map(item=>String(item?.key || "").trim()).filter(Boolean)
@@ -571,13 +571,14 @@ async function fetchPersonaInquiryTemplateConfig(env) {
       ok:true,state,message,sandbox,
       api_key_status:"connected",
       inquiry_template_status:sandbox ? "not_validated" : "connected",
-      inquiry_template_id:inquiryTemplateId,
+      inquiry_template_id:effectiveTemplateId,
       inquiry_template_name:String(data?.data?.attributes?.name || ""),
+      inquiry_template_source:templateSource,
       supported_fields:supportedFields,
       required_fields:requiredFields,
       id_number_supported:Boolean(idNumberField),
       id_number_field:idNumberField,
-      technical_details:sandbox ? "Persona does not expose Inquiry Template resources through its Sandbox API. The API key is valid; the template will be validated when the first Sandbox inquiry is created." : ""
+      technical_details:technicalDetails || (sandbox ? "Persona does not expose Inquiry Template resources through its Sandbox API. The API key is valid; the template will be validated when the first Sandbox inquiry is created." : "")
     };
   };
   // Validate the API key independently first. This prevents a template permission
@@ -601,20 +602,63 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     };
   }
 
+  const discoverPersonaInquiryTemplates=async()=>{
+    const listResponse=await fetch("https://api.withpersona.com/api/v1/inquiry-templates?page%5Bsize%5D=100",{headers});
+    const listData=await listResponse.json().catch(()=>({}));
+    if(!listResponse.ok)return {ok:false,status:listResponse.status,data:listData,templates:[]};
+    const templates=Array.isArray(listData?.data)?listData.data:[];
+    return {ok:true,status:listResponse.status,data:listData,templates};
+  };
+  const chooseSingleActiveTemplate=async(reason)=>{
+    const discovery=await discoverPersonaInquiryTemplates();
+    if(!discovery.ok)return null;
+    const active=discovery.templates.filter(item=>String(item?.attributes?.status||"").toLowerCase()==="active");
+    if(active.length!==1)return {
+      ok:false,
+      active_count:active.length,
+      options:active.slice(0,10).map(item=>({
+        id:String(item?.id||""),
+        name:String(item?.attributes?.name||"")
+      }))
+    };
+    const selected=active[0];
+    const selectedId=String(selected?.id||"");
+    if(!/^itmpl_[A-Za-z0-9]+$/.test(selectedId))return null;
+    const selectedResponse=await fetch("https://api.withpersona.com/api/v1/inquiry-templates/"+encodeURIComponent(selectedId),{headers});
+    const selectedData=await selectedResponse.json().catch(()=>({}));
+    if(!selectedResponse.ok)return null;
+    return {
+      ok:true,
+      id:selectedId,
+      data:selectedData,
+      name:String(selected?.attributes?.name||selectedData?.data?.attributes?.name||""),
+      reason
+    };
+  };
+
   // The API key is valid. Validate the configured Inquiry Template separately
   // so the dashboard can report the two connection states independently.
-  if (!inquiryTemplateId) {
+  if (!inquiryTemplateId || !/^itmpl_[A-Za-z0-9]+$/.test(inquiryTemplateId)) {
+    const discovered=await chooseSingleActiveTemplate(!inquiryTemplateId ? "missing_config" : "invalid_config");
+    if(discovered?.ok){
+      return buildConfig(discovered.data,{
+        state:"connected",
+        message:"Connected",
+        effectiveTemplateId:discovered.id,
+        templateSource:"auto_discovered",
+        technicalDetails:"The configured Inquiry Template was not usable. ClearPath found the only active Persona Inquiry Template and will use it automatically: "+(discovered.name||discovered.id)+". Update PERSONA_INQUIRY_TEMPLATE_ID in Cloudflare to "+discovered.id+" to make the configuration explicit."
+      });
+    }
+    const options=discovered?.options||[];
+    const optionText=options.length ? " Active templates: "+options.map(item=>(item.name?item.name+" ":"")+item.id).join(", ")+".":"";
     return {
       ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
-      api_key_status:"connected",inquiry_template_status:"missing",
-      technical_details:"PERSONA_INQUIRY_TEMPLATE_ID is missing."
-    };
-  }
-  if (!/^itmpl_[A-Za-z0-9]+$/.test(inquiryTemplateId)) {
-    return {
-      ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
-      api_key_status:"connected",inquiry_template_status:"rejected",
-      technical_details:"PERSONA_INQUIRY_TEMPLATE_ID must be the Inquiry Template ID from Persona and begin with itmpl_."
+      api_key_status:"connected",inquiry_template_status:!inquiryTemplateId?"missing":"rejected",
+      technical_details:(!inquiryTemplateId
+        ? "PERSONA_INQUIRY_TEMPLATE_ID is missing."
+        : "PERSONA_INQUIRY_TEMPLATE_ID must be an Inquiry Template ID beginning with itmpl_.")+
+        (discovered&&discovered.active_count!==undefined ? " Persona has "+discovered.active_count+" active Inquiry Template"+(discovered.active_count===1?"":"s")+".":"")+
+        optionText
     };
   }
 
@@ -630,18 +674,26 @@ async function fetchPersonaInquiryTemplateConfig(env) {
   const templateRequestId=response.headers.get("Request-Id") || "";
   if (!response.ok) {
     const detail=String(data?.errors?.[0]?.detail || data?.errors?.[0]?.title || data?.message || "");
-    if (response.status===404 || response.status===400) {
+    if (response.status===404 || response.status===400 || response.status===403) {
+      const discovered=await chooseSingleActiveTemplate("configured_template_rejected");
+      if(discovered?.ok){
+        return buildConfig(discovered.data,{
+          state:"connected",
+          message:"Connected",
+          effectiveTemplateId:discovered.id,
+          templateSource:"auto_discovered",
+          technicalDetails:"The saved Inquiry Template was rejected, but the API key is valid. ClearPath found the only active Persona Inquiry Template and will use it automatically: "+(discovered.name||discovered.id)+". Update PERSONA_INQUIRY_TEMPLATE_ID in Cloudflare to "+discovered.id+" to make the configuration explicit."
+        });
+      }
+      const options=discovered?.options||[];
+      const optionText=options.length ? " Active templates: "+options.map(item=>(item.name?item.name+" ":"")+item.id).join(", ")+".":"";
       return {
         ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
         api_key_status:"connected",inquiry_template_status:"rejected",
-        technical_details:(detail || "The API key is valid, but Persona could not find this Inquiry Template in the same environment/account.")+(templateRequestId ? " Persona request: "+templateRequestId+"." : "")
-      };
-    }
-    if (response.status===403) {
-      return {
-        ok:false,state:"incorrect_inquiry_template",message:"Incorrect Inquiry Template",
-        api_key_status:"connected",inquiry_template_status:"rejected",
-        technical_details:(detail || "The API key is valid, but it does not have access to this Inquiry Template. Confirm the template and API key belong to the same Persona environment.")+(templateRequestId ? " Persona request: "+templateRequestId+"." : "")
+        technical_details:(detail || "The API key is valid, but Persona rejected the configured Inquiry Template.")+
+          (discovered&&discovered.active_count!==undefined ? " Persona has "+discovered.active_count+" active Inquiry Template"+(discovered.active_count===1?"":"s")+".":"")+
+          optionText+
+          (templateRequestId ? " Persona request: "+templateRequestId+"." : "")
       };
     }
     if (response.status===401) {
@@ -5076,25 +5128,21 @@ if (
 
     if (url.pathname === "/api/admin/clients/persona-verify" && request.method === "POST") {
       try {
-        const personaInquiryTemplateId = normalizePersonaConfigValue(env.PERSONA_INQUIRY_TEMPLATE_ID);
-        if (!env.PERSONA_API_KEY || !personaInquiryTemplateId) {
+        if (!env.PERSONA_API_KEY) {
           return Response.json({
             ok:false,
             message:"Persona setup is still pending. Manual verification remains available.",
-            technical_details:"PERSONA_API_KEY or PERSONA_INQUIRY_TEMPLATE_ID is missing."
-          }, {status:503});
-        }
-        if (!/^itmpl_[A-Za-z0-9]+$/.test(personaInquiryTemplateId)) {
-          return Response.json({
-            ok:false,
-            message:"Persona setup is still pending. Manual verification remains available.",
-            technical_details:"PERSONA_INQUIRY_TEMPLATE_ID must begin with itmpl_."
+            technical_details:"PERSONA_API_KEY is missing."
           }, {status:503});
         }
         await ensureVerificationWorkspaceTables(env);
         const personaConfig=await fetchPersonaInquiryTemplateConfig(env);
         if(!personaConfig.ok){
           return Response.json({ok:false,message:personaConfig.message,technical_details:personaConfig.technical_details,connection_state:personaConfig.state},{status:personaConfig.state==="invalid_credentials"?401:personaConfig.state==="incorrect_inquiry_template"?400:502});
+        }
+        const personaInquiryTemplateId=String(personaConfig.inquiry_template_id||"").trim();
+        if(!/^itmpl_[A-Za-z0-9]+$/.test(personaInquiryTemplateId)){
+          return Response.json({ok:false,message:"Persona setup is still pending. Manual verification remains available.",technical_details:"No usable Persona Inquiry Template is available."},{status:503});
         }
 
         const data = await request.json().catch(() => ({}));
