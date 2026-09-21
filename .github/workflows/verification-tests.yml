@@ -1,0 +1,31 @@
+name: Verification Security Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/portal/**"
+      - "tests/**"
+      - "package.json"
+      - ".github/workflows/verification-tests.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "public/portal/**"
+      - "tests/**"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  verification-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
