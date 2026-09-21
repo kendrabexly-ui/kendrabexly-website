@@ -4401,6 +4401,12 @@ async function loadRequests(options = {}) {
             const db=result.database_verification||null;
             const stateLabel=String(result.workflow_state||"not_run").replaceAll("_"," ");
             if(resultBox){
+              const workflow=result.workflow_run||null;
+              const workflowHtml=workflow
+                ? "<div style=\"margin-top:6px;\"><strong>Workflow:</strong> "+escapeHtml(String(workflow.state||workflow.status||"triggered").replaceAll("_"," "))+
+                  " · "+escapeHtml(workflow.workflow_name||"ClearPath - Inquiry Created - Database Verification")+"</div>"+
+                  "<div><strong>Workflow Run ID:</strong> "+escapeHtml(workflow.id||"—")+"</div>"
+                : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Workflow:</strong> Not triggered / no matching run found.</div>";
               if(db){
                 const statusLabel=String(db.status||"unknown").replaceAll("_"," ");
                 const timing=[
@@ -4410,22 +4416,31 @@ async function loadRequests(options = {}) {
                 ].join("");
                 resultBox.innerHTML=
                   "<strong>Persona Workflow Result</strong>"+
+                  workflowHtml+
                   "<div style=\"margin-top:6px;\"><strong>Database (US):</strong> "+escapeHtml(stateLabel)+" · "+escapeHtml(statusLabel)+"</div>"+
                   "<div><strong>Verification ID:</strong> "+escapeHtml(db.id||"—")+"</div>"+
                   "<div><strong>Inquiry:</strong> "+escapeHtml(result.inquiry_id||"—")+" · "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
                   timing;
                 resultBox.style.borderColor=result.workflow_state==="completed"?"#9cc9a8":result.workflow_state==="running"?"#d9c37a":"#c8c8c8";
               }else{
+                const workflowStatus=workflow?String(workflow.status||workflow.state||"unknown").replaceAll("_"," "):"not triggered";
                 resultBox.innerHTML=
                   "<strong>Persona Workflow Result</strong>"+
+                  workflowHtml+
                   "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Database (US):</strong> Not found for this inquiry yet.</div>"+
                   "<div><strong>Inquiry:</strong> "+escapeHtml(result.inquiry_id||"—")+" · "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
-                  "<div style=\"margin-top:6px;color:var(--muted);\">The inquiry exists, but Persona did not return an associated Database verification.</div>";
+                  "<div style=\"margin-top:6px;color:var(--muted);\">"+
+                    (workflow
+                      ? "The workflow run exists with status "+escapeHtml(workflowStatus)+", but no Database verification is attached yet."
+                      : "No matching ClearPath inquiry-created workflow run was found for this inquiry.")+
+                  "</div>";
               }
             }
             if(status)status.textContent=result.database_ran
               ? "Persona workflow check complete: Database (US) "+String(db?.status||"").replaceAll("_"," ")+"."
-              : "Persona workflow check complete: no Database (US) verification found yet.";
+              : result.workflow_triggered
+                ? "Persona workflow triggered, but Database (US) was not attached. Workflow status: "+String(result.workflow_run?.status||"unknown").replaceAll("_"," ")+"."
+                : "Persona workflow did not trigger for this inquiry.";
             if(result.technical_details&&technical&&technicalDetails){
               technical.hidden=false;
               technicalDetails.textContent=result.technical_details+
