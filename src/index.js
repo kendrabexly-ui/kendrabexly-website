@@ -792,28 +792,6 @@ export default {
           ? String(form.get("verification_status"))
           : "pending_review";
         const receivedAt = idDocumentDate(form.get("received_at")) || idDocumentToday();
-        if (verificationStatus === "verified") {
-          await ensureClientVerificationAuditsTable(env);
-          const latestAudit = await env.DB.prepare(`
-            SELECT identity_confirmed, employer_confirmed, job_title_confirmed, industry_confirmed, contact_confirmed
-            FROM client_verification_audits
-            WHERE client_id=?
-            ORDER BY accepted_at DESC, id DESC
-            LIMIT 1
-          `).bind(clientId).first();
-          const allConfirmed = latestAudit &&
-            Number(latestAudit.identity_confirmed) === 1 &&
-            Number(latestAudit.employer_confirmed) === 1 &&
-            Number(latestAudit.job_title_confirmed) === 1 &&
-            Number(latestAudit.industry_confirmed) === 1 &&
-            Number(latestAudit.contact_confirmed) === 1;
-          if (!allConfirmed) {
-            return Response.json({
-              ok:false,
-              message:"Complete all five manual verification checklist items before uploading an ID as Verified."
-            }, {status:400});
-          }
-        }
         const verifiedAt = verificationStatus === "verified"
           ? (idDocumentDate(form.get("verified_at")) || idDocumentToday())
           : null;
@@ -860,24 +838,6 @@ export default {
         if (existing?.object_key && existing.object_key !== newObjectKey) {
           await env.ID_DOCUMENTS.delete(existing.object_key);
         }
-        await ensureClientVerificationAuditsTable(env);
-        const auditStatus = verificationStatus === "verified"
-          ? "verified"
-          : verificationStatus === "rejected"
-            ? "unable_to_verify"
-            : "pending_review";
-        const latestAudit = await env.DB.prepare(
-          "SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC, id DESC LIMIT 1"
-        ).bind(clientId).first();
-        if (latestAudit?.id) {
-          await env.DB.prepare(`
-            UPDATE client_verification_audits
-            SET verification_status = ?,
-                completed_at = CASE WHEN ?='pending_review' THEN NULL ELSE COALESCE(completed_at, CURRENT_TIMESTAMP) END,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-          `).bind(auditStatus, auditStatus, latestAudit.id).run();
-        }
         const row = await env.DB.prepare(`
           SELECT client_id, file_name, mime_type, file_size, verification_status,
                  received_at, verified_at, updated_at
@@ -912,28 +872,6 @@ export default {
         if (!receivedAt) {
           return Response.json({ ok: false, message: "Enter the date the ID was received." }, { status: 400 });
         }
-        if (verificationStatus === "verified") {
-          await ensureClientVerificationAuditsTable(env);
-          const latestAudit = await env.DB.prepare(`
-            SELECT identity_confirmed, employer_confirmed, job_title_confirmed, industry_confirmed, contact_confirmed
-            FROM client_verification_audits
-            WHERE client_id=?
-            ORDER BY accepted_at DESC, id DESC
-            LIMIT 1
-          `).bind(clientId).first();
-          const allConfirmed = latestAudit &&
-            Number(latestAudit.identity_confirmed) === 1 &&
-            Number(latestAudit.employer_confirmed) === 1 &&
-            Number(latestAudit.job_title_confirmed) === 1 &&
-            Number(latestAudit.industry_confirmed) === 1 &&
-            Number(latestAudit.contact_confirmed) === 1;
-          if (!allConfirmed) {
-            return Response.json({
-              ok:false,
-              message:"Complete all five manual verification checklist items before marking the ID Verified."
-            }, {status:400});
-          }
-        }
         const verifiedAt = verificationStatus === "verified"
           ? (idDocumentDate(data.verified_at) || idDocumentToday())
           : null;
@@ -944,24 +882,6 @@ export default {
         `).bind(verificationStatus, receivedAt, verifiedAt, clientId).run();
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Upload an ID image first." }, { status: 404 });
-        }
-        await ensureClientVerificationAuditsTable(env);
-        const auditStatus = verificationStatus === "verified"
-          ? "verified"
-          : verificationStatus === "rejected"
-            ? "unable_to_verify"
-            : "pending_review";
-        const latestAudit = await env.DB.prepare(
-          "SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC, id DESC LIMIT 1"
-        ).bind(clientId).first();
-        if (latestAudit?.id) {
-          await env.DB.prepare(`
-            UPDATE client_verification_audits
-            SET verification_status = ?,
-                completed_at = CASE WHEN ?='pending_review' THEN NULL ELSE COALESCE(completed_at, CURRENT_TIMESTAMP) END,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-          `).bind(auditStatus, auditStatus, latestAudit.id).run();
         }
         const row = await env.DB.prepare(`
           SELECT client_id, file_name, mime_type, file_size, verification_status,
