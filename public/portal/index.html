@@ -4402,6 +4402,11 @@ async function loadRequests(options = {}) {
             const stateLabel=String(result.workflow_state||"not_run").replaceAll("_"," ");
             if(resultBox){
               const workflow=result.workflow_run||null;
+              const triggerEvent=result.trigger_event||null;
+              const triggerHtml=triggerEvent
+                ? "<div style=\"margin-top:6px;\"><strong>Trigger event:</strong> Found · "+escapeHtml(triggerEvent.name||"inquiry.created")+"</div>"+
+                  "<div><strong>Event ID:</strong> "+escapeHtml(triggerEvent.id||"—")+"</div>"
+                : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Trigger event:</strong> Not found.</div>";
               const workflowHtml=workflow
                 ? "<div style=\"margin-top:6px;\"><strong>Workflow:</strong> "+escapeHtml(String(workflow.state||workflow.status||"triggered").replaceAll("_"," "))+
                   " · "+escapeHtml(workflow.workflow_name||"ClearPath - Inquiry Created - Database Verification")+"</div>"+
@@ -4416,6 +4421,7 @@ async function loadRequests(options = {}) {
                 ].join("");
                 resultBox.innerHTML=
                   "<strong>Persona Workflow Result</strong>"+
+                  triggerHtml+
                   workflowHtml+
                   "<div style=\"margin-top:6px;\"><strong>Database (US):</strong> "+escapeHtml(stateLabel)+" · "+escapeHtml(statusLabel)+"</div>"+
                   "<div><strong>Verification ID:</strong> "+escapeHtml(db.id||"—")+"</div>"+
@@ -4426,6 +4432,7 @@ async function loadRequests(options = {}) {
                 const workflowStatus=workflow?String(workflow.status||workflow.state||"unknown").replaceAll("_"," "):"not triggered";
                 resultBox.innerHTML=
                   "<strong>Persona Workflow Result</strong>"+
+                  triggerHtml+
                   workflowHtml+
                   "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Database (US):</strong> Not found for this inquiry yet.</div>"+
                   "<div><strong>Inquiry:</strong> "+escapeHtml(result.inquiry_id||"—")+" · "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
