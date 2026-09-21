@@ -5289,15 +5289,16 @@ if (
         const existingPersonaStatus = String(audit.persona_transaction_status || "").toLowerCase();
         const activePersonaStatuses = new Set(["created","pending","needs_review","pending_fallback_inquiry","processing"]);
         const retryablePersonaStatuses = new Set(["declined","errored","failed"]);
+        const forceNewPersona=Boolean(data.force_new_persona);
         if (existingPersonaId) {
-          if (activePersonaStatuses.has(existingPersonaStatus) || !existingPersonaStatus) {
-            return Response.json({ok:false,code:"persona_already_pending",message:"A Persona verification is already pending for this client.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus||"pending"},retry_allowed:false},{status:409});
+          if ((activePersonaStatuses.has(existingPersonaStatus) || !existingPersonaStatus) && !forceNewPersona) {
+            return Response.json({ok:false,code:"persona_already_pending",message:"A Persona verification is already pending for this client.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus||"pending"},retry_allowed:false,new_test_allowed:true},{status:409});
           }
-          if (existingPersonaStatus === "approved") {
-            return Response.json({ok:false,code:"persona_already_approved",message:"Persona already returned Approved for this client. Use the existing result.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:false},{status:409});
+          if (existingPersonaStatus === "approved" && !forceNewPersona) {
+            return Response.json({ok:false,code:"persona_already_approved",message:"Persona already returned Approved for this client. Use the existing result.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:false,new_test_allowed:true},{status:409});
           }
-          if (retryablePersonaStatuses.has(existingPersonaStatus) && !data.retry_persona) {
-            return Response.json({ok:false,code:"persona_retry_required",message:"The previous Persona verification ended without approval. Use Retry Persona if you want to submit it again.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:true},{status:409});
+          if (retryablePersonaStatuses.has(existingPersonaStatus) && !data.retry_persona && !forceNewPersona) {
+            return Response.json({ok:false,code:"persona_retry_required",message:"The previous Persona verification ended without approval. Use Retry Persona if you want to submit it again.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:true,new_test_allowed:true},{status:409});
           }
         }
 
@@ -5306,7 +5307,7 @@ if (
         await env.DB.prepare(`
           INSERT INTO persona_verification_attempts(client_id,audit_id,transaction_status,idempotency_key,replaces_attempt_id,submitted_at,updated_at)
           VALUES(?,?,'submitting',?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-        `).bind(clientId,audit.id,idempotencyKey,data.retry_persona?Number(previousAttempt?.id||0)||null:null).run();
+        `).bind(clientId,audit.id,idempotencyKey,(data.retry_persona||forceNewPersona)?Number(previousAttempt?.id||0)||null:null).run();
         const attempt=await env.DB.prepare("SELECT id FROM persona_verification_attempts WHERE idempotency_key=? LIMIT 1").bind(idempotencyKey).first();
         const headers = {
           Authorization: "Bearer " + String(env.PERSONA_API_KEY),
@@ -5464,12 +5465,12 @@ if (
           UPDATE client_verification_audits
           SET persona_transaction_id=?,
               persona_transaction_status=?,
-              persona_submitted_at=COALESCE(persona_submitted_at,CURRENT_TIMESTAMP),
+              persona_submitted_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE COALESCE(persona_submitted_at,CURRENT_TIMESTAMP) END,
               persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
-        `).bind(transactionId, transactionStatus, audit.id).run();
-        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona inquiry retried" : "Persona inquiry created", "Inquiry recorded"+(addressComplete ? " · Address supplied" : " · Address unavailable — ID details used instead"));
+        `).bind(transactionId, transactionStatus, forceNewPersona ? 1 : 0, audit.id).run();
+        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", forceNewPersona ? "New Persona test inquiry created" : (data.retry_persona ? "Persona inquiry retried" : "Persona inquiry created"), "Inquiry recorded"+(forceNewPersona&&existingPersonaId ? " · Previous inquiry preserved: "+existingPersonaId : "")+(addressComplete ? " · Address supplied" : " · Address unavailable — ID details used instead"));
         await logVerificationActivity(env, clientId, audit.id, "persona_response", "Persona response received", "Status: " + transactionStatus);
 
         const updated = await env.DB.prepare(`
