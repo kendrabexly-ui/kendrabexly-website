@@ -212,10 +212,77 @@ function verificationAuditPublicRecord(row) {
     decision_notes: row.decision_notes || "",
     birthdate: row.birthdate || "",
     completed_by: row.completed_by || "",
+    review_flag: Number(row.review_flag || 0) === 1,
     persona_transaction_id: row.persona_transaction_id || "",
     persona_transaction_status: row.persona_transaction_status || "",
     completed_at: row.completed_at || "",
     updated_at: row.updated_at || ""
+  };
+}
+
+async function ensureVerificationWorkspaceTables(env) {
+  await ensureClientVerificationAuditsTable(env);
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_drafts (
+      client_id INTEGER PRIMARY KEY,
+      birthdate TEXT NOT NULL DEFAULT '',
+      persona_fields_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER NOT NULL,
+      audit_id INTEGER,
+      event_type TEXT NOT NULL,
+      event_label TEXT NOT NULL,
+      details TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_verification_activity_client
+    ON client_verification_activity(client_id, created_at DESC, id DESC)
+  `).run();
+
+  const auditColumns = await env.DB.prepare("PRAGMA table_info(client_verification_audits)").all();
+  const auditNames = new Set((auditColumns.results || []).map(row => String(row.name || "")));
+  if (!auditNames.has("review_flag")) {
+    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN review_flag INTEGER NOT NULL DEFAULT 0").run();
+  }
+
+  await ensureClientIdDocumentsTable(env);
+  const idColumns = await env.DB.prepare("PRAGMA table_info(client_id_documents)").all();
+  const idNames = new Set((idColumns.results || []).map(row => String(row.name || "")));
+  if (!idNames.has("retention_reminder_at")) {
+    await env.DB.prepare("ALTER TABLE client_id_documents ADD COLUMN retention_reminder_at TEXT").run();
+  }
+}
+
+async function logVerificationActivity(env, clientId, auditId, eventType, eventLabel, details = "") {
+  await ensureVerificationWorkspaceTables(env);
+  await env.DB.prepare(`
+    INSERT INTO client_verification_activity
+      (client_id, audit_id, event_type, event_label, details, created_at)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  `).bind(
+    Number(clientId),
+    Number(auditId) || null,
+    String(eventType || "activity").slice(0,80),
+    String(eventLabel || "Verification activity").slice(0,200),
+    String(details || "").slice(0,2000)
+  ).run();
+}
+
+function safeVerificationDraft(row) {
+  let personaFields = {};
+  try { personaFields = JSON.parse(row?.persona_fields_json || "{}"); } catch {}
+  return {
+    client_id:Number(row?.client_id || 0),
+    birthdate:row?.birthdate || "",
+    persona_fields:personaFields && typeof personaFields === "object" ? personaFields : {},
+    updated_at:row?.updated_at || ""
   };
 }
 
@@ -241,6 +308,7 @@ async function ensureClientIdDocumentsTable(env) {
       verification_status TEXT NOT NULL DEFAULT 'pending_review',
       received_at TEXT NOT NULL,
       verified_at TEXT,
+      retention_reminder_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
@@ -271,6 +339,8 @@ function idDocumentPublicRecord(row) {
     verification_status: row.verification_status || "pending_review",
     received_at: row.received_at || "",
     verified_at: row.verified_at || "",
+    retention_reminder_at: row.retention_reminder_at || "",
+    created_at: row.created_at || "",
     updated_at: row.updated_at || ""
   };
 }
@@ -462,6 +532,101 @@ export default {
     // PRIVATE CLIENT VERIFICATION AUDIT
     // Protected by Cloudflare Access with the rest of /api/admin.
     // =========================================================
+
+    if (url.pathname === "/api/admin/clients/verification-draft" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId = Number(url.searchParams.get("client_id"));
+        if (!await requireIdDocumentClient(env, clientId)) return Response.json({ok:false,message:"Client not found."},{status:404});
+        const row = await env.DB.prepare(
+          "SELECT client_id, birthdate, persona_fields_json, updated_at FROM client_verification_drafts WHERE client_id=? LIMIT 1"
+        ).bind(clientId).first();
+        return Response.json({ok:true,draft:row ? safeVerificationDraft(row) : {client_id:clientId,birthdate:"",persona_fields:{},updated_at:""}}, {headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        console.error("Verification draft load error:", error);
+        return Response.json({ok:false,message:"Unable to load saved verification information."},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-draft" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data = await request.json().catch(() => ({}));
+        const clientId = Number(data.client_id);
+        if (!await requireIdDocumentClient(env, clientId)) return Response.json({ok:false,message:"Client not found."},{status:404});
+        const birthdate = idDocumentDate(data.birthdate);
+        const incoming = data.persona_fields && typeof data.persona_fields === "object" ? data.persona_fields : {};
+        const allowed = new Set(["name_first","name_middle","name_last","address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code","email_address","phone_number"]);
+        const normalized = {};
+        for (const [key, raw] of Object.entries(incoming)) {
+          if (!allowed.has(key)) continue;
+          let value = String(raw || "").trim().replace(/\s+/g," ");
+          if (key === "address_subdivision" || key === "address_country_code") value = value.toUpperCase();
+          if (key === "email_address") value = value.toLowerCase();
+          if (value) normalized[key] = value;
+        }
+        await env.DB.prepare(`
+          INSERT INTO client_verification_drafts (client_id, birthdate, persona_fields_json, updated_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id) DO UPDATE SET
+            birthdate=excluded.birthdate,
+            persona_fields_json=excluded.persona_fields_json,
+            updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId, birthdate, JSON.stringify(normalized)).run();
+        const row = await env.DB.prepare(
+          "SELECT client_id, birthdate, persona_fields_json, updated_at FROM client_verification_drafts WHERE client_id=?"
+        ).bind(clientId).first();
+        return Response.json({ok:true,draft:safeVerificationDraft(row)}, {headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        console.error("Verification draft save error:", error);
+        return Response.json({ok:false,message:"Unable to save verification information."},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-activity" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId = Number(url.searchParams.get("client_id"));
+        if (!await requireIdDocumentClient(env, clientId)) return Response.json({ok:false,message:"Client not found."},{status:404});
+        const rows = await env.DB.prepare(`
+          SELECT id, client_id, audit_id, event_type, event_label, details, created_at
+          FROM client_verification_activity
+          WHERE client_id=?
+          ORDER BY created_at DESC, id DESC
+          LIMIT 200
+        `).bind(clientId).all();
+        return Response.json({ok:true,activity:rows.results || []}, {headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        console.error("Verification activity load error:", error);
+        return Response.json({ok:false,message:"Unable to load verification activity."},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/id-document/retention" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data = await request.json().catch(() => ({}));
+        const clientId = Number(data.client_id);
+        const reminder = idDocumentDate(data.retention_reminder_at);
+        if (!await requireIdDocumentClient(env, clientId)) return Response.json({ok:false,message:"Client not found."},{status:404});
+        const update = await env.DB.prepare(`
+          UPDATE client_id_documents
+          SET retention_reminder_at=?, updated_at=CURRENT_TIMESTAMP
+          WHERE client_id=?
+        `).bind(reminder || null, clientId).run();
+        if (!Number(update.meta?.changes || 0)) return Response.json({ok:false,message:"Upload an ID image first."},{status:404});
+        await logVerificationActivity(env, clientId, null, "id_retention", reminder ? "ID retention reminder set" : "ID retention reminder cleared", reminder || "");
+        const row = await env.DB.prepare(`
+          SELECT client_id, file_name, mime_type, file_size, verification_status, received_at, verified_at,
+                 retention_reminder_at, created_at, updated_at
+          FROM client_id_documents WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ok:true,document:idDocumentPublicRecord(row)});
+      } catch (error) {
+        console.error("ID retention reminder error:", error);
+        return Response.json({ok:false,message:"Unable to update the ID retention reminder."},{status:500});
+      }
+    }
 
     if (url.pathname === "/api/admin/clients/verification-overview" && request.method === "GET") {
       try {
