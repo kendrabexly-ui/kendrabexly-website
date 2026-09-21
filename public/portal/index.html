@@ -2516,15 +2516,30 @@ async function loadRequests() {
                       <label style="font-size:12px;font-weight:700;">ID type<select class="client-persona-id-class" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="dl">Driver License</option><option value="id">State ID</option><option value="pp">Passport</option><option value="ppc">Passport Card</option><option value="pr">Permanent Resident Card</option></select></label>
                       <label style="font-size:12px;font-weight:700;">Received date<input class="client-id-received" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <div style="font-size:12px;font-weight:700;">Uploaded<div class="client-id-uploaded-at" style="margin-top:7px;font-weight:500;color:var(--muted);">Not uploaded</div></div>
-                      <label style="font-size:12px;font-weight:700;">Deletion reminder<input class="client-id-retention-reminder" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--muted);">Optional reminder only. The ID is not deleted automatically.</span></label>
                     </div>
                     <input class="client-id-verification-status" type="hidden" value="pending_review">
                     <input class="client-id-verified" type="hidden" value="">
                     <div class="verification-actions">
                       <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
-                      <button type="button" class="client-id-retention-save" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Deletion Reminder</button>
                       <span style="flex:1;"></span>
                       <button type="button" class="client-id-delete" hidden aria-label="Permanently delete this client's private ID image" style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:#fff7f7;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete ID</button>
+                    </div>
+                    <div class="client-data-retention" style="margin-top:12px;padding:11px;border:1px solid var(--line);border-radius:9px;background:#faf8f4;">
+                      <strong style="font-size:12px;">Data retention</strong>
+                      <div style="margin-top:5px;font-size:11px;color:var(--muted);">Automatic deletion stays off until you choose an explicit policy and deletion date.</div>
+                      <div class="verification-grid" style="margin-top:8px;">
+                        <label style="font-size:11px;font-weight:700;">ID image policy<select class="client-id-retention-policy" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">No automatic policy</option><option value="delete_on_date">Delete on scheduled date</option><option value="manual_review">Manual review only</option></select></label>
+                        <label style="font-size:11px;font-weight:700;">ID deletion date<input class="client-id-delete-at" type="date" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:11px;font-weight:700;align-self:end;"><input class="client-id-auto-delete" type="checkbox"> Automatically delete ID image</label>
+                        <div style="align-self:end;"><button type="button" class="client-id-retention-save" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;cursor:pointer;">Save ID Retention</button></div>
+                      </div>
+                      <div class="verification-grid" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+                        <label style="font-size:11px;font-weight:700;">Sensitive-data policy<select class="client-sensitive-retention-policy" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">No automatic policy</option><option value="delete_on_date">Delete on scheduled date</option><option value="manual_review">Manual review only</option></select></label>
+                        <label style="font-size:11px;font-weight:700;">Sensitive-data deletion date<input class="client-sensitive-delete-at" type="date" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:11px;font-weight:700;align-self:end;"><input class="client-sensitive-auto-delete" type="checkbox"> Automatically delete sensitive verification data</label>
+                        <div style="align-self:end;display:flex;gap:6px;flex-wrap:wrap;"><button type="button" class="client-sensitive-retention-save" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;cursor:pointer;">Save Sensitive Retention</button><button type="button" class="client-sensitive-delete-now" style="padding:8px 10px;border:1px solid #9f3030;border-radius:8px;background:#fff7f7;color:#8a2424;font:inherit;cursor:pointer;">Delete Sensitive Data Now</button></div>
+                      </div>
+                      <div class="client-retention-summary" style="margin-top:8px;font-size:11px;color:var(--muted);">Retention settings not loaded.</div>
                     </div>
                     <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
                   </section>
@@ -2607,8 +2622,9 @@ async function loadRequests() {
                       <button type="button" class="client-persona-test persona-button" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Test Persona Connection</button>
                       <span class="client-persona-connection-result" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);">Not tested yet</span>
                     </div>
+                    <div class="client-persona-webhook-health" style="margin-top:7px;font-size:11px;color:var(--muted);">Webhook health: checking…</div>
                     <div class="verification-grid client-id-fallback-fields" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
-                      <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="80" placeholder="${escapeHtml(personaDraft.id_details?.id_number_masked || "Enter ID number")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note client-persona-id-number-note">${personaDraft.id_details?.has_id_number ? "Saved securely · "+escapeHtml(personaDraft.id_details.id_number_masked) : "Required only when address is unavailable."}</span></label>
+                      <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="80" placeholder="${escapeHtml(personaDraft.id_details?.id_number_masked || "Enter ID number")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note client-persona-id-number-note">${personaDraft.id_details?.has_id_number ? "Saved securely · "+escapeHtml(personaDraft.id_details.id_number_masked) : "Required only when address is unavailable."}</span><span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-id-number-replace" style="padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:11px;cursor:pointer;">Replace ID Number</button><button type="button" class="client-id-number-delete" ${personaDraft.id_details?.has_id_number ? "" : "hidden"} style="padding:5px 7px;border:1px solid #9f3030;border-radius:7px;background:#fff7f7;color:#8a2424;font:inherit;font-size:11px;cursor:pointer;">Delete Saved ID Number</button></span></label>
                       <label style="font-size:12px;font-weight:700;">Issuing State<input class="client-persona-issuing-state" value="${escapeHtml(personaDraft.id_details?.issuing_state || "")}" autocomplete="off" maxlength="40" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"><span class="verification-field-note">Required when address is unavailable.</span></label>
                       <label style="font-size:12px;font-weight:700;">Expiration Date<input class="client-persona-id-expiration" type="date" value="${escapeHtml(personaDraft.id_details?.expiration_date || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note">Optional.</span></label>
                     </div>
@@ -3189,6 +3205,38 @@ async function loadRequests() {
         }
         if(saveNow)saveNow.hidden=state!=="error";
       };
+      const verificationSafeDraftKey=(section)=>"verificationSafeDraft:"+String(section.dataset.clientId||"");
+      const saveSafeVerificationLocalDraft=(section)=>{
+        try{
+          const data={
+            verification_status:section.querySelector(".client-verification-status")?.value||"pending_review",
+            verification_method:section.querySelector(".client-verification-method")?.value||"",
+            submitted_industry:section.querySelector(".client-verification-industry")?.value||"",
+            decision_reason:section.querySelector(".client-verification-reason")?.value||"",
+            checklist:[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"].map(sel=>Boolean(section.querySelector(sel)?.checked))
+          };
+          localStorage.setItem(verificationSafeDraftKey(section),JSON.stringify(data));
+        }catch{}
+      };
+      const restoreSafeVerificationLocalDraft=(section)=>{
+        try{
+          const raw=localStorage.getItem(verificationSafeDraftKey(section));if(!raw)return;
+          const data=JSON.parse(raw);
+          const set=(sel,val)=>{const el=section.querySelector(sel);if(el&&val!==undefined)el.value=val;};
+          set(".client-verification-status",data.verification_status);
+          set(".client-verification-method",data.verification_method);
+          set(".client-verification-industry",data.submitted_industry);
+          set(".client-verification-reason",data.decision_reason);
+          [".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"].forEach((sel,i)=>{const el=section.querySelector(sel);if(el&&Array.isArray(data.checklist))el.checked=Boolean(data.checklist[i]);});
+          localStorage.removeItem(verificationSafeDraftKey(section));
+        }catch{}
+      };
+      const verificationAuthExpired=(response,result,section)=>{
+        if(response.status!==401&&response.status!==403)return false;
+        saveSafeVerificationLocalDraft(section);
+        setVerificationDraftState(section,"error",result?.reauth_required?"Re-authentication required. Safe non-sensitive edits were preserved locally.":"Verification session expired. Safe non-sensitive edits were preserved locally.");
+        return true;
+      };
       const saveVerificationDraft=async(section,{retry=true}={})=>{
         const draft=capturePersonaDraft(section);
         const clientId=Number(section.dataset.clientId);
@@ -3213,8 +3261,10 @@ async function loadRequests() {
         const attempt=async()=>{
           const response=await fetch("/api/admin/clients/verification-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:payload});
           const result=await response.json();
+          if(verificationAuthExpired(response,result,section))throw new Error(result.message||"Re-authentication required.");
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save verification fields.");
           applyVerificationDraft(section,result.draft);
+          try{localStorage.removeItem(verificationSafeDraftKey(section));}catch{}
           setVerificationDraftState(section,"saved","Saved");
           return true;
         };
@@ -3241,6 +3291,7 @@ async function loadRequests() {
           idNumber.placeholder=idDetails.id_number_masked||"Enter ID number";
           const note=section.querySelector(".client-persona-id-number-note");
           if(note)note.textContent=idDetails.has_id_number?"Saved securely · "+(idDetails.id_number_masked||"Saved"):"Required only when address is unavailable.";
+          const deleteSaved=section.querySelector(".client-id-number-delete");if(deleteSaved)deleteSaved.hidden=!idDetails.has_id_number;
         }
         const idClassInput=section.querySelector(".client-persona-id-class");if(idClassInput&&idDetails.id_class)idClassInput.value=idDetails.id_class;
         const issuingInput=section.querySelector(".client-persona-issuing-state");if(issuingInput)issuingInput.value=idDetails.issuing_state||"";
@@ -3341,8 +3392,6 @@ async function loadRequests() {
         const received = section.querySelector(".client-id-received");
         const upload = section.querySelector(".client-id-upload");
         const deleteButton = section.querySelector(".client-id-delete");
-        const retentionButton = section.querySelector(".client-id-retention-save");
-        const retentionInput = section.querySelector(".client-id-retention-reminder");
         const uploadedAt = section.querySelector(".client-id-uploaded-at");
         const clientId = Number(section.dataset.clientId);
         section.dataset.hasDocument = documentRecord ? "1" : "0";
@@ -3353,14 +3402,16 @@ async function loadRequests() {
           if (meta) { meta.hidden = true; meta.textContent = ""; }
           if (upload) upload.textContent = "Upload ID";
           if (deleteButton) deleteButton.hidden = true;
-          if (retentionButton) retentionButton.hidden = true;
-          if (retentionInput) retentionInput.value = "";
           if (uploadedAt) uploadedAt.textContent = "Not uploaded";
           if (received && !received.value) received.value = new Date().toISOString().slice(0,10);
           updateVerificationSummary(section);
           return;
         }
-        if (preview) { preview.src="/api/admin/clients/id-document/image?client_id="+encodeURIComponent(clientId)+"&v="+encodeURIComponent(documentRecord.updated_at || Date.now()); preview.hidden=false; }
+        if (preview) {
+          preview.onerror=()=>{if(empty){empty.hidden=false;empty.textContent="ID preview requires a fresh authenticated session. Re-authenticate, then reopen Verification.";};preview.hidden=true;};
+          preview.onload=()=>{preview.hidden=false;if(empty)empty.hidden=true;};
+          preview.src="/api/admin/clients/id-document/image?client_id="+encodeURIComponent(clientId)+"&v="+encodeURIComponent(documentRecord.updated_at || Date.now());
+        }
         if (empty) empty.hidden = true;
         if(meta){
           meta.hidden=false;
@@ -3375,8 +3426,6 @@ async function loadRequests() {
         if (received) received.value = documentRecord.received_at || "";
         if (upload) upload.textContent = "Replace ID";
         if (deleteButton) deleteButton.hidden = false;
-        if (retentionButton) retentionButton.hidden = false;
-        if (retentionInput) retentionInput.value = documentRecord.retention_reminder_at || "";
         if (uploadedAt) uploadedAt.textContent = documentRecord.created_at ? new Date(documentRecord.created_at+(String(documentRecord.created_at).endsWith("Z")?"":"Z")).toLocaleString() : "Stored";
         updateVerificationSummary(section);
       };
@@ -3386,12 +3435,13 @@ async function loadRequests() {
         const d=new Date(raw+(raw.includes("T")||raw.endsWith("Z")?"":"Z"));
         return Number.isNaN(d.getTime())?raw:d.toLocaleString();
       };
-      const setVerificationAuditState = (section, records, decisionHistory=[]) => {
+      const setVerificationAuditState = (section, records, decisionHistory=[], personaAttempts=[]) => {
         const list = section.querySelector(".client-verification-audit-list");
         const editor = section.querySelector(".client-verification-editor");
         const latest = Array.isArray(records) && records.length ? records[0] : null;
         section._verificationAuditRecords = Array.isArray(records) ? records : [];
         section._verificationDecisionHistory = Array.isArray(decisionHistory) ? decisionHistory : [];
+        section._personaAttempts = Array.isArray(personaAttempts) ? personaAttempts : [];
         if (!latest) {
           if (list) list.innerHTML = "No verification record is available yet.";
           if (editor) editor.hidden = true;
@@ -3455,6 +3505,21 @@ async function loadRequests() {
             <div style="margin-top:7px;">${decisionHistory.map(item=>`<div style="padding:7px 0;border-top:1px solid #eee7dc;"><strong>${escapeHtml(statusLabel(item.verification_status))}</strong> · ${escapeHtml(formatVerificationTimestamp(item.changed_at)||"—")}${item.decision_reason ? `<div>Reason: ${escapeHtml(String(item.decision_reason).replaceAll("_"," "))}</div>` : ""}</div>`).join("")}</div>
           </details>` : "";
         if(list) list.innerHTML=currentHtml+older+decisions;
+        const txCard=section.querySelector(".client-persona-transaction-card");
+        const txDetails=section.querySelector(".client-persona-transaction-details");
+        const txBody=section.querySelector(".client-persona-transaction-details-body");
+        if(txCard){
+          const attempts=section._personaAttempts||[];
+          txCard.hidden=!attempts.length;
+          if(attempts.length){
+            const current=attempts[0];
+            txCard.innerHTML="<strong>Current Persona attempt</strong><div style=\"margin-top:4px;\">Transaction: "+escapeHtml(current.transaction_id||"Pending transaction ID")+"</div><div>Status: "+escapeHtml(String(current.transaction_status||"submitting").replaceAll("_"," "))+"</div><div>Submitted: "+escapeHtml(formatVerificationTimestamp(current.submitted_at)||"—")+"</div><div>Last refresh: "+escapeHtml(formatVerificationTimestamp(current.last_refreshed_at)||"Not refreshed")+"</div>";
+            if(txDetails&&txBody){
+              txDetails.hidden=attempts.length<2;
+              txBody.innerHTML=attempts.slice(1).map(item=>"<div style=\"padding:6px 0;border-top:1px solid var(--line);\"><strong>Attempt #"+escapeHtml(item.id)+"</strong> · "+escapeHtml(String(item.transaction_status||"").replaceAll("_"," "))+"<br>Transaction: "+escapeHtml(item.transaction_id||"Not assigned")+"<br>Submitted: "+escapeHtml(formatVerificationTimestamp(item.submitted_at)||"—")+(item.replaces_attempt_id?"<br>Replaced attempt #"+escapeHtml(item.replaces_attempt_id):"")+"</div>").join("");
+            }
+          }
+        }
         updatePersonaAgeStatus(section);
         renderPersonaReadiness(section,section.dataset.personaConnected==="1");
         updateVerificationSummary(section);
@@ -3466,7 +3531,8 @@ async function loadRequests() {
           const response=await fetch("/api/admin/clients/verification-audit?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load verification records.");
-          setVerificationAuditState(section,result.records||[],result.history||[]);
+          setVerificationAuditState(section,result.records||[],result.history||[],result.persona_attempts||[]);
+          restoreSafeVerificationLocalDraft(section);
           loadVerificationActivity(section);
         }catch(error){if(list)list.textContent=error.message||"Unable to load verification records.";}
       };
@@ -3612,6 +3678,12 @@ async function loadRequests() {
           const response=await fetch("/api/admin/clients/persona-status",{cache:"no-store"});
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error("Unable to check Persona configuration.");
+          const webhookBox=section.querySelector(".client-persona-webhook-health");
+          if(webhookBox){
+            const health=result.webhook_health||{};
+            webhookBox.textContent="Webhook · Last received: "+(formatVerificationTimestamp(health.last_received_at)||"Never")+" · Last success: "+(formatVerificationTimestamp(health.last_success_at)||"Never")+" · Last rejected: "+(formatVerificationTimestamp(health.last_rejected_at)||"Never")+(health.warning?" · ⚠ Active Persona transaction has no recent webhook update":"");
+            webhookBox.style.color=health.warning?"#8a2424":"var(--muted)";
+          }
           applyPersonaRequiredFields(section,result.required_fields||[],false,[]);
           if(!result.api_key_configured||!result.transaction_type_configured){
             section.dataset.personaConnected="0";
@@ -3632,6 +3704,21 @@ async function loadRequests() {
         }
       };
 
+      const loadVerificationRetention=async(section)=>{
+        const summary=section.querySelector(".client-retention-summary");
+        try{
+          const response=await fetch("/api/admin/clients/id-document/retention?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load retention settings.");
+          const r=result.retention||{};
+          const set=(sel,val)=>{const el=section.querySelector(sel);if(el)el.value=val||"";};
+          set(".client-id-retention-policy",r.id_policy);set(".client-id-delete-at",r.id_delete_at);
+          set(".client-sensitive-retention-policy",r.sensitive_policy);set(".client-sensitive-delete-at",r.sensitive_delete_at);
+          const ia=section.querySelector(".client-id-auto-delete");if(ia)ia.checked=Boolean(Number(r.id_auto_delete||0));
+          const sa=section.querySelector(".client-sensitive-auto-delete");if(sa)sa.checked=Boolean(Number(r.sensitive_auto_delete||0));
+          if(summary)summary.textContent="ID deletion: "+(r.id_delete_at||"Not scheduled")+" · Sensitive-data deletion: "+(r.sensitive_delete_at||"Not scheduled")+(r.updated_by?" · Last changed by "+r.updated_by:"");
+        }catch(error){if(summary)summary.textContent=error.message||"Unable to load retention settings.";}
+      };
       const loadIdDocument = async (section, force) => {
         if (!section || (section.dataset.loaded === "1" && !force)) return;
         const status = section.querySelector(".client-id-status");
@@ -3641,6 +3728,7 @@ async function loadRequests() {
           const result = await response.json();
           if (!response.ok || !result.ok) throw new Error(result.message || "Unable to load ID document.");
           setIdDocumentState(section, result.document || null);
+          await loadVerificationRetention(section);
           section.dataset.loaded = "1";
           if (status) status.textContent = "";
         } catch (error) {
@@ -3698,6 +3786,7 @@ async function loadRequests() {
         const declinedActionWrap=section.querySelector(".client-declined-action-wrap");
         const completeButton=section.querySelector(".client-verification-complete");
         const checklistSelectors=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
+        [".client-verification-status",".client-verification-method",".client-verification-industry",".client-verification-reason",...checklistSelectors].forEach(sel=>section.querySelector(sel)?.addEventListener("change",()=>saveSafeVerificationLocalDraft(section)));
         const checklistLabels={"client-check-identity":"Identity matches ID","client-check-employer":"Employer confirmed","client-check-job-title":"Job title confirmed","client-check-industry":"Industry confirmed","client-check-contact":"Contact information confirmed"};
 
         const updateCompletionControls=()=>{
@@ -3768,6 +3857,17 @@ async function loadRequests() {
             if(!confirmed)return;
             section.dataset.finalDecisionConfirmed="1";
           }
+          let decisionChangeReason="";
+          const latestBeforeSave=section._verificationAuditRecords?.[0]||{};
+          const completedChanged=Boolean(latestBeforeSave.completed_at)&&(
+            decision!==String(latestBeforeSave.verification_status||"") ||
+            (reasonInput?.value||"")!==String(latestBeforeSave.decision_reason||"") ||
+            (decisionNotes?.value||"")!==String(latestBeforeSave.decision_notes||"")
+          );
+          if(completedChanged){
+            decisionChangeReason=window.prompt("This verification was already completed. Enter the reason for changing the completed decision:")||"";
+            if(!decisionChangeReason){if(saveStatus)saveStatus.textContent="A reason is required to change a completed decision.";return;}
+          }
           await saveVerificationDraft(section);
           button.disabled=true;if(saveStatus)saveStatus.textContent="Saving…";
           try{
@@ -3786,9 +3886,11 @@ async function loadRequests() {
               birthdate:section.querySelector(".client-persona-birthdate")?.value||"",
               review_flag:decision==="declined"&&action==="flag",
               confirm_reopen:section.dataset.confirmReopen==="1",
-              expected_updated_at:section._verificationAuditRecords?.[0]?.updated_at||""
+              expected_updated_at:section._verificationAuditRecords?.[0]?.updated_at||"",
+              decision_change_reason:decisionChangeReason
             })});
             const result=await response.json();
+            if(verificationAuthExpired(response,result,section)){if(saveStatus)saveStatus.textContent=result.message||"Re-authentication required.";return;}
             if(response.status===409&&result.code==="verification_record_changed"){
               await loadVerificationAudits(section);
               section.dataset.finalDecisionConfirmed="0";
@@ -3809,6 +3911,7 @@ async function loadRequests() {
             }
 
             section.dataset.confirmReopen="0";section.dataset.finalDecisionConfirmed="0";
+            try{localStorage.removeItem(verificationSafeDraftKey(section));}catch{}
             await loadVerificationAudits(section);await loadIdDocument(section,true);await loadVerificationActivity(section);
             const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};
             verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,verification_status:result.record?.verification_status||"pending_review",completed_at:result.record?.completed_at||"",review_flag:result.record?.review_flag||false});
@@ -3833,15 +3936,53 @@ async function loadRequests() {
           }catch(error){if(status)status.textContent=error.message||"Unable to upload ID document.";}finally{button.disabled=false;}
         });
 
-        section.querySelector(".client-id-retention-save")?.addEventListener("click",async(event)=>{
-          const button=event.currentTarget,status=section.querySelector(".client-id-status"),reminder=section.querySelector(".client-id-retention-reminder")?.value||"";
-          button.disabled=true;if(status)status.textContent="Saving deletion reminder…";
+        const saveRetention=async(target,button)=>{
+          const status=section.querySelector(".client-id-status");
+          const policy=section.querySelector(target==="id"?".client-id-retention-policy":".client-sensitive-retention-policy")?.value||"";
+          const scheduled=section.querySelector(target==="id"?".client-id-delete-at":".client-sensitive-delete-at")?.value||"";
+          const auto=Boolean(section.querySelector(target==="id"?".client-id-auto-delete":".client-sensitive-auto-delete")?.checked);
+          button.disabled=true;if(status)status.textContent="Saving retention policy…";
           try{
-            const response=await fetch("/api/admin/clients/id-document/retention",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),retention_reminder_at:reminder})});
-            const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save deletion reminder.");
-            setIdDocumentState(section,result.document);await loadVerificationActivity(section);
-            if(status)status.textContent=reminder?"Deletion reminder saved.":"Deletion reminder cleared.";
-          }catch(error){if(status)status.textContent=error.message||"Unable to save deletion reminder.";}finally{button.disabled=false;}
+            const response=await fetch("/api/admin/clients/id-document/retention",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),target,policy,scheduled_delete_at:scheduled,auto_delete:auto})});
+            const result=await response.json();
+            if(verificationAuthExpired(response,result,section))throw new Error(result.message||"Re-authentication required.");
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save retention policy.");
+            await loadVerificationRetention(section);await loadVerificationActivity(section);
+            if(status)status.textContent="Retention policy saved.";
+          }catch(error){if(status)status.textContent=error.message||"Unable to save retention policy.";}finally{button.disabled=false;}
+        };
+        section.querySelector(".client-id-retention-save")?.addEventListener("click",event=>saveRetention("id",event.currentTarget));
+        section.querySelector(".client-sensitive-retention-save")?.addEventListener("click",event=>saveRetention("sensitive",event.currentTarget));
+        section.querySelector(".client-sensitive-delete-now")?.addEventListener("click",async(event)=>{
+          if(window.prompt("Delete the stored sensitive verification data now? Non-sensitive audit history will remain. Type DELETE to continue.")!=="DELETE")return;
+          const button=event.currentTarget,status=section.querySelector(".client-id-status");button.disabled=true;
+          try{
+            const response=await fetch("/api/admin/clients/verification-sensitive",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId)})});
+            const result=await response.json();
+            if(verificationAuthExpired(response,result,section))throw new Error(result.message||"Re-authentication required.");
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to delete sensitive verification data.");
+            await loadVerificationDraft(section);await loadVerificationAudits(section);await loadVerificationActivity(section);await loadVerificationRetention(section);
+            if(status)status.textContent="Sensitive verification data deleted. Non-sensitive audit history was retained.";
+          }catch(error){if(status)status.textContent=error.message||"Unable to delete sensitive verification data.";}finally{button.disabled=false;}
+        });
+        section.querySelector(".client-id-number-replace")?.addEventListener("click",()=>{
+          if(section.dataset.hasSavedIdNumber==="1"&&!window.confirm("Replace the saved ID number? The old full value will not be shown again."))return;
+          const input=section.querySelector(".client-persona-id-number");if(input){input.value="";input.placeholder="Enter replacement ID number";input.focus();}
+        });
+        section.querySelector(".client-id-number-delete")?.addEventListener("click",async(event)=>{
+          if(window.prompt("Permanently delete the saved DL/State ID number? Type DELETE to continue.")!=="DELETE")return;
+          const button=event.currentTarget,status=section.querySelector(".client-persona-status");button.disabled=true;
+          try{
+            const response=await fetch("/api/admin/clients/verification-sensitive/id-number",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId)})});
+            const result=await response.json();
+            if(verificationAuthExpired(response,result,section))throw new Error(result.message||"Re-authentication required.");
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to delete the saved ID number.");
+            section.dataset.hasSavedIdNumber="0";section.dataset.savedIdMasked="";
+            const input=section.querySelector(".client-persona-id-number");if(input){input.value="";input.placeholder="Enter ID number";}
+            const note=section.querySelector(".client-persona-id-number-note");if(note)note.textContent="Required only when address is unavailable.";
+            button.hidden=true;await loadVerificationActivity(section);validatePersonaFields(section,{show:true,force:false});
+            if(status)status.textContent="Saved ID number deleted.";
+          }catch(error){if(status)status.textContent=error.message||"Unable to delete the saved ID number.";}finally{button.disabled=false;}
         });
 
         const submitPersona=async(retryPersona)=>{
