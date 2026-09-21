@@ -781,7 +781,8 @@
           .verification-grid{grid-template-columns:1fr!important;}
           .verification-actions{display:grid!important;grid-template-columns:1fr!important;}
           .verification-actions button{width:100%!important;min-height:44px;}
-          .client-verification-audit-list details,.client-verification-audit-list div{overflow-wrap:anywhere;}
+          .verification-sticky-actions{position:sticky;bottom:0;z-index:4;background:white;padding:10px 0;border-top:1px solid var(--line);}
+          .client-verification-audit-list details,.client-verification-audit-list div,.client-persona-technical-details{overflow-wrap:anywhere;word-break:break-word;}
           .client-id-preview{max-height:300px!important;}
         }
       </style>
@@ -846,6 +847,16 @@
           </div>
         </div>
 
+        <dialog id="verification-decision-dialog" style="width:min(92vw,520px);border:0;border-radius:12px;padding:0;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+          <form method="dialog" style="padding:20px;">
+            <strong style="font-size:16px;">Confirm Verification Decision</strong>
+            <div id="verification-decision-preview" style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#faf8f4;font-size:13px;line-height:1.6;"></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:16px;">
+              <button value="cancel" style="padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;cursor:pointer;">Cancel</button>
+              <button value="confirm" style="padding:9px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;font:inherit;cursor:pointer;font-weight:700;">Confirm & Save</button>
+            </div>
+          </form>
+        </dialog>
       </section>
 
       <!-- BLACKLIST -->
@@ -2419,11 +2430,14 @@ async function loadRequests() {
                     <div class="verification-grid">
                       <label style="font-size:12px;font-weight:700;">ID type<select class="client-persona-id-class" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="dl">Driver License</option><option value="id">State ID</option><option value="pp">Passport</option><option value="ppc">Passport Card</option><option value="pr">Permanent Resident Card</option></select></label>
                       <label style="font-size:12px;font-weight:700;">Received date<input class="client-id-received" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <div style="font-size:12px;font-weight:700;">Uploaded<div class="client-id-uploaded-at" style="margin-top:7px;font-weight:500;color:var(--muted);">Not uploaded</div></div>
+                      <label style="font-size:12px;font-weight:700;">Deletion reminder<input class="client-id-retention-reminder" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--muted);">Optional reminder only. The ID is not deleted automatically.</span></label>
                     </div>
                     <input class="client-id-verification-status" type="hidden" value="pending_review">
                     <input class="client-id-verified" type="hidden" value="">
                     <div class="verification-actions">
                       <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
+                      <button type="button" class="client-id-retention-save" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Deletion Reminder</button>
                       <button type="button" class="client-id-delete" hidden style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:white;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete</button>
                     </div>
                     <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
@@ -2434,7 +2448,7 @@ async function loadRequests() {
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">This section controls the final verification decision. Persona does not automatically approve or decline a client.</div>
                     <div class="verification-grid">
                       <label style="font-size:12px;font-weight:700;">Birthdate<input class="client-persona-birthdate" type="date" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
+                      <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="needs_more_information">Needs More Information</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
                       <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
@@ -2462,10 +2476,19 @@ async function loadRequests() {
                         </select>
                       </label>
                       <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Private decision note<textarea class="client-verification-decision-notes" rows="2" maxlength="1200" placeholder="Private internal note. This is never sent to the client." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                      <label class="client-declined-action-wrap" hidden style="display:block;margin-top:10px;font-size:12px;font-weight:700;">After declining
+                        <select class="client-declined-action" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="leave">Leave profile unchanged</option>
+                          <option value="flag">Flag for review</option>
+                          <option value="blacklist">Add to blacklist</option>
+                        </select>
+                        <span style="display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--muted);">Declining never blacklists a client automatically.</span>
+                      </label>
                     </div>
                     <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
                     <div class="client-verification-completed-display" style="margin-top:9px;font-size:12px;color:var(--muted);">Completion: Not completed</div>
-                    <div class="verification-actions">
+                    <div class="verification-actions verification-sticky-actions">
+                      <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
                       <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
                       <button type="button" class="client-verification-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Manual Verification</button>
                       <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
@@ -2491,16 +2514,23 @@ async function loadRequests() {
                       <label data-persona-field="email_address" style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(personaDraft.email_address || client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
+                    <div class="client-persona-current" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
                     <div class="verification-actions">
                       <button type="button" class="client-persona-verify" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
+                      <button type="button" class="client-persona-retry" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Retry Persona</button>
                     </div>
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
+                    <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
                   </section>
 
-                  <section class="verification-card client-audit-history">
-                    <strong style="font-size:13px;">4. Audit History</strong>
+                  <details class="verification-card client-audit-history">
+                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">4. Audit History</summary>
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification history…</div>
-                  </section>
+                    <details style="margin-top:10px;padding-top:9px;border-top:1px solid var(--line);">
+                      <summary style="cursor:pointer;font-size:12px;font-weight:700;">Verification Activity Log</summary>
+                      <div class="client-verification-activity-list" style="margin-top:7px;font-size:12px;color:var(--muted);">Loading activity…</div>
+                    </details>
+                  </details>
                 </div>
               </details>
               ${blacklistRecord ? `<details class="client-profile-section client-safety-section" open style="margin-top:10px;padding:12px;border-radius:9px;background:#f3dfdf;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">Safety · Blacklisted</summary><div style="margin-top:10px;">
