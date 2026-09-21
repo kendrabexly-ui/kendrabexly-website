@@ -27,6 +27,13 @@ test("wrong inquiry template is rejected",()=>{
   assert.doesNotMatch(worker,/api\/v1\/transactions/);
 });
 
+test("Sandbox validates credentials without reading protected template resources",()=>{
+  assert.match(worker,/\^persona_sandbox_/);
+  assert.match(worker,/api\/v1\/inquiries\?page%5Bsize%5D=1/);
+  assert.match(worker,/Connected \(Sandbox\)/);
+  assert.match(portal,/result\.message\|\|"Connected"/);
+});
+
 test("duplicate Persona submissions are blocked",()=>{
   assert.match(worker,/persona_already_pending/);
   assert.match(worker,/A Persona verification is already pending for this client/);
