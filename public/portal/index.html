@@ -2509,6 +2509,13 @@ async function loadRequests() {
                     </fieldset>
                     <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Checklist 0 of 5 complete.</div>
                     <div class="client-verification-reason-wrap" hidden style="margin-top:10px;">
+                      <div class="client-nmi-quick-reasons" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px;">
+                        <button type="button" data-nmi-reason="missing_id" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Missing ID</button>
+                        <button type="button" data-nmi-reason="employer_information_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Employer incomplete</button>
+                        <button type="button" data-nmi-reason="contact_information_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Contact incomplete</button>
+                        <button type="button" data-nmi-reason="address_mismatch" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Address mismatch</button>
+                        <button type="button" data-nmi-reason="other" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Other</button>
+                      </div>
                       <label style="display:block;font-size:12px;font-weight:700;">Decision reason
                         <select class="client-verification-reason" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
                           <option value="">Choose a reason</option>
@@ -2645,9 +2652,12 @@ async function loadRequests() {
       });
       clientRecords.querySelectorAll(".client-profile-toggle").forEach((button) => {
         button.addEventListener("click", () => {
-          const controls = button.nextElementSibling;
-          const opening = controls.style.display === "none";
-          controls.style.display = opening ? "block" : "none";
+          const controls=button.nextElementSibling;
+          const opening=controls.style.display==="none";
+          if(!opening&&controls.querySelector(".client-id-documents")?.dataset.draftDirty==="1"){
+            if(!window.confirm("Verification fields are still unsaved. Hide this client profile anyway?"))return;
+          }
+          controls.style.display=opening?"block":"none";
           button.textContent = opening ? "Hide Client Profile" : "View Client Profile";
           if (opening) {
             const verificationSection = controls.querySelector(".client-id-documents");
@@ -2797,26 +2807,35 @@ async function loadRequests() {
         pending_review:"Pending Review", needs_more_information:"Needs More Information", verified:"Verified", unable_to_verify:"Unable to Verify", declined:"Declined"
       }[value] || String(value || "Pending Review").replaceAll("_"," "));
       const updateVerificationSummary = (section) => {
-        const summary = section.closest(".client-profile-actions")?.querySelector(".client-verification-summary");
-        if (!summary) return;
-        const latest = Array.isArray(section._verificationAuditRecords) && section._verificationAuditRecords.length ? section._verificationAuditRecords[0] : null;
-        const checklist = latest ? [latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length : 0;
-        const age = section.dataset.verificationAge || (latest?.birthdate ? verificationAge(latest.birthdate) : null);
-        const idLabel = section.dataset.hasDocument === "1" ? "Received" : "Not received";
-        const personaLabel = section.dataset.personaConnected === "1"
-          ? (latest?.persona_transaction_status ? statusLabel(latest.persona_transaction_status) : "Ready")
-          : "Pending Setup";
-        const decision = statusLabel(latest?.verification_status || "pending_review");
-        const completed = latest?.completed_at ? new Date(latest.completed_at + (String(latest.completed_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "Not completed";
-        const badgeStyle = latest?.verification_status === "verified" ? "background:#edf7ef;color:#2f6b45;" :
-          ["declined","unable_to_verify"].includes(latest?.verification_status) ? "background:#fff0ee;color:#8a2424;" : "background:#f7f2e9;color:var(--ink);";
-        summary.innerHTML = "<div style=\"display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;\"><strong>Verification summary</strong><span style=\"padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;" + badgeStyle + "\">" + escapeHtml(decision) + "</span></div>" +
-          "<div style=\"margin-top:7px;color:var(--muted);\">ID: " + escapeHtml(idLabel) +
-          " · Age: " + escapeHtml(age === null || age === "" ? "Not checked" : String(age)) +
-          " · Checklist: " + checklist + " of 5" +
-          " · Persona: " + escapeHtml(personaLabel) +
-          " · Completed: " + escapeHtml(completed) + "</div>" +
-          "<div style=\"margin-top:5px;font-weight:700;\">Open verification →</div>";
+        const summary=section.closest(".client-profile-actions")?.querySelector(".client-verification-summary");
+        if(!summary)return;
+        const latest=Array.isArray(section._verificationAuditRecords)&&section._verificationAuditRecords.length?section._verificationAuditRecords[0]:null;
+        const checklist=latest?[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length:0;
+        const age=section.dataset.verificationAge||(latest?.birthdate?verificationAge(latest.birthdate):null);
+        const idLabel=section.dataset.hasDocument==="1"?"Received":"Not received";
+        const manualDecision=statusLabel(latest?.verification_status||"pending_review");
+        const personaStatus=String(latest?.persona_transaction_status||"").toLowerCase();
+        const personaLabel=section.dataset.personaConnected!=="1"
+          ?"Pending Setup"
+          : !latest?.persona_transaction_id
+            ?"Ready"
+            : personaStatus==="approved"?"Approved"
+              : personaStatus==="needs_review"?"Needs Review"
+                : ["declined","errored","failed"].includes(personaStatus)?"Failed":"Pending";
+        const completed=latest?.completed_at?new Date(latest.completed_at+(String(latest.completed_at).endsWith("Z")?"":"Z")).toLocaleString():"Not completed";
+        const badgeStyle=latest?.verification_status==="verified"?"background:#e8f6ec;color:#22613b;"
+          :latest?.verification_status==="needs_more_information"?"background:#fff4d8;color:#74520b;"
+          :["declined","unable_to_verify"].includes(latest?.verification_status)?"background:#fdeaea;color:#8a2424;"
+          :"background:#eef2f8;color:#38506f;";
+        summary.innerHTML="<div style=\"display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;\"><strong>Verification summary</strong><span class=\"verification-status-pill\" style=\""+badgeStyle+"\">"+escapeHtml(manualDecision)+"</span></div>"+
+          "<div style=\"margin-top:7px;display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:5px 12px;color:var(--muted);\">"+
+          "<span><strong>ID:</strong> "+escapeHtml(idLabel)+"</span>"+
+          "<span><strong>Age:</strong> "+escapeHtml(age===null||age===""?"Not checked":String(age))+"</span>"+
+          "<span><strong>Checklist:</strong> "+checklist+" of 5</span>"+
+          "<span><strong>Manual Decision:</strong> "+escapeHtml(manualDecision)+"</span>"+
+          "<span><strong>Persona Result:</strong> "+escapeHtml(personaLabel)+"</span>"+
+          "<span><strong>Completed:</strong> "+escapeHtml(completed)+"</span></div>"+
+          "<div style=\"margin-top:6px;font-weight:700;\">Open verification →</div>";
       };
       const US_STATE_ABBREVIATIONS={
         ALABAMA:"AL",ALASKA:"AK",ARIZONA:"AZ",ARKANSAS:"AR",CALIFORNIA:"CA",COLORADO:"CO",CONNECTICUT:"CT",
@@ -3126,26 +3145,12 @@ async function loadRequests() {
         if(completedDisplay) completedDisplay.textContent=latest.completed_at
           ? "Completion: "+new Date(latest.completed_at+(String(latest.completed_at).endsWith("Z")?"":"Z")).toLocaleString()+" · "+(latest.completed_by || "admin")+" · "+(latest.verification_method || "method not recorded")
           : "Completion: Not completed";
-        const personaCurrent=section.querySelector(".client-persona-current");
-        const retryButton=section.querySelector(".client-persona-retry");
-        const runButton=section.querySelector(".client-persona-verify");
-        const personaStatus=String(latest.persona_transaction_status||"").toLowerCase();
-        const retryable=["declined","errored","failed"].includes(personaStatus);
-        const active=Boolean(latest.persona_transaction_id)&&!["approved","declined","errored","failed"].includes(personaStatus);
-        if(personaCurrent) personaCurrent.textContent=latest.persona_transaction_id
-          ? "Existing Persona result: "+(personaStatus||"pending").replaceAll("_"," ")
-          : "No Persona transaction has been submitted yet.";
-        if(retryButton) retryButton.hidden=!retryable;
-        if(runButton && latest.persona_transaction_id) {
-          runButton.disabled=true;
-          runButton.style.opacity=".6";
-          runButton.style.cursor="not-allowed";
-          runButton.title=active?"A Persona transaction is already pending.":"Use the existing Persona result.";
-        }
+        renderPersonaReadiness(section,section.dataset.personaConnected==="1");
 
         const currentHtml=`
           <div style="padding:10px 0;color:var(--ink);line-height:1.55;">
-            <div><strong>Current verification</strong> · ${escapeHtml(statusLabel(latest.verification_status))}</div>
+            <div><strong>Manual Decision:</strong> ${escapeHtml(statusLabel(latest.verification_status))}</div>
+            <div style="margin-top:3px;"><strong>Persona Result:</strong> ${escapeHtml(latest.persona_transaction_id ? (latest.persona_transaction_status || "pending").replaceAll("_"," ") : "Not submitted")}</div>
             <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5 · Completed: ${escapeHtml(latest.completed_at || "—")}</div>
             ${latest.decision_reason ? `<div style="margin-top:3px;"><strong>Private reason:</strong> ${escapeHtml(String(latest.decision_reason).replaceAll("_"," "))}</div>` : ""}
             ${latest.decision_notes ? `<div style="margin-top:3px;"><strong>Private note:</strong> ${escapeHtml(latest.decision_notes)}</div>` : ""}
@@ -3171,8 +3176,9 @@ async function loadRequests() {
           </details>` : "";
         if(list) list.innerHTML=currentHtml+older+decisions;
         updatePersonaAgeStatus(section);
+        renderPersonaReadiness(section,section.dataset.personaConnected==="1");
         updateVerificationSummary(section);
-        if (statusSelect) statusSelect.dispatchEvent(new Event("change"));
+        if(statusSelect)statusSelect.dispatchEvent(new Event("change"));
       };
       const loadVerificationAudits = async (section) => {
         const list=section.querySelector(".client-verification-audit-list");
@@ -3306,13 +3312,24 @@ async function loadRequests() {
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
         const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
         personaInputs.forEach(input=>{
-          input.addEventListener("input",()=>{capturePersonaDraft(section);if(input.classList.contains("client-persona-birthdate"))updatePersonaAgeStatus(section);});
+          input.addEventListener("input",()=>{
+            capturePersonaDraft(section);
+            setVerificationDraftState(section,"dirty","Unsaved changes");
+            if(input.classList.contains("client-persona-birthdate"))updatePersonaAgeStatus(section);
+            validatePersonaFields(section);
+          });
           input.addEventListener("change",()=>saveVerificationDraft(section));
           input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);saveVerificationDraft(section);});
         });
         normalizePersonaFields(section);
         capturePersonaDraft(section);
-        section.addEventListener("toggle",()=>{if(section.open){loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);loadVerificationActivity(section);}});
+        section.addEventListener("toggle",()=>{
+          if(section.open){
+            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);loadVerificationActivity(section);
+          }else if(section.dataset.draftDirty==="1"){
+            if(!window.confirm("Verification fields are still unsaved. Close this section anyway?")){section.open=true;}
+          }
+        });
 
         const auditStatus=section.querySelector(".client-verification-status");
         const reasonWrap=section.querySelector(".client-verification-reason-wrap");
@@ -3333,6 +3350,8 @@ async function loadRequests() {
           }
           const decision=auditStatus?.value||"pending_review";
           if(reasonWrap)reasonWrap.hidden=!["needs_more_information","unable_to_verify","declined"].includes(decision);
+          const quickReasons=section.querySelector(".client-nmi-quick-reasons");
+          if(quickReasons)quickReasons.hidden=decision!=="needs_more_information";
           if(declinedActionWrap)declinedActionWrap.hidden=decision!=="declined";
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
           const isFinal=["verified","unable_to_verify","declined"].includes(decision);
@@ -3367,6 +3386,11 @@ async function loadRequests() {
           updateCompletionControls();
           section.querySelector(".client-verification-reason-wrap")?.scrollIntoView({behavior:"smooth",block:"nearest"});
         });
+        section.querySelectorAll("[data-nmi-reason]").forEach(button=>button.addEventListener("click",()=>{
+          if(auditStatus)auditStatus.value="needs_more_information";
+          if(reasonInput)reasonInput.value=button.dataset.nmiReason||"other";
+          updateCompletionControls();
+        }));
 
         section.querySelector(".client-verification-complete")?.addEventListener("click",async()=>{
           if(!completeButton||completeButton.disabled)return;
@@ -3458,6 +3482,8 @@ async function loadRequests() {
           const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
           if(section.dataset.personaConnected!=="1"){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
           normalizePersonaFields(section);capturePersonaDraft(section);await saveVerificationDraft(section);
+          const validation=validatePersonaFields(section);
+          if(!validation.valid){if(status)status.textContent="Fix the highlighted verification fields before submitting to Persona.";return;}
           const personaFields={
             name_first:normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
             name_middle:normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
@@ -3472,7 +3498,7 @@ async function loadRequests() {
             email_address:normalizeSpaces(section.querySelector(".client-persona-email")?.value).toLowerCase(),
             phone_number:personaPhoneForApi(section.querySelector(".client-persona-phone")?.value)
           };
-          if(!personaFields.name_first||!personaFields.name_last||!personaFields.birthdate){if(status)status.textContent="Enter first name, last name, and birthdate before running Persona.";return;}
+
           if(runButton)runButton.disabled=true;if(retryButton)retryButton.disabled=true;if(status)status.textContent=retryPersona?"Retrying Persona verification…":"Submitting information to Persona…";
           if(technical)technical.hidden=true;
           try{
@@ -3489,6 +3515,7 @@ async function loadRequests() {
               return;
             }
             await loadVerificationAudits(section);await loadVerificationActivity(section);
+            renderPersonaReadiness(section,true);
             if(status)status.textContent=result.message||"Persona verification submitted.";
           }catch(error){
             if(status)status.textContent="Persona could not complete this verification request. Manual verification remains available.";
@@ -3502,11 +3529,13 @@ async function loadRequests() {
         section.querySelector(".client-persona-retry")?.addEventListener("click",()=>submitPersona(true));
 
         section.querySelector(".client-id-delete")?.addEventListener("click",async(event)=>{
-          const confirmation=window.prompt("This permanently deletes the private ID image. Type DELETE to continue.");
+          const clientName=section.dataset.clientName||"this client";
+          const confirmation=window.prompt("Permanently delete the private ID image for "+clientName+"? Type DELETE to continue.");
           if(confirmation!=="DELETE")return;
+          const deletionReason=window.prompt("Optional: enter a private reason for deleting this ID image. Leave blank to skip.")||"";
           const button=event.currentTarget,status=section.querySelector(".client-id-status");button.disabled=true;
           try{
-            const response=await fetch("/api/admin/clients/id-document?client_id="+encodeURIComponent(section.dataset.clientId),{method:"DELETE"});const result=await response.json();
+            const response=await fetch("/api/admin/clients/id-document?client_id="+encodeURIComponent(section.dataset.clientId),{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({reason:deletionReason})});const result=await response.json();
             if(!response.ok||!result.ok)throw new Error(result.message||"Unable to delete ID document.");
             setIdDocumentState(section,null);section.dataset.loaded="1";
             const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,has_id:false});
@@ -3600,6 +3629,14 @@ async function loadRequests() {
       });
     };
     renderClients();
+    if(!window.__verificationUnsavedGuard){
+      window.__verificationUnsavedGuard=true;
+      window.addEventListener("beforeunload",(event)=>{
+        if(document.querySelector('.client-id-documents[data-draft-dirty="1"]')){
+          event.preventDefault();event.returnValue="";
+        }
+      });
+    }
     if (clientSearch) clientSearch.addEventListener("input", renderClients);
     const clientSafetyFilter = document.getElementById("client-safety-filter");
     if (clientSafetyFilter) clientSafetyFilter.addEventListener("change", renderClients);
