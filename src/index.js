@@ -1,8 +1,30 @@
+import { accessIdentity, authorizeVerificationRequest, verificationForbidden, sanitizeVerificationActivity, retentionDate, enforceVerificationRateLimit, personaFetchState } from "./verification-security.js";
 async function ensureXDraftMedia(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_draft_media (draft_id INTEGER PRIMARY KEY,mime_type TEXT NOT NULL,file_name TEXT,image_base64 TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`).run();}
 async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env);const m=await env.DB.prepare("SELECT mime_type,image_base64 FROM x_draft_media WHERE draft_id=?").bind(draftId).first();if(!m)return null;const rr=await fetch("https://api.x.com/2/media/upload",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({media:m.image_base64,media_category:"tweet_image"})});const d=await rr.json().catch(()=>({}));if(!rr.ok)throw new Error(d?.detail||d?.title||d?.message||"X rejected the image upload.");return d?.data?.id||d?.data?.media_id_string||d?.media_id_string||null;}
 
 
 const SITE_TIME_ZONE = "America/Los_Angeles";
+const VERIFICATION_ROUTE_PERMISSIONS = [
+  ["/api/admin/clients/id-document/image", "view_id_images"],
+  ["/api/admin/clients/id-document/retention", "delete_sensitive"],
+  ["/api/admin/clients/id-document", "edit_verification"],
+  ["/api/admin/clients/verification-sensitive", "delete_sensitive"],
+  ["/api/admin/clients/verification-draft", "edit_verification"],
+  ["/api/admin/clients/verification-activity", "edit_verification"],
+  ["/api/admin/clients/verification-overview", "edit_verification"],
+  ["/api/admin/clients/verification-audit", "final_decision"],
+  ["/api/admin/clients/persona-status", "run_persona"],
+  ["/api/admin/clients/persona-test", "run_persona"],
+  ["/api/admin/clients/persona-verify", "run_persona"],
+  ["/api/admin/clients/persona-refresh", "run_persona"]
+];
+function verificationRouteAccess(pathname, method) {
+  const match=VERIFICATION_ROUTE_PERMISSIONS.find(([path])=>pathname===path || pathname.startsWith(path+"/"));
+  if(!match)return null;
+  const fresh=(pathname==="/api/admin/clients/id-document/image"&&method==="GET") || method==="DELETE";
+  return {permission:match[1],fresh};
+}
+
 const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v4";
 const DEFAULT_SITE_RATES = [
   {
@@ -272,6 +294,44 @@ async function ensureVerificationWorkspaceTables(env) {
     CREATE INDEX IF NOT EXISTS idx_verification_activity_client
     ON client_verification_activity(client_id, created_at DESC, id DESC)
   `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_retention (
+      client_id INTEGER PRIMARY KEY,
+      id_policy TEXT NOT NULL DEFAULT '',
+      id_delete_at TEXT NOT NULL DEFAULT '',
+      id_auto_delete INTEGER NOT NULL DEFAULT 0,
+      sensitive_policy TEXT NOT NULL DEFAULT '',
+      sensitive_delete_at TEXT NOT NULL DEFAULT '',
+      sensitive_auto_delete INTEGER NOT NULL DEFAULT 0,
+      updated_by TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS persona_verification_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER NOT NULL,
+      audit_id INTEGER,
+      transaction_id TEXT NOT NULL DEFAULT '',
+      transaction_status TEXT NOT NULL DEFAULT '',
+      idempotency_key TEXT NOT NULL UNIQUE,
+      replaces_attempt_id INTEGER,
+      submitted_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      last_refreshed_at TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_persona_attempts_client ON persona_verification_attempts(client_id, submitted_at DESC, id DESC)").run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS persona_webhook_health (
+      id INTEGER PRIMARY KEY CHECK(id=1),
+      last_received_at TEXT,
+      last_success_at TEXT,
+      last_rejected_at TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare("INSERT OR IGNORE INTO persona_webhook_health(id) VALUES(1)").run();
 
   const auditColumns = await env.DB.prepare("PRAGMA table_info(client_verification_audits)").all();
   const auditNames = new Set((auditColumns.results || []).map(row => String(row.name || "")));
@@ -297,9 +357,55 @@ async function logVerificationActivity(env, clientId, auditId, eventType, eventL
     Number(clientId),
     Number(auditId) || null,
     String(eventType || "activity").slice(0,80),
-    String(eventLabel || "Verification activity").slice(0,200),
-    String(details || "").slice(0,2000)
+    sanitizeVerificationActivity(eventLabel || "Verification activity").slice(0,200),
+    sanitizeVerificationActivity(details || "").slice(0,2000)
   ).run();
+}
+
+async function clearSensitiveVerificationData(env, clientId) {
+  await ensureVerificationWorkspaceTables(env);
+  await env.DB.prepare("DELETE FROM client_verification_sensitive_fields WHERE client_id=?").bind(clientId).run();
+  await env.DB.prepare("UPDATE client_verification_drafts SET birthdate='', persona_fields_json='{}', updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
+  await env.DB.prepare(`
+    UPDATE client_verification_audits
+    SET submitted_employer='',submitted_job_title='',submitted_industry='',
+        evidence_notes='',decision_notes='',birthdate='',updated_at=CURRENT_TIMESTAMP
+    WHERE client_id=?
+  `).bind(clientId).run();
+}
+async function clearSavedVerificationIdNumber(env, clientId) {
+  await ensureVerificationWorkspaceTables(env);
+  await env.DB.prepare(`
+    UPDATE client_verification_sensitive_fields
+    SET encrypted_id_number='',id_last4='',updated_at=CURRENT_TIMESTAMP
+    WHERE client_id=?
+  `).bind(clientId).run();
+}
+async function runVerificationRetention(env) {
+  await ensureVerificationWorkspaceTables(env);
+  const today=idDocumentToday();
+  const due=await env.DB.prepare(`
+    SELECT client_id,id_policy,id_delete_at,id_auto_delete,sensitive_policy,sensitive_delete_at,sensitive_auto_delete
+    FROM client_verification_retention
+    WHERE (id_auto_delete=1 AND id_policy<>'' AND id_delete_at<>'' AND id_delete_at<=?)
+       OR (sensitive_auto_delete=1 AND sensitive_policy<>'' AND sensitive_delete_at<>'' AND sensitive_delete_at<=?)
+    LIMIT 50
+  `).bind(today,today).all();
+  for(const row of (due.results||[])){
+    const clientId=Number(row.client_id);
+    if(Number(row.id_auto_delete)===1 && row.id_policy && row.id_delete_at && row.id_delete_at<=today){
+      const doc=await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(clientId).first();
+      if(doc?.object_key && env.ID_DOCUMENTS) await env.ID_DOCUMENTS.delete(doc.object_key);
+      await env.DB.prepare("DELETE FROM client_id_documents WHERE client_id=?").bind(clientId).run();
+      await env.DB.prepare("UPDATE client_verification_retention SET id_auto_delete=0,id_delete_at='',updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
+      await logVerificationActivity(env,clientId,null,"id_auto_deleted","ID document automatically deleted","Retention policy completed by system.");
+    }
+    if(Number(row.sensitive_auto_delete)===1 && row.sensitive_policy && row.sensitive_delete_at && row.sensitive_delete_at<=today){
+      await clearSensitiveVerificationData(env,clientId);
+      await env.DB.prepare("UPDATE client_verification_retention SET sensitive_auto_delete=0,sensitive_delete_at='',updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
+      await logVerificationActivity(env,clientId,null,"sensitive_auto_deleted","Sensitive verification data automatically deleted","Retention policy completed by system.");
+    }
+  }
 }
 
 const US_STATE_CODES = {
@@ -716,6 +822,11 @@ async function siteAvailableSlots(env, date, requestedDuration, excludeRequestId
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const verificationAccess=verificationRouteAccess(url.pathname,request.method);
+    if(verificationAccess){
+      const authorization=authorizeVerificationRequest(request,env,verificationAccess.permission,{fresh:verificationAccess.fresh});
+      if(!authorization.ok)return verificationForbidden(authorization);
+    }
 
 
     // =========================================================
@@ -832,29 +943,91 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/admin/clients/id-document/retention" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId=Number(url.searchParams.get("client_id"));
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const row=await env.DB.prepare("SELECT * FROM client_verification_retention WHERE client_id=? LIMIT 1").bind(clientId).first();
+        return Response.json({ok:true,retention:row||{client_id:clientId,id_policy:"",id_delete_at:"",id_auto_delete:0,sensitive_policy:"",sensitive_delete_at:"",sensitive_auto_delete:0,updated_by:"",updated_at:""}},{headers:{"Cache-Control":"private, no-store"}});
+      }catch(error){
+        console.error("Verification retention load error:",error);
+        return Response.json({ok:false,message:"Unable to load retention settings."},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/admin/clients/id-document/retention" && request.method === "POST") {
       try {
         await ensureVerificationWorkspaceTables(env);
-        const data = await request.json().catch(() => ({}));
-        const clientId = Number(data.client_id);
-        const reminder = idDocumentDate(data.retention_reminder_at);
-        if (!await requireIdDocumentClient(env, clientId)) return Response.json({ok:false,message:"Client not found."},{status:404});
-        const update = await env.DB.prepare(`
-          UPDATE client_id_documents
-          SET retention_reminder_at=?, updated_at=CURRENT_TIMESTAMP
-          WHERE client_id=?
-        `).bind(reminder || null, clientId).run();
-        if (!Number(update.meta?.changes || 0)) return Response.json({ok:false,message:"Upload an ID image first."},{status:404});
-        await logVerificationActivity(env, clientId, null, "id_retention", reminder ? "ID retention reminder set" : "ID retention reminder cleared", reminder || "");
-        const row = await env.DB.prepare(`
-          SELECT client_id, file_name, mime_type, file_size, verification_status, received_at, verified_at,
-                 retention_reminder_at, created_at, updated_at
-          FROM client_id_documents WHERE client_id=? LIMIT 1
-        `).bind(clientId).first();
-        return Response.json({ok:true,document:idDocumentPublicRecord(row)});
-      } catch (error) {
-        console.error("ID retention reminder error:", error);
-        return Response.json({ok:false,message:"Unable to update the ID retention reminder."},{status:500});
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const actor=accessIdentity(request).email||"admin";
+        const rate=await enforceVerificationRateLimit(env,"persona_refresh",actor+":"+clientId,20,300);
+        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona status refreshes. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+        const target=data.target==="sensitive"?"sensitive":"id";
+        const policy=String(data.policy||"").trim().slice(0,80);
+        const deleteAt=retentionDate(data.scheduled_delete_at);
+        const autoDelete=Boolean(data.auto_delete);
+        if(autoDelete && (!policy || !deleteAt)){
+          return Response.json({ok:false,message:"Choose an explicit retention policy and scheduled deletion date before enabling automatic deletion."},{status:400});
+        }
+        const current=await env.DB.prepare("SELECT * FROM client_verification_retention WHERE client_id=? LIMIT 1").bind(clientId).first()||{};
+        const actor=accessIdentity(request).email||"authorized-admin";
+        const next={
+          id_policy:String(current.id_policy||""),id_delete_at:String(current.id_delete_at||""),id_auto_delete:Number(current.id_auto_delete||0),
+          sensitive_policy:String(current.sensitive_policy||""),sensitive_delete_at:String(current.sensitive_delete_at||""),sensitive_auto_delete:Number(current.sensitive_auto_delete||0)
+        };
+        if(target==="id"){next.id_policy=policy;next.id_delete_at=deleteAt;next.id_auto_delete=autoDelete?1:0;}
+        else{next.sensitive_policy=policy;next.sensitive_delete_at=deleteAt;next.sensitive_auto_delete=autoDelete?1:0;}
+        await env.DB.prepare(`
+          INSERT INTO client_verification_retention
+            (client_id,id_policy,id_delete_at,id_auto_delete,sensitive_policy,sensitive_delete_at,sensitive_auto_delete,updated_by,updated_at)
+          VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id) DO UPDATE SET
+            id_policy=excluded.id_policy,id_delete_at=excluded.id_delete_at,id_auto_delete=excluded.id_auto_delete,
+            sensitive_policy=excluded.sensitive_policy,sensitive_delete_at=excluded.sensitive_delete_at,sensitive_auto_delete=excluded.sensitive_auto_delete,
+            updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId,next.id_policy,next.id_delete_at,next.id_auto_delete,next.sensitive_policy,next.sensitive_delete_at,next.sensitive_auto_delete,actor).run();
+        await logVerificationActivity(env,clientId,null,"retention_scheduled",
+          target==="id"?"ID retention policy changed":"Sensitive-data retention policy changed",
+          "Deletion schedule "+(deleteAt||"cleared")+" · Automatic deletion "+(autoDelete?"enabled":"disabled")+" · Changed by "+actor);
+        const row=await env.DB.prepare("SELECT * FROM client_verification_retention WHERE client_id=? LIMIT 1").bind(clientId).first();
+        return Response.json({ok:true,retention:row},{headers:{"Cache-Control":"private, no-store"}});
+      }catch(error){
+        console.error("Verification retention update error:",error);
+        return Response.json({ok:false,message:"Unable to update retention settings."},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-sensitive" && request.method === "DELETE") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||url.searchParams.get("client_id"));
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        await clearSensitiveVerificationData(env,clientId);
+        const actor=accessIdentity(request).email||"authorized-admin";
+        await logVerificationActivity(env,clientId,null,"sensitive_deleted","Sensitive verification data deleted","Deleted by "+actor+". Non-sensitive verification audit history retained.");
+        return Response.json({ok:true,deleted:true},{headers:{"Cache-Control":"private, no-store"}});
+      }catch(error){
+        console.error("Sensitive verification deletion error:",error);
+        return Response.json({ok:false,message:"Unable to delete sensitive verification data."},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-sensitive/id-number" && request.method === "DELETE") {
+      try {
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||url.searchParams.get("client_id"));
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        await clearSavedVerificationIdNumber(env,clientId);
+        const actor=accessIdentity(request).email||"authorized-admin";
+        await logVerificationActivity(env,clientId,null,"id_number_deleted","Saved DL/State ID number deleted","Deleted by "+actor+". The prior full value was not retained in the audit log.");
+        return Response.json({ok:true,deleted:true},{headers:{"Cache-Control":"private, no-store"}});
+      }catch(error){
+        console.error("Saved ID number deletion error:",error);
+        return Response.json({ok:false,message:"Unable to delete the saved ID number."},{status:500});
       }
     }
 
@@ -995,10 +1168,15 @@ export default {
           WHERE client_id=?
           ORDER BY changed_at DESC, id DESC
         `).bind(clientId).all();
+        const attempts=await env.DB.prepare(`
+          SELECT id,client_id,audit_id,transaction_id,transaction_status,replaces_attempt_id,submitted_at,last_refreshed_at,updated_at
+          FROM persona_verification_attempts WHERE client_id=? ORDER BY submitted_at DESC,id DESC LIMIT 50
+        `).bind(clientId).all();
         return Response.json({
           ok: true,
           records: (result.results || []).map(verificationAuditPublicRecord),
-          history: history.results || []
+          history: history.results || [],
+          persona_attempts: attempts.results || []
         }, { headers: { "Cache-Control": "private, no-store" } });
       } catch (error) {
         console.error("Load client verification audit error:", error);
@@ -1089,6 +1267,12 @@ export default {
           String(previous.verification_status || "") !== verificationStatus ||
           String(previous.decision_reason || "") !== decisionReason ||
           String(previous.decision_notes || "") !== decisionNotes;
+        const decisionChangeReason=String(data.decision_change_reason||"").trim().slice(0,500);
+        if(previous.completed_at && decisionChanged){
+          const fresh=authorizeVerificationRequest(request,env,"final_decision",{fresh:true});
+          if(!fresh.ok)return verificationForbidden(fresh);
+          if(!decisionChangeReason)return Response.json({ok:false,message:"Enter a reason for changing a completed verification decision."},{status:400});
+        }
         if (decisionChanged && previous.verification_status && previous.verification_status !== "pending_review") {
           await env.DB.prepare(`
             INSERT INTO client_verification_decision_history
@@ -1103,7 +1287,8 @@ export default {
         }
 
         const isOpenStatus = verificationStatus === "pending_review" || verificationStatus === "needs_more_information";
-        const completedBy = isOpenStatus ? "" : "admin-dashboard";
+        const adminIdentity=accessIdentity(request).email||"authorized-admin";
+        const completedBy = isOpenStatus ? "" : adminIdentity;
         const update = await env.DB.prepare(`
           UPDATE client_verification_audits
           SET verification_status = ?, verification_method = ?, submitted_industry = ?,
@@ -1131,6 +1316,11 @@ export default {
         ).run();
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
+        }
+        if(previous.completed_at && decisionChanged){
+          await logVerificationActivity(env,clientId,auditId,"decision_changed",
+            "Decision changed from "+String(previous.verification_status||"pending_review").replaceAll("_"," ")+" to "+verificationStatus.replaceAll("_"," "),
+            "Reason: "+decisionChangeReason+" · Changed by "+adminIdentity);
         }
         const checklistChanged =
           Number(previous.identity_confirmed||0)!==identityConfirmed ||
@@ -1397,7 +1587,8 @@ export default {
         if (!row) return Response.json({ ok: true, deleted: false });
         await env.ID_DOCUMENTS.delete(row.object_key);
         await env.DB.prepare("DELETE FROM client_id_documents WHERE client_id = ?").bind(clientId).run();
-        await logVerificationActivity(env, clientId, null, "id_deleted", "ID document permanently deleted", deletionReason ? "Reason: " + deletionReason : "No deletion reason entered.");
+        const actor=accessIdentity(request).email||"authorized-admin";
+        await logVerificationActivity(env, clientId, null, "id_deleted", "ID document manually deleted", (deletionReason ? "Reason: " + deletionReason+" · " : "")+"Deleted by "+actor+".");
         return Response.json({ ok: true, deleted: true, deleted_document: { file_name: row.file_name || "", uploaded_at: row.created_at || "", received_at: row.received_at || "" } }, {
           headers: { "Cache-Control": "private, no-store" }
         });
@@ -4738,6 +4929,7 @@ if (
     // the ID in ClearPath, then this route submits that stored image.
     // =========================================================
     if (url.pathname === "/api/admin/clients/persona-status" && request.method === "GET") {
+      await ensureVerificationWorkspaceTables(env);
       const apiKeyConfigured = Boolean(env.PERSONA_API_KEY);
       const transactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
       const transactionTypeConfigured = /^txntp_[A-Za-z0-9]+$/.test(transactionTypeId);
@@ -4762,12 +4954,26 @@ if (
               ? "PERSONA_TRANSACTION_TYPE_ID must be a Persona Transaction Type ID beginning with txntp_."
               : "",
         webhook_secret_configured:webhookSecretConfigured,
-        webhook_url:"https://kendrabexly.com/api/webhooks/persona"
+        webhook_url:"https://kendrabexly.com/api/webhooks/persona",
+        webhook_health:await (async()=>{
+          const health=await env.DB.prepare("SELECT last_received_at,last_success_at,last_rejected_at FROM persona_webhook_health WHERE id=1").first()||{};
+          const active=await env.DB.prepare(`
+            SELECT persona_submitted_at FROM client_verification_audits
+            WHERE persona_transaction_id<>'' AND LOWER(persona_transaction_status) IN ('created','pending','processing','needs_review','pending_fallback_inquiry')
+            ORDER BY persona_submitted_at DESC LIMIT 1
+          `).first();
+          const submitted=active?.persona_submitted_at?new Date(String(active.persona_submitted_at).replace(" ","T")+"Z").getTime():0;
+          const success=health.last_success_at?new Date(String(health.last_success_at).replace(" ","T")+"Z").getTime():0;
+          return {...health,warning:Boolean(submitted&&Date.now()-submitted>15*60*1000&&success<submitted)};
+        })()
       }, {headers:{"Cache-Control":"private, no-store"}});
     }
 
     if (url.pathname === "/api/admin/clients/persona-test" && request.method === "POST") {
       try {
+        const actor=accessIdentity(request).email||"admin";
+        const rate=await enforceVerificationRateLimit(env,"persona_test",actor,10,300);
+        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona connection tests. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
         const result=await fetchPersonaTransactionTypeConfig(env);
         return Response.json(result,{status:result.ok?200:(result.state==="invalid_credentials"?401:result.state==="incorrect_transaction_type"?400:502),headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
@@ -4895,6 +5101,11 @@ if (
         if (!requestId) {
           return Response.json({ok:false,message:"This client does not have a booking request to attach the verification record to."},{status:400});
         }
+        const ownedRequest=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? LIMIT 1").bind(requestId,clientId).first();
+        if(!ownedRequest)return Response.json({ok:false,message:"The selected booking request does not belong to this client."},{status:400});
+        const actor=accessIdentity(request).email||"admin";
+        const personaRate=await enforceVerificationRateLimit(env,"persona_verify",actor+":"+clientId,5,600);
+        if(!personaRate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona submissions for this client. Refresh the current status before trying again."},{status:429,headers:{"Retry-After":String(personaRate.retry_after)}});
 
         let audit = await env.DB.prepare(
           "SELECT id, date_request_id, persona_transaction_id, persona_transaction_status FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
@@ -4931,28 +5142,46 @@ if (
           }
         }
 
+        const idempotencyKey="clearpath-"+crypto.randomUUID();
+        const previousAttempt=await env.DB.prepare("SELECT id FROM persona_verification_attempts WHERE client_id=? ORDER BY id DESC LIMIT 1").bind(clientId).first();
+        await env.DB.prepare(`
+          INSERT INTO persona_verification_attempts(client_id,audit_id,transaction_status,idempotency_key,replaces_attempt_id,submitted_at,updated_at)
+          VALUES(?,?,'submitting',?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+        `).bind(clientId,audit.id,idempotencyKey,data.retry_persona?Number(previousAttempt?.id||0)||null:null).run();
+        const attempt=await env.DB.prepare("SELECT id FROM persona_verification_attempts WHERE idempotency_key=? LIMIT 1").bind(idempotencyKey).first();
         const headers = {
           Authorization: "Bearer " + String(env.PERSONA_API_KEY),
           "Content-Type": "application/json",
           "Key-Inflection": "kebab",
-          "Idempotency-Key": "clearpath-" + crypto.randomUUID()
+          "Idempotency-Key": idempotencyKey
         };
         if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
 
-        const personaResponse = await fetch("https://api.withpersona.com/api/v1/transactions", {
-          method:"POST",
-          headers,
-          body:JSON.stringify({
-            data:{
-              attributes:{
-                transaction_type_id:personaTransactionTypeId,
-                reference_id:String(requestId),
-                fields:personaFields
+        let personaResponse,personaData={};
+        const controller=new AbortController();
+        const timeout=setTimeout(()=>controller.abort(),12000);
+        try{
+          personaResponse = await fetch("https://api.withpersona.com/api/v1/transactions", {
+            method:"POST",
+            headers,
+            signal:controller.signal,
+            body:JSON.stringify({
+              data:{
+                attributes:{
+                  transaction_type_id:personaTransactionTypeId,
+                  reference_id:String(requestId),
+                  fields:personaFields
+                }
               }
-            }
-          })
-        });
-        const personaData = await personaResponse.json().catch(() => ({}));
+            })
+          });
+          personaData = await personaResponse.json().catch(() => ({}));
+        }catch(error){
+          const state=personaFetchState(error);
+          await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(state.code,attempt.id).run();
+          await logVerificationActivity(env,clientId,audit.id,"persona_transport_error","Persona request did not complete",state.message);
+          return Response.json({ok:false,code:state.code,message:state.message,retry_allowed:false,refresh_recommended:true},{status:state.code==="persona_timeout"?504:503});
+        }finally{clearTimeout(timeout);}
         if (!personaResponse.ok) {
           const personaError = personaData?.errors?.[0] || {};
           const personaRequestId = personaResponse.headers.get("Request-Id") || "";
@@ -4961,14 +5190,17 @@ if (
             detail = "Persona rejected the transaction fields. Confirm PERSONA_TRANSACTION_TYPE_ID points to your Database Verification transaction type and that the manually entered fields match its required field schema.";
           }
           if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
-          console.error("Persona transaction create failed:", personaResponse.status, personaData);
-          await logVerificationActivity(env, clientId, audit.id, "persona_error", "Persona submission failed", String(detail));
+          console.error("Persona transaction create failed:", personaResponse.status);
+          await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status='request_failed',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(attempt.id).run();
+          await logVerificationActivity(env, clientId, audit.id, "persona_error", "Persona submission failed", "Persona rejected the request. Technical details were not stored in the audit log.");
           return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(detail),retry_allowed:true},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
         }
 
         const transaction = personaData?.data || {};
         const transactionId = String(transaction?.id || "");
         const transactionStatus = String(transaction?.attributes?.status || "created").toLowerCase();
+        await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_id=?,transaction_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(transactionId,transactionStatus,attempt.id).run();
         await env.DB.prepare(`
           UPDATE client_verification_audits
           SET persona_transaction_id=?,
@@ -4978,7 +5210,7 @@ if (
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
         `).bind(transactionId, transactionStatus, audit.id).run();
-        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction: " + transactionId + (addressComplete ? " · Address supplied" : " · Address unavailable — ID details used instead"));
+        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction recorded"+(addressComplete ? " · Address supplied" : " · Address unavailable — ID details used instead"));
         await logVerificationActivity(env, clientId, audit.id, "persona_response", "Persona response received", "Status: " + transactionStatus);
 
         const updated = await env.DB.prepare(`
@@ -4992,6 +5224,7 @@ if (
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
 
+        await env.DB.prepare("UPDATE persona_webhook_health SET last_success_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
         return Response.json({
           ok:true,
           message:transactionStatus === "approved"
@@ -5030,6 +5263,8 @@ if (
         const newStatus=String(payload?.data?.attributes?.status||"").toLowerCase()||String(audit.persona_transaction_status||"pending");
         await env.DB.prepare("UPDATE client_verification_audits SET persona_transaction_status=?, persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?")
           .bind(newStatus,audit.id).run();
+        await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status=?,last_refreshed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE transaction_id=?")
+          .bind(newStatus,audit.persona_transaction_id).run();
         await logVerificationActivity(env,clientId,audit.id,"persona_refresh","Persona status refreshed","Status: "+newStatus);
         const updated=await env.DB.prepare("SELECT * FROM client_verification_audits WHERE id=? LIMIT 1").bind(audit.id).first();
         return Response.json({ok:true,message:"Persona status refreshed.",transaction_status:newStatus,record:verificationAuditPublicRecord(updated)},{headers:{"Cache-Control":"private, no-store"}});
@@ -5045,9 +5280,14 @@ if (
     if (url.pathname === "/api/webhooks/persona" && request.method === "POST") {
       try {
         const rawBody = await request.text();
+        await ensureVerificationWorkspaceTables(env);
+        await env.DB.prepare("UPDATE persona_webhook_health SET last_received_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
         const signature = request.headers.get("Persona-Signature") || "";
         const verified = await verifyPersonaWebhookSignature(rawBody, signature, env.PERSONA_WEBHOOK_SECRET);
-        if (!verified) return Response.json({ok:false,message:"Invalid webhook signature."},{status:401});
+        if (!verified) {
+          await env.DB.prepare("UPDATE persona_webhook_health SET last_rejected_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
+          return Response.json({ok:false,message:"Invalid webhook signature."},{status:401});
+        }
 
         const event = JSON.parse(rawBody || "{}");
         const eventId=String(event?.data?.id || event?.id || "").trim();
@@ -6087,6 +6327,7 @@ if (
 
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
+      await runVerificationRetention(env);
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_scheduled_posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,draft_id INTEGER NOT NULL UNIQUE,scheduled_for TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'scheduled',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )`).run();
