@@ -134,45 +134,57 @@ async function ensureClientVerificationAuditsTable(env) {
       industry_confirmed INTEGER NOT NULL DEFAULT 0,
       contact_confirmed INTEGER NOT NULL DEFAULT 0,
       evidence_notes TEXT NOT NULL DEFAULT '',
+      decision_reason TEXT NOT NULL DEFAULT '',
+      decision_notes TEXT NOT NULL DEFAULT '',
+      birthdate TEXT NOT NULL DEFAULT '',
+      completed_by TEXT NOT NULL DEFAULT '',
+      persona_transaction_id TEXT NOT NULL DEFAULT '',
+      persona_transaction_status TEXT NOT NULL DEFAULT '',
       completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+
   const columnRows = await env.DB.prepare("PRAGMA table_info(client_verification_audits)").all();
   const columns = new Set((columnRows.results || []).map((column) => String(column.name || "")));
-  if (!columns.has("submitted_employer")) {
-    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN submitted_employer TEXT NOT NULL DEFAULT ''").run();
-  }
-  if (!columns.has("submitted_job_title")) {
-    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN submitted_job_title TEXT NOT NULL DEFAULT ''").run();
-  }
-  if (!columns.has("submitted_industry")) {
-    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN submitted_industry TEXT NOT NULL DEFAULT ''").run();
-  }
-  const checklistColumns = [
+  const additions = [
+    ["submitted_employer", "TEXT NOT NULL DEFAULT ''"],
+    ["submitted_job_title", "TEXT NOT NULL DEFAULT ''"],
+    ["submitted_industry", "TEXT NOT NULL DEFAULT ''"],
     ["identity_confirmed", "INTEGER NOT NULL DEFAULT 0"],
     ["employer_confirmed", "INTEGER NOT NULL DEFAULT 0"],
     ["job_title_confirmed", "INTEGER NOT NULL DEFAULT 0"],
     ["industry_confirmed", "INTEGER NOT NULL DEFAULT 0"],
     ["contact_confirmed", "INTEGER NOT NULL DEFAULT 0"],
-    ["evidence_notes", "TEXT NOT NULL DEFAULT ''"]
-  ];
-  for (const [name, definition] of checklistColumns) {
-    if (!columns.has(name)) {
-      await env.DB.prepare(`ALTER TABLE client_verification_audits ADD COLUMN ${name} ${definition}`).run();
-    }
-  }
-  const personaColumns = [
+    ["evidence_notes", "TEXT NOT NULL DEFAULT ''"],
+    ["decision_reason", "TEXT NOT NULL DEFAULT ''"],
+    ["decision_notes", "TEXT NOT NULL DEFAULT ''"],
+    ["birthdate", "TEXT NOT NULL DEFAULT ''"],
+    ["completed_by", "TEXT NOT NULL DEFAULT ''"],
     ["persona_transaction_id", "TEXT NOT NULL DEFAULT ''"],
     ["persona_transaction_status", "TEXT NOT NULL DEFAULT ''"]
   ];
-  for (const [name, definition] of personaColumns) {
-    if (!columns.has(name)) {
-      await env.DB.prepare(`ALTER TABLE client_verification_audits ADD COLUMN ${name} ${definition}`).run();
-    }
+  for (const [name, definition] of additions) {
+    if (!columns.has(name)) await env.DB.prepare(`ALTER TABLE client_verification_audits ADD COLUMN ${name} ${definition}`).run();
   }
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_decision_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      audit_id INTEGER NOT NULL,
+      client_id INTEGER NOT NULL,
+      verification_status TEXT NOT NULL,
+      decision_reason TEXT NOT NULL DEFAULT '',
+      decision_notes TEXT NOT NULL DEFAULT '',
+      verification_method TEXT NOT NULL DEFAULT '',
+      completed_at TEXT,
+      completed_by TEXT NOT NULL DEFAULT '',
+      changed_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_client_verification_audits_client ON client_verification_audits(client_id, accepted_at DESC)").run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_client_verification_history_client ON client_verification_decision_history(client_id, changed_at DESC)").run();
 }
 
 function verificationAuditPublicRecord(row) {
@@ -196,11 +208,26 @@ function verificationAuditPublicRecord(row) {
     industry_confirmed: Number(row.industry_confirmed || 0) === 1,
     contact_confirmed: Number(row.contact_confirmed || 0) === 1,
     evidence_notes: row.evidence_notes || "",
+    decision_reason: row.decision_reason || "",
+    decision_notes: row.decision_notes || "",
+    birthdate: row.birthdate || "",
+    completed_by: row.completed_by || "",
     persona_transaction_id: row.persona_transaction_id || "",
     persona_transaction_status: row.persona_transaction_status || "",
     completed_at: row.completed_at || "",
     updated_at: row.updated_at || ""
   };
+}
+
+function verificationAgeOnDate(birthdate, now = new Date()) {
+  const match = String(birthdate || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  let age = now.getUTCFullYear() - year;
+  const beforeBirthday = (now.getUTCMonth() + 1 < month) || ((now.getUTCMonth() + 1 === month) && now.getUTCDate() < day);
+  if (beforeBirthday) age -= 1;
+  return age;
 }
 
 async function ensureClientIdDocumentsTable(env) {
@@ -436,6 +463,43 @@ export default {
     // Protected by Cloudflare Access with the rest of /api/admin.
     // =========================================================
 
+    if (url.pathname === "/api/admin/clients/verification-overview" && request.method === "GET") {
+      try {
+        await ensureClientVerificationAuditsTable(env);
+        await ensureClientIdDocumentsTable(env);
+        const rows = await env.DB.prepare(`
+          SELECT c.id AS client_id,
+                 COALESCE(a.verification_status, 'pending_review') AS verification_status,
+                 COALESCE(a.persona_transaction_id, '') AS persona_transaction_id,
+                 COALESCE(a.persona_transaction_status, '') AS persona_transaction_status,
+                 COALESCE(a.completed_at, '') AS completed_at,
+                 CASE WHEN d.client_id IS NULL THEN 0 ELSE 1 END AS has_id
+          FROM clients c
+          LEFT JOIN client_id_documents d ON d.client_id = c.id
+          LEFT JOIN client_verification_audits a ON a.id = (
+            SELECT v.id FROM client_verification_audits v
+            WHERE v.client_id = c.id
+            ORDER BY v.accepted_at DESC, v.id DESC
+            LIMIT 1
+          )
+        `).all();
+        return Response.json({
+          ok:true,
+          clients:(rows.results || []).map(row => ({
+            client_id:Number(row.client_id),
+            verification_status:row.verification_status || "pending_review",
+            persona_transaction_id:row.persona_transaction_id || "",
+            persona_transaction_status:row.persona_transaction_status || "",
+            completed_at:row.completed_at || "",
+            has_id:Number(row.has_id || 0) === 1
+          }))
+        }, {headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        console.error("Verification overview error:", error);
+        return Response.json({ok:false,message:"Unable to load verification overview."},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/admin/clients/verification-audit" && request.method === "GET") {
       try {
         await ensureClientVerificationAuditsTable(env);
@@ -443,14 +507,17 @@ export default {
         if (!await requireIdDocumentClient(env, clientId)) {
           return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
         }
+        const selectColumns = `
+          id, client_id, date_request_id, accepted, authorization_wording,
+          authorization_version, accepted_at, verification_status,
+          verification_method, submitted_employer, submitted_job_title,
+          submitted_industry, identity_confirmed, employer_confirmed,
+          job_title_confirmed, industry_confirmed, contact_confirmed,
+          evidence_notes, decision_reason, decision_notes, birthdate, completed_by,
+          persona_transaction_id, persona_transaction_status, completed_at, updated_at
+        `;
         let result = await env.DB.prepare(`
-          SELECT id, client_id, date_request_id, accepted, authorization_wording,
-                 authorization_version, accepted_at, verification_status,
-                 verification_method, submitted_employer, submitted_job_title,
-                 submitted_industry, identity_confirmed, employer_confirmed,
-                 job_title_confirmed, industry_confirmed, contact_confirmed,
-                 evidence_notes, persona_transaction_id, persona_transaction_status,
-                 completed_at, updated_at
+          SELECT ${selectColumns}
           FROM client_verification_audits
           WHERE client_id = ?
           ORDER BY accepted_at DESC, id DESC
@@ -470,22 +537,24 @@ export default {
               ON CONFLICT(date_request_id) DO NOTHING
             `).bind(clientId, requestId).run();
             result = await env.DB.prepare(`
-              SELECT id, client_id, date_request_id, accepted, authorization_wording,
-                     authorization_version, accepted_at, verification_status,
-                     verification_method, submitted_employer, submitted_job_title,
-                     submitted_industry, identity_confirmed, employer_confirmed,
-                     job_title_confirmed, industry_confirmed, contact_confirmed,
-                     evidence_notes, persona_transaction_id, persona_transaction_status,
-                     completed_at, updated_at
+              SELECT ${selectColumns}
               FROM client_verification_audits
               WHERE client_id = ?
               ORDER BY accepted_at DESC, id DESC
             `).bind(clientId).all();
           }
         }
+        const history = await env.DB.prepare(`
+          SELECT id, audit_id, client_id, verification_status, decision_reason, decision_notes,
+                 verification_method, completed_at, completed_by, changed_at
+          FROM client_verification_decision_history
+          WHERE client_id=?
+          ORDER BY changed_at DESC, id DESC
+        `).bind(clientId).all();
         return Response.json({
           ok: true,
-          records: (result.results || []).map(verificationAuditPublicRecord)
+          records: (result.results || []).map(verificationAuditPublicRecord),
+          history: history.results || []
         }, { headers: { "Cache-Control": "private, no-store" } });
       } catch (error) {
         console.error("Load client verification audit error:", error);
@@ -505,8 +574,24 @@ export default {
         const allowedStatuses = new Set(["pending_review", "verified", "unable_to_verify", "declined"]);
         const verificationStatus = String(data.verification_status || "");
         if (!allowedStatuses.has(verificationStatus)) {
-          return Response.json({ ok: false, message: "Choose a valid verification status." }, { status: 400 });
+          return Response.json({ ok: false, message: "Choose a valid final decision." }, { status: 400 });
         }
+
+        const previous = await env.DB.prepare(`
+          SELECT id, client_id, verification_status, decision_reason, decision_notes,
+                 verification_method, completed_at, completed_by
+          FROM client_verification_audits
+          WHERE id=? AND client_id=? LIMIT 1
+        `).bind(auditId, clientId).first();
+        if (!previous) return Response.json({ok:false,message:"Verification record not found."},{status:404});
+        if (previous.verification_status !== "pending_review" && verificationStatus === "pending_review" && !data.confirm_reopen) {
+          return Response.json({
+            ok:false,
+            requires_confirmation:true,
+            message:"This verification is already completed. Confirm that you want to reopen it as Pending Review."
+          }, {status:409});
+        }
+
         const verificationMethod = String(data.verification_method || "").trim().slice(0, 240);
         const submittedIndustry = String(data.submitted_industry || "").trim().slice(0, 160);
         const identityConfirmed = data.identity_confirmed ? 1 : 0;
@@ -514,55 +599,96 @@ export default {
         const jobTitleConfirmed = data.job_title_confirmed ? 1 : 0;
         const industryConfirmed = data.industry_confirmed ? 1 : 0;
         const contactConfirmed = data.contact_confirmed ? 1 : 0;
-        if (
-          verificationStatus === "verified" &&
-          !(identityConfirmed && employerConfirmed && jobTitleConfirmed && industryConfirmed && contactConfirmed)
-        ) {
-          return Response.json({
-            ok: false,
-            message: "All five manual verification checklist items must be confirmed before marking this client Verified."
-          }, { status: 400 });
-        }
         const evidenceNotes = String(data.evidence_notes || "").trim().slice(0, 2000);
-        const completedAt = verificationStatus === "pending_review"
-          ? null
-          : (idDocumentDate(data.completed_at) || idDocumentToday());
+        const decisionReason = String(data.decision_reason || "").trim().slice(0, 160);
+        const decisionNotes = String(data.decision_notes || "").trim().slice(0, 1200);
+        const birthdate = idDocumentDate(data.birthdate);
+        const age = verificationAgeOnDate(birthdate);
+
+        if (verificationStatus === "verified") {
+          if (!(identityConfirmed && employerConfirmed && jobTitleConfirmed && industryConfirmed && contactConfirmed)) {
+            return Response.json({
+              ok:false,
+              message:"All five manual verification checklist items must be confirmed before marking this client Verified."
+            }, {status:400});
+          }
+          if (age === null) {
+            return Response.json({ok:false,message:"Enter a valid birthdate before marking this client Verified."},{status:400});
+          }
+          if (age < 21) {
+            return Response.json({ok:false,message:"This client is under the 21+ screening minimum and cannot be marked Verified."},{status:400});
+          }
+        }
+        if (verificationStatus === "unable_to_verify" && !decisionReason) {
+          return Response.json({ok:false,message:"Choose a reason before marking Unable to Verify."},{status:400});
+        }
+        if (verificationStatus === "declined" && !decisionReason && !decisionNotes) {
+          return Response.json({ok:false,message:"Add a private reason or note before declining this verification."},{status:400});
+        }
+
+        const decisionChanged =
+          String(previous.verification_status || "") !== verificationStatus ||
+          String(previous.decision_reason || "") !== decisionReason ||
+          String(previous.decision_notes || "") !== decisionNotes;
+        if (decisionChanged && previous.verification_status && previous.verification_status !== "pending_review") {
+          await env.DB.prepare(`
+            INSERT INTO client_verification_decision_history
+              (audit_id, client_id, verification_status, decision_reason, decision_notes,
+               verification_method, completed_at, completed_by, changed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          `).bind(
+            auditId, clientId, previous.verification_status, previous.decision_reason || "",
+            previous.decision_notes || "", previous.verification_method || "",
+            previous.completed_at || null, previous.completed_by || ""
+          ).run();
+        }
+
+        const completedBy = verificationStatus === "pending_review" ? "" : "admin-dashboard";
         const update = await env.DB.prepare(`
           UPDATE client_verification_audits
           SET verification_status = ?, verification_method = ?, submitted_industry = ?,
               identity_confirmed = ?, employer_confirmed = ?, job_title_confirmed = ?,
               industry_confirmed = ?, contact_confirmed = ?, evidence_notes = ?,
-              completed_at = ?, updated_at = CURRENT_TIMESTAMP
+              decision_reason = ?, decision_notes = ?, birthdate = ?,
+              completed_at = CASE
+                WHEN ?='pending_review' THEN NULL
+                WHEN verification_status<>? OR completed_at IS NULL THEN CURRENT_TIMESTAMP
+                ELSE completed_at
+              END,
+              completed_by = CASE WHEN ?='pending_review' THEN '' ELSE ? END,
+              updated_at = CURRENT_TIMESTAMP
           WHERE id = ? AND client_id = ?
         `).bind(
           verificationStatus, verificationMethod, submittedIndustry,
           identityConfirmed, employerConfirmed, jobTitleConfirmed,
           industryConfirmed, contactConfirmed, evidenceNotes,
-          completedAt, auditId, clientId
+          decisionReason, decisionNotes, birthdate,
+          verificationStatus, verificationStatus,
+          verificationStatus, completedBy,
+          auditId, clientId
         ).run();
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
         }
+
         await ensureClientIdDocumentsTable(env);
-        const idStatus = verificationStatus === "verified"
-          ? "verified"
-          : verificationStatus === "pending_review"
-            ? "pending_review"
-            : "rejected";
-        const idVerifiedAt = idStatus === "verified" ? (idDocumentDate(data.completed_at) || idDocumentToday()) : null;
+        const idStatus = verificationStatus === "verified" ? "verified" : verificationStatus === "pending_review" ? "pending_review" : "rejected";
         await env.DB.prepare(`
           UPDATE client_id_documents
-          SET verification_status = ?, verified_at = ?, updated_at = CURRENT_TIMESTAMP
+          SET verification_status = ?,
+              verified_at = CASE WHEN ?='verified' THEN date('now') ELSE NULL END,
+              updated_at = CURRENT_TIMESTAMP
           WHERE client_id = ?
-        `).bind(idStatus, idVerifiedAt, clientId).run();
+        `).bind(idStatus, idStatus, clientId).run();
+
         const row = await env.DB.prepare(`
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
                  authorization_version, accepted_at, verification_status,
                  verification_method, submitted_employer, submitted_job_title,
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
-                 evidence_notes, persona_transaction_id, persona_transaction_status,
-                 completed_at, updated_at
+                 evidence_notes, decision_reason, decision_notes, birthdate, completed_by,
+                 persona_transaction_id, persona_transaction_status, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
@@ -575,6 +701,7 @@ export default {
     }
 
     // =========================================================
+    // PRIVATE CLIENT ID DOCUMENTS    // =========================================================
     // PRIVATE CLIENT ID DOCUMENTS
     // These routes are protected by Cloudflare Access and never
     // return an R2 object key or public bucket URL.
@@ -4210,9 +4337,13 @@ if (
       const transactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
       const transactionTypeConfigured = /^txntp_[A-Za-z0-9]+$/.test(transactionTypeId);
       const webhookSecretConfigured = Boolean(env.PERSONA_WEBHOOK_SECRET);
+      const requiredFields = String(env.PERSONA_REQUIRED_FIELDS || "")
+        .split(",").map(value => value.trim()).filter(Boolean);
       return Response.json({
         ok:true,
         connected:apiKeyConfigured && transactionTypeConfigured,
+        setup_state:apiKeyConfigured && transactionTypeConfigured ? "connected" : "pending_setup",
+        required_fields:requiredFields,
         webhook_connected:webhookSecretConfigured,
         api_key_configured:apiKeyConfigured,
         transaction_type_configured:transactionTypeConfigured,
@@ -4253,7 +4384,7 @@ if (
           "name_first","name_middle","name_last","birthdate",
           "address_street_1","address_street_2","address_city",
           "address_subdivision","address_postal_code","address_country_code",
-          "tax_identification_number","document_number","email_address","phone_number"
+          "email_address","phone_number"
         ];
         const personaFields = {};
         const collapseSpaces = (value) => String(value || "").trim().replace(/\s+/g, " ");
@@ -4357,33 +4488,15 @@ if (
         const transaction = personaData?.data || {};
         const transactionId = String(transaction?.id || "");
         const transactionStatus = String(transaction?.attributes?.status || "created").toLowerCase();
-        let verificationStatus = "pending_review";
-        let identityConfirmed = 0;
-        if (transactionStatus === "approved") {
-          verificationStatus = "verified";
-          identityConfirmed = 1;
-        } else if (["declined","errored"].includes(transactionStatus)) {
-          verificationStatus = "unable_to_verify";
-        }
-
+        const identityConfirmed = transactionStatus === "approved" ? 1 : 0;
         await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET verification_status=?,
-              verification_method='persona',
-              identity_confirmed=?,
+          SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
               persona_transaction_id=?,
               persona_transaction_status=?,
-              completed_at=CASE WHEN ?='verified' THEN CURRENT_TIMESTAMP ELSE completed_at END,
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
-        `).bind(
-          verificationStatus,
-          identityConfirmed,
-          transactionId,
-          transactionStatus,
-          verificationStatus,
-          audit.id
-        ).run();
+        `).bind(identityConfirmed, transactionId, transactionStatus, audit.id).run();
 
         const updated = await env.DB.prepare(`
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
@@ -4391,16 +4504,16 @@ if (
                  verification_method, submitted_employer, submitted_job_title,
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
-                 evidence_notes, persona_transaction_id, persona_transaction_status,
-                 completed_at, updated_at
+                 evidence_notes, decision_reason, decision_notes, birthdate, completed_by,
+                 persona_transaction_id, persona_transaction_status, completed_at, updated_at
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
 
         return Response.json({
           ok:true,
           message:transactionStatus === "approved"
-            ? "Persona verification approved."
-            : "Information submitted to Persona. Current status: " + transactionStatus.replaceAll("_"," ") + ".",
+            ? "Persona returned Approved. Review the manual checklist and choose the final decision."
+            : "Persona status: " + transactionStatus.replaceAll("_"," ") + ". Manual verification remains the final decision.",
           transaction_id:transactionId,
           transaction_status:transactionStatus,
           record:verificationAuditPublicRecord(updated)
@@ -4481,29 +4594,24 @@ if (
 
         await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET verification_status=?,
-              verification_method='persona',
-              identity_confirmed=?,
+          SET identity_confirmed=CASE WHEN ?=1 THEN 1 ELSE identity_confirmed END,
               persona_transaction_id=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_id END,
               persona_transaction_status=CASE WHEN ?<>'' THEN ? ELSE persona_transaction_status END,
-              completed_at=CASE WHEN ?='verified' THEN CURRENT_TIMESTAMP ELSE completed_at END,
               updated_at=CURRENT_TIMESTAMP
           WHERE date_request_id=?
         `).bind(
-          verificationStatus,
           identityConfirmed,
           transactionStatus,
           transactionStatus ? objectId : "",
           transactionStatus,
           transactionStatus,
-          verificationStatus,
           requestId
         ).run();
 
         return Response.json({
           ok:true,
           booking_request_id:requestId,
-          status:verificationStatus,
+          status:"persona_updated",
           persona_status:transactionStatus || objectStatus
         });
       } catch(error) {
