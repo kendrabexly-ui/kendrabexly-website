@@ -2891,17 +2891,32 @@ async function loadRequests() {
         const age=section.dataset.verificationAge||(latest?.birthdate?verificationAge(latest.birthdate):null);
         const idLabel=section.dataset.hasDocument==="1"?"Received":"Not received";
         const manualDecision=statusLabel(latest?.verification_status||"pending_review");
+        const personaStatus=String(latest?.persona_transaction_status||"").toLowerCase();
+        const personaActive=Boolean(latest?.persona_transaction_id)&&["created","pending","needs_review","pending_fallback_inquiry","processing"].includes(personaStatus);
+        const overallState=!latest
+          ?"Not Started"
+          :latest.verification_status==="declined"
+            ?"Declined"
+            :latest.verification_status==="unable_to_verify"
+              ?"Unable to Verify"
+              :latest.verification_status==="verified"
+                ?"Verification Complete"
+                :latest.verification_status==="needs_more_information"||section.dataset.hasDocument!=="1"||!latest.birthdate
+                  ?"Information Needed"
+                  :personaActive
+                    ?"Persona Pending"
+                    :"Manual Review Needed";
         const pState=personaReadiness(section,section.dataset.personaConnected==="1");
         const validation=section._personaValidation||{missing:[]};
         const dobPresent=Boolean(section.querySelector(".client-persona-birthdate")?.value||latest?.birthdate);
         const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};
         const queueLabel=queueLabels?.[overview.queue_category]||overview.queue_category||"—";
         const completed=latest?.completed_at?formatVerificationTimestamp(latest.completed_at):"Not completed";
-        const badgeStyle=latest?.verification_status==="verified"?"background:#e8f6ec;color:#22613b;"
-          :latest?.verification_status==="needs_more_information"?"background:#fff4d8;color:#74520b;"
-          :["declined","unable_to_verify"].includes(latest?.verification_status)?"background:#fdeaea;color:#8a2424;"
+        const badgeStyle=overallState==="Verification Complete"?"background:#e8f6ec;color:#22613b;"
+          :overallState==="Information Needed"||overallState==="Persona Pending"||overallState==="Manual Review Needed"?"background:#fff4d8;color:#74520b;"
+          :["Declined","Unable to Verify"].includes(overallState)?"background:#fdeaea;color:#8a2424;"
           :"background:#eef2f8;color:#38506f;";
-        summary.innerHTML="<div style=\"display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;\"><strong>Verification summary</strong><span class=\"verification-status-pill\" style=\""+badgeStyle+"\">"+escapeHtml(manualDecision)+"</span></div>"+
+        summary.innerHTML="<div style=\"display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;\"><strong>Verification summary</strong><span class=\"verification-status-pill\" style=\""+badgeStyle+"\">"+escapeHtml(overallState)+"</span></div>"+
           "<div style=\"margin-top:7px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:5px 12px;color:var(--muted);\">"+
           "<span><strong>ID:</strong> "+escapeHtml(idLabel)+"</span>"+
           "<span><strong>DOB:</strong> "+(dobPresent?"Saved":"Missing")+"</span>"+
@@ -3770,9 +3785,16 @@ async function loadRequests() {
               decision_reason:reasonInput?.value||"",decision_notes:decisionNotes?.value||"",
               birthdate:section.querySelector(".client-persona-birthdate")?.value||"",
               review_flag:decision==="declined"&&action==="flag",
-              confirm_reopen:section.dataset.confirmReopen==="1"
+              confirm_reopen:section.dataset.confirmReopen==="1",
+              expected_updated_at:section._verificationAuditRecords?.[0]?.updated_at||""
             })});
             const result=await response.json();
+            if(response.status===409&&result.code==="verification_record_changed"){
+              await loadVerificationAudits(section);
+              section.dataset.finalDecisionConfirmed="0";
+              if(saveStatus)saveStatus.textContent="Record changed elsewhere. Latest version loaded — review before saving again.";
+              return;
+            }
             if(response.status===409&&result.requires_confirmation){
               if(window.confirm(result.message||"Reopen this verification?")){section.dataset.confirmReopen="1";button.disabled=false;button.click();return;}
             }
