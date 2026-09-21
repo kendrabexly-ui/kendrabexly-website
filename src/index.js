@@ -5679,6 +5679,32 @@ if (
           workflowLookupError=String(error?.message||error);
         }
 
+        let workflowRunDiagnostics={};
+        if(matchedWorkflowRun){
+          const runId=String(matchedWorkflowRun.id||"");
+          if(runId){
+            try{
+              const detailResponse=await fetch(
+                "https://api.withpersona.com/api/v1/workflow-runs/"+encodeURIComponent(runId),
+                {headers:workflowHeaders}
+              );
+              const detailPayload=await detailResponse.json().catch(()=>({}));
+              if(detailResponse.ok && detailPayload?.data){
+                matchedWorkflowRun=detailPayload.data;
+                const attrs=detailPayload.data?.attributes||{};
+                const meta=detailPayload.data?.meta||{};
+                const safeKeys=["status","error","errors","error_message","error-message","message","failure_reason","failure-reason","step","step_name","step-name"];
+                const safe={};
+                for(const key of safeKeys){
+                  if(attrs[key]!==undefined&&attrs[key]!==null&&attrs[key]!=="")safe[key]=attrs[key];
+                  if(meta[key]!==undefined&&meta[key]!==null&&meta[key]!=="")safe["meta_"+key]=meta[key];
+                }
+                workflowRunDiagnostics=safe;
+              }
+            }catch(_error){}
+          }
+        }
+
         const workflowRunAttrs=matchedWorkflowRun?.attributes||{};
         const workflowRunStatus=String(workflowRunAttrs.status||"").toLowerCase();
         const workflowRunState=matchedWorkflowRun
@@ -5743,7 +5769,8 @@ if (
             created_at:workflowRunCreatedAt,
             completed_at:workflowRunCompletedAt,
             workflow_id:String(matchedWorkflowRun?.relationships?.workflow?.data?.id||""),
-            workflow_name:String(matchedWorkflow?.attributes?.name||"ClearPath - Inquiry Created - Database Verification")
+            workflow_name:String(matchedWorkflow?.attributes?.name||"ClearPath - Inquiry Created - Database Verification"),
+            diagnostics:workflowRunDiagnostics
           } : null,
           workflow_triggered:Boolean(matchedWorkflowRun),
           workflow_state:latestDatabase ? workflowState : workflowRunState,
