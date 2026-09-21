@@ -537,6 +537,8 @@
         text-align: center !important;
         line-height: 1.2;
         padding: 10px 14px !important;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .back-site {
@@ -609,6 +611,58 @@
 </head>
 
 <body>
+
+  <script>
+    // Lightweight dashboard navigation guard.
+    // This is intentionally independent from the large admin script below so
+    // mobile tabs continue switching even if a later section script fails.
+    (() => {
+      const switchAdminSection = (sectionName) => {
+        if (!sectionName) return false;
+        const section = document.getElementById(sectionName);
+        const buttons = document.querySelectorAll(".nav button[data-section]");
+        if (!section || !buttons.length) return false;
+
+        document.body.dataset.adminSection = sectionName;
+
+        document.querySelectorAll(".section").forEach((item) => {
+          const active = item.id === sectionName;
+          item.classList.toggle("active", active);
+          item.classList.toggle("section-hard-hidden", !active);
+          item.hidden = !active;
+          item.setAttribute("aria-hidden", active ? "false" : "true");
+        });
+
+        buttons.forEach((button) => {
+          const active = button.dataset.section === sectionName;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-selected", active ? "true" : "false");
+        });
+
+        return true;
+      };
+
+      window.__switchAdminSection = switchAdminSection;
+
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest?.(".nav button[data-section]");
+        if (!button) return;
+        const sectionName = button.dataset.section;
+        if (!switchAdminSection(sectionName)) return;
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("section", sectionName);
+        nextUrl.searchParams.delete("client_email");
+        window.history.replaceState({}, "", nextUrl);
+      }, true);
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const requested = new URLSearchParams(window.location.search).get("section");
+        const initial = requested || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
+        switchAdminSection(initial);
+      }, { once: true });
+    })();
+  </script>
 
   <div class="admin-layout">
 
@@ -6214,22 +6268,27 @@ function escapeHtml(value) {
       document.querySelectorAll(".section");
 
     const openSection = (sectionName) => {
-      document.body.dataset.adminSection = sectionName;
-      const button = Array.from(navButtons).find((item) => item.dataset.section === sectionName);
-      const section = document.getElementById(sectionName);
-      if (!button || !section) return;
-      navButtons.forEach((item) => item.classList.remove("active"));
-      sections.forEach((item) => {
-        item.classList.remove("active");
-        item.classList.add("section-hard-hidden");
-        item.setAttribute("aria-hidden","true");
-        item.hidden = true;
-      });
-      button.classList.add("active");
-      section.hidden = false;
-      section.classList.remove("section-hard-hidden");
-      section.classList.add("active");
-      section.setAttribute("aria-hidden","false");
+      const switched = typeof window.__switchAdminSection === "function"
+        ? window.__switchAdminSection(sectionName)
+        : false;
+      if (!switched) {
+        document.body.dataset.adminSection = sectionName;
+        const button = Array.from(navButtons).find((item) => item.dataset.section === sectionName);
+        const section = document.getElementById(sectionName);
+        if (!button || !section) return;
+        navButtons.forEach((item) => item.classList.remove("active"));
+        sections.forEach((item) => {
+          item.classList.remove("active");
+          item.classList.add("section-hard-hidden");
+          item.setAttribute("aria-hidden","true");
+          item.hidden = true;
+        });
+        button.classList.add("active");
+        section.hidden = false;
+        section.classList.remove("section-hard-hidden");
+        section.classList.add("active");
+        section.setAttribute("aria-hidden","false");
+      }
       const xBoundary = document.getElementById("x-agent-boundary");
       if (xBoundary) xBoundary.style.display = sectionName === "x-agent" ? "block" : "none";
       const newsletterBoundary = document.getElementById("newsletter-boundary");
