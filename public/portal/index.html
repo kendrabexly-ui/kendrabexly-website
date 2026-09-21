@@ -607,7 +607,94 @@
     #photo-editor-canvas-wrap { overscroll-behavior:contain; }
     #photo-editor-canvas { max-width:none; max-height:none; }
     #photo-editor[aria-busy="true"] .photo-editor-tools { opacity:.78; }
-</style>
+
+    /* MOBILE-NAV-HARD-FIX-2026-09-21 */
+    @media (max-width: 900px) {
+      .admin-layout {
+        display: block !important;
+        grid-template-columns: none !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+      }
+
+      .sidebar {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: calc(14px + env(safe-area-inset-top)) 16px 10px !important;
+      }
+
+      .sidebar .brand {
+        margin: 0 0 4px !important;
+        font-size: 24px !important;
+        line-height: 1.08 !important;
+      }
+
+      .sidebar .admin-label {
+        margin: 0 0 10px !important;
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+      }
+
+      .sidebar .nav {
+        display: flex !important;
+        flex-flow: row nowrap !important;
+        grid-template-columns: none !important;
+        gap: 8px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 0 0 4px !important;
+        margin: 0 !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+      }
+
+      .sidebar .nav::-webkit-scrollbar {
+        display: none !important;
+      }
+
+      .sidebar .nav button {
+        display: inline-flex !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: max-content !important;
+        max-width: none !important;
+        min-height: 40px !important;
+        margin: 0 !important;
+        padding: 9px 13px !important;
+        white-space: nowrap !important;
+        text-align: center !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 15px !important;
+        line-height: 1.15 !important;
+        border-radius: 8px !important;
+      }
+
+      .sidebar .back-site {
+        display: none !important;
+      }
+
+      .main,
+      main.main {
+        width: 100% !important;
+        max-width: 100vw !important;
+        margin: 0 !important;
+        padding: 22px 16px calc(28px + env(safe-area-inset-bottom)) !important;
+      }
+
+      .topbar {
+        margin-bottom: 28px !important;
+      }
+    }
+
+  </style>
 </head>
 
 <body>
