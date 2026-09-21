@@ -2922,60 +2922,124 @@ async function loadRequests() {
         street.value=titleCaseAddress(line1);
         if(line2)line2.value=titleCaseAddress(second);
       };
+      const personaFieldMeta={
+        name_first:{selector:".client-persona-name-first",label:"First name"},
+        name_middle:{selector:".client-persona-name-middle",label:"Middle name"},
+        name_last:{selector:".client-persona-name-last",label:"Last name"},
+        address_street_1:{selector:".client-persona-address-1",label:"Street address"},
+        address_street_2:{selector:".client-persona-address-2",label:"Address line 2"},
+        address_city:{selector:".client-persona-city",label:"City"},
+        address_subdivision:{selector:".client-persona-state",label:"State"},
+        address_postal_code:{selector:".client-persona-postal",label:"Postal code"},
+        address_country_code:{selector:".client-persona-country",label:"Country code"},
+        email_address:{selector:".client-persona-email",label:"Email"},
+        phone_number:{selector:".client-persona-phone",label:"Phone"},
+        birthdate:{selector:".client-persona-birthdate",label:"Birthdate"}
+      };
+      const clearPersonaFieldStates=(section)=>{
+        Object.values(personaFieldMeta).forEach(meta=>{
+          const input=section.querySelector(meta.selector);
+          const label=input?.closest("label");
+          if(input){input.removeAttribute("aria-invalid");input.style.borderColor="";}
+          if(label){label.classList.remove("persona-field-error","persona-field-valid");}
+          const status=label?.querySelector(".persona-field-status");
+          if(status)status.textContent="";
+        });
+      };
+      const markPersonaField=(section,field,state,message)=>{
+        const meta=personaFieldMeta[field];
+        const input=meta?section.querySelector(meta.selector):null;
+        const label=input?.closest("label");
+        if(!input||!label)return;
+        let status=label.querySelector(".persona-field-status");
+        if(!status){status=document.createElement("span");status.className="persona-field-status verification-field-note";label.appendChild(status);}
+        label.classList.remove("persona-field-error","persona-field-valid");
+        if(state==="error"){label.classList.add("persona-field-error");input.setAttribute("aria-invalid","true");status.textContent=message||"Needs attention";}
+        else if(state==="valid"){label.classList.add("persona-field-valid");input.removeAttribute("aria-invalid");status.textContent=message||"Valid";}
+        else{input.removeAttribute("aria-invalid");status.textContent=message||"";}
+      };
+      const personaFieldValue=(section,field)=>normalizeSpaces(section.querySelector(personaFieldMeta[field]?.selector)?.value);
       const validatePersonaFields=(section,{show=true,force=false}={})=>{
-        const errors=[];
+        clearPersonaFieldStates(section);
+        const fieldErrors={};
         const warnings=[];
-        const country=normalizeSpaces(section.querySelector(".client-persona-country")?.value||"US").toUpperCase();
-        const state=normalizeSpaces(section.querySelector(".client-persona-state")?.value).toUpperCase();
-        const city=normalizeSpaces(section.querySelector(".client-persona-city")?.value);
-        const postal=normalizeSpaces(section.querySelector(".client-persona-postal")?.value);
-        const street=normalizeSpaces(section.querySelector(".client-persona-address-1")?.value);
-        const line2=normalizeSpaces(section.querySelector(".client-persona-address-2")?.value);
-        const email=normalizeSpaces(section.querySelector(".client-persona-email")?.value).toLowerCase();
+        const country=personaFieldValue(section,"address_country_code").toUpperCase()||"US";
+        const state=personaFieldValue(section,"address_subdivision").toUpperCase();
+        const city=personaFieldValue(section,"address_city");
+        const postal=personaFieldValue(section,"address_postal_code").replace(/\s+/g,"");
+        const street=personaFieldValue(section,"address_street_1");
+        const line2=personaFieldValue(section,"address_street_2");
+        const email=personaFieldValue(section,"email_address").toLowerCase();
         const phone=section.querySelector(".client-persona-phone")?.value||"";
         const phoneDigits=phone.replace(/\D/g,"");
-        if(street&&( !city || !state || !postal)) warnings.push("Address is incomplete: city, state, and postal code should be filled in.");
-        if(country&&!/^[A-Z]{2}$/.test(country))errors.push("Country code must contain exactly two letters.");
-        if(country==="US"&&state&&!VALID_US_STATES.has(state))errors.push("State must use a valid two-letter U.S. abbreviation.");
-        if(street&&line2&&street.toLowerCase()===line2.toLowerCase())warnings.push("Street address and Address line 2 contain the same value.");
-        if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))errors.push("Email address format is invalid.");
-        if(phone&&!(phoneDigits.length===10||(phoneDigits.length===11&&phoneDigits.startsWith("1"))))errors.push("Phone number appears incomplete.");
+        const birthdate=personaFieldValue(section,"birthdate");
         const required=section._personaRequiredFields||[];
-        const selectorByField={
-          name_first:".client-persona-name-first",name_middle:".client-persona-name-middle",name_last:".client-persona-name-last",
-          address_street_1:".client-persona-address-1",address_street_2:".client-persona-address-2",address_city:".client-persona-city",
-          address_subdivision:".client-persona-state",address_postal_code:".client-persona-postal",address_country_code:".client-persona-country",
-          email_address:".client-persona-email",phone_number:".client-persona-phone",birthdate:".client-persona-birthdate"
-        };
-        const missing=required.filter(field=>!normalizeSpaces(section.querySelector(selectorByField[field])?.value));
-        if(missing.length){
-          const labels=missing.map(field=>field==="birthdate"?"Birthdate (enter it in Manual Verification)":field.replaceAll("_"," "));
-          errors.push("Required Persona fields are missing: "+labels.join(", ")+".");
-        }
+        const missing=[];
+        required.forEach(field=>{
+          if(!personaFieldValue(section,field)){missing.push(field);fieldErrors[field]="Required field is missing.";}
+        });
+        if(country&&!/^[A-Z]{2}$/.test(country))fieldErrors.address_country_code="Country code must contain exactly two letters.";
+        if(country==="US"&&state&&!VALID_US_STATES.has(state))fieldErrors.address_subdivision="Use a valid two-letter U.S. state code.";
+        if(country==="US"&&postal&&!/^\d{5}(?:-\d{4})?$/.test(postal))fieldErrors.address_postal_code="ZIP must be 12345 or 12345-6789.";
+        if(street&&(!city||!state||!postal))warnings.push("Address is incomplete: city, state, and postal code should be filled in.");
+        if(street&&line2&&street.toLowerCase()===line2.toLowerCase())warnings.push("Street address and Address line 2 contain the same value.");
+        if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))fieldErrors.email_address="Email format is invalid.";
+        if(phone&&!(phoneDigits.length===10||(phoneDigits.length===11&&phoneDigits.startsWith("1"))))fieldErrors.phone_number="Phone number is incomplete.";
+        Object.entries(fieldErrors).forEach(([field,message])=>markPersonaField(section,field,"error",message));
+        if(email&&!fieldErrors.email_address)markPersonaField(section,"email_address","valid","Valid email");
+        if(phone&&!fieldErrors.phone_number)markPersonaField(section,"phone_number","valid","Valid phone");
+        if(country==="US"&&state&&!fieldErrors.address_subdivision)markPersonaField(section,"address_subdivision","valid","Valid state");
+        if(country==="US"&&postal&&!fieldErrors.address_postal_code)markPersonaField(section,"address_postal_code","valid","Valid ZIP");
+        const errors=Object.entries(fieldErrors).map(([field,message])=>({field,message,label:personaFieldMeta[field]?.label||field}));
         const box=section.querySelector(".client-persona-validation");
         if(show&&box){
           if(errors.length){
             box.className="client-persona-validation verification-error";
-            box.innerHTML="<strong>Fix before Persona submission:</strong><br>"+errors.map(escapeHtml).join("<br>")+(warnings.length?"<br><br><strong>Warnings:</strong><br>"+warnings.map(escapeHtml).join("<br>"):"");
+            box.innerHTML="<strong>Fix before Persona submission:</strong>"+errors.map(item=>{
+              const jump=item.field==="birthdate"?' data-jump-target=".client-persona-birthdate"':"";
+              return '<button type="button" class="persona-error-item"'+jump+'>'+escapeHtml(item.label)+": "+escapeHtml(item.message)+"</button>";
+            }).join("")+(warnings.length?'<div style="margin-top:8px;padding-top:7px;border-top:1px solid #f1c7c0;"><strong>Warnings</strong><br>'+warnings.map(x=>"• "+escapeHtml(x)).join("<br>")+"</div>":"");
+            box.querySelectorAll("[data-jump-target]").forEach(button=>button.addEventListener("click",()=>{
+              const target=section.querySelector(button.dataset.jumpTarget);
+              const editor=section.querySelector(".client-verification-editor");
+              if(editor)editor.hidden=false;
+              target?.scrollIntoView({behavior:"smooth",block:"center"});target?.focus();
+            }));
           }else if(warnings.length){
             box.className="client-persona-validation verification-warning";
-            box.innerHTML="<strong>Review:</strong><br>"+warnings.map(escapeHtml).join("<br>");
-          }else{
-            box.className="client-persona-validation";
-            box.textContent="";
-          }
+            box.innerHTML="<strong>Review:</strong><br>"+warnings.map(x=>"• "+escapeHtml(x)).join("<br>");
+          }else{box.className="client-persona-validation";box.textContent="";}
         }
-        return {valid:errors.length===0,errors,warnings,missing};
+        const requiredComplete=missing.length===0;
+        const emailValid=!email||!fieldErrors.email_address;
+        const phoneValid=!phone||!fieldErrors.phone_number;
+        const addressValid=!fieldErrors.address_country_code&&!fieldErrors.address_subdivision&&!fieldErrors.address_postal_code&&!(street&&(!city||!state||!postal));
+        const dobPresent=Boolean(birthdate);
+        const readiness={requiredComplete,emailValid,phoneValid,addressValid,dobPresent};
+        section._personaValidation={valid:errors.length===0,errors,warnings,missing,readiness};
+        const setReadyRow=(key,ok)=>{
+          const row=section.querySelector('[data-readiness="'+key+'"]');
+          if(row){const strong=row.querySelector("strong");if(strong){strong.textContent=ok?"✓":"Needs attention";strong.style.color=ok?"#2f6b45":"#8a2424";}}
+        };
+        setReadyRow("required",requiredComplete);setReadyRow("email",emailValid);setReadyRow("phone",phoneValid);setReadyRow("address",addressValid);setReadyRow("dob",dobPresent);
+        const readyText=section.querySelector(".client-persona-ready-text");
+        const allReady=requiredComplete&&emailValid&&phoneValid&&addressValid&&dobPresent;
+        if(readyText){readyText.textContent=allReady?"Ready to submit":"Not ready to submit";readyText.style.color=allReady?"#2f6b45":"#8a2424";}
+        const dobHandoff=section.querySelector(".client-persona-dob-handoff");
+        if(dobHandoff)dobHandoff.innerHTML="<strong>DOB pulled from Manual Verification</strong><br>"+(birthdate?"Saved DOB is present and will be used automatically if Persona requires it.":"DOB is missing. Enter it in Manual Verification.");
+        return {valid:errors.length===0,errors,warnings,missing,readiness,allReady};
       };
-      const normalizePersonaFields = (section) => {
-        [".client-persona-name-first",".client-persona-name-middle",".client-persona-name-last",".client-persona-address-2",".client-persona-postal"].forEach(selector => {
+      const normalizePersonaFields=(section)=>{
+        [".client-persona-name-first",".client-persona-name-middle",".client-persona-name-last",".client-persona-address-2"].forEach(selector=>{
           const input=section.querySelector(selector);if(input)input.value=normalizeSpaces(input.value);
         });
         normalizeAddressParts(section);
         const city=section.querySelector(".client-persona-city");if(city)city.value=titleCaseAddress(city.value);
         const state=section.querySelector(".client-persona-state");if(state)state.value=normalizeStateValue(state.value);
         const country=section.querySelector(".client-persona-country");if(country)country.value=(normalizeSpaces(country.value)||"US").toUpperCase();
-        const email=section.querySelector(".client-persona-email");if(email)email.value=normalizeSpaces(email.value).toLowerCase();
+        const postal=section.querySelector(".client-persona-postal");if(postal)postal.value=normalizeSpaces(postal.value).replace(/\s+/g,"");
+        const email=section.querySelector(".client-persona-email");
+        if(email)email.value=normalizeSpaces(email.value).toLowerCase().replace(/[\s]+/g,"").replace(/[;,]+$/,"");
         const phone=section.querySelector(".client-persona-phone");if(phone)phone.value=formatVerificationPhone(phone.value);
         const line1=normalizeSpaces(section.querySelector(".client-persona-address-1")?.value);
         const line2=section.querySelector(".client-persona-address-2");
