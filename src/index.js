@@ -4114,27 +4114,31 @@ if (
             message:"The Persona Transaction Type ID is invalid. Replace PERSONA_TRANSACTION_TYPE_ID with the ID beginning with txntp_, not an Inquiry or Verification Template ID."
           }, {status:503});
         }
-        if (!env.ID_DOCUMENTS) {
-          return Response.json({ok:false,message:"Private ID storage is not configured."},{status:503});
-        }
-
         await ensureClientVerificationAuditsTable(env);
-        await ensureClientIdDocumentsTable(env);
 
         const data = await request.json().catch(() => ({}));
         const clientId = Number(data.client_id);
         let requestId = Number(data.booking_request_id);
-        const idClass = String(data.id_class || "").trim().toLowerCase();
-        const countryCode = String(data.address_country_code || "US").trim().toUpperCase();
+        const incomingFields = data.persona_fields && typeof data.persona_fields === "object" ? data.persona_fields : {};
+        const allowedPersonaFields = [
+          "name_first","name_middle","name_last","birthdate",
+          "address_street_1","address_street_2","address_city",
+          "address_subdivision","address_postal_code","address_country_code",
+          "tax_identification_number","document_number","email_address","phone_number"
+        ];
+        const personaFields = {};
+        for (const key of allowedPersonaFields) {
+          const value = String(incomingFields[key] || "").trim();
+          if (value) personaFields[key] = key === "address_country_code" || key === "address_subdivision" ? value.toUpperCase() : value;
+        }
 
-        const allowedIdClasses = new Set(["dl","id","pp","ppc","pr","td","visa","wp"]);
         if (!Number.isInteger(clientId) || clientId < 1) {
           return Response.json({ok:false,message:"Choose a valid client."},{status:400});
         }
-        if (!allowedIdClasses.has(idClass)) {
-          return Response.json({ok:false,message:"Choose the ID type before running Persona verification."},{status:400});
+        if (!personaFields.name_first || !personaFields.name_last || !personaFields.birthdate) {
+          return Response.json({ok:false,message:"First name, last name, and birthdate are required before running Persona."},{status:400});
         }
-        if (!/^[A-Z]{2}$/.test(countryCode)) {
+        if (personaFields.address_country_code && !/^[A-Z]{2}$/.test(personaFields.address_country_code)) {
           return Response.json({ok:false,message:"Country code must use a two-letter code such as US."},{status:400});
         }
         if (!await requireIdDocumentClient(env, clientId)) {
@@ -4171,36 +4175,10 @@ if (
           return Response.json({ok:false,message:"Unable to create the verification audit for this booking request."},{status:500});
         }
 
-        const documentRow = await env.DB.prepare(
-          "SELECT object_key,file_name,mime_type,updated_at FROM client_id_documents WHERE client_id=? LIMIT 1"
-        ).bind(clientId).first();
-        if (!documentRow) {
-          return Response.json({ok:false,message:"Upload the client's ID image before running Persona."},{status:400});
-        }
-
-        const object = await env.ID_DOCUMENTS.get(documentRow.object_key);
-        if (!object) {
-          return Response.json({ok:false,message:"The stored ID image could not be loaded."},{status:404});
-        }
-
-        const bytes = await object.arrayBuffer();
-        const form = new FormData();
-        form.append("data[attributes][transaction_type_id]", personaTransactionTypeId);
-        form.append("data[attributes][reference_id]", String(requestId));
-        form.append("data[attributes][fields][id_class]", idClass);
-        form.append("data[attributes][fields][address_country_code]", countryCode);
-        form.append(
-          "data[attributes][fields][id_front_photo]",
-          new Blob([bytes], {type: documentRow.mime_type || "image/jpeg"}),
-          String(documentRow.file_name || "id-document.jpg")
-        );
-
         const headers = {
           Authorization: "Bearer " + String(env.PERSONA_API_KEY),
+          "Content-Type": "application/json",
           "Key-Inflection": "kebab",
-          // A fresh key represents each intentional admin submission. Reusing a
-          // document-based key with multipart FormData can make Persona reject a
-          // later submission because the multipart boundary changes the payload.
           "Idempotency-Key": "clearpath-" + crypto.randomUUID()
         };
         if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
@@ -4208,7 +4186,15 @@ if (
         const personaResponse = await fetch("https://api.withpersona.com/api/v1/transactions", {
           method:"POST",
           headers,
-          body:form
+          body:JSON.stringify({
+            data:{
+              attributes:{
+                transaction_type_id:personaTransactionTypeId,
+                reference_id:String(requestId),
+                fields:personaFields
+              }
+            }
+          })
         });
         const personaData = await personaResponse.json().catch(() => ({}));
         if (!personaResponse.ok) {
@@ -4216,7 +4202,7 @@ if (
           const personaRequestId = personaResponse.headers.get("Request-Id") || "";
           let detail = personaError.detail || personaError.title || personaData?.message || "Persona rejected the verification request.";
           if (personaResponse.status === 400 && /^bad request$/i.test(String(detail).trim())) {
-            detail = "Persona rejected the transaction fields. Confirm this Transaction Type contains id_front_photo, id_class, and address_country_code fields.";
+            detail = "Persona rejected the transaction fields. Confirm PERSONA_TRANSACTION_TYPE_ID points to your Database Verification transaction type and that the manually entered fields match its required field schema.";
           }
           if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
           console.error("Persona transaction create failed:", personaResponse.status, personaData);
@@ -4268,15 +4254,15 @@ if (
         return Response.json({
           ok:true,
           message:transactionStatus === "approved"
-            ? "Persona verified the ID."
-            : "ID submitted to Persona. Current status: " + transactionStatus.replaceAll("_"," ") + ".",
+            ? "Persona verification approved."
+            : "Information submitted to Persona. Current status: " + transactionStatus.replaceAll("_"," ") + ".",
           transaction_id:transactionId,
           transaction_status:transactionStatus,
           record:verificationAuditPublicRecord(updated)
         }, {headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Persona admin verification error:", error);
-        return Response.json({ok:false,message:"Unable to submit this ID to Persona."},{status:500});
+        return Response.json({ok:false,message:"Unable to submit this verification to Persona."},{status:500});
       }
     }
 
