@@ -1643,8 +1643,6 @@
       }
     }
 
-    const scheduleDashboardLoad = () => loadDashboard().then(() => { try { adminSectionLoadState?.set("dashboard","loaded"); } catch {} });
-
     async function loadBlacklist() {
   const container = document.getElementById("blacklist-records");
   if (!container) return;
@@ -3301,9 +3299,6 @@ function escapeHtml(value) {
                 const w = window.open("", "_blank");
                 if (w) {
                   w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}.offer-button{display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff!important;text-decoration:none;border-radius:6px;font:14px Arial,sans-serif}.offer-note{margin:12px 0 0!important;font:12px Arial,sans-serif!important;color:#77736f}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1>${newsletterImage ? `<img src="${newsletterImage}" alt="" style="display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin:0 0 24px;">` : ""}<p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p><a class="offer-button" href="/request?newsletter_offer=${encodeURIComponent(id)}">💋 Book My Subscriber Special</a><p class="offer-note">Book through this button so your subscriber special is automatically attached to your request.</p></div></main>
-
-
-  <script src="/portal/photo-editor.js" defer></script>
 </body></html>`);
                   w.document.close();
                 }
@@ -5050,5 +5045,6 @@ function escapeHtml(value) {
     });
   })();
 </script>
+  <script src="/portal/photo-editor.js" defer></script>
 </body>
 </html>
