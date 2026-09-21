@@ -1890,7 +1890,8 @@ async function clearBookingSubmissions() {
 
 document.getElementById("clear-booking-submissions")?.addEventListener("click", clearBookingSubmissions);
 
-async function loadRequests() {
+async function loadRequests(options = {}) {
+  const renderClientProfiles = options.renderClients !== false;
   const recentContainer =
     document.getElementById("recent-requests");
   const recordsContainer =
@@ -4303,7 +4304,7 @@ async function loadRequests() {
         });
       });
     };
-    renderClients();
+    if (renderClientProfiles) renderClients();
     if(!window.__verificationUnsavedGuard){
       window.__verificationUnsavedGuard=true;
       window.addEventListener("beforeunload",(event)=>{
@@ -6281,11 +6282,12 @@ function escapeHtml(value) {
       try {
         if (sectionName === "dashboard") {
           await loadDashboard();
-        } else if (sectionName === "requests" || sectionName === "clients") {
-          await loadRequests();
+        } else if (sectionName === "requests") {
+          await loadRequests({renderClients:false});
+        } else if (sectionName === "clients") {
+          await loadRequests({renderClients:true});
+          // loadRequests also refreshes the Requests data, so that tab can reuse it.
           adminSectionLoadState.set("requests", "loaded");
-          adminSectionLoadState.set("clients", "loaded");
-          return;
         } else if (sectionName === "blacklist") {
           await loadBlacklist();
         } else if (sectionName === "emails") {
@@ -6313,7 +6315,8 @@ function escapeHtml(value) {
 
     const initialSectionName = new URLSearchParams(window.location.search).get("section") || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
     openSection(initialSectionName);
-    loadAdminSectionData(initialSectionName);
+    // Let the selected tab paint before starting network work or large DOM updates.
+    requestAnimationFrame(() => loadAdminSectionData(initialSectionName));
 
     navButtons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -6330,7 +6333,8 @@ function escapeHtml(value) {
         nextUrl.searchParams.delete("client_email");
         window.history.replaceState({}, "", nextUrl);
 
-        loadAdminSectionData(sectionName);
+        // Paint the selected section first; heavy data rendering happens on the next frame.
+        requestAnimationFrame(() => loadAdminSectionData(sectionName));
       });
     });
   </script>
@@ -6416,7 +6420,8 @@ function escapeHtml(value) {
     const useHistory = document.getElementById("retention-use-history");
     const save = document.getElementById("retention-save-settings");
     const status = document.getElementById("retention-save-status");
-    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !tone || !useFirstName || !usePreferences || !useHistory || !save) return;
+    const summary = document.getElementById("retention-plan-summary");
+    if (!strategy || !eligibility || !frequency || !expiration || !delivery || !tone || !useFirstName || !usePreferences || !useHistory || !save || !summary) return;
     const key = "kendra_retention_settings";
     try {
       const saved = JSON.parse(localStorage.getItem(key) || "{}");
