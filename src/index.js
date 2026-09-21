@@ -538,6 +538,49 @@ async function fetchPersonaInquiryTemplateConfig(env) {
   }
   const headers={Authorization:"Bearer "+apiKey,"Key-Inflection":"snake"};
   if (env.PERSONA_API_VERSION) headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
+  const configuredSupported=String(env.PERSONA_SUPPORTED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean);
+  const configuredRequired=String(env.PERSONA_REQUIRED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean);
+  const defaultSupported=[
+    "name_first","name_middle","name_last","birthdate","address_street_1","address_street_2",
+    "address_city","address_subdivision","address_postal_code","address_country_code",
+    "email_address","phone_number","identification_number","identification_class",
+    "issuing_state","expiration_date"
+  ];
+  const buildConfig=(data,{state="connected",message="Connected",sandbox=false}={})=>{
+    const schemas=Array.isArray(data?.data?.attributes?.field_schemas) ? data.data.attributes.field_schemas : [];
+    const supportedFields=schemas.length
+      ? schemas.map(item=>String(item?.key || "").trim()).filter(Boolean)
+      : (configuredSupported.length ? configuredSupported : defaultSupported);
+    const requiredFields=configuredRequired.length
+      ? configuredRequired
+      : (schemas.length
+        ? schemas.filter(item=>Boolean(item?.config?.required)).map(item=>String(item?.key || "").trim()).filter(Boolean)
+        : ["name_first","name_last","birthdate"]);
+    const supported=new Set(supportedFields);
+    const idNumberField=firstSupportedPersonaField(supported,PERSONA_ID_NUMBER_FIELD_CANDIDATES);
+    return {
+      ok:true,state,message,sandbox,
+      inquiry_template_id:inquiryTemplateId,
+      inquiry_template_name:String(data?.data?.attributes?.name || ""),
+      supported_fields:supportedFields,
+      required_fields:requiredFields,
+      id_number_supported:Boolean(idNumberField),
+      id_number_field:idNumberField,
+      technical_details:sandbox ? "Persona does not expose Inquiry Template resources through its Sandbox API. The API key is valid; the template will be validated when the first Sandbox inquiry is created." : ""
+    };
+  };
+  if (/^persona_sandbox_/i.test(apiKey)) {
+    const sandboxResponse=await fetch("https://api.withpersona.com/api/v1/inquiries?page%5Bsize%5D=1",{headers});
+    const sandboxData=await sandboxResponse.json().catch(()=>({}));
+    if (!sandboxResponse.ok) {
+      const detail=String(sandboxData?.errors?.[0]?.detail || sandboxData?.errors?.[0]?.title || sandboxData?.message || "");
+      if (sandboxResponse.status===401 || sandboxResponse.status===403) {
+        return {ok:false,state:"invalid_credentials",message:"Invalid credentials",technical_details:detail || "Persona rejected the Sandbox API key."};
+      }
+      return {ok:false,state:"connection_error",message:"Persona connection error",technical_details:detail || ("Persona returned HTTP "+sandboxResponse.status+" while validating the Sandbox API key.")};
+    }
+    return buildConfig({}, {state:"connected_sandbox",message:"Connected (Sandbox)",sandbox:true});
+  }
   const response=await fetch("https://api.withpersona.com/api/v1/inquiry-templates/"+encodeURIComponent(inquiryTemplateId),{headers});
   const data=await response.json().catch(()=>({}));
   if (!response.ok) {
@@ -550,34 +593,7 @@ async function fetchPersonaInquiryTemplateConfig(env) {
     }
     return {ok:false,state:"connection_error",message:"Persona connection error",technical_details:detail || ("Persona returned HTTP "+response.status+".")};
   }
-  const schemas=Array.isArray(data?.data?.attributes?.field_schemas) ? data.data.attributes.field_schemas : [];
-  const configuredSupported=String(env.PERSONA_SUPPORTED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean);
-  const configuredRequired=String(env.PERSONA_REQUIRED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean);
-  const defaultSupported=[
-    "name_first","name_middle","name_last","birthdate","address_street_1","address_street_2",
-    "address_city","address_subdivision","address_postal_code","address_country_code",
-    "email_address","phone_number","identification_number","identification_class",
-    "issuing_state","expiration_date"
-  ];
-  const supportedFields=schemas.length
-    ? schemas.map(item=>String(item?.key || "").trim()).filter(Boolean)
-    : (configuredSupported.length ? configuredSupported : defaultSupported);
-  const requiredFields=configuredRequired.length
-    ? configuredRequired
-    : (schemas.length
-      ? schemas.filter(item=>Boolean(item?.config?.required)).map(item=>String(item?.key || "").trim()).filter(Boolean)
-      : ["name_first","name_last","birthdate"]);
-  const supported=new Set(supportedFields);
-  const idNumberField=firstSupportedPersonaField(supported,PERSONA_ID_NUMBER_FIELD_CANDIDATES);
-  return {
-    ok:true,state:"connected",message:"Connected",
-    inquiry_template_id:inquiryTemplateId,
-    inquiry_template_name:String(data?.data?.attributes?.name || ""),
-    supported_fields:supportedFields,
-    required_fields:requiredFields,
-    id_number_supported:Boolean(idNumberField),
-    id_number_field:idNumberField
-  };
+  return buildConfig(data);
 }
 
 function safeVerificationDraft(row) {

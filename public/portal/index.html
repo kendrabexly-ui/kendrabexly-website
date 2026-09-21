@@ -3650,8 +3650,9 @@ async function loadRequests() {
           if(result.ok){
             applyPersonaRequiredFields(section,result.required_fields||[],true,result.supported_fields||[]);
             section.dataset.personaIdNumberSupported=result.id_number_supported?"1":"0";
-            if(resultBox){resultBox.textContent="Connected";resultBox.style.color="#2f6b45";}
-            if(technical)technical.hidden=true;
+            if(resultBox){resultBox.textContent=result.message||"Connected";resultBox.style.color="#2f6b45";}
+            if(technical&&technicalDetails&&result.sandbox){technical.hidden=false;technicalDetails.textContent=result.technical_details||"Sandbox API key connected.";}
+            else if(technical)technical.hidden=true;
           }else{
             if(resultBox){
               resultBox.textContent=result.state==="invalid_credentials"?"Invalid credentials":result.state==="incorrect_inquiry_template"?"Incorrect Inquiry Template":"Connection error";
