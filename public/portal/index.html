@@ -2116,7 +2116,7 @@ async function loadRequests() {
               <details class="client-profile-section client-id-documents" data-client-id="${client.client_id}" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:700;">ID Documents</summary>
                 <div style="margin-top:10px;">
-                  <div style="padding:10px 12px;border-radius:8px;background:#f7f2e9;font-size:12px;line-height:1.5;"><strong>Portal-only document</strong><br>This image is stored privately and is never included in regular emails or public website URLs.</div>
+                  <div style="padding:10px 12px;border-radius:8px;background:#f7f2e9;font-size:12px;line-height:1.5;"><strong>Admin verification</strong><br>The client does not complete Persona themselves. Upload the ID here, choose the document type, then submit it to Persona from this private portal.</div>
                   <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Open this section to check for a saved ID document.</div>
                   <img class="client-id-preview" alt="Private client ID preview" hidden style="display:block;width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
                   <div class="client-id-meta" hidden style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
@@ -2124,12 +2124,14 @@ async function loadRequests() {
                   <input class="client-id-file" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font:inherit;">
                   <div style="margin-top:5px;font-size:11px;color:var(--muted);">JPG, PNG, or WebP. Maximum 10 MB.</div>
                   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px;">
+                    <label style="font-size:12px;font-weight:700;">ID type<select class="client-persona-id-class" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="dl">Driver License</option><option value="id">State ID</option><option value="pp">Passport</option><option value="ppc">Passport Card</option><option value="pr">Permanent Resident Card</option></select></label>
                     <label style="font-size:12px;font-weight:700;">Received date<input class="client-id-received" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     <label style="font-size:12px;font-weight:700;">Verification status<select class="client-id-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select></label>
                     <label style="font-size:12px;font-weight:700;">Verified date<input class="client-id-verified" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                   </div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                     <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
+                    <button type="button" class="client-persona-verify" hidden style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;">Verify with Persona</button>
                     <button type="button" class="client-id-save-status" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Save Verification</button>
                     <button type="button" class="client-id-delete" hidden style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:white;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete</button>
                   </div>
@@ -2333,6 +2335,8 @@ async function loadRequests() {
           if (empty) { empty.hidden = false; empty.textContent = "No ID document is stored for this client."; }
           if (meta) { meta.hidden = true; meta.textContent = ""; }
           if (upload) upload.textContent = "Upload ID";
+          const personaButton = section.querySelector(".client-persona-verify");
+          if (personaButton) personaButton.hidden = true;
           if (saveStatus) saveStatus.hidden = true;
           if (deleteButton) deleteButton.hidden = true;
           if (received && !received.value) received.value = new Date().toISOString().slice(0,10);
@@ -2353,6 +2357,8 @@ async function loadRequests() {
         if (verificationStatus) verificationStatus.value = documentRecord.verification_status || "pending_review";
         if (verified) verified.value = documentRecord.verified_at || "";
         if (upload) upload.textContent = "Replace ID";
+        const personaButton = section.querySelector(".client-persona-verify");
+        if (personaButton) personaButton.hidden = false;
         if (saveStatus) saveStatus.hidden = false;
         if (deleteButton) deleteButton.hidden = false;
       };
@@ -2374,6 +2380,7 @@ async function loadRequests() {
             <div>Client ID: ${escapeHtml(record.client_id)} · Booking Request ID: ${escapeHtml(record.booking_request_id)}</div>
             <div><strong>Submitted employment:</strong> ${escapeHtml(record.submitted_employer || "—")} · ${escapeHtml(record.submitted_job_title || "—")} · ${escapeHtml(record.submitted_industry || "—")}</div>
             <div>Status: ${escapeHtml(String(record.verification_status || "pending_review").replaceAll("_", " "))} · Method: ${escapeHtml(record.verification_method || "Not entered")} · Completed: ${escapeHtml(record.completed_at || "—")}</div>
+            ${record.persona_transaction_id ? `<div><strong>Persona:</strong> ${escapeHtml(record.persona_transaction_status || "submitted")} · ${escapeHtml(record.persona_transaction_id)}</div>` : ""}
             <div><strong>Checklist:</strong> ID ${record.identity_confirmed ? "✓" : "—"} · Employer ${record.employer_confirmed ? "✓" : "—"} · Job title ${record.job_title_confirmed ? "✓" : "—"} · Industry ${record.industry_confirmed ? "✓" : "—"} · Contact ${record.contact_confirmed ? "✓" : "—"}</div>
             ${record.evidence_notes ? `<div><strong>Evidence notes:</strong> ${escapeHtml(record.evidence_notes)}</div>` : ""}
             <details style="margin-top:5px;"><summary style="cursor:pointer;font-weight:700;">View recorded wording</summary><div style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;">${escapeHtml(record.authorization_wording || "—")}</div></details>
@@ -2516,6 +2523,40 @@ async function loadRequests() {
             button.disabled = false;
           }
         });
+        section.querySelector(".client-persona-verify")?.addEventListener("click", async (event) => {
+          const button = event.currentTarget;
+          const status = section.querySelector(".client-id-status");
+          const latestAudit = Array.isArray(section._verificationAuditRecords) && section._verificationAuditRecords.length
+            ? section._verificationAuditRecords[0]
+            : null;
+          if (!latestAudit?.booking_request_id) {
+            if (status) status.textContent = "No booking verification record is available for Persona.";
+            return;
+          }
+          button.disabled = true;
+          if (status) status.textContent = "Submitting ID to Persona...";
+          try {
+            const response = await fetch("/api/admin/clients/persona-verify", {
+              method:"POST",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({
+                client_id:Number(section.dataset.clientId),
+                booking_request_id:Number(latestAudit.booking_request_id),
+                id_class:section.querySelector(".client-persona-id-class")?.value || "dl",
+                address_country_code:"US"
+              })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.message || "Unable to run Persona verification.");
+            await loadVerificationAudits(section);
+            if (status) status.textContent = result.message || "Persona verification submitted.";
+          } catch (error) {
+            if (status) status.textContent = error.message || "Unable to run Persona verification.";
+          } finally {
+            button.disabled = false;
+          }
+        });
+
         section.querySelector(".client-id-save-status")?.addEventListener("click", async (event) => {
           const button = event.currentTarget;
           const status = section.querySelector(".client-id-status");
