@@ -5317,47 +5317,82 @@ if (
         if (env.PERSONA_API_VERSION) headers["Persona-Version"] = String(env.PERSONA_API_VERSION);
 
         let personaResponse,personaData={};
-        const inquiryFields=Object.fromEntries(Object.entries(personaFields).map(([key,value])=>[key.replaceAll("_","-"),value]));
-        const controller=new AbortController();
-        const timeout=setTimeout(()=>controller.abort(),12000);
-        try{
-          personaResponse = await fetch("https://api.withpersona.com/api/v1/inquiries", {
-            method:"POST",
-            headers,
-            signal:controller.signal,
-            body:JSON.stringify({
-              data:{
-                attributes:{
-                  "inquiry-template-id":personaInquiryTemplateId,
-                  "reference-id":String(requestId),
-                  fields:inquiryFields
+        const allInquiryFields=Object.fromEntries(Object.entries(personaFields).map(([key,value])=>[key.replaceAll("_","-"),value]));
+        const pickFields=(keys)=>Object.fromEntries(keys.filter(key=>allInquiryFields[key]!==undefined&&allInquiryFields[key]!==null&&allInquiryFields[key]!=="").map(key=>[key,allInquiryFields[key]]));
+        const submissionProfiles=[
+          {name:"full",fields:allInquiryFields},
+          {name:"identity_address",fields:pickFields([
+            "name-first","name-middle","name-last","birthdate",
+            "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code"
+          ])},
+          {name:"core_identity",fields:pickFields(["name-first","name-last","birthdate"])}
+        ].filter((profile,index,array)=>Object.keys(profile.fields).length&&array.findIndex(other=>JSON.stringify(other.fields)===JSON.stringify(profile.fields))===index);
+
+        let acceptedProfile="";
+        let finalPersonaRequestId="";
+        let lastErrorDetail="";
+        for(let profileIndex=0;profileIndex<submissionProfiles.length;profileIndex++){
+          const profile=submissionProfiles[profileIndex];
+          const requestHeaders={...headers,"Idempotency-Key":profileIndex===0?idempotencyKey:idempotencyKey+"-"+profile.name};
+          const controller=new AbortController();
+          const timeout=setTimeout(()=>controller.abort(),12000);
+          try{
+            personaResponse = await fetch("https://api.withpersona.com/api/v1/inquiries", {
+              method:"POST",
+              headers:requestHeaders,
+              signal:controller.signal,
+              body:JSON.stringify({
+                data:{
+                  attributes:{
+                    "inquiry-template-id":personaInquiryTemplateId,
+                    "reference-id":String(requestId),
+                    fields:profile.fields
+                  }
                 }
-              }
-            })
-          });
-          personaData = await personaResponse.json().catch(() => ({}));
-        }catch(error){
-          const state=personaFetchState(error);
-          await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(state.code,attempt.id).run();
-          await logVerificationActivity(env,clientId,audit.id,"persona_transport_error","Persona request did not complete",state.message);
-          return Response.json({ok:false,code:state.code,message:state.message,retry_allowed:false,refresh_recommended:true},{status:state.code==="persona_timeout"?504:503});
-        }finally{clearTimeout(timeout);}
+              })
+            });
+            personaData = await personaResponse.json().catch(() => ({}));
+          }catch(error){
+            const state=personaFetchState(error);
+            await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(state.code,attempt.id).run();
+            await logVerificationActivity(env,clientId,audit.id,"persona_transport_error","Persona request did not complete",state.message);
+            return Response.json({ok:false,code:state.code,message:state.message,retry_allowed:false,refresh_recommended:true},{status:state.code==="persona_timeout"?504:503});
+          }finally{clearTimeout(timeout);}
+
+          finalPersonaRequestId=personaResponse.headers.get("Request-Id") || "";
+          if(personaResponse.ok){
+            acceptedProfile=profile.name;
+            break;
+          }
+
+          const personaError=personaData?.errors?.[0]||{};
+          lastErrorDetail=String(personaError.detail||personaError.title||personaData?.message||"Persona rejected the verification request.");
+          const isGenericBadRequest=personaResponse.status===400&&/^bad request$/i.test(lastErrorDetail.trim());
+          const mayRetryWithFewerFields=personaResponse.status===400&&profileIndex<submissionProfiles.length-1&&isGenericBadRequest;
+          if(mayRetryWithFewerFields)continue;
+          break;
+        }
+
         if (!personaResponse.ok) {
           const personaError = personaData?.errors?.[0] || {};
-          const personaRequestId = personaResponse.headers.get("Request-Id") || "";
-          let detail = personaError.detail || personaError.title || personaData?.message || "Persona rejected the verification request.";
+          const personaRequestId = finalPersonaRequestId;
+          let detail = personaError.detail || personaError.title || personaData?.message || lastErrorDetail || "Persona rejected the verification request.";
           const errorPointer=String(personaError?.source?.pointer || personaError?.meta?.field || "");
-          const attemptedFields=Object.keys(inquiryFields||{});
+          const attemptedFields=Object.keys(submissionProfiles.at(-1)?.fields||allInquiryFields||{});
           if (personaResponse.status === 400 && /^bad request$/i.test(String(detail).trim())) {
-            detail = "Persona rejected the prefilled inquiry.";
+            detail = "Persona rejected the prefilled inquiry even after ClearPath retried with a minimal identity-only field set.";
           }
           if(errorPointer) detail += " Field: " + errorPointer + ".";
-          if(attemptedFields.length) detail += " Prefilled fields: " + attemptedFields.join(", ") + ".";
+          if(attemptedFields.length) detail += " Final attempted fields: " + attemptedFields.join(", ") + ".";
           if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
           console.error("Persona inquiry create failed:", personaResponse.status);
           await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status='request_failed',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(attempt.id).run();
-          await logVerificationActivity(env, clientId, audit.id, "persona_error", "Persona submission failed", "Persona rejected the request. Technical details were not stored in the audit log.");
+          await logVerificationActivity(env, clientId, audit.id, "persona_error", "Persona submission failed", "Persona rejected the request after adaptive prefill retries. Technical details were not stored in the audit log.");
           return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(detail),retry_allowed:true},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
+        }
+
+        if(acceptedProfile && acceptedProfile!=="full"){
+          await logVerificationActivity(env,clientId,audit.id,"persona_prefill_fallback","Persona accepted reduced prefill","Profile: "+acceptedProfile);
         }
 
         const transaction = personaData?.data || {};
