@@ -2246,7 +2246,7 @@ async function loadRequests() {
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Profile</strong>
               <div style="margin-top:8px;font-size:12px;color:var(--muted);">Relationship notes, follow-up communication, and safety controls.</div>
-              <div class="client-verification-summary" style="margin-top:10px;padding:10px 12px;border:1px solid #eee7dc;border-radius:9px;background:white;font-size:12px;line-height:1.55;"><strong>Verification summary</strong><br><span style="color:var(--muted);">Loading ID, manual review, Persona, and checklist status…</span></div>
+              <button type="button" class="client-verification-summary" style="display:block;width:100%;margin-top:10px;padding:10px 12px;border:1px solid #eee7dc;border-radius:9px;background:white;color:inherit;text-align:left;font:inherit;font-size:12px;line-height:1.55;cursor:pointer;"><strong>Verification summary</strong><br><span style="color:var(--muted);">Loading ID, manual review, Persona, and checklist status…</span></button>
               <details class="client-profile-section client-followup-agent" style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:700;">Follow Up</summary>
                 <div style="margin-top:10px;">
@@ -2350,7 +2350,7 @@ async function loadRequests() {
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification records...</div>
                     <div class="client-verification-editor" hidden style="margin-top:12px;">
                       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-                        <label style="font-size:12px;font-weight:700;">Verification status<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
+                        <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
                         <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, provider…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Completion date<input class="client-verification-completed" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2366,8 +2366,12 @@ async function loadRequests() {
                         </div>
                         <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
                       </fieldset>
-                      <button type="button" class="client-verification-save" style="margin-top:10px;padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Save Verification Record</button>
-                      <span class="client-verification-save-status" role="status" aria-live="polite" style="margin-left:8px;font-size:12px;color:var(--muted);"></span>
+                      <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Complete the checklist before marking a client Verified.</div>
+                      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+                        <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
+                        <button type="button" class="client-verification-complete" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;font-weight:700;">Complete Manual Verification</button>
+                        <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2576,7 +2580,7 @@ async function loadRequests() {
         const finalDecision = latest?.verification_status && latest.verification_status !== "pending_review" ? auditStatus : "pending";
         const idLabel = section.dataset.hasDocument === "1" ? "ID received" : "No ID stored";
         const personaLabel = section.dataset.personaConnected === "1" ? "Connected" : "Connection pending";
-        summary.innerHTML = "<strong>Verification summary</strong><br>" +
+        summary.innerHTML = "<strong>Verification summary</strong> <span style=\"float:right;font-weight:700;\">Open verification →</span><br>" +
           "ID: " + escapeHtml(idLabel) +
           " · Manual review: " + escapeHtml(auditStatus) +
           " · Persona: " + escapeHtml(personaLabel) +
@@ -2686,6 +2690,12 @@ async function loadRequests() {
         const evidenceInput = section.querySelector(".client-verification-evidence");
         if (evidenceInput) evidenceInput.value = latest.evidence_notes || "";
         if (editor) editor.hidden = false;
+        const checklistNote = section.querySelector(".client-verification-checklist-status");
+        if (checklistNote) {
+          const count = [latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length;
+          checklistNote.textContent = count === 5 ? "Checklist complete · 5/5 confirmed." : "Checklist " + count + "/5 complete. All 5 items are required before marking Verified.";
+          checklistNote.style.color = count === 5 ? "#2f6b45" : "var(--muted)";
+        }
         updateVerificationSummary(section);
       };
       const loadVerificationAudits = async (section) => {
@@ -2744,6 +2754,18 @@ async function loadRequests() {
           if (status) status.textContent = error.message || "Unable to load ID document.";
         }
       };
+      clientRecords.querySelectorAll(".client-verification-summary").forEach((summary) => {
+        summary.addEventListener("click", () => {
+          const controls = summary.closest(".client-profile-actions");
+          const section = controls?.querySelector(".client-id-documents");
+          if (!section) return;
+          section.open = true;
+          section.scrollIntoView({behavior:"smooth",block:"start"});
+          loadIdDocument(section, false);
+          loadVerificationAudits(section);
+          loadPersonaStatus(section);
+        });
+      });
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
         const personaInputs = section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
         personaInputs.forEach(input => input.addEventListener("blur", () => normalizePersonaFields(section)));
@@ -2778,11 +2800,53 @@ async function loadRequests() {
           if (verifiedDate) verifiedDate.value = verificationStatus?.value === "verified" ? (verifiedDate.value || today) : "";
           updateVerificationSummary(section);
         });
+        const checklistComplete = () => [
+          ".client-check-identity",
+          ".client-check-employer",
+          ".client-check-job-title",
+          ".client-check-industry",
+          ".client-check-contact"
+        ].every(selector => section.querySelector(selector)?.checked);
+        const updateChecklistGuidance = () => {
+          const note = section.querySelector(".client-verification-checklist-status");
+          if (!note) return;
+          const count = [
+            ".client-check-identity",".client-check-employer",".client-check-job-title",
+            ".client-check-industry",".client-check-contact"
+          ].filter(selector => section.querySelector(selector)?.checked).length;
+          note.textContent = count === 5
+            ? "Checklist complete · 5/5 confirmed."
+            : "Checklist " + count + "/5 complete. All 5 items are required before marking Verified.";
+          note.style.color = count === 5 ? "#2f6b45" : "var(--muted)";
+          updateVerificationSummary(section);
+        };
+        section.querySelectorAll(".client-check-identity,.client-check-employer,.client-check-job-title,.client-check-industry,.client-check-contact")
+          .forEach(input => input.addEventListener("change", updateChecklistGuidance));
+        updateChecklistGuidance();
+
+        section.querySelector(".client-verification-complete")?.addEventListener("click", () => {
+          const saveStatus = section.querySelector(".client-verification-save-status");
+          const auditStatus = section.querySelector(".client-verification-status");
+          if (!auditStatus || auditStatus.value === "pending_review") {
+            if (saveStatus) saveStatus.textContent = "Choose a final decision before completing manual verification.";
+            return;
+          }
+          if (auditStatus.value === "verified" && !checklistComplete()) {
+            if (saveStatus) saveStatus.textContent = "Verified requires all 5 checklist items to be confirmed.";
+            return;
+          }
+          section.querySelector(".client-verification-save")?.click();
+        });
+
         section.querySelector(".client-verification-save")?.addEventListener("click", async (event) => {
           const button = event.currentTarget;
           const saveStatus = section.querySelector(".client-verification-save-status");
           const auditId = Number(section.dataset.verificationAuditId);
           if (!auditId) { if (saveStatus) saveStatus.textContent = "No verification record is available."; return; }
+          if (auditStatus?.value === "verified" && !checklistComplete()) {
+            if (saveStatus) saveStatus.textContent = "Verified requires all 5 checklist items to be confirmed.";
+            return;
+          }
           button.disabled = true;
           if (saveStatus) saveStatus.textContent = "Saving...";
           try {
