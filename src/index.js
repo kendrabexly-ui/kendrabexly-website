@@ -5592,6 +5592,84 @@ if (
         const databaseVerifications=verifications.filter(isDatabaseVerification);
         const latestDatabase=databaseVerifications[0]||null;
 
+        // Inspect Workflow Runs directly so ClearPath can distinguish:
+        // trigger never fired vs workflow errored vs workflow completed.
+        let matchedWorkflowRun=null;
+        let matchedWorkflow=null;
+        let workflowLookupError="";
+        let workflowRequestId="";
+        const workflowHeaders={...headers};
+        const extractEventInquiryId=event=>{
+          const eventAttrs=event?.attributes||{};
+          const payload=eventAttrs?.payload?.data||eventAttrs?.payload||{};
+          return String(payload?.id||payload?.data?.id||payload?.attributes?.inquiry_id||payload?.attributes?.["inquiry-id"]||"");
+        };
+        const workflowNameMatches=workflow=>{
+          const name=String(workflow?.attributes?.name||"").trim().toLowerCase();
+          return !name || name==="clearpath - inquiry created - database verification".toLowerCase();
+        };
+        const matchRunFromPayload=payload=>{
+          const runs=Array.isArray(payload?.data)?payload.data:[payload?.data].filter(Boolean);
+          const related=Array.isArray(payload?.included)?payload.included:[];
+          const byKey=new Map(related.map(item=>[String(item?.type||"")+":"+String(item?.id||""),item]));
+          for(const run of runs){
+            const creatorRel=run?.relationships?.creator?.data||null;
+            const workflowRel=run?.relationships?.workflow?.data||null;
+            const creator=creatorRel?byKey.get(String(creatorRel.type||"")+":"+String(creatorRel.id||"")):null;
+            const workflow=workflowRel?byKey.get(String(workflowRel.type||"")+":"+String(workflowRel.id||"")):null;
+            if(creator && extractEventInquiryId(creator)===inquiryId && workflowNameMatches(workflow)){
+              return {run,workflow,creator};
+            }
+          }
+          return null;
+        };
+        try{
+          const workflowListResponse=await fetch(
+            "https://api.withpersona.com/api/v1/workflow-runs?page%5Bsize%5D=50&include=workflow,creator",
+            {headers:workflowHeaders}
+          );
+          workflowRequestId=workflowListResponse.headers.get("Request-Id")||"";
+          const workflowListPayload=await workflowListResponse.json().catch(()=>({}));
+          if(workflowListResponse.ok){
+            let match=matchRunFromPayload(workflowListPayload);
+            if(!match){
+              // Some Persona versions do not serialize creator events on the list endpoint.
+              // Inspect the most recent runs individually with includes until the inquiry is found.
+              const recentRuns=Array.isArray(workflowListPayload?.data)?workflowListPayload.data.slice(0,15):[];
+              for(const recentRun of recentRuns){
+                const runId=String(recentRun?.id||"");
+                if(!runId)continue;
+                const runResponse=await fetch(
+                  "https://api.withpersona.com/api/v1/workflow-runs/"+encodeURIComponent(runId)+"?include=workflow,creator",
+                  {headers:workflowHeaders}
+                );
+                const runPayload=await runResponse.json().catch(()=>({}));
+                if(runResponse.ok){
+                  match=matchRunFromPayload(runPayload);
+                  if(match)break;
+                }
+              }
+            }
+            if(match){
+              matchedWorkflowRun=match.run;
+              matchedWorkflow=match.workflow;
+            }
+          }else{
+            const detail=workflowListPayload?.errors?.[0]?.detail||workflowListPayload?.errors?.[0]?.title||workflowListPayload?.message||"Persona could not list workflow runs.";
+            workflowLookupError=String(detail);
+          }
+        }catch(error){
+          workflowLookupError=String(error?.message||error);
+        }
+
+        const workflowRunAttrs=matchedWorkflowRun?.attributes||{};
+        const workflowRunStatus=String(workflowRunAttrs.status||"").toLowerCase();
+        const workflowRunState=matchedWorkflowRun
+          ? (workflowRunStatus==="errored"?"errored":workflowRunStatus==="completed"?"completed":workflowRunStatus||"triggered")
+          : "not_triggered";
+        const workflowRunCreatedAt=String(workflowRunAttrs.created_at||workflowRunAttrs["created-at"]||"");
+        const workflowRunCompletedAt=String(workflowRunAttrs.completed_at||workflowRunAttrs["completed-at"]||"");
+
         const attrs=latestDatabase?.attributes||{};
         const databaseStatus=String(attrs.status||"").toLowerCase();
         const completedAt=String(attrs.completed_at||attrs["completed-at"]||"");
@@ -5614,7 +5692,9 @@ if (
           env,clientId,audit.id,"persona_workflow_check","Persona workflow result checked",
           latestDatabase
             ? "Database verification "+String(latestDatabase.id||"")+" · "+(databaseStatus||"status unavailable")
-            : "No Database verification attached to inquiry "+inquiryId
+            : matchedWorkflowRun
+              ? "Workflow run "+String(matchedWorkflowRun.id||"")+" · "+(workflowRunStatus||"status unavailable")+" · no Database verification attached"
+              : "No matching workflow run or Database verification attached to inquiry "+inquiryId
         );
 
         return Response.json({
@@ -5634,12 +5714,34 @@ if (
           } : null,
           verification_count:verifications.length,
           database_verification_count:databaseVerifications.length,
+          workflow_run:matchedWorkflowRun ? {
+            id:String(matchedWorkflowRun.id||""),
+            status:workflowRunStatus||"unknown",
+            state:workflowRunState,
+            created_at:workflowRunCreatedAt,
+            completed_at:workflowRunCompletedAt,
+            workflow_id:String(matchedWorkflowRun?.relationships?.workflow?.data?.id||""),
+            workflow_name:String(matchedWorkflow?.attributes?.name||"ClearPath - Inquiry Created - Database Verification")
+          } : null,
+          workflow_triggered:Boolean(matchedWorkflowRun),
+          workflow_state:latestDatabase ? workflowState : workflowRunState,
           message:latestDatabase
             ? "Database (US) verification found for this Persona inquiry."
-            : "No Database (US) verification is attached to this inquiry yet.",
+            : matchedWorkflowRun
+              ? (workflowRunStatus==="errored"
+                  ? "The ClearPath Persona workflow triggered but errored before a Database (US) verification was attached."
+                  : "The ClearPath Persona workflow triggered, but no Database (US) verification is attached yet.")
+              : "No ClearPath workflow run was found for this inquiry.",
           technical_details:latestDatabase
             ? ""
-            : "The inquiry exists, but Persona did not return an associated database verification. The inquiry-created workflow may not have fired yet, may have errored before creating the verification, or the verification may not be attached to this inquiry.",
+            : matchedWorkflowRun
+              ? (workflowRunStatus==="errored"
+                  ? "Persona reports the workflow run as errored. Open the matching Workflow Run in Persona using the Workflow Run ID to inspect the failing step."
+                  : "Persona reports that the workflow triggered. Database (US) has not been attached to the inquiry yet.")
+              : (workflowLookupError
+                  ? "ClearPath could not inspect Persona Workflow Runs: "+workflowLookupError
+                  : "The inquiry exists, but no matching ClearPath inquiry-created Workflow Run was found. The event trigger may not have fired for this inquiry/environment."),
+          workflow_request_id:workflowRequestId,
           persona_request_id:personaResponse.headers.get("Request-Id")||"",
           persona_environment_id:personaResponse.headers.get("Persona-Environment-Id")||""
         },{headers:{"Cache-Control":"private, no-store"}});
