@@ -184,6 +184,7 @@ async function ensureClientVerificationAuditsTable(env) {
       persona_updated_at TEXT,
       persona_last_checked_at TEXT,
       persona_result_json TEXT NOT NULL DEFAULT '{}',
+      verification_basis TEXT NOT NULL DEFAULT '',
       completed_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -212,7 +213,8 @@ async function ensureClientVerificationAuditsTable(env) {
     ["persona_submitted_at", "TEXT"],
     ["persona_updated_at", "TEXT"],
     ["persona_last_checked_at", "TEXT"],
-    ["persona_result_json", "TEXT NOT NULL DEFAULT '{}'"]
+    ["persona_result_json", "TEXT NOT NULL DEFAULT '{}'"],
+    ["verification_basis", "TEXT NOT NULL DEFAULT ''"]
   ];
   for (const [name, definition] of additions) {
     if (!columns.has(name)) await env.DB.prepare(`ALTER TABLE client_verification_audits ADD COLUMN ${name} ${definition}`).run();
@@ -268,6 +270,7 @@ function verificationAuditPublicRecord(row) {
     persona_updated_at: row.persona_updated_at || "",
     persona_last_checked_at: row.persona_last_checked_at || "",
     persona_result: (() => { try { return JSON.parse(row.persona_result_json || "{}"); } catch { return {}; } })(),
+    verification_basis:row.verification_basis || "",
     completed_at: row.completed_at || "",
     updated_at: row.updated_at || ""
   };
@@ -280,9 +283,21 @@ async function ensureVerificationWorkspaceTables(env) {
       client_id INTEGER PRIMARY KEY,
       birthdate TEXT NOT NULL DEFAULT '',
       persona_fields_json TEXT NOT NULL DEFAULT '{}',
+      id_number_ciphertext TEXT NOT NULL DEFAULT '',
+      id_number_last4 TEXT NOT NULL DEFAULT '',
+      id_issuing_state TEXT NOT NULL DEFAULT '',
+      id_expiration_date TEXT NOT NULL DEFAULT '',
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+  const draftColumns=await env.DB.prepare("PRAGMA table_info(client_verification_drafts)").all();
+  const draftNames=new Set((draftColumns.results||[]).map(row=>String(row.name||"")));
+  for(const [name,definition] of [
+    ["id_number_ciphertext","TEXT NOT NULL DEFAULT ''"],
+    ["id_number_last4","TEXT NOT NULL DEFAULT ''"],
+    ["id_issuing_state","TEXT NOT NULL DEFAULT ''"],
+    ["id_expiration_date","TEXT NOT NULL DEFAULT ''"]
+  ])if(!draftNames.has(name))await env.DB.prepare(`ALTER TABLE client_verification_drafts ADD COLUMN ${name} ${definition}`).run();
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS persona_webhook_events (
       event_id TEXT PRIMARY KEY,
@@ -404,6 +419,33 @@ function verificationEmailValid(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function verificationEncryptionKey(env) {
+  return String(env.VERIFICATION_FIELD_ENCRYPTION_KEY || "").trim();
+}
+async function verificationCryptoKey(env) {
+  const secret=verificationEncryptionKey(env);
+  if(!secret)throw new Error("VERIFICATION_FIELD_ENCRYPTION_KEY is not configured.");
+  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(secret));
+  return crypto.subtle.importKey("raw",digest,{name:"AES-GCM"},false,["encrypt","decrypt"]);
+}
+function verificationBytesToBase64(bytes) {
+  let binary="";for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary);
+}
+function verificationBase64ToBytes(value) {
+  const binary=atob(String(value||""));return Uint8Array.from(binary,char=>char.charCodeAt(0));
+}
+async function encryptVerificationField(env,value) {
+  const text=String(value||"").trim();if(!text)return "";
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},await verificationCryptoKey(env),new TextEncoder().encode(text));
+  return "v1."+verificationBytesToBase64(iv)+"."+verificationBytesToBase64(new Uint8Array(encrypted));
+}
+async function decryptVerificationField(env,value) {
+  const parts=String(value||"").split(".");if(parts.length!==3||parts[0]!=="v1")return "";
+  const decrypted=await crypto.subtle.decrypt({name:"AES-GCM",iv:verificationBase64ToBytes(parts[1])},await verificationCryptoKey(env),verificationBase64ToBytes(parts[2]));
+  return new TextDecoder().decode(decrypted);
+}
+
 function safeVerificationDraft(row) {
   let personaFields = {};
   try { personaFields = JSON.parse(row?.persona_fields_json || "{}"); } catch {}
@@ -411,6 +453,12 @@ function safeVerificationDraft(row) {
     client_id:Number(row?.client_id || 0),
     birthdate:row?.birthdate || "",
     persona_fields:personaFields && typeof personaFields === "object" ? personaFields : {},
+    id_details:{
+      number_masked:row?.id_number_last4 ? "••••"+String(row.id_number_last4).slice(-4) : "",
+      number_saved:Boolean(row?.id_number_ciphertext),
+      issuing_state:row?.id_issuing_state || "",
+      expiration_date:row?.id_expiration_date || ""
+    },
     updated_at:row?.updated_at || ""
   };
 }
@@ -673,7 +721,7 @@ export default {
         const clientId = Number(url.searchParams.get("client_id"));
         if (!await requireIdDocumentClient(env, clientId)) return Response.json({ok:false,message:"Client not found."},{status:404});
         const row = await env.DB.prepare(
-          "SELECT client_id, birthdate, persona_fields_json, updated_at FROM client_verification_drafts WHERE client_id=? LIMIT 1"
+          "SELECT client_id, birthdate, persona_fields_json, id_number_ciphertext, id_number_last4, id_issuing_state, id_expiration_date, updated_at FROM client_verification_drafts WHERE client_id=? LIMIT 1"
         ).bind(clientId).first();
         return Response.json({ok:true,draft:row ? safeVerificationDraft(row) : {client_id:clientId,birthdate:"",persona_fields:{},updated_at:""}}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
@@ -700,16 +748,33 @@ export default {
           if (value) normalized[key] = value;
         }
         normalized = normalizeVerificationAddressFields(normalized);
+        const idDetails=data.id_details&&typeof data.id_details==="object"?data.id_details:{};
+        const enteredIdNumber=String(idDetails.number||"").trim().replace(/\s+/g,"").slice(0,64);
+        const issuingState=normalizeVerificationState(idDetails.issuing_state||"");
+        const expirationDate=idDocumentDate(idDetails.expiration_date);
+        if(issuingState&&!VALID_US_STATE_CODES.has(issuingState))return Response.json({ok:false,message:"Issuing State must be a valid two-letter U.S. abbreviation."},{status:400});
+        const existing=await env.DB.prepare("SELECT id_number_ciphertext,id_number_last4 FROM client_verification_drafts WHERE client_id=? LIMIT 1").bind(clientId).first();
+        let idCiphertext=String(existing?.id_number_ciphertext||"");
+        let idLast4=String(existing?.id_number_last4||"");
+        if(enteredIdNumber){
+          if(!verificationEncryptionKey(env))return Response.json({ok:false,message:"Secure ID-number storage is not configured. Add VERIFICATION_FIELD_ENCRYPTION_KEY before saving an ID number."},{status:503});
+          idCiphertext=await encryptVerificationField(env,enteredIdNumber);
+          idLast4=enteredIdNumber.slice(-4);
+        }else if(idDetails.clear_number===true){idCiphertext="";idLast4="";}
         await env.DB.prepare(`
-          INSERT INTO client_verification_drafts (client_id, birthdate, persona_fields_json, updated_at)
-          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+          INSERT INTO client_verification_drafts (client_id, birthdate, persona_fields_json, id_number_ciphertext, id_number_last4, id_issuing_state, id_expiration_date, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
           ON CONFLICT(client_id) DO UPDATE SET
             birthdate=excluded.birthdate,
             persona_fields_json=excluded.persona_fields_json,
+            id_number_ciphertext=excluded.id_number_ciphertext,
+            id_number_last4=excluded.id_number_last4,
+            id_issuing_state=excluded.id_issuing_state,
+            id_expiration_date=excluded.id_expiration_date,
             updated_at=CURRENT_TIMESTAMP
-        `).bind(clientId, birthdate, JSON.stringify(normalized)).run();
+        `).bind(clientId, birthdate, JSON.stringify(normalized), idCiphertext, idLast4, issuingState, expirationDate).run();
         const row = await env.DB.prepare(
-          "SELECT client_id, birthdate, persona_fields_json, updated_at FROM client_verification_drafts WHERE client_id=?"
+          "SELECT client_id, birthdate, persona_fields_json, id_number_ciphertext, id_number_last4, id_issuing_state, id_expiration_date, updated_at FROM client_verification_drafts WHERE client_id=?"
         ).bind(clientId).first();
         return Response.json({ok:true,draft:safeVerificationDraft(row)}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
@@ -864,7 +929,7 @@ export default {
           job_title_confirmed, industry_confirmed, contact_confirmed,
           evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
           persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at,
-          persona_last_checked_at, persona_result_json, completed_at, updated_at
+          persona_last_checked_at, persona_result_json, verification_basis, completed_at, updated_at
         `;
         let result = await env.DB.prepare(`
           SELECT ${selectColumns}
@@ -1060,7 +1125,7 @@ export default {
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
                  evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
+                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, persona_last_checked_at, persona_result_json, verification_basis, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
@@ -4641,12 +4706,17 @@ if (
       const webhookSecretConfigured = Boolean(env.PERSONA_WEBHOOK_SECRET);
       const requiredFields = String(env.PERSONA_REQUIRED_FIELDS || "")
         .split(",").map(value => value.trim()).filter(Boolean);
+      const supportedFields = String(env.PERSONA_SUPPORTED_FIELDS || env.PERSONA_REQUIRED_FIELDS || "")
+        .split(",").map(value => value.trim()).filter(Boolean);
       const effectiveRequiredFields = requiredFields.length ? requiredFields : ["name_first","name_last","birthdate"];
       return Response.json({
         ok:true,
         connected:apiKeyConfigured && transactionTypeConfigured,
         setup_state:apiKeyConfigured && transactionTypeConfigured ? "connected" : "pending_setup",
         required_fields:effectiveRequiredFields,
+        supported_fields:supportedFields,
+        id_number_supported:supportedFields.includes("identification_number"),
+        id_number_encryption_configured:Boolean(verificationEncryptionKey(env)),
         required_fields_configured:requiredFields.length>0,
         webhook_connected:webhookSecretConfigured,
         api_key_configured:apiKeyConfigured,
@@ -4742,6 +4812,7 @@ if (
         ["Contact information confirmed",record.contact_confirmed ? "Yes" : "No"],["Verification method",record.verification_method],
         ["Persona transaction ID",record.persona_transaction_id],["Persona result",personaStatusLabel(record.persona_transaction_status)],
         ["Persona submitted at",record.persona_submitted_at],["Persona last checked at",record.persona_last_checked_at || record.persona_updated_at],
+        ["Verification basis",record.verification_basis],
         ["Final manual decision",personaStatusLabel(record.verification_status)],["Decision reason",record.decision_reason],["Decision notes",record.decision_notes],
         ["Completed by",record.completed_by],["Completed at",record.completed_at],["Audit updated at",record.updated_at]
       ];
@@ -4783,7 +4854,8 @@ if (
           "name_first","name_middle","name_last","birthdate",
           "address_street_1","address_street_2","address_city",
           "address_subdivision","address_postal_code","address_country_code",
-          "email_address","phone_number"
+          "email_address","phone_number","identification_number",
+          "identification_issuing_subdivision","identification_expiration_date"
         ];
         let personaFields = {};
         const collapseSpaces = (value) => String(value || "").trim().replace(/\s+/g, " ");
@@ -4801,6 +4873,35 @@ if (
           personaFields.address_street_1.toLowerCase() === personaFields.address_street_2.toLowerCase()
         ) delete personaFields.address_street_2;
 
+        const savedDraft=await env.DB.prepare(`
+          SELECT id_number_ciphertext,id_number_last4,id_issuing_state,id_expiration_date
+          FROM client_verification_drafts WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        let savedIdNumber="";
+        if(savedDraft?.id_number_ciphertext){
+          try{savedIdNumber=await decryptVerificationField(env,savedDraft.id_number_ciphertext);}catch(error){
+            return Response.json({ok:false,message:"The saved ID number could not be decrypted. Re-enter it after confirming the encryption key."},{status:500});
+          }
+        }
+        const supportedFields=new Set(String(env.PERSONA_SUPPORTED_FIELDS || env.PERSONA_REQUIRED_FIELDS || "").split(",").map(value=>value.trim()).filter(Boolean));
+        const idNumberSupported=supportedFields.has("identification_number");
+        const addressComplete=Boolean(personaFields.address_street_1&&personaFields.address_city&&personaFields.address_subdivision&&personaFields.address_postal_code);
+        const idFallbackComplete=Boolean(savedIdNumber&&savedDraft?.id_issuing_state);
+        if(!addressComplete&&!idFallbackComplete){
+          return Response.json({ok:false,message:"Enter a complete address, or enter the DL/State ID Number and Issuing State.",missing_fields:["identification_number","identification_issuing_subdivision"]},{status:400});
+        }
+        if(!addressComplete){
+          const fallbackRequired=["name_first","name_last","birthdate"];
+          const fallbackMissing=fallbackRequired.filter(key=>!String(personaFields[key]||"").trim());
+          if(fallbackMissing.length)return Response.json({ok:false,message:"Name and DOB are required when address is unavailable.",missing_fields:fallbackMissing},{status:400});
+        }
+        if(!addressComplete&&!idNumberSupported){
+          return Response.json({ok:false,message:"Address is unavailable, but this Persona Transaction Type is not configured to accept an ID number. Add identification_number to PERSONA_SUPPORTED_FIELDS or provide the address.",field_errors:[{field:"identification_number",message:"Not supported by the configured Persona Transaction Type."}]},{status:400});
+        }
+        if(idNumberSupported&&savedIdNumber)personaFields.identification_number=savedIdNumber;
+        if(supportedFields.has("identification_issuing_subdivision")&&savedDraft?.id_issuing_state)personaFields.identification_issuing_subdivision=savedDraft.id_issuing_state;
+        if(supportedFields.has("identification_expiration_date")&&savedDraft?.id_expiration_date)personaFields.identification_expiration_date=savedDraft.id_expiration_date;
+
         if (!Number.isInteger(clientId) || clientId < 1) {
           return Response.json({ok:false,message:"Choose a valid client."},{status:400});
         }
@@ -4809,7 +4910,10 @@ if (
         const requiredFields = configuredRequiredFields.length
           ? configuredRequiredFields
           : ["name_first","name_last","birthdate"];
-        const missingRequired = requiredFields.filter(key=>!String(personaFields[key]||"").trim());
+        const missingRequired = requiredFields.filter(key=>{
+          if(!addressComplete&&idFallbackComplete&&key.startsWith("address_"))return false;
+          return !String(personaFields[key]||"").trim();
+        });
         if (missingRequired.length) {
           return Response.json({ok:false,message:"Complete all required Persona fields before submitting.",missing_fields:missingRequired},{status:400});
         }
@@ -4919,17 +5023,19 @@ if (
         const transactionId = String(transaction?.id || "");
         const transactionStatus = String(transaction?.attributes?.status || "created").toLowerCase();
         const personaSummary = personaResultSummary(personaData);
+        const verificationBasis=addressComplete?"Address and identity details":"Address unavailable—ID details used instead";
         await env.DB.prepare(`
           UPDATE client_verification_audits
           SET persona_transaction_id=?,
               persona_transaction_status=?,
               persona_result_json=?,
+              verification_basis=?,
               persona_submitted_at=COALESCE(persona_submitted_at,CURRENT_TIMESTAMP),
               persona_last_checked_at=CURRENT_TIMESTAMP,
               persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
-        `).bind(transactionId, transactionStatus, JSON.stringify(personaSummary), audit.id).run();
+        `).bind(transactionId, transactionStatus, JSON.stringify(personaSummary), verificationBasis, audit.id).run();
         await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction: " + transactionId);
         await logVerificationActivity(env, clientId, audit.id, "persona_response", "Persona response received", "Status: " + transactionStatus);
 
@@ -4940,7 +5046,7 @@ if (
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
                  evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
+                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, persona_last_checked_at, persona_result_json, verification_basis, completed_at, updated_at
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
 
