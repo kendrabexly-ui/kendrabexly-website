@@ -630,15 +630,21 @@ export default {
 
     if (url.pathname === "/api/admin/clients/verification-overview" && request.method === "GET") {
       try {
-        await ensureClientVerificationAuditsTable(env);
-        await ensureClientIdDocumentsTable(env);
+        await ensureVerificationWorkspaceTables(env);
         const rows = await env.DB.prepare(`
-          SELECT c.id AS client_id,
+          SELECT c.id AS client_id, c.first_name, c.last_name, c.email, c.phone,
+                 COALESCE(a.date_request_id, 0) AS booking_request_id,
                  COALESCE(a.verification_status, 'pending_review') AS verification_status,
+                 COALESCE(a.verification_method, '') AS verification_method,
                  COALESCE(a.persona_transaction_id, '') AS persona_transaction_id,
                  COALESCE(a.persona_transaction_status, '') AS persona_transaction_status,
                  COALESCE(a.completed_at, '') AS completed_at,
-                 CASE WHEN d.client_id IS NULL THEN 0 ELSE 1 END AS has_id
+                 COALESCE(a.review_flag, 0) AS review_flag,
+                 COALESCE(a.identity_confirmed,0)+COALESCE(a.employer_confirmed,0)+
+                 COALESCE(a.job_title_confirmed,0)+COALESCE(a.industry_confirmed,0)+
+                 COALESCE(a.contact_confirmed,0) AS checklist_count,
+                 CASE WHEN d.client_id IS NULL THEN 0 ELSE 1 END AS has_id,
+                 COALESCE(d.retention_reminder_at,'') AS retention_reminder_at
           FROM clients c
           LEFT JOIN client_id_documents d ON d.client_id = c.id
           LEFT JOIN client_verification_audits a ON a.id = (
@@ -648,17 +654,49 @@ export default {
             LIMIT 1
           )
         `).all();
-        return Response.json({
-          ok:true,
-          clients:(rows.results || []).map(row => ({
+        const clients=(rows.results || []).map(row => {
+          const personaStatus=String(row.persona_transaction_status || "").toLowerCase();
+          const personaPending=Boolean(row.persona_transaction_id) && !["approved","declined","errored","failed"].includes(personaStatus);
+          const status=row.verification_status || "pending_review";
+          const checklistCount=Number(row.checklist_count || 0);
+          let queue_category="ready_for_final_decision";
+          if (!Number(row.has_id || 0)) queue_category="needs_id";
+          else if (status === "needs_more_information") queue_category="needs_more_information";
+          else if (personaPending) queue_category="persona_pending";
+          else if (checklistCount < 5) queue_category="checklist_incomplete";
+          else if (status === "pending_review") queue_category="needs_manual_review";
+          return {
             client_id:Number(row.client_id),
-            verification_status:row.verification_status || "pending_review",
+            first_name:row.first_name || "", last_name:row.last_name || "",
+            email:row.email || "", phone:row.phone || "",
+            booking_request_id:Number(row.booking_request_id || 0),
+            verification_status:status,
+            verification_method:row.verification_method || "",
             persona_transaction_id:row.persona_transaction_id || "",
             persona_transaction_status:row.persona_transaction_status || "",
             completed_at:row.completed_at || "",
-            has_id:Number(row.has_id || 0) === 1
-          }))
-        }, {headers:{"Cache-Control":"private, no-store"}});
+            review_flag:Number(row.review_flag || 0)===1,
+            checklist_count:checklistCount,
+            has_id:Number(row.has_id || 0)===1,
+            retention_reminder_at:row.retention_reminder_at || "",
+            persona_pending:personaPending,
+            queue_category
+          };
+        });
+        const counts={
+          pending_review:clients.filter(x=>x.verification_status==="pending_review").length,
+          verified:clients.filter(x=>x.verification_status==="verified").length,
+          unable_to_verify:clients.filter(x=>x.verification_status==="unable_to_verify").length,
+          declined:clients.filter(x=>x.verification_status==="declined").length,
+          needs_more_information:clients.filter(x=>x.verification_status==="needs_more_information").length,
+          persona_pending:clients.filter(x=>x.persona_pending).length,
+          no_id:clients.filter(x=>!x.has_id).length
+        };
+        const order={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
+        const queue=[...clients]
+          .filter(x=>x.verification_status!=="verified" || x.review_flag)
+          .sort((a,b)=>(order[a.queue_category]??9)-(order[b.queue_category]??9) || a.client_id-b.client_id);
+        return Response.json({ok:true,clients,counts,queue}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
         console.error("Verification overview error:", error);
         return Response.json({ok:false,message:"Unable to load verification overview."},{status:500});
@@ -736,7 +774,7 @@ export default {
         if (!Number.isInteger(auditId) || auditId < 1 || !await requireIdDocumentClient(env, clientId)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
         }
-        const allowedStatuses = new Set(["pending_review", "verified", "unable_to_verify", "declined"]);
+        const allowedStatuses = new Set(["pending_review", "needs_more_information", "verified", "unable_to_verify", "declined"]);
         const verificationStatus = String(data.verification_status || "");
         if (!allowedStatuses.has(verificationStatus)) {
           return Response.json({ ok: false, message: "Choose a valid final decision." }, { status: 400 });
@@ -744,7 +782,8 @@ export default {
 
         const previous = await env.DB.prepare(`
           SELECT id, client_id, verification_status, decision_reason, decision_notes,
-                 verification_method, completed_at, completed_by
+                 verification_method, completed_at, completed_by, review_flag,
+                 identity_confirmed, employer_confirmed, job_title_confirmed, industry_confirmed, contact_confirmed
           FROM client_verification_audits
           WHERE id=? AND client_id=? LIMIT 1
         `).bind(auditId, clientId).first();
@@ -790,6 +829,10 @@ export default {
         if (verificationStatus === "declined" && !decisionReason && !decisionNotes) {
           return Response.json({ok:false,message:"Add a private reason or note before declining this verification."},{status:400});
         }
+        if (verificationStatus === "needs_more_information" && !decisionReason && !decisionNotes) {
+          return Response.json({ok:false,message:"Add what information is still needed before using Needs More Information."},{status:400});
+        }
+        const reviewFlag = data.review_flag ? 1 : 0;
 
         const decisionChanged =
           String(previous.verification_status || "") !== verificationStatus ||
@@ -808,19 +851,21 @@ export default {
           ).run();
         }
 
-        const completedBy = verificationStatus === "pending_review" ? "" : "admin-dashboard";
+        const isOpenStatus = verificationStatus === "pending_review" || verificationStatus === "needs_more_information";
+        const completedBy = isOpenStatus ? "" : "admin-dashboard";
         const update = await env.DB.prepare(`
           UPDATE client_verification_audits
           SET verification_status = ?, verification_method = ?, submitted_industry = ?,
               identity_confirmed = ?, employer_confirmed = ?, job_title_confirmed = ?,
               industry_confirmed = ?, contact_confirmed = ?, evidence_notes = ?,
               decision_reason = ?, decision_notes = ?, birthdate = ?,
+              review_flag = ?,
               completed_at = CASE
-                WHEN ?='pending_review' THEN NULL
+                WHEN ? IN ('pending_review','needs_more_information') THEN NULL
                 WHEN verification_status<>? OR completed_at IS NULL THEN CURRENT_TIMESTAMP
                 ELSE completed_at
               END,
-              completed_by = CASE WHEN ?='pending_review' THEN '' ELSE ? END,
+              completed_by = CASE WHEN ? IN ('pending_review','needs_more_information') THEN '' ELSE ? END,
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ? AND client_id = ?
         `).bind(
@@ -828,6 +873,7 @@ export default {
           identityConfirmed, employerConfirmed, jobTitleConfirmed,
           industryConfirmed, contactConfirmed, evidenceNotes,
           decisionReason, decisionNotes, birthdate,
+          reviewFlag,
           verificationStatus, verificationStatus,
           verificationStatus, completedBy,
           auditId, clientId
@@ -835,9 +881,23 @@ export default {
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
         }
+        const checklistChanged =
+          Number(previous.identity_confirmed||0)!==identityConfirmed ||
+          Number(previous.employer_confirmed||0)!==employerConfirmed ||
+          Number(previous.job_title_confirmed||0)!==jobTitleConfirmed ||
+          Number(previous.industry_confirmed||0)!==industryConfirmed ||
+          Number(previous.contact_confirmed||0)!==contactConfirmed;
+        if (checklistChanged) {
+          await logVerificationActivity(env, clientId, auditId, "checklist_edited", "Verification checklist edited",
+            [identityConfirmed,employerConfirmed,jobTitleConfirmed,industryConfirmed,contactConfirmed].filter(Boolean).length + " of 5 confirmed");
+        }
+        if (decisionChanged || Number(previous.review_flag||0)!==reviewFlag) {
+          await logVerificationActivity(env, clientId, auditId, "decision_changed", "Verification decision changed",
+            "Status: " + verificationStatus + (decisionReason ? " · Reason: " + decisionReason : "") + (reviewFlag ? " · Flagged for review" : ""));
+        }
 
         await ensureClientIdDocumentsTable(env);
-        const idStatus = verificationStatus === "verified" ? "verified" : verificationStatus === "pending_review" ? "pending_review" : "rejected";
+        const idStatus = verificationStatus === "verified" ? "verified" : ["pending_review","needs_more_information"].includes(verificationStatus) ? "pending_review" : "rejected";
         await env.DB.prepare(`
           UPDATE client_id_documents
           SET verification_status = ?,
@@ -852,7 +912,7 @@ export default {
                  verification_method, submitted_employer, submitted_job_title,
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
-                 evidence_notes, decision_reason, decision_notes, birthdate, completed_by,
+                 evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
                  persona_transaction_id, persona_transaction_status, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
@@ -4589,7 +4649,7 @@ if (
                  verification_method, submitted_employer, submitted_job_title,
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
-                 evidence_notes, decision_reason, decision_notes, birthdate, completed_by,
+                 evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
                  persona_transaction_id, persona_transaction_status, completed_at, updated_at
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
