@@ -3703,6 +3703,7 @@ async function loadRequests() {
           if(v==="connected")return ["Connected","#2f6b45"];
           if(v==="not_validated")return ["Configured · validation unavailable","#9a6700"];
           if(v==="rejected")return ["Rejected","#8a2424"];
+          if(v==="invalid_format")return ["Invalid ID format","#8a2424"];
           if(v==="missing")return ["Missing","#8a2424"];
           if(v==="unknown")return ["Connection error","#8a2424"];
           if(v==="not_checked")return ["Not checked","var(--muted)"];
@@ -3748,7 +3749,7 @@ async function loadRequests() {
           section.dataset.personaConnectionState=result.state||"connection_error";
           section.dataset.personaConnected=result.ok?"1":"0";
           const apiStatus=result.api_key_status||(result.ok?"connected":result.state==="invalid_credentials"?"invalid":"unknown");
-          const templateStatus=result.inquiry_template_status||(result.ok?(result.sandbox?"not_validated":"connected"):result.state==="incorrect_inquiry_template"?"rejected":"not_checked");
+          const templateStatus=result.inquiry_template_status||(result.ok?(result.sandbox?"not_validated":"connected"):result.state==="incorrect_inquiry_template"?"invalid_format":"not_checked");
           setPersonaConnectionStatuses(section,apiStatus,templateStatus);
           if(result.ok){
             applyPersonaRequiredFields(section,result.required_fields||[],true,result.supported_fields||[]);
