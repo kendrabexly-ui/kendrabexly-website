@@ -962,9 +962,6 @@ export default {
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id);
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
-        const actor=accessIdentity(request).email||"admin";
-        const rate=await enforceVerificationRateLimit(env,"persona_refresh",actor+":"+clientId,20,300);
-        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona status refreshes. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
         const target=data.target==="sensitive"?"sensitive":"id";
         const policy=String(data.policy||"").trim().slice(0,80);
         const deleteAt=retentionDate(data.scheduled_delete_at);
@@ -5249,6 +5246,9 @@ if (
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id);
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const actor=accessIdentity(request).email||"admin";
+        const rate=await enforceVerificationRateLimit(env,"persona_refresh",actor+":"+clientId,20,300);
+        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona status refreshes. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
         const audit=await env.DB.prepare(
           "SELECT * FROM client_verification_audits WHERE client_id=? AND persona_transaction_id<>'' ORDER BY persona_submitted_at DESC, id DESC LIMIT 1"
         ).bind(clientId).first();
