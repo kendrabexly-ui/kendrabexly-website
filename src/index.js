@@ -1007,6 +1007,7 @@ export default {
         const clientId=Number(data.client_id||url.searchParams.get("client_id"));
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
         await clearSensitiveVerificationData(env,clientId);
+        await env.DB.prepare("UPDATE client_verification_retention SET sensitive_auto_delete=0,sensitive_delete_at='',updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
         const actor=accessIdentity(request).email||"authorized-admin";
         await logVerificationActivity(env,clientId,null,"sensitive_deleted","Sensitive verification data deleted","Deleted by "+actor+". Non-sensitive verification audit history retained.");
         return Response.json({ok:true,deleted:true},{headers:{"Cache-Control":"private, no-store"}});
@@ -1587,6 +1588,7 @@ export default {
         if (!row) return Response.json({ ok: true, deleted: false });
         await env.ID_DOCUMENTS.delete(row.object_key);
         await env.DB.prepare("DELETE FROM client_id_documents WHERE client_id = ?").bind(clientId).run();
+        await env.DB.prepare("UPDATE client_verification_retention SET id_auto_delete=0,id_delete_at='',updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
         const actor=accessIdentity(request).email||"authorized-admin";
         await logVerificationActivity(env, clientId, null, "id_deleted", "ID document manually deleted", (deletionReason ? "Reason: " + deletionReason+" · " : "")+"Deleted by "+actor+".");
         return Response.json({ ok: true, deleted: true, deleted_document: { file_name: row.file_name || "", uploaded_at: row.created_at || "", received_at: row.received_at || "" } }, {
@@ -5224,7 +5226,6 @@ if (
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
 
-        await env.DB.prepare("UPDATE persona_webhook_health SET last_success_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
         return Response.json({
           ok:true,
           message:transactionStatus === "approved"
@@ -5381,6 +5382,11 @@ if (
           await env.DB.prepare("UPDATE persona_webhook_events SET transaction_id=?, resulting_status=? WHERE event_id=?")
             .bind(objectId,transactionStatus||objectStatus,eventId).run();
         }
+        if(objectId){
+          await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status=?,last_refreshed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE transaction_id=?")
+            .bind(transactionStatus||objectStatus,objectId).run();
+        }
+        await env.DB.prepare("UPDATE persona_webhook_health SET last_success_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
 
         return Response.json({
           ok:true,
