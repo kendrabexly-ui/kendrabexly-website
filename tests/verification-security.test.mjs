@@ -34,6 +34,14 @@ test("Sandbox validates credentials without reading protected template resources
   assert.match(portal,/result\.message\|\|"Connected"/);
 });
 
+test("birthdate supports numeric keypad entry while APIs receive ISO format",()=>{
+  assert.match(portal,/client-persona-birthdate" type="text" inputmode="numeric"/);
+  assert.match(portal,/placeholder="MM\/DD\/YYYY"/);
+  assert.match(portal,/const formatBirthdateInput/);
+  assert.match(portal,/const birthdateInputToIso/);
+  assert.match(portal,/birthdate:birthdateInputToIso\(section\.querySelector\("\.client-persona-birthdate"\)\?\.value\)/);
+});
+
 test("duplicate Persona submissions are blocked",()=>{
   assert.match(worker,/persona_already_pending/);
   assert.match(worker,/A Persona verification is already pending for this client/);
