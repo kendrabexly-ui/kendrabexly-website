@@ -3070,7 +3070,7 @@ async function loadRequests() {
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
         const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
         personaInputs.forEach(input=>{
-          input.addEventListener("input",()=>{capturePersonaDraft(section); if(input.classList.contains("client-persona-birthdate")) updatePersonaAgeStatus(section);});
+          input.addEventListener("input",()=>{capturePersonaDraft(section);if(input.classList.contains("client-persona-birthdate"))updatePersonaAgeStatus(section);});
           input.addEventListener("change",()=>saveVerificationDraft(section));
           input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);saveVerificationDraft(section);});
         });
@@ -3082,49 +3082,79 @@ async function loadRequests() {
         const reasonWrap=section.querySelector(".client-verification-reason-wrap");
         const reasonInput=section.querySelector(".client-verification-reason");
         const decisionNotes=section.querySelector(".client-verification-decision-notes");
+        const declinedAction=section.querySelector(".client-declined-action");
+        const declinedActionWrap=section.querySelector(".client-declined-action-wrap");
         const completeButton=section.querySelector(".client-verification-complete");
         const checklistSelectors=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
         const checklistLabels={"client-check-identity":"Identity matches ID","client-check-employer":"Employer confirmed","client-check-job-title":"Job title confirmed","client-check-industry":"Industry confirmed","client-check-contact":"Contact information confirmed"};
+
         const updateCompletionControls=()=>{
           const missing=checklistSelectors.filter(selector=>!section.querySelector(selector)?.checked).map(selector=>checklistLabels[selector.slice(1)]);
           const note=section.querySelector(".client-verification-checklist-status");
           if(note){
-            note.textContent=missing.length ? (5-missing.length)+" of 5 complete · Missing: "+missing.join(", ") : "5 of 5 complete · All required checks confirmed.";
+            note.textContent=missing.length?(5-missing.length)+" of 5 complete · Missing: "+missing.join(", "):"5 of 5 complete · All required checks confirmed.";
             note.style.color=missing.length?"var(--muted)":"#2f6b45";
           }
-          const decision=auditStatus?.value || "pending_review";
-          if(reasonWrap) reasonWrap.hidden=!["unable_to_verify","declined"].includes(decision);
+          const decision=auditStatus?.value||"pending_review";
+          if(reasonWrap)reasonWrap.hidden=!["needs_more_information","unable_to_verify","declined"].includes(decision);
+          if(declinedActionWrap)declinedActionWrap.hidden=decision!=="declined";
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
-          let ready=decision!=="pending_review";
-          if(decision==="verified") ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge;
-          if(decision==="unable_to_verify") ready=ready&&Boolean(reasonInput?.value);
-          if(decision==="declined") ready=ready&&Boolean(reasonInput?.value || decisionNotes?.value.trim());
+          const isFinal=["verified","unable_to_verify","declined"].includes(decision);
+          let ready=isFinal;
+          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge;
+          if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
+          if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
           updateVerificationSummary(section);
         };
+
         checklistSelectors.forEach(selector=>section.querySelector(selector)?.addEventListener("change",updateCompletionControls));
         auditStatus?.addEventListener("change",()=>{
           const latest=section._verificationAuditRecords?.[0];
-          if(auditStatus.value==="pending_review" && latest?.verification_status && latest.verification_status!=="pending_review"){
+          if(auditStatus.value==="pending_review"&&latest?.verification_status&&!["pending_review","needs_more_information"].includes(latest.verification_status)){
             if(!window.confirm("This verification is already completed. Reopen it as Pending Review? The previous decision will remain in Audit History.")){
               auditStatus.value=latest.verification_status;
               return;
             }
             section.dataset.confirmReopen="1";
           }
+          section.dataset.finalDecisionConfirmed="0";
           updateCompletionControls();
         });
-        reasonInput?.addEventListener("change",updateCompletionControls);
-        decisionNotes?.addEventListener("input",updateCompletionControls);
+        reasonInput?.addEventListener("change",()=>{section.dataset.finalDecisionConfirmed="0";updateCompletionControls();});
+        decisionNotes?.addEventListener("input",()=>{section.dataset.finalDecisionConfirmed="0";updateCompletionControls();});
 
-        section.querySelector(".client-verification-complete")?.addEventListener("click",()=>section.querySelector(".client-verification-save")?.click());
+        section.querySelector(".client-needs-more-info")?.addEventListener("click",()=>{
+          if(auditStatus)auditStatus.value="needs_more_information";
+          if(reasonInput&&!reasonInput.value)reasonInput.value="insufficient_information";
+          section.dataset.finalDecisionConfirmed="0";
+          updateCompletionControls();
+          section.querySelector(".client-verification-reason-wrap")?.scrollIntoView({behavior:"smooth",block:"nearest"});
+        });
+
+        section.querySelector(".client-verification-complete")?.addEventListener("click",async()=>{
+          if(!completeButton||completeButton.disabled)return;
+          const confirmed=await confirmVerificationDecision(section);
+          if(!confirmed)return;
+          section.dataset.finalDecisionConfirmed="1";
+          section.querySelector(".client-verification-save")?.click();
+        });
+
         section.querySelector(".client-verification-save")?.addEventListener("click",async(event)=>{
-          const button=event.currentTarget, saveStatus=section.querySelector(".client-verification-save-status"), auditId=Number(section.dataset.verificationAuditId);
+          const button=event.currentTarget,saveStatus=section.querySelector(".client-verification-save-status"),auditId=Number(section.dataset.verificationAuditId);
           if(!auditId){if(saveStatus)saveStatus.textContent="No verification record is available.";return;}
+          const decision=auditStatus?.value||"pending_review";
+          if(["verified","unable_to_verify","declined"].includes(decision)&&section.dataset.finalDecisionConfirmed!=="1"){
+            const confirmed=await confirmVerificationDecision(section);
+            if(!confirmed)return;
+            section.dataset.finalDecisionConfirmed="1";
+          }
+          await saveVerificationDraft(section);
           button.disabled=true;if(saveStatus)saveStatus.textContent="Saving…";
           try{
+            const action=declinedAction?.value||"leave";
             const response=await fetch("/api/admin/clients/verification-audit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-              audit_id:auditId,client_id:Number(section.dataset.clientId),verification_status:auditStatus?.value||"pending_review",
+              audit_id:auditId,client_id:Number(section.dataset.clientId),verification_status:decision,
               submitted_industry:section.querySelector(".client-verification-industry")?.value||"",
               verification_method:section.querySelector(".client-verification-method")?.value||"",
               identity_confirmed:section.querySelector(".client-check-identity")?.checked||false,
@@ -3135,6 +3165,7 @@ async function loadRequests() {
               evidence_notes:section.querySelector(".client-verification-evidence")?.value||"",
               decision_reason:reasonInput?.value||"",decision_notes:decisionNotes?.value||"",
               birthdate:section.querySelector(".client-persona-birthdate")?.value||"",
+              review_flag:decision==="declined"&&action==="flag",
               confirm_reopen:section.dataset.confirmReopen==="1"
             })});
             const result=await response.json();
@@ -3142,12 +3173,20 @@ async function loadRequests() {
               if(window.confirm(result.message||"Reopen this verification?")){section.dataset.confirmReopen="1";button.disabled=false;button.click();return;}
             }
             if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save verification record.");
-            section.dataset.confirmReopen="0";
-            await loadVerificationAudits(section);
-            await loadIdDocument(section,true);
+
+            if(decision==="declined"&&action==="blacklist"){
+              const privateReason=["Verification declined",reasonInput?.value?reasonInput.value.replaceAll("_"," "):"",decisionNotes?.value?.trim()||""].filter(Boolean).join(" · ");
+              const blacklistResponse=await fetch("/api/admin/blacklist/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),reason:privateReason})});
+              const blacklistResult=await blacklistResponse.json().catch(()=>({}));
+              if(!blacklistResponse.ok||!blacklistResult.ok)throw new Error(blacklistResult.message||"Verification was saved, but the blacklist action could not be completed.");
+              loadBlacklist();
+            }
+
+            section.dataset.confirmReopen="0";section.dataset.finalDecisionConfirmed="0";
+            await loadVerificationAudits(section);await loadIdDocument(section,true);await loadVerificationActivity(section);
             const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};
-            verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,verification_status:result.record?.verification_status||"pending_review",completed_at:result.record?.completed_at||""});
-            if(saveStatus)saveStatus.textContent=result.record?.verification_status==="pending_review"?"Progress saved.":"Manual verification completed.";
+            verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,verification_status:result.record?.verification_status||"pending_review",completed_at:result.record?.completed_at||"",review_flag:result.record?.review_flag||false});
+            if(saveStatus)saveStatus.textContent=["pending_review","needs_more_information"].includes(result.record?.verification_status)?"Progress saved.":"Manual verification completed.";
           }catch(error){if(saveStatus)saveStatus.textContent=error.message||"Unable to save verification record.";}
           finally{button.disabled=false;updateCompletionControls();}
         });
@@ -3163,14 +3202,26 @@ async function loadRequests() {
             if(!response.ok||!result.ok)throw new Error(result.message||"Unable to upload ID document.");
             if(fileInput)fileInput.value="";setIdDocumentState(section,result.document);section.dataset.loaded="1";
             const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,has_id:true});
+            await loadVerificationActivity(section);
             if(status)status.textContent="ID document stored privately.";
           }catch(error){if(status)status.textContent=error.message||"Unable to upload ID document.";}finally{button.disabled=false;}
         });
 
-        section.querySelector(".client-persona-verify")?.addEventListener("click",async(event)=>{
-          const button=event.currentTarget,status=section.querySelector(".client-persona-status"),latestAudit=section._verificationAuditRecords?.[0]||null;
+        section.querySelector(".client-id-retention-save")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget,status=section.querySelector(".client-id-status"),reminder=section.querySelector(".client-id-retention-reminder")?.value||"";
+          button.disabled=true;if(status)status.textContent="Saving deletion reminder…";
+          try{
+            const response=await fetch("/api/admin/clients/id-document/retention",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),retention_reminder_at:reminder})});
+            const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save deletion reminder.");
+            setIdDocumentState(section,result.document);await loadVerificationActivity(section);
+            if(status)status.textContent=reminder?"Deletion reminder saved.":"Deletion reminder cleared.";
+          }catch(error){if(status)status.textContent=error.message||"Unable to save deletion reminder.";}finally{button.disabled=false;}
+        });
+
+        const submitPersona=async(retryPersona)=>{
+          const runButton=section.querySelector(".client-persona-verify"),retryButton=section.querySelector(".client-persona-retry"),status=section.querySelector(".client-persona-status"),technical=section.querySelector(".client-persona-technical"),technicalDetails=section.querySelector(".client-persona-technical-details"),latestAudit=section._verificationAuditRecords?.[0]||null;
           if(section.dataset.personaConnected!=="1"){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
-          normalizePersonaFields(section);capturePersonaDraft(section);
+          normalizePersonaFields(section);capturePersonaDraft(section);await saveVerificationDraft(section);
           const personaFields={
             name_first:normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
             name_middle:normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
@@ -3186,22 +3237,44 @@ async function loadRequests() {
             phone_number:personaPhoneForApi(section.querySelector(".client-persona-phone")?.value)
           };
           if(!personaFields.name_first||!personaFields.name_last||!personaFields.birthdate){if(status)status.textContent="Enter first name, last name, and birthdate before running Persona.";return;}
-          button.disabled=true;if(status)status.textContent="Submitting information to Persona…";
+          if(runButton)runButton.disabled=true;if(retryButton)retryButton.disabled=true;if(status)status.textContent=retryPersona?"Retrying Persona verification…":"Submitting information to Persona…";
+          if(technical)technical.hidden=true;
           try{
-            const response=await fetch("/api/admin/clients/persona-verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),booking_request_id:Number(latestAudit?.booking_request_id||0),persona_fields:personaFields})});
-            const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Unable to run Persona verification.");
-            await loadVerificationAudits(section);if(status)status.textContent=result.message||"Persona verification submitted.";
-          }catch(error){if(status)status.textContent=error.message||"Unable to run Persona verification.";}finally{button.disabled=false;}
-        });
+            const response=await fetch("/api/admin/clients/persona-verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),booking_request_id:Number(latestAudit?.booking_request_id||0),persona_fields:personaFields,retry_persona:Boolean(retryPersona)})});
+            const result=await response.json();
+            if(!response.ok||!result.ok){
+              if(status)status.textContent=result.message||"Persona could not complete this verification request.";
+              if(result.technical_details&&technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=result.technical_details;}
+              if(result.existing_transaction){
+                const current=section.querySelector(".client-persona-current");
+                if(current)current.textContent="Existing Persona result: "+String(result.existing_transaction.status||"pending").replaceAll("_"," ");
+              }
+              if(retryButton)retryButton.hidden=!result.retry_allowed;
+              return;
+            }
+            await loadVerificationAudits(section);await loadVerificationActivity(section);
+            if(status)status.textContent=result.message||"Persona verification submitted.";
+          }catch(error){
+            if(status)status.textContent="Persona could not complete this verification request. Manual verification remains available.";
+            if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||String(error);}
+          }finally{
+            if(runButton)runButton.disabled=section.dataset.personaConnected!=="1";
+            if(retryButton)retryButton.disabled=false;
+          }
+        };
+        section.querySelector(".client-persona-verify")?.addEventListener("click",()=>submitPersona(false));
+        section.querySelector(".client-persona-retry")?.addEventListener("click",()=>submitPersona(true));
 
         section.querySelector(".client-id-delete")?.addEventListener("click",async(event)=>{
-          if(!window.confirm("Permanently delete this private ID document? This cannot be undone."))return;
+          const confirmation=window.prompt("This permanently deletes the private ID image. Type DELETE to continue.");
+          if(confirmation!=="DELETE")return;
           const button=event.currentTarget,status=section.querySelector(".client-id-status");button.disabled=true;
           try{
             const response=await fetch("/api/admin/clients/id-document?client_id="+encodeURIComponent(section.dataset.clientId),{method:"DELETE"});const result=await response.json();
             if(!response.ok||!result.ok)throw new Error(result.message||"Unable to delete ID document.");
             setIdDocumentState(section,null);section.dataset.loaded="1";
             const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,has_id:false});
+            await loadVerificationActivity(section);
             if(status)status.textContent="ID document permanently deleted.";
           }catch(error){if(status)status.textContent=error.message||"Unable to delete ID document.";}finally{button.disabled=false;}
         });
