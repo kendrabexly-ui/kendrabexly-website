@@ -2548,7 +2548,7 @@ async function loadRequests() {
                     <strong style="font-size:13px;">2. Manual Verification</strong>
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">This section controls the final verification decision. Persona does not automatically approve or decline a client.</div>
                     <div class="verification-grid">
-                      <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="date" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
                       <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="needs_more_information">Needs More Information</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
                       <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2874,8 +2874,27 @@ async function loadRequests() {
         if (digits.length === 11 && digits.startsWith("1")) return "+" + digits;
         return normalizeSpaces(value);
       };
+      const formatBirthdateInput = (value) => {
+        const raw=String(value||"").trim();
+        if(/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw.slice(5,7)+"/"+raw.slice(8,10)+"/"+raw.slice(0,4);
+        const digits=raw.replace(/\D/g,"").slice(0,8);
+        if(digits.length<=2)return digits;
+        if(digits.length<=4)return digits.slice(0,2)+"/"+digits.slice(2);
+        return digits.slice(0,2)+"/"+digits.slice(2,4)+"/"+digits.slice(4);
+      };
+      const birthdateInputToIso = (value) => {
+        const raw=String(value||"").trim();
+        if(/^\d{4}-\d{2}-\d{2}$/.test(raw))return raw;
+        const match=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if(!match)return "";
+        const month=Number(match[1]),day=Number(match[2]),year=Number(match[3]);
+        const date=new Date(Date.UTC(year,month-1,day));
+        if(date.getUTCFullYear()!==year||date.getUTCMonth()+1!==month||date.getUTCDate()!==day)return "";
+        return match[3]+"-"+match[1]+"-"+match[2];
+      };
       const verificationAge = (value) => {
-        const parts = String(value || "").split("-").map(Number);
+        const iso=birthdateInputToIso(value);
+        const parts = iso.split("-").map(Number);
         if (parts.length !== 3 || !parts.every(Number.isFinite)) return null;
         const today = new Date();
         let age = today.getFullYear() - parts[0];
@@ -3051,13 +3070,14 @@ async function loadRequests() {
         const phone=section.querySelector(".client-persona-phone")?.value||"";
         const phoneDigits=phone.replace(/\D/g,"");
         const birthdate=personaFieldValue(section,"birthdate");
+        const birthdateIso=birthdateInputToIso(birthdate);
         const enteredIdNumber=normalizeSpaces(section.querySelector(".client-persona-id-number")?.value);
         const savedIdNumber=section.dataset.hasSavedIdNumber==="1";
         const hasIdNumber=Boolean(enteredIdNumber||savedIdNumber);
         const issuingState=normalizeStateValue(section.querySelector(".client-persona-issuing-state")?.value||"");
         const addressComplete=Boolean(street&&city&&state&&postal);
         const idFallbackComplete=Boolean(
-          personaFieldValue(section,"name_first")&&personaFieldValue(section,"name_last")&&birthdate&&hasIdNumber&&issuingState
+          personaFieldValue(section,"name_first")&&personaFieldValue(section,"name_last")&&birthdateIso&&hasIdNumber&&issuingState
         );
         const required=section._personaRequiredFields||[];
         const addressFields=new Set(["address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code"]);
@@ -3069,6 +3089,7 @@ async function loadRequests() {
         ["name_first","name_last","birthdate"].forEach(field=>{
           if(!personaFieldValue(section,field)&&!fieldErrors[field]){missing.push(field);fieldErrors[field]="Required field is missing.";}
         });
+        if(birthdate&&!birthdateIso)fieldErrors.birthdate="Enter a valid birthdate as MM/DD/YYYY.";
         if(!addressComplete&&!idFallbackComplete){
           if(!hasIdNumber)fieldErrors.id_number="Enter a DL/State ID number when address is unavailable.";
           if(!issuingState)fieldErrors.issuing_state="Issuing state is required when address is unavailable.";
@@ -3110,7 +3131,7 @@ async function loadRequests() {
         const emailValid=!email||!fieldErrors.email_address;
         const phoneValid=!phone||!fieldErrors.phone_number;
         const addressValid=Boolean((addressComplete&&!fieldErrors.address_country_code&&!fieldErrors.address_subdivision&&!fieldErrors.address_postal_code)||idFallbackComplete);
-        const dobPresent=Boolean(birthdate);
+        const dobPresent=Boolean(birthdateIso);
         const readiness={requiredComplete,emailValid,phoneValid,addressValid,dobPresent,idFallbackComplete,addressComplete};
         const fallbackNote=section.querySelector(".client-persona-fallback-note");
         if(fallbackNote){
@@ -3161,6 +3182,7 @@ async function loadRequests() {
         const email=section.querySelector(".client-persona-email");
         if(email)email.value=normalizeSpaces(email.value).toLowerCase().replace(/[\s]+/g,"").replace(/[;,]+$/,"");
         const phone=section.querySelector(".client-persona-phone");if(phone)phone.value=formatVerificationPhone(phone.value);
+        const birthdate=section.querySelector(".client-persona-birthdate");if(birthdate)birthdate.value=formatBirthdateInput(birthdate.value);
         const line1=normalizeSpaces(section.querySelector(".client-persona-address-1")?.value);
         const line2=section.querySelector(".client-persona-address-2");
         if(line2&&line1&&normalizeSpaces(line2.value).toLowerCase()===line1.toLowerCase())line2.value="";
@@ -3174,7 +3196,7 @@ async function loadRequests() {
           name_first:section.querySelector(".client-persona-name-first")?.value || "",
           name_middle:section.querySelector(".client-persona-name-middle")?.value || "",
           name_last:section.querySelector(".client-persona-name-last")?.value || "",
-          birthdate:section.querySelector(".client-persona-birthdate")?.value || "",
+          birthdate:birthdateInputToIso(section.querySelector(".client-persona-birthdate")?.value),
           address_street_1:section.querySelector(".client-persona-address-1")?.value || "",
           address_street_2:section.querySelector(".client-persona-address-2")?.value || "",
           address_city:section.querySelector(".client-persona-city")?.value || "",
@@ -3308,7 +3330,7 @@ async function loadRequests() {
           ".client-persona-country":p.address_country_code,
           ".client-persona-email":p.email_address,
           ".client-persona-phone":p.phone_number,
-          ".client-persona-birthdate":draft.birthdate
+          ".client-persona-birthdate":formatBirthdateInput(draft.birthdate)
         };
         Object.entries(map).forEach(([selector,value])=>{
           const input=section.querySelector(selector);
@@ -3461,7 +3483,7 @@ async function loadRequests() {
         if(methodInput) methodInput.value=latest.verification_method || "";
         if(reasonInput) reasonInput.value=latest.decision_reason || "";
         if(decisionNotes) decisionNotes.value=latest.decision_notes || "";
-        if(birthdate && latest.birthdate && !birthdate.value) birthdate.value=latest.birthdate;
+        if(birthdate && latest.birthdate && !birthdate.value) birthdate.value=formatBirthdateInput(latest.birthdate);
         const checklistMap={".client-check-identity":latest.identity_confirmed,".client-check-employer":latest.employer_confirmed,".client-check-job-title":latest.job_title_confirmed,".client-check-industry":latest.industry_confirmed,".client-check-contact":latest.contact_confirmed};
         Object.entries(checklistMap).forEach(([selector,checked])=>{const input=section.querySelector(selector);if(input)input.checked=Boolean(checked);});
         const evidence=section.querySelector(".client-verification-evidence"); if(evidence)evidence.value=latest.evidence_notes || "";
@@ -3758,6 +3780,10 @@ async function loadRequests() {
               try{input.setSelectionRange(input.value.length,input.value.length);}catch{}
             }
             if(input.classList.contains("client-persona-email"))input.value=sanitizeEmailWhileTyping(input.value);
+            if(input.classList.contains("client-persona-birthdate")){
+              input.value=formatBirthdateInput(input.value);
+              try{input.setSelectionRange(input.value.length,input.value.length);}catch{}
+            }
             capturePersonaDraft(section);
             setVerificationDraftState(section,"dirty","Unsaved changes");
             if(input.classList.contains("client-persona-birthdate"))updatePersonaAgeStatus(section);
@@ -3884,7 +3910,7 @@ async function loadRequests() {
               contact_confirmed:section.querySelector(".client-check-contact")?.checked||false,
               evidence_notes:section.querySelector(".client-verification-evidence")?.value||"",
               decision_reason:reasonInput?.value||"",decision_notes:decisionNotes?.value||"",
-              birthdate:section.querySelector(".client-persona-birthdate")?.value||"",
+              birthdate:birthdateInputToIso(section.querySelector(".client-persona-birthdate")?.value),
               review_flag:decision==="declined"&&action==="flag",
               confirm_reopen:section.dataset.confirmReopen==="1",
               expected_updated_at:section._verificationAuditRecords?.[0]?.updated_at||"",
@@ -4003,7 +4029,7 @@ async function loadRequests() {
             name_first:normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
             name_middle:normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
             name_last:normalizeSpaces(section.querySelector(".client-persona-name-last")?.value),
-            birthdate:section.querySelector(".client-persona-birthdate")?.value||"",
+            birthdate:birthdateInputToIso(section.querySelector(".client-persona-birthdate")?.value),
             address_street_1:normalizeSpaces(section.querySelector(".client-persona-address-1")?.value),
             address_street_2:normalizeSpaces(section.querySelector(".client-persona-address-2")?.value),
             address_city:normalizeSpaces(section.querySelector(".client-persona-city")?.value),
