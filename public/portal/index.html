@@ -2623,7 +2623,7 @@ async function loadRequests() {
               ? (result.webhook_connected
                   ? "Persona connected · Admin-run verification"
                   : "Persona connected · Verification is available; webhook status updates still need configuration.")
-              : "Persona setup incomplete · Add the API key and transaction type ID to the Worker environment.";
+              : "Persona setup incomplete · " + (result.configuration_message || "Add the API key and transaction type ID to the Worker environment.");
             status.style.color = result.connected ? "#2f6b45" : "#8a5a16";
           }
           if (button) button.disabled = !result.connected;

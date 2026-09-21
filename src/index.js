@@ -4078,7 +4078,8 @@ if (
     // =========================================================
     if (url.pathname === "/api/admin/clients/persona-status" && request.method === "GET") {
       const apiKeyConfigured = Boolean(env.PERSONA_API_KEY);
-      const transactionTypeConfigured = Boolean(env.PERSONA_TRANSACTION_TYPE_ID);
+      const transactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
+      const transactionTypeConfigured = /^txntp_[A-Za-z0-9]+$/.test(transactionTypeId);
       const webhookSecretConfigured = Boolean(env.PERSONA_WEBHOOK_SECRET);
       return Response.json({
         ok:true,
@@ -4086,6 +4087,13 @@ if (
         webhook_connected:webhookSecretConfigured,
         api_key_configured:apiKeyConfigured,
         transaction_type_configured:transactionTypeConfigured,
+        configuration_message:!apiKeyConfigured
+          ? "Add PERSONA_API_KEY to the Worker environment."
+          : !transactionTypeId
+            ? "Add PERSONA_TRANSACTION_TYPE_ID to the Worker environment."
+            : !transactionTypeConfigured
+              ? "PERSONA_TRANSACTION_TYPE_ID must be a Persona Transaction Type ID beginning with txntp_."
+              : "",
         webhook_secret_configured:webhookSecretConfigured,
         webhook_url:"https://kendrabexly.com/api/webhooks/persona"
       }, {headers:{"Cache-Control":"private, no-store"}});
@@ -4093,10 +4101,17 @@ if (
 
     if (url.pathname === "/api/admin/clients/persona-verify" && request.method === "POST") {
       try {
-        if (!env.PERSONA_API_KEY || !env.PERSONA_TRANSACTION_TYPE_ID) {
+        const personaTransactionTypeId = String(env.PERSONA_TRANSACTION_TYPE_ID || "").trim();
+        if (!env.PERSONA_API_KEY || !personaTransactionTypeId) {
           return Response.json({
             ok:false,
             message:"Persona API verification is not configured. Add PERSONA_API_KEY and PERSONA_TRANSACTION_TYPE_ID to the Worker environment."
+          }, {status:503});
+        }
+        if (!/^txntp_[A-Za-z0-9]+$/.test(personaTransactionTypeId)) {
+          return Response.json({
+            ok:false,
+            message:"The Persona Transaction Type ID is invalid. Replace PERSONA_TRANSACTION_TYPE_ID with the ID beginning with txntp_, not an Inquiry or Verification Template ID."
           }, {status:503});
         }
         if (!env.ID_DOCUMENTS) {
@@ -4170,7 +4185,7 @@ if (
 
         const bytes = await object.arrayBuffer();
         const form = new FormData();
-        form.append("data[attributes][transaction_type_id]", String(env.PERSONA_TRANSACTION_TYPE_ID));
+        form.append("data[attributes][transaction_type_id]", personaTransactionTypeId);
         form.append("data[attributes][reference_id]", String(requestId));
         form.append("data[attributes][fields][id_class]", idClass);
         form.append("data[attributes][fields][address_country_code]", countryCode);
@@ -4197,11 +4212,13 @@ if (
         });
         const personaData = await personaResponse.json().catch(() => ({}));
         if (!personaResponse.ok) {
-          const detail =
-            personaData?.errors?.[0]?.detail ||
-            personaData?.errors?.[0]?.title ||
-            personaData?.message ||
-            "Persona rejected the verification request.";
+          const personaError = personaData?.errors?.[0] || {};
+          const personaRequestId = personaResponse.headers.get("Request-Id") || "";
+          let detail = personaError.detail || personaError.title || personaData?.message || "Persona rejected the verification request.";
+          if (personaResponse.status === 400 && /^bad request$/i.test(String(detail).trim())) {
+            detail = "Persona rejected the transaction fields. Confirm this Transaction Type contains id_front_photo, id_class, and address_country_code fields.";
+          }
+          if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
           console.error("Persona transaction create failed:", personaResponse.status, personaData);
           return Response.json({ok:false,message:String(detail)},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
         }
