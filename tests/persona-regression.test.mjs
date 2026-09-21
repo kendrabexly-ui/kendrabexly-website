@@ -52,3 +52,23 @@ test("Verification exports explicitly exclude the stored ID image", () => {
   const exportBlock = worker.slice(worker.indexOf("verification-export"), worker.indexOf("persona-verify"));
   assert.doesNotMatch(exportBlock, /object_key|ID_DOCUMENTS\.get/);
 });
+
+test("ID-number address fallback is encrypted, masked, and schema-gated", () => {
+  assert.match(worker, /AES-GCM/);
+  assert.match(worker, /VERIFICATION_FIELD_ENCRYPTION_KEY/);
+  assert.match(worker, /id_number_ciphertext/);
+  assert.match(worker, /number_masked/);
+  assert.match(worker, /supportedFields\.has\("identification_number"\)/);
+  assert.match(worker, /Address unavailable—ID details used instead/);
+  assert.doesNotMatch(worker, /id_details:\{[^}]*number:row\?\.id_number_ciphertext/s);
+});
+
+test("Address fallback requires name, DOB, ID number, and issuing state", () => {
+  for (const field of ["name_first","name_last","birthdate","identification_number","identification_issuing_subdivision"]) {
+    assert.ok(worker.includes(`"${field}"`), `missing fallback field ${field}`);
+  }
+  assert.match(portal, /DL\/State ID Number/);
+  assert.match(portal, /Issuing State/);
+  assert.match(portal, /Expiration Date/);
+  assert.match(portal, /Address unavailable—ID details used instead/);
+});
