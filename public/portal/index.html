@@ -3463,7 +3463,8 @@ async function loadRequests() {
         section._personaFieldsConfigured=Boolean(configured);
         section.querySelectorAll("[data-persona-field]").forEach(label=>{
           const field=label.dataset.personaField;
-          const isRequired=required.has(field);
+          const appRequired=["name_first","name_last"].includes(field);
+          const isRequired=required.has(field)||appRequired;
           const confirmedSupported=supported.size>0;
           label.hidden=Boolean(configured)&&confirmedSupported&&!isRequired;
           let marker=label.querySelector(".persona-required-marker");
