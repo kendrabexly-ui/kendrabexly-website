@@ -443,7 +443,7 @@ export default {
         if (!await requireIdDocumentClient(env, clientId)) {
           return Response.json({ ok: false, message: "Client not found." }, { status: 404 });
         }
-        const result = await env.DB.prepare(`
+        let result = await env.DB.prepare(`
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
                  authorization_version, accepted_at, verification_status,
                  verification_method, submitted_employer, submitted_job_title,
@@ -455,6 +455,34 @@ export default {
           WHERE client_id = ?
           ORDER BY accepted_at DESC, id DESC
         `).bind(clientId).all();
+        if (!(result.results || []).length) {
+          const latestRequest = await env.DB.prepare(
+            "SELECT id FROM date_requests WHERE client_id=? ORDER BY created_at DESC, id DESC LIMIT 1"
+          ).bind(clientId).first();
+          const requestId = Number(latestRequest?.id || 0);
+          if (requestId) {
+            await env.DB.prepare(`
+              INSERT INTO client_verification_audits
+                (client_id, date_request_id, accepted, authorization_wording,
+                 authorization_version, accepted_at, verification_status, verification_method)
+              VALUES (?, ?, 0, 'Screening acknowledgement was not recorded for this legacy booking request.',
+                      'legacy-unrecorded', CURRENT_TIMESTAMP, 'pending_review', 'Admin verification')
+              ON CONFLICT(date_request_id) DO NOTHING
+            `).bind(clientId, requestId).run();
+            result = await env.DB.prepare(`
+              SELECT id, client_id, date_request_id, accepted, authorization_wording,
+                     authorization_version, accepted_at, verification_status,
+                     verification_method, submitted_employer, submitted_job_title,
+                     submitted_industry, identity_confirmed, employer_confirmed,
+                     job_title_confirmed, industry_confirmed, contact_confirmed,
+                     evidence_notes, persona_transaction_id, persona_transaction_status,
+                     completed_at, updated_at
+              FROM client_verification_audits
+              WHERE client_id = ?
+              ORDER BY accepted_at DESC, id DESC
+            `).bind(clientId).all();
+          }
+        }
         return Response.json({
           ok: true,
           records: (result.results || []).map(verificationAuditPublicRecord)
@@ -506,6 +534,18 @@ export default {
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
         }
+        await ensureClientIdDocumentsTable(env);
+        const idStatus = verificationStatus === "verified"
+          ? "verified"
+          : verificationStatus === "pending_review"
+            ? "pending_review"
+            : "rejected";
+        const idVerifiedAt = idStatus === "verified" ? (idDocumentDate(data.completed_at) || idDocumentToday()) : null;
+        await env.DB.prepare(`
+          UPDATE client_id_documents
+          SET verification_status = ?, verified_at = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE client_id = ?
+        `).bind(idStatus, idVerifiedAt, clientId).run();
         const row = await env.DB.prepare(`
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
                  authorization_version, accepted_at, verification_status,
@@ -662,6 +702,24 @@ export default {
         if (existing?.object_key && existing.object_key !== newObjectKey) {
           await env.ID_DOCUMENTS.delete(existing.object_key);
         }
+        await ensureClientVerificationAuditsTable(env);
+        const auditStatus = verificationStatus === "verified"
+          ? "verified"
+          : verificationStatus === "rejected"
+            ? "unable_to_verify"
+            : "pending_review";
+        const latestAudit = await env.DB.prepare(
+          "SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC, id DESC LIMIT 1"
+        ).bind(clientId).first();
+        if (latestAudit?.id) {
+          await env.DB.prepare(`
+            UPDATE client_verification_audits
+            SET verification_status = ?,
+                completed_at = CASE WHEN ?='pending_review' THEN NULL ELSE COALESCE(completed_at, CURRENT_TIMESTAMP) END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).bind(auditStatus, auditStatus, latestAudit.id).run();
+        }
         const row = await env.DB.prepare(`
           SELECT client_id, file_name, mime_type, file_size, verification_status,
                  received_at, verified_at, updated_at
@@ -706,6 +764,24 @@ export default {
         `).bind(verificationStatus, receivedAt, verifiedAt, clientId).run();
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Upload an ID image first." }, { status: 404 });
+        }
+        await ensureClientVerificationAuditsTable(env);
+        const auditStatus = verificationStatus === "verified"
+          ? "verified"
+          : verificationStatus === "rejected"
+            ? "unable_to_verify"
+            : "pending_review";
+        const latestAudit = await env.DB.prepare(
+          "SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC, id DESC LIMIT 1"
+        ).bind(clientId).first();
+        if (latestAudit?.id) {
+          await env.DB.prepare(`
+            UPDATE client_verification_audits
+            SET verification_status = ?,
+                completed_at = CASE WHEN ?='pending_review' THEN NULL ELSE COALESCE(completed_at, CURRENT_TIMESTAMP) END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).bind(auditStatus, auditStatus, latestAudit.id).run();
         }
         const row = await env.DB.prepare(`
           SELECT client_id, file_name, mime_type, file_size, verification_status,
@@ -4127,9 +4203,25 @@ if (
           "tax_identification_number","document_number","email_address","phone_number"
         ];
         const personaFields = {};
+        const collapseSpaces = (value) => String(value || "").trim().replace(/\s+/g, " ");
         for (const key of allowedPersonaFields) {
-          const value = String(incomingFields[key] || "").trim();
-          if (value) personaFields[key] = key === "address_country_code" || key === "address_subdivision" ? value.toUpperCase() : value;
+          let value = collapseSpaces(incomingFields[key]);
+          if (!value) continue;
+          if (key === "address_country_code" || key === "address_subdivision") value = value.toUpperCase();
+          if (key === "email_address") value = value.toLowerCase();
+          if (key === "phone_number") {
+            const digits = value.replace(/\D/g, "");
+            if (digits.length === 10) value = "+1" + digits;
+            else if (digits.length === 11 && digits.startsWith("1")) value = "+" + digits;
+          }
+          personaFields[key] = value;
+        }
+        if (
+          personaFields.address_street_1 &&
+          personaFields.address_street_2 &&
+          personaFields.address_street_1.toLowerCase() === personaFields.address_street_2.toLowerCase()
+        ) {
+          delete personaFields.address_street_2;
         }
 
         if (!Number.isInteger(clientId) || clientId < 1) {
