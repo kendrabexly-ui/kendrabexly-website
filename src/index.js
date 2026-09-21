@@ -5432,7 +5432,23 @@ if (
           console.error("Persona inquiry create failed:", personaResponse.status);
           await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status='request_failed',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(attempt.id).run();
           await logVerificationActivity(env, clientId, audit.id, "persona_error", "Persona submission failed", "Persona rejected the request after adaptive prefill retries. Technical details were not stored in the audit log.");
-          return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(detail),retry_allowed:true},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
+          const sandboxTemplateMismatch=
+            personaResponse.status===400 &&
+            /^persona_sandbox_/i.test(String(env.PERSONA_API_KEY||"")) &&
+            acceptedProfile==="" &&
+            uniqueProfiles.at(-1)?.name==="persona_docs_exact";
+          return Response.json({
+            ok:false,
+            code:sandboxTemplateMismatch?"persona_template_environment_mismatch":"persona_request_rejected",
+            message:sandboxTemplateMismatch
+              ? "Persona setup needs attention before another verification can be submitted."
+              : "Persona could not complete this verification request. Manual verification remains available.",
+            technical_details:String(detail),
+            retry_allowed:!sandboxTemplateMismatch,
+            configuration_error:sandboxTemplateMismatch,
+            persona_environment_id:personaResponse.headers.get("Persona-Environment-Id")||"",
+            inquiry_template_id:personaInquiryTemplateId
+          },{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
         }
 
         if(acceptedProfile){
