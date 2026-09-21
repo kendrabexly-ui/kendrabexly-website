@@ -3325,7 +3325,8 @@ async function loadRequests(options = {}) {
               : "Complete the address or the ID fallback.";
           fallbackNote.style.color=addressValid?"#2f6b45":"#8a2424";
         }
-        section._personaValidation={valid:errors.length===0,errors,warnings,missing,readiness};
+        const allReady=requiredComplete&&emailValid&&phoneValid&&addressValid&&dobPresent&&errors.length===0;
+        section._personaValidation={valid:errors.length===0,allReady,errors,warnings,missing,readiness};
         const setReadyRow=(key,ok,label)=>{
           const row=section.querySelector('[data-readiness="'+key+'"]');
           if(row){const strong=row.querySelector("strong");if(strong){strong.textContent=label||(ok?"✓":"Needs attention");strong.style.color=ok?"#2f6b45":"#8a2424";}}
@@ -3336,7 +3337,6 @@ async function loadRequests(options = {}) {
         setReadyRow("address",addressValid,addressComplete?"✓ Address":idFallbackComplete?"✓ ID fallback":"Needs attention");
         setReadyRow("dob",dobPresent,dobPresent?"✓":(required.includes("birthdate")?"Needs attention":"Optional / blank"));
         const readyText=section.querySelector(".client-persona-ready-text");
-        const allReady=requiredComplete&&emailValid&&phoneValid&&addressValid&&dobPresent;
         if(readyText){readyText.textContent=allReady?"Ready to submit":"Not ready to submit";readyText.style.color=allReady?"#2f6b45":"#8a2424";}
         const dobHandoff=section.querySelector(".client-persona-dob-handoff");
         if(dobHandoff){
