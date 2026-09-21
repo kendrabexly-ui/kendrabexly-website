@@ -941,7 +941,7 @@ export default {
         }
         const row = await env.DB.prepare(`
           SELECT client_id, file_name, mime_type, file_size, verification_status,
-                 received_at, verified_at, updated_at
+                 received_at, verified_at, retention_reminder_at, created_at, updated_at
           FROM client_id_documents
           WHERE client_id = ?
           LIMIT 1
@@ -994,7 +994,7 @@ export default {
         if (!env.ID_DOCUMENTS) {
           return Response.json({ ok: false, message: "Private ID storage is not configured." }, { status: 503 });
         }
-        await ensureClientIdDocumentsTable(env);
+        await ensureVerificationWorkspaceTables(env);
         const form = await request.formData();
         const clientId = Number(form.get("client_id"));
         const client = await requireIdDocumentClient(env, clientId);
@@ -1021,7 +1021,7 @@ export default {
           ? (idDocumentDate(form.get("verified_at")) || idDocumentToday())
           : null;
         const existing = await env.DB.prepare(
-          "SELECT object_key FROM client_id_documents WHERE client_id = ? LIMIT 1"
+          "SELECT object_key, retention_reminder_at FROM client_id_documents WHERE client_id = ? LIMIT 1"
         ).bind(clientId).first();
 
         const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
@@ -1063,9 +1063,15 @@ export default {
         if (existing?.object_key && existing.object_key !== newObjectKey) {
           await env.ID_DOCUMENTS.delete(existing.object_key);
         }
+        await logVerificationActivity(
+          env, clientId, null,
+          existing?.object_key ? "id_replaced" : "id_uploaded",
+          existing?.object_key ? "ID document replaced" : "ID document uploaded",
+          "Received date: " + receivedAt
+        );
         const row = await env.DB.prepare(`
           SELECT client_id, file_name, mime_type, file_size, verification_status,
-                 received_at, verified_at, updated_at
+                 received_at, verified_at, retention_reminder_at, created_at, updated_at
           FROM client_id_documents WHERE client_id = ? LIMIT 1
         `).bind(clientId).first();
         return Response.json({ ok: true, document: idDocumentPublicRecord(row) }, {
@@ -1110,7 +1116,7 @@ export default {
         }
         const row = await env.DB.prepare(`
           SELECT client_id, file_name, mime_type, file_size, verification_status,
-                 received_at, verified_at, updated_at
+                 received_at, verified_at, retention_reminder_at, created_at, updated_at
           FROM client_id_documents WHERE client_id = ? LIMIT 1
         `).bind(clientId).first();
         return Response.json({ ok: true, document: idDocumentPublicRecord(row) }, {
@@ -1138,6 +1144,7 @@ export default {
         if (!row) return Response.json({ ok: true, deleted: false });
         await env.ID_DOCUMENTS.delete(row.object_key);
         await env.DB.prepare("DELETE FROM client_id_documents WHERE client_id = ?").bind(clientId).run();
+        await logVerificationActivity(env, clientId, null, "id_deleted", "ID document permanently deleted", "");
         return Response.json({ ok: true, deleted: true }, {
           headers: { "Cache-Control": "private, no-store" }
         });
@@ -4510,16 +4517,18 @@ if (
         if (!env.PERSONA_API_KEY || !personaTransactionTypeId) {
           return Response.json({
             ok:false,
-            message:"Persona API verification is not configured. Add PERSONA_API_KEY and PERSONA_TRANSACTION_TYPE_ID to the Worker environment."
+            message:"Persona setup is still pending. Manual verification remains available.",
+            technical_details:"PERSONA_API_KEY or PERSONA_TRANSACTION_TYPE_ID is missing."
           }, {status:503});
         }
         if (!/^txntp_[A-Za-z0-9]+$/.test(personaTransactionTypeId)) {
           return Response.json({
             ok:false,
-            message:"The Persona Transaction Type ID is invalid. Replace PERSONA_TRANSACTION_TYPE_ID with the ID beginning with txntp_, not an Inquiry or Verification Template ID."
+            message:"Persona setup is still pending. Manual verification remains available.",
+            technical_details:"PERSONA_TRANSACTION_TYPE_ID must begin with txntp_."
           }, {status:503});
         }
-        await ensureClientVerificationAuditsTable(env);
+        await ensureVerificationWorkspaceTables(env);
 
         const data = await request.json().catch(() => ({}));
         const clientId = Number(data.client_id);
@@ -4577,7 +4586,7 @@ if (
         }
 
         let audit = await env.DB.prepare(
-          "SELECT id, date_request_id FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
+          "SELECT id, date_request_id, persona_transaction_id, persona_transaction_status FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
         ).bind(clientId, requestId).first();
         if (!audit) {
           await env.DB.prepare(`
@@ -4589,11 +4598,26 @@ if (
             ON CONFLICT(date_request_id) DO NOTHING
           `).bind(clientId, requestId).run();
           audit = await env.DB.prepare(
-            "SELECT id, date_request_id FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
+            "SELECT id, date_request_id, persona_transaction_id, persona_transaction_status FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
           ).bind(clientId, requestId).first();
         }
         if (!audit) {
           return Response.json({ok:false,message:"Unable to create the verification audit for this booking request."},{status:500});
+        }
+        const existingPersonaId = String(audit.persona_transaction_id || "");
+        const existingPersonaStatus = String(audit.persona_transaction_status || "").toLowerCase();
+        const activePersonaStatuses = new Set(["created","pending","needs_review","pending_fallback_inquiry","processing"]);
+        const retryablePersonaStatuses = new Set(["declined","errored","failed"]);
+        if (existingPersonaId) {
+          if (activePersonaStatuses.has(existingPersonaStatus) || !existingPersonaStatus) {
+            return Response.json({ok:false,code:"persona_already_pending",message:"A Persona verification is already pending for this client.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus||"pending"},retry_allowed:false},{status:409});
+          }
+          if (existingPersonaStatus === "approved") {
+            return Response.json({ok:false,code:"persona_already_approved",message:"Persona already returned Approved for this client. Use the existing result.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:false},{status:409});
+          }
+          if (retryablePersonaStatuses.has(existingPersonaStatus) && !data.retry_persona) {
+            return Response.json({ok:false,code:"persona_retry_required",message:"The previous Persona verification ended without approval. Use Retry Persona if you want to submit it again.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:true},{status:409});
+          }
         }
 
         const headers = {
@@ -4627,7 +4651,8 @@ if (
           }
           if (personaRequestId) detail += " Persona request: " + personaRequestId + ".";
           console.error("Persona transaction create failed:", personaResponse.status, personaData);
-          return Response.json({ok:false,message:String(detail)},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
+          await logVerificationActivity(env, clientId, audit.id, "persona_error", "Persona submission failed", String(detail));
+          return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(detail),retry_allowed:true},{status:personaResponse.status >= 500 ? 502 : personaResponse.status});
         }
 
         const transaction = personaData?.data || {};
@@ -4642,6 +4667,8 @@ if (
               updated_at=CURRENT_TIMESTAMP
           WHERE id=?
         `).bind(identityConfirmed, transactionId, transactionStatus, audit.id).run();
+        await logVerificationActivity(env, clientId, audit.id, "persona_submitted", data.retry_persona ? "Persona verification retried" : "Persona verification submitted", "Transaction: " + transactionId);
+        await logVerificationActivity(env, clientId, audit.id, "persona_response", "Persona response received", "Status: " + transactionStatus);
 
         const updated = await env.DB.prepare(`
           SELECT id, client_id, date_request_id, accepted, authorization_wording,
@@ -4665,7 +4692,7 @@ if (
         }, {headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Persona admin verification error:", error);
-        return Response.json({ok:false,message:"Unable to submit this verification to Persona."},{status:500});
+        return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(error?.message || error),retry_allowed:true},{status:500});
       }
     }
 
