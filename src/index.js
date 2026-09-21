@@ -6477,7 +6477,19 @@ if (
     // SERVE THE EXISTING WEBSITE
     // =========================================================
 
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (url.pathname === "/portal" || url.pathname.startsWith("/portal/")) {
+      const headers = new Headers(assetResponse.headers);
+      headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+      headers.set("Pragma", "no-cache");
+      headers.set("Expires", "0");
+      return new Response(assetResponse.body, {
+        status: assetResponse.status,
+        statusText: assetResponse.statusText,
+        headers
+      });
+    }
+    return assetResponse;
   },
 
   async scheduled(event, env, ctx) {
