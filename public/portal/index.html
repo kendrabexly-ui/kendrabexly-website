@@ -2792,6 +2792,7 @@ async function loadRequests() {
         if(list) list.innerHTML=currentHtml+older+decisions;
         updatePersonaAgeStatus(section);
         updateVerificationSummary(section);
+        if (statusSelect) statusSelect.dispatchEvent(new Event("change"));
       };
       const loadVerificationAudits = async (section) => {
         const list=section.querySelector(".client-verification-audit-list");
