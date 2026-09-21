@@ -1979,7 +1979,7 @@ async function loadRequests() {
           <strong>${escapeHtml(((item.first_name||"")+" "+(item.last_name||"")).trim()||"Client")}</strong>
           <span style="margin-left:7px;padding:3px 7px;border-radius:999px;background:#f7f2e9;font-size:11px;font-weight:700;">${escapeHtml(queueLabels[item.queue_category]||item.queue_category)}</span>
           ${item.review_flag?'<span style="margin-left:5px;padding:3px 7px;border-radius:999px;background:#fdeaea;color:#8a2424;font-size:11px;font-weight:700;">Flagged</span>':""}
-          <div style="margin-top:3px;font-size:12px;color:var(--muted);">Checklist ${Number(item.checklist_count||0)} of 5 · ${escapeHtml(String(item.verification_status||"pending_review").replaceAll("_"," "))} ${item.booking_request_created_at?"· Request "+escapeHtml(formatVerificationTimestamp(item.booking_request_created_at)):""}</div>
+          <div style="margin-top:3px;font-size:12px;color:var(--muted);">Checklist ${Number(item.checklist_count||0)} of 5 · ${escapeHtml(String(item.verification_status||"pending_review").replaceAll("_"," "))} ${item.booking_request_created_at?"· Request "+escapeHtml((()=>{const d=new Date(item.booking_request_created_at+(String(item.booking_request_created_at).includes("T")||String(item.booking_request_created_at).endsWith("Z")?"":"Z"));return Number.isNaN(d.getTime())?String(item.booking_request_created_at):d.toLocaleString();})()):""}</div>
         </button>`).join(""):'<div class="empty">No clients in this queue category.</div>';
       verificationQueueBox.querySelectorAll(".verification-queue-item").forEach(button=>button.addEventListener("click",()=>{
         if(clientSearch)clientSearch.value=button.dataset.clientEmail||"";
