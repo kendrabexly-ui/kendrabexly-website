@@ -2266,6 +2266,7 @@ async function loadRequests() {
         if (verificationFilter === "pending_review" && String(verification.verification_status || "pending_review") !== "pending_review") return false;
         if (verificationFilter === "verified" && verification.verification_status !== "verified") return false;
         if (verificationFilter === "unable_to_verify" && verification.verification_status !== "unable_to_verify") return false;
+        if (verificationFilter === "needs_more_information" && verification.verification_status !== "needs_more_information") return false;
         if (verificationFilter === "declined" && verification.verification_status !== "declined") return false;
         if (verificationFilter === "persona_pending" && !(verification.persona_transaction_id && !["approved","declined","errored"].includes(String(verification.persona_transaction_status || "").toLowerCase()))) return false;
         if (verificationFilter === "no_id" && verification.has_id) return false;
