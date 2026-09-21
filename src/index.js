@@ -314,14 +314,23 @@ function normalizeVerificationAddressFields(fields) {
   let line2=String(out.address_street_2||"").trim().replace(/\s+/g," ");
   if(!line2&&line1){
     let match=line1.match(/^(.*?)[,\s]+(?:APT|APARTMENT|UNIT|SUITE|STE|#)\s*([A-Z0-9-]+)$/i);
-    if(!match) match=line1.match(/^(.*\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|BLVD|BOULEVARD|LN|LANE|CT|COURT|WAY|PL|PLACE|PKWY|PARKWAY))\s+(\d{1,6}[A-Z]?)$/i);
-    if(match){line1=match[1].trim().replace(/[, ]+$/,"");line2="Unit "+match[2].trim();}
+    if(!match) {
+      match=line1.match(/^(.*\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|BLVD|BOULEVARD|LN|LANE|CT|COURT|WAY|PL|PLACE|PKWY|PARKWAY)(?:\s+(?:N|S|E|W|NE|NW|SE|SW))?)\s+(\d{1,6}[A-Z]?)$/i);
+    }
+    if(match){
+      const possibleBase=match[1].trim().replace(/[, ]+$/,"");
+      const unit=match[2].trim();
+      const baseHasHouseNumber=/^\d+\s+/.test(possibleBase);
+      const unitLooksLikeZip=/^\d{5}(?:-\d{4})?$/.test(unit);
+      if(baseHasHouseNumber&&!unitLooksLikeZip){line1=possibleBase;line2="Unit "+unit;}
+    }
   }
   out.address_street_1=titleCaseVerificationAddress(line1);
   out.address_street_2=titleCaseVerificationAddress(line2);
   out.address_city=titleCaseVerificationAddress(out.address_city||"");
   out.address_subdivision=normalizeVerificationState(out.address_subdivision||"");
   out.address_country_code=String(out.address_country_code||"US").trim().toUpperCase();
+  out.address_postal_code=String(out.address_postal_code||"").trim().replace(/\s+/g,"");
   return out;
 }
 function normalizeVerificationPhone(value) {
@@ -708,6 +717,7 @@ export default {
                  COALESCE(a.persona_updated_at, '') AS persona_updated_at,
                  COALESCE(a.completed_at, '') AS completed_at,
                  COALESCE(a.review_flag, 0) AS review_flag,
+                 COALESCE((SELECT created_at FROM date_requests r WHERE r.id=a.date_request_id LIMIT 1),'') AS booking_request_created_at,
                  COALESCE(a.identity_confirmed,0)+COALESCE(a.employer_confirmed,0)+
                  COALESCE(a.job_title_confirmed,0)+COALESCE(a.industry_confirmed,0)+
                  COALESCE(a.contact_confirmed,0) AS checklist_count,
@@ -746,9 +756,11 @@ export default {
             persona_updated_at:row.persona_updated_at || "",
             completed_at:row.completed_at || "",
             review_flag:Number(row.review_flag || 0)===1,
+            booking_request_created_at:row.booking_request_created_at || "",
             checklist_count:checklistCount,
             has_id:Number(row.has_id || 0)===1,
             retention_reminder_at:row.retention_reminder_at || "",
+            retention_due:Boolean(row.retention_reminder_at) && String(row.retention_reminder_at) <= new Date().toISOString().slice(0,10),
             persona_pending:personaPending,
             queue_category
           };
@@ -763,7 +775,8 @@ export default {
           no_id:clients.filter(x=>!x.has_id).length,
           needs_id:clients.filter(x=>x.queue_category==="needs_id").length,
           checklist_incomplete:clients.filter(x=>x.queue_category==="checklist_incomplete").length,
-          ready_for_final_decision:clients.filter(x=>x.queue_category==="ready_for_final_decision").length
+          ready_for_final_decision:clients.filter(x=>x.queue_category==="ready_for_final_decision").length,
+          retention_due:clients.filter(x=>x.retention_due).length
         };
         const order={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
         const queue=[...clients]
@@ -1214,13 +1227,13 @@ export default {
         const deleteData = await request.json().catch(() => ({}));
         const deletionReason = String(deleteData.reason || "").trim().slice(0,500);
         const row = await env.DB.prepare(
-          "SELECT object_key FROM client_id_documents WHERE client_id = ? LIMIT 1"
+          "SELECT object_key, file_name, created_at, received_at FROM client_id_documents WHERE client_id = ? LIMIT 1"
         ).bind(clientId).first();
         if (!row) return Response.json({ ok: true, deleted: false });
         await env.ID_DOCUMENTS.delete(row.object_key);
         await env.DB.prepare("DELETE FROM client_id_documents WHERE client_id = ?").bind(clientId).run();
         await logVerificationActivity(env, clientId, null, "id_deleted", "ID document permanently deleted", deletionReason ? "Reason: " + deletionReason : "No deletion reason entered.");
-        return Response.json({ ok: true, deleted: true }, {
+        return Response.json({ ok: true, deleted: true, deleted_document: { file_name: row.file_name || "", uploaded_at: row.created_at || "", received_at: row.received_at || "" } }, {
           headers: { "Cache-Control": "private, no-store" }
         });
       } catch (error) {
@@ -4650,6 +4663,9 @@ if (
         }
         if (personaFields.address_country_code === "US" && personaFields.address_subdivision && !VALID_US_STATE_CODES.has(personaFields.address_subdivision)) {
           return Response.json({ok:false,message:"State must use a valid two-letter U.S. abbreviation.",field_errors:["State is invalid."]},{status:400});
+        }
+        if (personaFields.address_country_code === "US" && personaFields.address_postal_code && !/^\d{5}(?:-\d{4})?$/.test(personaFields.address_postal_code)) {
+          return Response.json({ok:false,message:"Enter a valid U.S. ZIP code.",field_errors:["Postal code must be 12345 or 12345-6789."]},{status:400});
         }
         if (personaFields.email_address && !verificationEmailValid(personaFields.email_address)) {
           return Response.json({ok:false,message:"Enter a valid email address before submitting to Persona.",field_errors:["Email format is invalid."]},{status:400});
