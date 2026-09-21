@@ -514,6 +514,15 @@ export default {
         const jobTitleConfirmed = data.job_title_confirmed ? 1 : 0;
         const industryConfirmed = data.industry_confirmed ? 1 : 0;
         const contactConfirmed = data.contact_confirmed ? 1 : 0;
+        if (
+          verificationStatus === "verified" &&
+          !(identityConfirmed && employerConfirmed && jobTitleConfirmed && industryConfirmed && contactConfirmed)
+        ) {
+          return Response.json({
+            ok: false,
+            message: "All five manual verification checklist items must be confirmed before marking this client Verified."
+          }, { status: 400 });
+        }
         const evidenceNotes = String(data.evidence_notes || "").trim().slice(0, 2000);
         const completedAt = verificationStatus === "pending_review"
           ? null
@@ -656,6 +665,28 @@ export default {
           ? String(form.get("verification_status"))
           : "pending_review";
         const receivedAt = idDocumentDate(form.get("received_at")) || idDocumentToday();
+        if (verificationStatus === "verified") {
+          await ensureClientVerificationAuditsTable(env);
+          const latestAudit = await env.DB.prepare(`
+            SELECT identity_confirmed, employer_confirmed, job_title_confirmed, industry_confirmed, contact_confirmed
+            FROM client_verification_audits
+            WHERE client_id=?
+            ORDER BY accepted_at DESC, id DESC
+            LIMIT 1
+          `).bind(clientId).first();
+          const allConfirmed = latestAudit &&
+            Number(latestAudit.identity_confirmed) === 1 &&
+            Number(latestAudit.employer_confirmed) === 1 &&
+            Number(latestAudit.job_title_confirmed) === 1 &&
+            Number(latestAudit.industry_confirmed) === 1 &&
+            Number(latestAudit.contact_confirmed) === 1;
+          if (!allConfirmed) {
+            return Response.json({
+              ok:false,
+              message:"Complete all five manual verification checklist items before uploading an ID as Verified."
+            }, {status:400});
+          }
+        }
         const verifiedAt = verificationStatus === "verified"
           ? (idDocumentDate(form.get("verified_at")) || idDocumentToday())
           : null;
@@ -753,6 +784,28 @@ export default {
         const receivedAt = idDocumentDate(data.received_at);
         if (!receivedAt) {
           return Response.json({ ok: false, message: "Enter the date the ID was received." }, { status: 400 });
+        }
+        if (verificationStatus === "verified") {
+          await ensureClientVerificationAuditsTable(env);
+          const latestAudit = await env.DB.prepare(`
+            SELECT identity_confirmed, employer_confirmed, job_title_confirmed, industry_confirmed, contact_confirmed
+            FROM client_verification_audits
+            WHERE client_id=?
+            ORDER BY accepted_at DESC, id DESC
+            LIMIT 1
+          `).bind(clientId).first();
+          const allConfirmed = latestAudit &&
+            Number(latestAudit.identity_confirmed) === 1 &&
+            Number(latestAudit.employer_confirmed) === 1 &&
+            Number(latestAudit.job_title_confirmed) === 1 &&
+            Number(latestAudit.industry_confirmed) === 1 &&
+            Number(latestAudit.contact_confirmed) === 1;
+          if (!allConfirmed) {
+            return Response.json({
+              ok:false,
+              message:"Complete all five manual verification checklist items before marking the ID Verified."
+            }, {status:400});
+          }
         }
         const verifiedAt = verificationStatus === "verified"
           ? (idDocumentDate(data.verified_at) || idDocumentToday())
