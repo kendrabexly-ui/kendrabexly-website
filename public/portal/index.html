@@ -950,7 +950,7 @@
             <div class="photo-editor-canvas-wrap" id="photo-editor-canvas-wrap" tabindex="0" aria-label="Photo editing workspace">
               <div class="photo-editor-empty" id="photo-editor-empty">
                 <strong>Choose a photo to begin</strong>
-                Upload JPG, PNG, WebP, HEIC, or HEIF. Large photos are reduced to a safer working size when needed.
+                Upload JPG, PNG, WebP, HEIC, or HEIF. Full resolution is preserved by default; large photos may use more memory.
               </div>
               <canvas id="photo-editor-canvas" aria-label="Editable photo"></canvas>
             </div>
@@ -1036,12 +1036,12 @@
                 <label for="photo-editor-filename"><span>Filename</span></label>
                 <input id="photo-editor-filename" data-photo-requires-image type="text" value="edited-photo" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;">
               </div>
-              <div class="photo-editor-field"><label for="photo-editor-jpg-quality"><span>JPG quality</span><span id="photo-editor-jpg-quality-value">92%</span></label><input id="photo-editor-jpg-quality" data-photo-requires-image type="range" min="50" max="100" value="92"></div>
+              <div class="photo-editor-field"><label for="photo-editor-jpg-quality"><span>JPG quality</span><span id="photo-editor-jpg-quality-value">98%</span></label><input id="photo-editor-jpg-quality" data-photo-requires-image type="range" min="80" max="100" value="98"></div>
               <div class="photo-editor-actions">
                 <button type="button" id="photo-editor-download-jpg" class="primary" data-photo-requires-image>Download JPG</button>
                 <button type="button" id="photo-editor-download-png" class="primary" data-photo-requires-image>Download PNG</button>
               </div>
-              <div class="photo-editor-note">PNG export preserves transparency.</div>
+              <div class="photo-editor-note"><strong>Quality protection:</strong> edits stay at the photo’s full working resolution. PNG is lossless and preserves transparency. JPG defaults to 98% quality and warns before lower-quality export.</div>
             </div>
 
             <div class="photo-editor-card">
