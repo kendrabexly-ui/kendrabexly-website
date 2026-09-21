@@ -1941,7 +1941,8 @@ async function loadRequests() {
     const verificationCountIds={
       pending_review:"verification-count-pending",verified:"verification-count-verified",
       unable_to_verify:"verification-count-unable",declined:"verification-count-declined",
-      persona_pending:"verification-count-persona",no_id:"verification-count-no-id"
+      persona_pending:"verification-count-persona",no_id:"verification-count-no-id",
+      retention_due:"verification-count-retention-due"
     };
     Object.entries(verificationCountIds).forEach(([key,id])=>{const el=document.getElementById(id);if(el)el.textContent=String(verificationCounts[key]||0);});
     const queueLabels={
@@ -1957,12 +1958,28 @@ async function loadRequests() {
     });
     const renderVerificationQueue=()=>{
       if(!verificationQueueBox)return;
-      const items=activeVerificationQueueFilter==="all"?verificationQueue:verificationQueue.filter(item=>item.queue_category===activeVerificationQueueFilter);
+      let items=activeVerificationQueueFilter==="all"?[...verificationQueue]:verificationQueue.filter(item=>item.queue_category===activeVerificationQueueFilter);
+      const flaggedOnly=document.getElementById("verification-queue-flagged")?.checked;
+      if(flaggedOnly)items=items.filter(item=>item.review_flag);
+      const sortMode=document.getElementById("verification-queue-sort")?.value||"urgent";
+      const queuePriority={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
+      const createdTime=item=>new Date(item.booking_request_created_at||0).getTime()||0;
+      items.sort((a,b)=>{
+        if(sortMode==="oldest")return createdTime(a)-createdTime(b);
+        if(sortMode==="newest")return createdTime(b)-createdTime(a);
+        if(sortMode==="ready"){
+          const ar=a.queue_category==="ready_for_final_decision"?0:1;
+          const br=b.queue_category==="ready_for_final_decision"?0:1;
+          return ar-br||createdTime(a)-createdTime(b);
+        }
+        return (queuePriority[a.queue_category]??9)-(queuePriority[b.queue_category]??9)||createdTime(a)-createdTime(b);
+      });
       verificationQueueBox.innerHTML=items.length?items.map(item=>`
         <button type="button" class="verification-queue-item" data-client-id="${item.client_id}" data-client-email="${escapeHtml(item.email||"")}" style="display:block;width:100%;text-align:left;padding:10px 0;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;font:inherit;">
           <strong>${escapeHtml(((item.first_name||"")+" "+(item.last_name||"")).trim()||"Client")}</strong>
           <span style="margin-left:7px;padding:3px 7px;border-radius:999px;background:#f7f2e9;font-size:11px;font-weight:700;">${escapeHtml(queueLabels[item.queue_category]||item.queue_category)}</span>
-          <div style="margin-top:3px;font-size:12px;color:var(--muted);">Checklist ${Number(item.checklist_count||0)} of 5 · ${escapeHtml(String(item.verification_status||"pending_review").replaceAll("_"," "))}</div>
+          ${item.review_flag?'<span style="margin-left:5px;padding:3px 7px;border-radius:999px;background:#fdeaea;color:#8a2424;font-size:11px;font-weight:700;">Flagged</span>':""}
+          <div style="margin-top:3px;font-size:12px;color:var(--muted);">Checklist ${Number(item.checklist_count||0)} of 5 · ${escapeHtml(String(item.verification_status||"pending_review").replaceAll("_"," "))} ${item.booking_request_created_at?"· Request "+escapeHtml(formatVerificationTimestamp(item.booking_request_created_at)):""}</div>
         </button>`).join(""):'<div class="empty">No clients in this queue category.</div>';
       verificationQueueBox.querySelectorAll(".verification-queue-item").forEach(button=>button.addEventListener("click",()=>{
         if(clientSearch)clientSearch.value=button.dataset.clientEmail||"";
@@ -1974,6 +1991,11 @@ async function loadRequests() {
     document.querySelectorAll("[data-queue-filter]").forEach(button=>button.addEventListener("click",()=>{
       activeVerificationQueueFilter=button.dataset.queueFilter||"all";
       renderVerificationQueue();
+      document.querySelectorAll("[data-queue-filter]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
+    }));
+    document.getElementById("verification-queue-sort")?.addEventListener("change",renderVerificationQueue);
+    document.getElementById("verification-queue-flagged")?.addEventListener("change",renderVerificationQueue);
+    renderVerificationQueue();
       document.querySelectorAll("[data-queue-filter]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
     }));
     renderVerificationQueue();
@@ -2328,6 +2350,7 @@ async function loadRequests() {
         if (verificationFilter === "declined" && verification.verification_status !== "declined") return false;
         if (verificationFilter === "persona_pending" && !(verification.persona_transaction_id && !["approved","declined","errored"].includes(String(verification.persona_transaction_status || "").toLowerCase()))) return false;
         if (verificationFilter === "no_id" && verification.has_id) return false;
+        if (verificationFilter === "retention_due" && !verification.retention_due) return false;
         return true;
       });
       const clientResultCount=document.getElementById("client-result-count");
@@ -3068,36 +3091,45 @@ async function loadRequests() {
         return draft;
       };
       const setVerificationDraftState=(section,state,message)=>{
-        section.dataset.draftDirty=state==="dirty"?"1":"0";
+        section.dataset.draftDirty=["dirty","error"].includes(state)?"1":"0";
         const indicator=section.querySelector(".client-verification-draft-status");
-        if(indicator){indicator.textContent=message||"";indicator.style.color=state==="error"?"#8a2424":"var(--muted)";}
+        const saveNow=section.querySelector(".client-verification-save-draft-now");
+        if(indicator){
+          indicator.textContent=message||"";
+          indicator.style.color=state==="error"?"#8a2424":state==="saved"?"#2f6b45":"var(--muted)";
+        }
+        if(saveNow)saveNow.hidden=state!=="error";
       };
-      const saveVerificationDraft = async (section) => {
+      const saveVerificationDraft=async(section,{retry=true}={})=>{
         const draft=capturePersonaDraft(section);
         const clientId=Number(section.dataset.clientId);
         if(!clientId)return false;
         setVerificationDraftState(section,"saving","Saving verification fields…");
-        try{
-          const response=await fetch("/api/admin/clients/verification-draft",{
-            method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({
-              client_id:clientId,birthdate:draft.birthdate||"",
-              persona_fields:{
-                name_first:draft.name_first,name_middle:draft.name_middle,name_last:draft.name_last,
-                address_street_1:draft.address_street_1,address_street_2:draft.address_street_2,
-                address_city:draft.address_city,address_subdivision:draft.address_subdivision,
-                address_postal_code:draft.address_postal_code,address_country_code:draft.address_country_code,
-                email_address:draft.email_address,phone_number:draft.phone_number
-              }
-            })
-          });
+        const payload=JSON.stringify({
+          client_id:clientId,birthdate:draft.birthdate||"",
+          persona_fields:{
+            name_first:draft.name_first,name_middle:draft.name_middle,name_last:draft.name_last,
+            address_street_1:draft.address_street_1,address_street_2:draft.address_street_2,
+            address_city:draft.address_city,address_subdivision:draft.address_subdivision,
+            address_postal_code:draft.address_postal_code,address_country_code:draft.address_country_code,
+            email_address:draft.email_address,phone_number:draft.phone_number
+          }
+        });
+        const attempt=async()=>{
+          const response=await fetch("/api/admin/clients/verification-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:payload});
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save verification fields.");
           applyVerificationDraft(section,result.draft);
           setVerificationDraftState(section,"saved","Saved");
           return true;
-        }catch(error){
-          setVerificationDraftState(section,"error","Save failed: "+(error.message||"Unable to save."));
+        };
+        try{return await attempt();}
+        catch(error){
+          if(retry){
+            await new Promise(resolve=>setTimeout(resolve,450));
+            try{return await attempt();}catch(secondError){error=secondError;}
+          }
+          setVerificationDraftState(section,"error","Unsaved — autosave failed. Use Save Now.");
           section.dataset.draftDirty="1";
           return false;
         }
@@ -3135,33 +3167,38 @@ async function loadRequests() {
           if(response.ok&&result.ok) applyVerificationDraft(section,result.draft);
         }catch{}
       };
-      const loadVerificationActivity = async (section) => {
+      const loadVerificationActivity=async(section)=>{
         const box=section.querySelector(".client-verification-activity-list");
         if(!box)return;
         try{
           const response=await fetch("/api/admin/clients/verification-activity?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load activity.");
-          const items=result.activity||[];
-          if(!items.length){box.innerHTML='<div class="empty">No verification activity recorded yet.</div>';return;}
+          section._verificationActivity=result.activity||[];
           const categoryFor=(type)=>{
-            if(String(type).startsWith("id_"))return "ID activity";
-            if(String(type).startsWith("persona_"))return "Persona";
-            if(type==="decision_changed")return "Final decision";
-            return "Manual verification";
+            if(String(type).startsWith("id_"))return "id";
+            if(String(type).startsWith("persona_"))return "persona";
+            if(type==="decision_changed")return "decision";
+            return "manual";
           };
-          const groups={};
-          items.forEach(item=>{const category=categoryFor(item.event_type);(groups[category]||(groups[category]=[])).push(item);});
-          box.innerHTML=["ID activity","Manual verification","Persona","Final decision"].filter(k=>groups[k]?.length).map(category=>`
-            <details style="margin-top:6px;" ${category==="Final decision"?"open":""}>
-              <summary style="cursor:pointer;font-weight:700;">${escapeHtml(category)} · ${groups[category].length}</summary>
-              <div>${groups[category].map(item=>`
-                <div style="padding:7px 0;border-top:1px solid var(--line);">
-                  <strong>${escapeHtml(item.event_label||"Verification activity")}</strong>
-                  <div style="margin-top:2px;color:var(--muted);">${escapeHtml(item.created_at||"—")}</div>
-                  ${item.details?`<div style="margin-top:3px;">${escapeHtml(item.details)}</div>`:""}
-                </div>`).join("")}</div>
-            </details>`).join("");
+          const renderActivity=()=>{
+            const active=section.dataset.activityFilter||"all";
+            const items=(section._verificationActivity||[]).filter(item=>active==="all"||categoryFor(item.event_type)===active);
+            box.innerHTML=items.length?items.map(item=>`
+              <div style="padding:7px 0;border-top:1px solid var(--line);">
+                <strong>${escapeHtml(item.event_label||"Verification activity")}</strong>
+                <div style="margin-top:2px;color:var(--muted);">${escapeHtml(formatVerificationTimestamp(item.created_at)||"—")}</div>
+                ${item.details?`<div style="margin-top:3px;">${escapeHtml(item.details)}</div>`:""}
+              </div>`).join(""):'<div class="empty">No activity in this category.</div>';
+          };
+          section.querySelectorAll(".verification-activity-filter").forEach(button=>{
+            button.onclick=()=>{
+              section.dataset.activityFilter=button.dataset.activityFilter||"all";
+              section.querySelectorAll(".verification-activity-filter").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
+              renderActivity();
+            };
+          });
+          renderActivity();
         }catch(error){box.textContent=error.message||"Unable to load activity.";}
       };
       const confirmVerificationDecision = (section) => new Promise((resolve)=>{
