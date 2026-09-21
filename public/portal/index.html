@@ -772,6 +772,20 @@
 
       </section>
 
+      <style>
+        .verification-card{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:white;}
+        .verification-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px;}
+        .verification-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+        .verification-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#f7f2e9;}
+        @media (max-width:640px){
+          .verification-grid{grid-template-columns:1fr!important;}
+          .verification-actions{display:grid!important;grid-template-columns:1fr!important;}
+          .verification-actions button{width:100%!important;min-height:44px;}
+          .client-verification-audit-list details,.client-verification-audit-list div{overflow-wrap:anywhere;}
+          .client-id-preview{max-height:300px!important;}
+        }
+      </style>
+
       <!-- CLIENTS -->
 
       <section id="clients" class="section">
@@ -798,7 +812,16 @@
                 <option value="watch">Watch</option>
                 <option value="high">High attention</option>
                 <option value="repeat">Repeat blocked attempts</option>
-              </select><select id="client-value-filter" aria-label="Filter clients by activity" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All Activity</option><option value="repeat">Repeat Clients</option><option value="recent">Seen Recently</option><option value="inactive">Due for Reconnect</option><option value="upcoming">Upcoming Date</option></select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="client-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
+              </select><select id="client-value-filter" aria-label="Filter clients by activity" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All Activity</option><option value="repeat">Repeat Clients</option><option value="recent">Seen Recently</option><option value="inactive">Due for Reconnect</option><option value="upcoming">Upcoming Date</option></select>
+              <select id="client-verification-filter" aria-label="Filter clients by verification" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                <option value="all">All Verification</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="verified">Verified</option>
+                <option value="unable_to_verify">Unable to Verify</option>
+                <option value="declined">Declined</option>
+                <option value="persona_pending">Persona Pending</option>
+                <option value="no_id">No ID Received</option>
+              </select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="client-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
             </div>
           </div>
           <div id="client-records">
@@ -1836,6 +1859,15 @@ async function loadRequests() {
       clientsByKey.get(key).requests.push(item);
     });
     const clientProfiles = Array.from(clientsByKey.values());
+    const personaDraftByClient = new Map();
+    const verificationOverviewByClient = new Map();
+    try {
+      const verificationResponse = await fetch("/api/admin/clients/verification-overview", {cache:"no-store"});
+      const verificationData = await verificationResponse.json();
+      if (verificationResponse.ok && verificationData.ok) {
+        (verificationData.clients || []).forEach(item => verificationOverviewByClient.set(Number(item.client_id), item));
+      }
+    } catch (error) {}
     const retentionSnapshot=clientProfiles.map(client=>{
       const completed=client.requests.filter(r=>{const s=String(r.status||"").toLowerCase();if(s==="completed")return true;if(s!=="approved"||!r.requested_date||!r.requested_time)return false;const d=new Date(String(r.requested_date)+"T"+String(r.requested_time));return Number.isFinite(d.getTime())&&d.getTime()<Date.now();}).sort((a,b)=>String(b.requested_date||"").localeCompare(String(a.requested_date||"")));
       const upcoming=client.requests.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=Date.now());
@@ -2143,6 +2175,7 @@ async function loadRequests() {
       const query = clientSearch ? clientSearch.value.trim().toLowerCase() : "";
       const safetyFilter = document.getElementById("client-safety-filter")?.value || "all";
       const valueFilter = document.getElementById("client-value-filter")?.value || "all";
+      const verificationFilter = document.getElementById("client-verification-filter")?.value || "all";
       const filtered = clientProfiles.filter((client) => {
         const haystack = [client.first_name, client.last_name, client.email, client.phone].filter(Boolean).join(" ").toLowerCase();
         if (query && !haystack.includes(query)) return false;
@@ -2170,13 +2203,21 @@ async function loadRequests() {
         if(valueFilter==="repeat")return completedDates.length>=2;
         if(valueFilter==="recent")return daysSince!==null&&daysSince<=60;
         if(valueFilter==="inactive")return daysSince!==null&&daysSince>=90&&!upcoming;
-        if(valueFilter==="upcoming")return upcoming;
+        if(valueFilter==="upcoming"&&!upcoming)return false;
+        if(valueFilter!=="all" && !["repeat","recent","inactive","upcoming"].includes(valueFilter)) return false;
+        const verification = verificationOverviewByClient.get(Number(client.client_id)) || {};
+        if (verificationFilter === "pending_review" && String(verification.verification_status || "pending_review") !== "pending_review") return false;
+        if (verificationFilter === "verified" && verification.verification_status !== "verified") return false;
+        if (verificationFilter === "unable_to_verify" && verification.verification_status !== "unable_to_verify") return false;
+        if (verificationFilter === "declined" && verification.verification_status !== "declined") return false;
+        if (verificationFilter === "persona_pending" && !(verification.persona_transaction_id && !["approved","declined","errored"].includes(String(verification.persona_transaction_status || "").toLowerCase()))) return false;
+        if (verificationFilter === "no_id" && verification.has_id) return false;
         return true;
       });
       const clientResultCount=document.getElementById("client-result-count");
       if(clientResultCount) clientResultCount.textContent=filtered.length+" client"+(filtered.length===1?"":"s");
       const clearClientFilters=document.getElementById("client-clear-filters");
-      if(clearClientFilters) clearClientFilters.hidden=!query&&safetyFilter==="all"&&valueFilter==="all";
+      if(clearClientFilters) clearClientFilters.hidden=!query&&safetyFilter==="all"&&valueFilter==="all"&&verificationFilter==="all";
       document.querySelectorAll("[data-client-retention]").forEach(button=>{
         const active=valueFilter===button.dataset.clientRetention;
         button.setAttribute("aria-pressed",active?"true":"false");
@@ -2199,6 +2240,7 @@ async function loadRequests() {
         const deposits = client.requests.reduce((sum, r) => sum + (Number(r.deposit_paid) ? Number(r.deposit_amount || 0) : 0), 0);
         const latest = sorted[0];
         const savedProfile = savedClientProfiles.get(Number(client.client_id)) || {};
+        const personaDraft = personaDraftByClient.get(Number(client.client_id)) || {};
         const completedDates=sorted.filter(r=>String(r.status||"").toLowerCase()==="completed");
         const lastCompleted=completedDates[0]||null;
         const followUpHistory=completedDates.map(r=>({id:r.id,date:r.requested_date||"",time:r.requested_time||"",sent_at:r.after_date_follow_up_sent_at||null}));
@@ -2303,77 +2345,105 @@ async function loadRequests() {
                 </div>
               </details>
               <details class="client-profile-section client-id-documents" data-client-id="${client.client_id}" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
-                <summary style="cursor:pointer;font-size:13px;font-weight:700;">ID Documents</summary>
+                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Verification</summary>
                 <div style="margin-top:10px;">
-                  <div style="padding:10px 12px;border-radius:8px;background:#f7f2e9;font-size:12px;line-height:1.5;"><strong>Private ID record</strong><br>The ID image stays in this dashboard for your own review and records. It is not sent to Persona. Persona verification uses only the information you manually enter below.</div>
-                  <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Open this section to check for a saved ID document.</div>
-                  <img class="client-id-preview" alt="Private client ID preview" hidden style="display:block;width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
-                  <div class="client-id-meta" hidden style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
-                  <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ID image</label>
-                  <input class="client-id-file" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font:inherit;">
-                  <div style="margin-top:5px;font-size:11px;color:var(--muted);">JPG, PNG, or WebP. Maximum 10 MB.</div>
-                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px;">
-                    <label style="font-size:12px;font-weight:700;">ID type<select class="client-persona-id-class" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="dl">Driver License</option><option value="id">State ID</option><option value="pp">Passport</option><option value="ppc">Passport Card</option><option value="pr">Permanent Resident Card</option></select></label>
-                    <label style="font-size:12px;font-weight:700;">Received date<input class="client-id-received" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                    <label style="font-size:12px;font-weight:700;">Verification status<select class="client-id-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select></label>
-                    <label style="font-size:12px;font-weight:700;">Verified date<input class="client-id-verified" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                  </div>
-                  <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#fbfaf7;">
-                    <div style="font-size:12px;font-weight:700;">Persona manual verification</div>
-                    <div style="margin-top:4px;font-size:11px;color:var(--muted);line-height:1.5;">Enter the client information required by your Persona Database Verification transaction. These values are submitted to Persona when you click Run Persona Verification.</div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px;">
-                      <label style="font-size:12px;font-weight:700;">First name<input class="client-persona-name-first" value="${escapeHtml(client.first_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Middle name<input class="client-persona-name-middle" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Last name<input class="client-persona-name-last" value="${escapeHtml(client.last_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Birthdate<input class="client-persona-birthdate" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <div class="client-persona-age-status" style="display:none;grid-column:1/-1;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"></div>
-                      <label style="font-size:12px;font-weight:700;">Street address<input class="client-persona-address-1" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Address line 2<input class="client-persona-address-2" autocomplete="off" placeholder="Apartment, unit, or suite (optional)" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">City<input class="client-persona-city" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">State / subdivision<input class="client-persona-state" autocomplete="off" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Postal code<input class="client-persona-postal" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Country code<input class="client-persona-country" value="US" maxlength="2" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"></label>
-                      <label style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+
+                  <section class="verification-card client-id-record">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                      <strong style="font-size:13px;">1. ID Record</strong>
+                      <span class="verification-badge">Private record only</span>
                     </div>
-                  </div>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
-                    <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
-                    <button type="button" class="client-persona-verify" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;">Run Persona Verification</button>
-                    <button type="button" class="client-id-save-status" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Save Verification</button>
-                    <button type="button" class="client-id-delete" hidden style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:white;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete</button>
-                  </div>
-                  <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
-                  <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:6px;font-size:12px;color:var(--muted);">Checking Persona connection…</div>
-                  <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
-                    <strong style="font-size:13px;">Verification Audit</strong>
-                    <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification records...</div>
-                    <div class="client-verification-editor" hidden style="margin-top:12px;">
-                      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-                        <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
-                        <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, provider…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Completion date<input class="client-verification-completed" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      </div>
-                      <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
-                        <legend style="padding:0 5px;font-size:12px;font-weight:700;">Manual verification checklist</legend>
-                        <div style="display:grid;gap:8px;font-size:12px;">
-                          <label><input class="client-check-identity" type="checkbox"> Identity matches ID</label>
-                          <label><input class="client-check-employer" type="checkbox"> Employer confirmed</label>
-                          <label><input class="client-check-job-title" type="checkbox"> Job title confirmed</label>
-                          <label><input class="client-check-industry" type="checkbox"> Industry confirmed</label>
-                          <label><input class="client-check-contact" type="checkbox"> Contact information confirmed</label>
-                        </div>
-                        <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
-                      </fieldset>
-                      <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Complete the checklist before marking a client Verified.</div>
-                      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
-                        <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
-                        <button type="button" class="client-verification-complete" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;font-weight:700;">Complete Manual Verification</button>
-                        <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
-                      </div>
+                    <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">The ID image is stored for your private review and records. It is never sent to Persona.</div>
+                    <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Checking for a saved ID document…</div>
+                    <img class="client-id-preview" alt="Private client ID preview" hidden style="display:block;width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
+                    <div class="client-id-meta" hidden style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+                    <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ID image<input class="client-id-file" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font:inherit;"></label>
+                    <div style="margin-top:5px;font-size:11px;color:var(--muted);">JPG, PNG, or WebP. Maximum 10 MB.</div>
+                    <div class="verification-grid">
+                      <label style="font-size:12px;font-weight:700;">ID type<select class="client-persona-id-class" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="dl">Driver License</option><option value="id">State ID</option><option value="pp">Passport</option><option value="ppc">Passport Card</option><option value="pr">Permanent Resident Card</option></select></label>
+                      <label style="font-size:12px;font-weight:700;">Received date<input class="client-id-received" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
-                  </div>
+                    <input class="client-id-verification-status" type="hidden" value="pending_review">
+                    <input class="client-id-verified" type="hidden" value="">
+                    <div class="verification-actions">
+                      <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
+                      <button type="button" class="client-id-delete" hidden style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:white;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete</button>
+                    </div>
+                    <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+                  </section>
+
+                  <section class="verification-card client-verification-editor" hidden>
+                    <strong style="font-size:13px;">2. Manual Verification</strong>
+                    <div style="margin-top:5px;font-size:12px;color:var(--muted);">This section controls the final verification decision. Persona does not automatically approve or decline a client.</div>
+                    <div class="verification-grid">
+                      <label style="font-size:12px;font-weight:700;">Birthdate<input class="client-persona-birthdate" type="date" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
+                      <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                    </div>
+                    <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
+                    <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
+                      <legend style="padding:0 5px;font-size:12px;font-weight:700;">Required checklist</legend>
+                      <div style="display:grid;gap:8px;font-size:12px;">
+                        <label><input class="client-check-identity" type="checkbox"> Identity matches ID</label>
+                        <label><input class="client-check-employer" type="checkbox"> Employer confirmed</label>
+                        <label><input class="client-check-job-title" type="checkbox"> Job title confirmed</label>
+                        <label><input class="client-check-industry" type="checkbox"> Industry confirmed</label>
+                        <label><input class="client-check-contact" type="checkbox"> Contact information confirmed</label>
+                      </div>
+                    </fieldset>
+                    <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Checklist 0 of 5 complete.</div>
+                    <div class="client-verification-reason-wrap" hidden style="margin-top:10px;">
+                      <label style="display:block;font-size:12px;font-weight:700;">Decision reason
+                        <select class="client-verification-reason" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="">Choose a reason</option>
+                          <option value="information_mismatch">Information mismatch</option>
+                          <option value="employer_not_confirmed">Employer not confirmed</option>
+                          <option value="contact_not_confirmed">Contact information not confirmed</option>
+                          <option value="insufficient_information">Insufficient information</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </label>
+                      <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Private decision note<textarea class="client-verification-decision-notes" rows="2" maxlength="1200" placeholder="Private internal note. This is never sent to the client." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                    </div>
+                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                    <div class="client-verification-completed-display" style="margin-top:9px;font-size:12px;color:var(--muted);">Completion: Not completed</div>
+                    <div class="verification-actions">
+                      <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
+                      <button type="button" class="client-verification-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Manual Verification</button>
+                      <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
+                    </div>
+                  </section>
+
+                  <section class="verification-card client-persona-card">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                      <strong style="font-size:13px;">3. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
+                      <span class="verification-badge client-persona-badge">Persona: Checking…</span>
+                    </div>
+                    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only the information entered in this section. Your uploaded ID image remains private in this dashboard.</div>
+                    <div class="verification-grid client-persona-fields">
+                      <label data-persona-field="name_first" style="font-size:12px;font-weight:700;">First name<input class="client-persona-name-first" value="${escapeHtml(personaDraft.name_first || client.first_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="name_middle" style="font-size:12px;font-weight:700;">Middle name<input class="client-persona-name-middle" value="${escapeHtml(personaDraft.name_middle || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="name_last" style="font-size:12px;font-weight:700;">Last name<input class="client-persona-name-last" value="${escapeHtml(personaDraft.name_last || client.last_name || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="address_street_1" style="font-size:12px;font-weight:700;">Street address<input class="client-persona-address-1" value="${escapeHtml(personaDraft.address_street_1 || latest?.address_street_1 || latest?.street_address || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="address_street_2" style="font-size:12px;font-weight:700;">Address line 2<input class="client-persona-address-2" value="${escapeHtml(personaDraft.address_street_2 || latest?.address_street_2 || "")}" autocomplete="off" placeholder="Apartment, unit, or suite (optional)" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="address_city" style="font-size:12px;font-weight:700;">City<input class="client-persona-city" value="${escapeHtml(personaDraft.address_city || latest?.address_city || latest?.city || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="address_subdivision" style="font-size:12px;font-weight:700;">State<input class="client-persona-state" value="${escapeHtml(personaDraft.address_subdivision || latest?.address_subdivision || latest?.state || "")}" autocomplete="off" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="address_postal_code" style="font-size:12px;font-weight:700;">Postal code<input class="client-persona-postal" value="${escapeHtml(personaDraft.address_postal_code || latest?.address_postal_code || latest?.postal_code || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="address_country_code" style="font-size:12px;font-weight:700;">Country code<input class="client-persona-country" value="${escapeHtml(personaDraft.address_country_code || "US")}" maxlength="2" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"></label>
+                      <label data-persona-field="email_address" style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(personaDraft.email_address || client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                    </div>
+                    <div class="verification-actions">
+                      <button type="button" class="client-persona-verify" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
+                    </div>
+                    <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
+                  </section>
+
+                  <section class="verification-card client-audit-history">
+                    <strong style="font-size:13px;">4. Audit History</strong>
+                    <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification history…</div>
+                  </section>
                 </div>
               </details>
               ${blacklistRecord ? `<details class="client-profile-section" open style="margin-top:10px;padding:12px;border-radius:9px;background:#f3dfdf;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">Safety · Blacklisted</summary><div style="margin-top:10px;">
@@ -2554,38 +2624,52 @@ async function loadRequests() {
         if (digits.length === 11 && digits.startsWith("1")) return "+" + digits;
         return normalizeSpaces(value);
       };
+      const verificationAge = (value) => {
+        const parts = String(value || "").split("-").map(Number);
+        if (parts.length !== 3 || !parts.every(Number.isFinite)) return null;
+        const today = new Date();
+        let age = today.getFullYear() - parts[0];
+        if ((today.getMonth()+1 < parts[1]) || ((today.getMonth()+1 === parts[1]) && today.getDate() < parts[2])) age -= 1;
+        return age;
+      };
       const updatePersonaAgeStatus = (section) => {
         const input = section.querySelector(".client-persona-birthdate");
         const status = section.querySelector(".client-persona-age-status");
-        if (!input || !status || !input.value) { if (status) status.style.display = "none"; return; }
-        const parts = input.value.split("-").map(Number);
-        if (parts.length !== 3 || !parts.every(Number.isFinite)) { status.style.display = "none"; return; }
-        const today = new Date();
-        let age = today.getFullYear() - parts[0];
-        const beforeBirthday = (today.getMonth() + 1 < parts[1]) || ((today.getMonth() + 1 === parts[1]) && today.getDate() < parts[2]);
-        if (beforeBirthday) age -= 1;
+        const age = verificationAge(input?.value);
+        section.dataset.verificationAge = age === null ? "" : String(age);
+        if (!status || age === null) { if (status) status.style.display = "none"; updateVerificationSummary(section); return; }
         status.style.display = "block";
         status.textContent = age < verificationMinimumAge
-          ? "Age check: " + age + " · Under " + verificationMinimumAge + " — review required."
-          : "Age check: " + age + " · Meets " + verificationMinimumAge + "+ screening minimum.";
+          ? "⚠ Age " + age + " · Under the " + verificationMinimumAge + "+ screening minimum. Verified is blocked."
+          : "✓ Age " + age + " · Meets the " + verificationMinimumAge + "+ screening minimum.";
         status.style.background = age < verificationMinimumAge ? "#fff0ee" : "#edf7ef";
         status.style.color = age < verificationMinimumAge ? "#8a2424" : "#2f6b45";
+        updateVerificationSummary(section);
       };
+      const statusLabel = value => ({
+        pending_review:"Pending Review", verified:"Verified", unable_to_verify:"Unable to Verify", declined:"Declined"
+      }[value] || String(value || "Pending Review").replaceAll("_"," "));
       const updateVerificationSummary = (section) => {
         const summary = section.closest(".client-profile-actions")?.querySelector(".client-verification-summary");
         if (!summary) return;
         const latest = Array.isArray(section._verificationAuditRecords) && section._verificationAuditRecords.length ? section._verificationAuditRecords[0] : null;
         const checklist = latest ? [latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length : 0;
-        const auditStatus = String(latest?.verification_status || "pending_review").replaceAll("_"," ");
-        const finalDecision = latest?.verification_status && latest.verification_status !== "pending_review" ? auditStatus : "pending";
-        const idLabel = section.dataset.hasDocument === "1" ? "ID received" : "No ID stored";
-        const personaLabel = section.dataset.personaConnected === "1" ? "Connected" : "Connection pending";
-        summary.innerHTML = "<strong>Verification summary</strong> <span style=\"float:right;font-weight:700;\">Open verification →</span><br>" +
-          "ID: " + escapeHtml(idLabel) +
-          " · Manual review: " + escapeHtml(auditStatus) +
+        const age = section.dataset.verificationAge || (latest?.birthdate ? verificationAge(latest.birthdate) : null);
+        const idLabel = section.dataset.hasDocument === "1" ? "Received" : "Not received";
+        const personaLabel = section.dataset.personaConnected === "1"
+          ? (latest?.persona_transaction_status ? statusLabel(latest.persona_transaction_status) : "Ready")
+          : "Pending Setup";
+        const decision = statusLabel(latest?.verification_status || "pending_review");
+        const completed = latest?.completed_at ? new Date(latest.completed_at + (String(latest.completed_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "Not completed";
+        const badgeStyle = latest?.verification_status === "verified" ? "background:#edf7ef;color:#2f6b45;" :
+          ["declined","unable_to_verify"].includes(latest?.verification_status) ? "background:#fff0ee;color:#8a2424;" : "background:#f7f2e9;color:var(--ink);";
+        summary.innerHTML = "<div style=\"display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;\"><strong>Verification summary</strong><span style=\"padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;" + badgeStyle + "\">" + escapeHtml(decision) + "</span></div>" +
+          "<div style=\"margin-top:7px;color:var(--muted);\">ID: " + escapeHtml(idLabel) +
+          " · Age: " + escapeHtml(age === null || age === "" ? "Not checked" : String(age)) +
+          " · Checklist: " + checklist + " of 5" +
           " · Persona: " + escapeHtml(personaLabel) +
-          " · Checklist: " + checklist + "/5" +
-          " · Final decision: " + escapeHtml(finalDecision);
+          " · Completed: " + escapeHtml(completed) + "</div>" +
+          "<div style=\"margin-top:5px;font-weight:700;\">Open verification →</div>";
       };
       const normalizePersonaFields = (section) => {
         [".client-persona-name-first",".client-persona-name-middle",".client-persona-name-last",".client-persona-address-1",".client-persona-address-2",".client-persona-city",".client-persona-postal"].forEach(selector => {
@@ -2600,15 +2684,30 @@ async function loadRequests() {
         if (line2 && line1 && normalizeSpaces(line2.value).toLowerCase() === line1.toLowerCase()) line2.value = "";
         updatePersonaAgeStatus(section);
       };
+      const capturePersonaDraft = (section) => {
+        const id = Number(section.dataset.clientId);
+        if (!id) return;
+        personaDraftByClient.set(id, {
+          name_first:section.querySelector(".client-persona-name-first")?.value || "",
+          name_middle:section.querySelector(".client-persona-name-middle")?.value || "",
+          name_last:section.querySelector(".client-persona-name-last")?.value || "",
+          birthdate:section.querySelector(".client-persona-birthdate")?.value || "",
+          address_street_1:section.querySelector(".client-persona-address-1")?.value || "",
+          address_street_2:section.querySelector(".client-persona-address-2")?.value || "",
+          address_city:section.querySelector(".client-persona-city")?.value || "",
+          address_subdivision:section.querySelector(".client-persona-state")?.value || "",
+          address_postal_code:section.querySelector(".client-persona-postal")?.value || "",
+          address_country_code:section.querySelector(".client-persona-country")?.value || "US",
+          email_address:section.querySelector(".client-persona-email")?.value || "",
+          phone_number:section.querySelector(".client-persona-phone")?.value || ""
+        });
+      };
       const setIdDocumentState = (section, documentRecord) => {
         const preview = section.querySelector(".client-id-preview");
         const empty = section.querySelector(".client-id-empty");
         const meta = section.querySelector(".client-id-meta");
         const received = section.querySelector(".client-id-received");
-        const verificationStatus = section.querySelector(".client-id-verification-status");
-        const verified = section.querySelector(".client-id-verified");
         const upload = section.querySelector(".client-id-upload");
-        const saveStatus = section.querySelector(".client-id-save-status");
         const deleteButton = section.querySelector(".client-id-delete");
         const clientId = Number(section.dataset.clientId);
         section.dataset.hasDocument = documentRecord ? "1" : "0";
@@ -2617,124 +2716,120 @@ async function loadRequests() {
           if (empty) { empty.hidden = false; empty.textContent = "No ID document is stored for this client."; }
           if (meta) { meta.hidden = true; meta.textContent = ""; }
           if (upload) upload.textContent = "Upload ID";
-          if (saveStatus) saveStatus.hidden = true;
           if (deleteButton) deleteButton.hidden = true;
           if (received && !received.value) received.value = new Date().toISOString().slice(0,10);
-          if (verificationStatus) verificationStatus.value = "pending_review";
-          if (verified) verified.value = "";
-          section.dataset.documentVerificationStatus = "pending_review";
           updateVerificationSummary(section);
           return;
         }
-        if (preview) {
-          preview.src = "/api/admin/clients/id-document/image?client_id=" + encodeURIComponent(clientId) + "&v=" + encodeURIComponent(documentRecord.updated_at || Date.now());
-          preview.hidden = false;
-        }
+        if (preview) { preview.src="/api/admin/clients/id-document/image?client_id="+encodeURIComponent(clientId)+"&v="+encodeURIComponent(documentRecord.updated_at || Date.now()); preview.hidden=false; }
         if (empty) empty.hidden = true;
-        if (meta) {
-          meta.hidden = false;
-          meta.textContent = (documentRecord.file_name || "ID document") + " · " + formatIdBytes(documentRecord.file_size) + " · Updated " + (documentRecord.updated_at ? new Date(documentRecord.updated_at + "Z").toLocaleString() : "recently");
-        }
+        if (meta) { meta.hidden=false; meta.textContent=(documentRecord.file_name || "ID document")+" · "+formatIdBytes(documentRecord.file_size)+" · Updated "+(documentRecord.updated_at ? new Date(documentRecord.updated_at+"Z").toLocaleString() : "recently"); }
         if (received) received.value = documentRecord.received_at || "";
-        if (verificationStatus) verificationStatus.value = documentRecord.verification_status || "pending_review";
-        if (verified) verified.value = documentRecord.verified_at || "";
         if (upload) upload.textContent = "Replace ID";
-        if (saveStatus) saveStatus.hidden = false;
         if (deleteButton) deleteButton.hidden = false;
-        section.dataset.documentVerificationStatus = documentRecord.verification_status || "pending_review";
         updateVerificationSummary(section);
       };
-      const setVerificationAuditState = (section, records) => {
+      const setVerificationAuditState = (section, records, decisionHistory=[]) => {
         const list = section.querySelector(".client-verification-audit-list");
         const editor = section.querySelector(".client-verification-editor");
         const latest = Array.isArray(records) && records.length ? records[0] : null;
         section._verificationAuditRecords = Array.isArray(records) ? records : [];
+        section._verificationDecisionHistory = Array.isArray(decisionHistory) ? decisionHistory : [];
         if (!latest) {
-          if (list) list.innerHTML = "No booking-form screening acknowledgement is recorded for this client. Admin verification can still be run using the uploaded ID.";
+          if (list) list.innerHTML = "No verification record is available yet.";
           if (editor) editor.hidden = true;
+          updateVerificationSummary(section);
           return;
         }
-        const acceptedLabel = latest.accepted ? "Accepted" : "Not accepted";
-        if (list) list.innerHTML = section._verificationAuditRecords.map((record) => `
-          <div style="padding:10px 0;border-top:1px solid var(--line);color:var(--ink);line-height:1.55;">
-            <div><strong>${record.authorization_version === "legacy-unrecorded" ? "Authorization not recorded — legacy request" : (record.accepted ? "Accepted" : "Not accepted")}</strong>${record.authorization_version === "legacy-unrecorded" ? "" : " · Version " + escapeHtml(record.authorization_version || "—")}</div>
-            <div>${record.accepted ? "Accepted" : "Record created"}: ${escapeHtml(record.accepted_at ? new Date(record.accepted_at + (String(record.accepted_at).endsWith("Z") ? "" : "Z")).toLocaleString() : "—")}</div>
-            <div>Client ID: ${escapeHtml(record.client_id)} · Booking Request ID: ${escapeHtml(record.booking_request_id)}</div>
-            <div><strong>Submitted employment:</strong> ${escapeHtml(record.submitted_employer || "—")} · ${escapeHtml(record.submitted_job_title || "—")} · ${escapeHtml(record.submitted_industry || "—")}</div>
-            <div>Status: ${escapeHtml(String(record.verification_status || "pending_review").replaceAll("_", " "))} · Method: ${escapeHtml(record.verification_method || "Not entered")} · Completed: ${escapeHtml(record.completed_at || "—")}</div>
-            ${record.persona_transaction_id ? `<div><strong>Persona:</strong> ${escapeHtml(record.persona_transaction_status || "submitted")} · ${escapeHtml(record.persona_transaction_id)}</div>` : ""}
-            <div><strong>Checklist:</strong> ID ${record.identity_confirmed ? "✓" : "—"} · Employer ${record.employer_confirmed ? "✓" : "—"} · Job title ${record.job_title_confirmed ? "✓" : "—"} · Industry ${record.industry_confirmed ? "✓" : "—"} · Contact ${record.contact_confirmed ? "✓" : "—"}</div>
-            ${record.evidence_notes ? `<div><strong>Evidence notes:</strong> ${escapeHtml(record.evidence_notes)}</div>` : ""}
-            <details style="margin-top:5px;"><summary style="cursor:pointer;font-weight:700;">View recorded wording</summary><div style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;">${escapeHtml(record.authorization_wording || "—")}</div></details>
-          </div>`).join("");
         section.dataset.verificationAuditId = String(latest.id);
-        const statusSelect = section.querySelector(".client-verification-status");
-        const industryInput = section.querySelector(".client-verification-industry");
-        const methodInput = section.querySelector(".client-verification-method");
-        const completedInput = section.querySelector(".client-verification-completed");
-        if (statusSelect) statusSelect.value = latest.verification_status || "pending_review";
-        if (industryInput) industryInput.value = latest.submitted_industry || "";
-        if (methodInput) methodInput.value = latest.verification_method || "";
-        if (completedInput) completedInput.value = latest.completed_at || "";
-        const checklistMap = {
-          ".client-check-identity": latest.identity_confirmed,
-          ".client-check-employer": latest.employer_confirmed,
-          ".client-check-job-title": latest.job_title_confirmed,
-          ".client-check-industry": latest.industry_confirmed,
-          ".client-check-contact": latest.contact_confirmed
-        };
-        Object.entries(checklistMap).forEach(([selector, checked]) => {
-          const input = section.querySelector(selector);
-          if (input) input.checked = Boolean(checked);
-        });
-        const evidenceInput = section.querySelector(".client-verification-evidence");
-        if (evidenceInput) evidenceInput.value = latest.evidence_notes || "";
         if (editor) editor.hidden = false;
-        const checklistNote = section.querySelector(".client-verification-checklist-status");
-        if (checklistNote) {
-          const count = [latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length;
-          checklistNote.textContent = count === 5 ? "Checklist complete · 5/5 confirmed." : "Checklist " + count + "/5 complete. All 5 items are required before marking Verified.";
-          checklistNote.style.color = count === 5 ? "#2f6b45" : "var(--muted)";
-        }
+        const statusSelect=section.querySelector(".client-verification-status");
+        const industryInput=section.querySelector(".client-verification-industry");
+        const methodInput=section.querySelector(".client-verification-method");
+        const reasonInput=section.querySelector(".client-verification-reason");
+        const decisionNotes=section.querySelector(".client-verification-decision-notes");
+        const birthdate=section.querySelector(".client-persona-birthdate");
+        if(statusSelect) statusSelect.value=latest.verification_status || "pending_review";
+        if(industryInput) industryInput.value=latest.submitted_industry || "";
+        if(methodInput) methodInput.value=latest.verification_method || "";
+        if(reasonInput) reasonInput.value=latest.decision_reason || "";
+        if(decisionNotes) decisionNotes.value=latest.decision_notes || "";
+        if(birthdate && latest.birthdate && !birthdate.value) birthdate.value=latest.birthdate;
+        const checklistMap={".client-check-identity":latest.identity_confirmed,".client-check-employer":latest.employer_confirmed,".client-check-job-title":latest.job_title_confirmed,".client-check-industry":latest.industry_confirmed,".client-check-contact":latest.contact_confirmed};
+        Object.entries(checklistMap).forEach(([selector,checked])=>{const input=section.querySelector(selector);if(input)input.checked=Boolean(checked);});
+        const evidence=section.querySelector(".client-verification-evidence"); if(evidence)evidence.value=latest.evidence_notes || "";
+        const completedDisplay=section.querySelector(".client-verification-completed-display");
+        if(completedDisplay) completedDisplay.textContent=latest.completed_at
+          ? "Completion: "+new Date(latest.completed_at+(String(latest.completed_at).endsWith("Z")?"":"Z")).toLocaleString()+" · "+(latest.completed_by || "admin")+" · "+(latest.verification_method || "method not recorded")
+          : "Completion: Not completed";
+
+        const currentHtml=`
+          <div style="padding:10px 0;color:var(--ink);line-height:1.55;">
+            <div><strong>Current verification</strong> · ${escapeHtml(statusLabel(latest.verification_status))}</div>
+            <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5 · Completed: ${escapeHtml(latest.completed_at || "—")}</div>
+            ${latest.decision_reason ? `<div style="margin-top:3px;"><strong>Private reason:</strong> ${escapeHtml(String(latest.decision_reason).replaceAll("_"," "))}</div>` : ""}
+            ${latest.decision_notes ? `<div style="margin-top:3px;"><strong>Private note:</strong> ${escapeHtml(latest.decision_notes)}</div>` : ""}
+            <details style="margin-top:6px;"><summary style="cursor:pointer;font-weight:700;">View details</summary>
+              <div style="margin-top:6px;padding:8px;background:#f7f2e9;border-radius:7px;">
+                Booking Request ID: ${escapeHtml(latest.booking_request_id)} · Audit ID: ${escapeHtml(latest.id)}
+                ${latest.persona_transaction_id ? `<br>Persona transaction: ${escapeHtml(latest.persona_transaction_id)} · ${escapeHtml(latest.persona_transaction_status || "submitted")}` : ""}
+                <br>Authorization: ${latest.authorization_version === "legacy-unrecorded" ? "Authorization not recorded — legacy request" : (latest.accepted ? "Accepted" : "Not accepted")}
+              </div>
+            </details>
+          </div>`;
+        const older=(records || []).slice(1).map(record=>`
+          <details style="padding:9px 0;border-top:1px solid var(--line);">
+            <summary style="cursor:pointer;font-weight:700;">Older record · ${escapeHtml(statusLabel(record.verification_status))}${record.authorization_version==="legacy-unrecorded"?" · Legacy":""}</summary>
+            <div style="margin-top:7px;line-height:1.55;">Completed: ${escapeHtml(record.completed_at || "—")} · Method: ${escapeHtml(record.verification_method || "Not entered")}
+              <details style="margin-top:5px;"><summary style="cursor:pointer;">View details</summary><div style="margin-top:5px;">Booking Request ID: ${escapeHtml(record.booking_request_id)} · Audit ID: ${escapeHtml(record.id)}${record.persona_transaction_id ? `<br>Persona transaction: ${escapeHtml(record.persona_transaction_id)}` : ""}</div></details>
+            </div>
+          </details>`).join("");
+        const decisions=(decisionHistory || []).length ? `
+          <details style="padding:9px 0;border-top:1px solid var(--line);">
+            <summary style="cursor:pointer;font-weight:700;">Previous decisions (${decisionHistory.length})</summary>
+            <div style="margin-top:7px;">${decisionHistory.map(item=>`<div style="padding:7px 0;border-top:1px solid #eee7dc;"><strong>${escapeHtml(statusLabel(item.verification_status))}</strong> · ${escapeHtml(item.changed_at || "—")}${item.decision_reason ? `<div>Reason: ${escapeHtml(String(item.decision_reason).replaceAll("_"," "))}</div>` : ""}</div>`).join("")}</div>
+          </details>` : "";
+        if(list) list.innerHTML=currentHtml+older+decisions;
+        updatePersonaAgeStatus(section);
         updateVerificationSummary(section);
       };
       const loadVerificationAudits = async (section) => {
-        const list = section.querySelector(".client-verification-audit-list");
-        try {
-          const response = await fetch("/api/admin/clients/verification-audit?client_id=" + encodeURIComponent(section.dataset.clientId), { cache: "no-store" });
-          const result = await response.json();
-          if (!response.ok || !result.ok) throw new Error(result.message || "Unable to load verification records.");
-          setVerificationAuditState(section, result.records || []);
-        } catch (error) {
-          if (list) list.textContent = error.message || "Unable to load verification records.";
-        }
+        const list=section.querySelector(".client-verification-audit-list");
+        try{
+          const response=await fetch("/api/admin/clients/verification-audit?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load verification records.");
+          setVerificationAuditState(section,result.records||[],result.history||[]);
+        }catch(error){if(list)list.textContent=error.message||"Unable to load verification records.";}
       };
-
+      const applyPersonaRequiredFields = (section, requiredFields) => {
+        if (!Array.isArray(requiredFields) || !requiredFields.length) return;
+        const required = new Set(requiredFields);
+        section.querySelectorAll("[data-persona-field]").forEach(label => {
+          label.hidden = !required.has(label.dataset.personaField);
+        });
+      };
       const loadPersonaStatus = async (section) => {
-        const status = section.querySelector(".client-persona-status");
-        const button = section.querySelector(".client-persona-verify");
-        try {
-          const response = await fetch("/api/admin/clients/persona-status", { cache: "no-store" });
-          const result = await response.json();
-          if (!response.ok || !result.ok) throw new Error(result.message || "Unable to check Persona connection.");
-          section.dataset.personaConnected = result.connected ? "1" : "0";
-          if (status) {
-            status.textContent = result.connected
-              ? (result.webhook_connected
-                  ? "Persona connected · Admin-run verification"
-                  : "Persona connected · Verification is available; webhook status updates still need configuration.")
-              : "Persona connection pending — manual verification remains available.";
-            status.style.color = result.connected ? "#2f6b45" : "var(--muted)";
-          }
-          if (button) {
-            button.disabled = !result.connected;
-            button.title = result.connected ? "" : "Persona connection is pending. You can still complete and save manual verification below.";
-          }
+        const status=section.querySelector(".client-persona-status");
+        const badge=section.querySelector(".client-persona-badge");
+        const button=section.querySelector(".client-persona-verify");
+        try{
+          const response=await fetch("/api/admin/clients/persona-status",{cache:"no-store"});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error("Unable to check Persona connection.");
+          section.dataset.personaConnected=result.connected?"1":"0";
+          if(result.required_fields?.length) applyPersonaRequiredFields(section,result.required_fields);
+          if(badge){badge.textContent=result.connected?"Persona: Connected":"Persona: Pending Setup";badge.style.background=result.connected?"#edf7ef":"#f7f2e9";badge.style.color=result.connected?"#2f6b45":"var(--ink)";}
+          if(status) status.textContent=result.connected
+            ? (result.webhook_connected?"Persona is connected and ready.":"Persona is connected. Live status updates are not enabled yet.")
+            : "Persona setup is still pending. Manual verification is fully available.";
+          if(button){button.disabled=!result.connected;button.style.opacity=result.connected?"1":".6";button.style.cursor=result.connected?"pointer":"not-allowed";}
           updateVerificationSummary(section);
-        } catch (error) {
-          section.dataset.personaConnected = "0";
-          if (button) { button.disabled = true; button.title = "Persona connection is pending. Manual verification remains available."; }
-          if (status) { status.textContent = "Persona connection pending — manual verification remains available."; status.style.color = "var(--muted)"; }
+        }catch(error){
+          section.dataset.personaConnected="0";
+          if(badge)badge.textContent="Persona: Pending Setup";
+          if(status)status.textContent="Persona setup is still pending. Manual verification is fully available.";
+          if(button){button.disabled=true;button.style.opacity=".6";button.style.cursor="not-allowed";}
           updateVerificationSummary(section);
         }
       };
@@ -2767,243 +2862,144 @@ async function loadRequests() {
         });
       });
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
-        const personaInputs = section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
-        personaInputs.forEach(input => input.addEventListener("blur", () => normalizePersonaFields(section)));
-        section.querySelector(".client-persona-birthdate")?.addEventListener("change", () => updatePersonaAgeStatus(section));
+        const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone");
+        personaInputs.forEach(input=>{
+          input.addEventListener("input",()=>{capturePersonaDraft(section); if(input.classList.contains("client-persona-birthdate")) updatePersonaAgeStatus(section);});
+          input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);});
+        });
         normalizePersonaFields(section);
-        section.addEventListener("toggle", () => {
-          if (section.open) {
-            loadIdDocument(section, false);
-            loadVerificationAudits(section);
-            loadPersonaStatus(section);
+        capturePersonaDraft(section);
+        section.addEventListener("toggle",()=>{if(section.open){loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);}});
+
+        const auditStatus=section.querySelector(".client-verification-status");
+        const reasonWrap=section.querySelector(".client-verification-reason-wrap");
+        const reasonInput=section.querySelector(".client-verification-reason");
+        const decisionNotes=section.querySelector(".client-verification-decision-notes");
+        const completeButton=section.querySelector(".client-verification-complete");
+        const checklistSelectors=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
+        const checklistLabels={"client-check-identity":"Identity matches ID","client-check-employer":"Employer confirmed","client-check-job-title":"Job title confirmed","client-check-industry":"Industry confirmed","client-check-contact":"Contact information confirmed"};
+        const updateCompletionControls=()=>{
+          const missing=checklistSelectors.filter(selector=>!section.querySelector(selector)?.checked).map(selector=>checklistLabels[selector.slice(1)]);
+          const note=section.querySelector(".client-verification-checklist-status");
+          if(note){
+            note.textContent=missing.length ? (5-missing.length)+" of 5 complete · Missing: "+missing.join(", ") : "5 of 5 complete · All required checks confirmed.";
+            note.style.color=missing.length?"var(--muted)":"#2f6b45";
           }
-        });
-        const verificationStatus = section.querySelector(".client-id-verification-status");
-        const verifiedDate = section.querySelector(".client-id-verified");
-        const auditStatus = section.querySelector(".client-verification-status");
-        const auditCompleted = section.querySelector(".client-verification-completed");
-        verificationStatus?.addEventListener("change", () => {
-          const today = new Date().toISOString().slice(0,10);
-          if (verificationStatus.value === "verified" && verifiedDate && !verifiedDate.value) verifiedDate.value = today;
-          if (verificationStatus.value !== "verified" && verifiedDate) verifiedDate.value = "";
-          if (auditStatus) auditStatus.value = verificationStatus.value === "verified" ? "verified" : verificationStatus.value === "rejected" ? "unable_to_verify" : "pending_review";
-          if (auditCompleted) auditCompleted.value = auditStatus?.value && auditStatus.value !== "pending_review" ? (auditCompleted.value || today) : "";
-          updateVerificationSummary(section);
-        });
-        auditStatus?.addEventListener("change", () => {
-          const today = new Date().toISOString().slice(0,10);
-          if (auditCompleted) {
-            if (auditStatus.value !== "pending_review" && !auditCompleted.value) auditCompleted.value = today;
-            if (auditStatus.value === "pending_review") auditCompleted.value = "";
-          }
-          if (verificationStatus) verificationStatus.value = auditStatus.value === "verified" ? "verified" : ["unable_to_verify","declined"].includes(auditStatus.value) ? "rejected" : "pending_review";
-          if (verifiedDate) verifiedDate.value = verificationStatus?.value === "verified" ? (verifiedDate.value || today) : "";
-          updateVerificationSummary(section);
-        });
-        const checklistComplete = () => [
-          ".client-check-identity",
-          ".client-check-employer",
-          ".client-check-job-title",
-          ".client-check-industry",
-          ".client-check-contact"
-        ].every(selector => section.querySelector(selector)?.checked);
-        const updateChecklistGuidance = () => {
-          const note = section.querySelector(".client-verification-checklist-status");
-          if (!note) return;
-          const count = [
-            ".client-check-identity",".client-check-employer",".client-check-job-title",
-            ".client-check-industry",".client-check-contact"
-          ].filter(selector => section.querySelector(selector)?.checked).length;
-          note.textContent = count === 5
-            ? "Checklist complete · 5/5 confirmed."
-            : "Checklist " + count + "/5 complete. All 5 items are required before marking Verified.";
-          note.style.color = count === 5 ? "#2f6b45" : "var(--muted)";
+          const decision=auditStatus?.value || "pending_review";
+          if(reasonWrap) reasonWrap.hidden=!["unable_to_verify","declined"].includes(decision);
+          const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
+          let ready=decision!=="pending_review";
+          if(decision==="verified") ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge;
+          if(decision==="unable_to_verify") ready=ready&&Boolean(reasonInput?.value);
+          if(decision==="declined") ready=ready&&Boolean(reasonInput?.value || decisionNotes?.value.trim());
+          if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
           updateVerificationSummary(section);
         };
-        section.querySelectorAll(".client-check-identity,.client-check-employer,.client-check-job-title,.client-check-industry,.client-check-contact")
-          .forEach(input => input.addEventListener("change", updateChecklistGuidance));
-        updateChecklistGuidance();
+        checklistSelectors.forEach(selector=>section.querySelector(selector)?.addEventListener("change",updateCompletionControls));
+        auditStatus?.addEventListener("change",()=>{
+          const latest=section._verificationAuditRecords?.[0];
+          if(auditStatus.value==="pending_review" && latest?.verification_status && latest.verification_status!=="pending_review"){
+            if(!window.confirm("This verification is already completed. Reopen it as Pending Review? The previous decision will remain in Audit History.")){
+              auditStatus.value=latest.verification_status;
+              return;
+            }
+            section.dataset.confirmReopen="1";
+          }
+          updateCompletionControls();
+        });
+        reasonInput?.addEventListener("change",updateCompletionControls);
+        decisionNotes?.addEventListener("input",updateCompletionControls);
 
-        section.querySelector(".client-verification-complete")?.addEventListener("click", () => {
-          const saveStatus = section.querySelector(".client-verification-save-status");
-          const auditStatus = section.querySelector(".client-verification-status");
-          if (!auditStatus || auditStatus.value === "pending_review") {
-            if (saveStatus) saveStatus.textContent = "Choose a final decision before completing manual verification.";
-            return;
-          }
-          if (auditStatus.value === "verified" && !checklistComplete()) {
-            if (saveStatus) saveStatus.textContent = "Verified requires all 5 checklist items to be confirmed.";
-            return;
-          }
-          section.querySelector(".client-verification-save")?.click();
-        });
-
-        section.querySelector(".client-verification-save")?.addEventListener("click", async (event) => {
-          const button = event.currentTarget;
-          const saveStatus = section.querySelector(".client-verification-save-status");
-          const auditId = Number(section.dataset.verificationAuditId);
-          if (!auditId) { if (saveStatus) saveStatus.textContent = "No verification record is available."; return; }
-          if (auditStatus?.value === "verified" && !checklistComplete()) {
-            if (saveStatus) saveStatus.textContent = "Verified requires all 5 checklist items to be confirmed.";
-            return;
-          }
-          button.disabled = true;
-          if (saveStatus) saveStatus.textContent = "Saving...";
-          try {
-            const response = await fetch("/api/admin/clients/verification-audit", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                audit_id: auditId,
-                client_id: Number(section.dataset.clientId),
-                verification_status: auditStatus?.value || "pending_review",
-                submitted_industry: section.querySelector(".client-verification-industry")?.value || "",
-                verification_method: section.querySelector(".client-verification-method")?.value || "",
-                identity_confirmed: section.querySelector(".client-check-identity")?.checked || false,
-                employer_confirmed: section.querySelector(".client-check-employer")?.checked || false,
-                job_title_confirmed: section.querySelector(".client-check-job-title")?.checked || false,
-                industry_confirmed: section.querySelector(".client-check-industry")?.checked || false,
-                contact_confirmed: section.querySelector(".client-check-contact")?.checked || false,
-                evidence_notes: section.querySelector(".client-verification-evidence")?.value || "",
-                completed_at: auditCompleted?.value || ""
-              })
-            });
-            const result = await response.json();
-            if (!response.ok || !result.ok) throw new Error(result.message || "Unable to save verification record.");
-            const records = (section._verificationAuditRecords || []).map(record => Number(record.id) === Number(result.record.id) ? result.record : record);
-            setVerificationAuditState(section, records);
-            if (saveStatus) saveStatus.textContent = "Saved";
-          } catch (error) {
-            if (saveStatus) saveStatus.textContent = error.message || "Unable to save verification record.";
-          } finally {
-            button.disabled = false;
-          }
-        });
-        section.querySelector(".client-id-upload")?.addEventListener("click", async (event) => {
-          const button = event.currentTarget;
-          const fileInput = section.querySelector(".client-id-file");
-          const status = section.querySelector(".client-id-status");
-          const file = fileInput?.files?.[0];
-          if (!file) { if (status) status.textContent = "Choose an ID image first."; return; }
-          if (file.size > 10 * 1024 * 1024) { if (status) status.textContent = "ID images must be 10 MB or smaller."; return; }
-          const form = new FormData();
-          form.append("client_id", section.dataset.clientId);
-          form.append("file", file);
-          form.append("received_at", section.querySelector(".client-id-received")?.value || "");
-          form.append("verification_status", verificationStatus?.value || "pending_review");
-          form.append("verified_at", verifiedDate?.value || "");
-          button.disabled = true;
-          if (status) status.textContent = section.dataset.hasDocument === "1" ? "Replacing private ID..." : "Uploading private ID...";
-          try {
-            const response = await fetch("/api/admin/clients/id-document", { method: "POST", body: form });
-            const result = await response.json();
-            if (!response.ok || !result.ok) throw new Error(result.message || "Unable to upload ID document.");
-            if (fileInput) fileInput.value = "";
-            setIdDocumentState(section, result.document);
-            section.dataset.loaded = "1";
-            if (status) status.textContent = "ID document stored privately.";
-          } catch (error) {
-            if (status) status.textContent = error.message || "Unable to upload ID document.";
-          } finally {
-            button.disabled = false;
-          }
-        });
-        section.querySelector(".client-persona-verify")?.addEventListener("click", async (event) => {
-          const button = event.currentTarget;
-          const status = section.querySelector(".client-id-status");
-          const latestAudit = Array.isArray(section._verificationAuditRecords) && section._verificationAuditRecords.length
-            ? section._verificationAuditRecords[0]
-            : null;
-          if (section.dataset.personaConnected !== "1") {
-            if (status) status.textContent = "Persona connection pending. Complete and save the manual verification checklist while you wait.";
-            return;
-          }
-          normalizePersonaFields(section);
-          const personaFields = {
-            name_first: normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
-            name_middle: normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
-            name_last: normalizeSpaces(section.querySelector(".client-persona-name-last")?.value),
-            birthdate: section.querySelector(".client-persona-birthdate")?.value || "",
-            address_street_1: normalizeSpaces(section.querySelector(".client-persona-address-1")?.value),
-            address_street_2: normalizeSpaces(section.querySelector(".client-persona-address-2")?.value),
-            address_city: normalizeSpaces(section.querySelector(".client-persona-city")?.value),
-            address_subdivision: normalizeSpaces(section.querySelector(".client-persona-state")?.value).toUpperCase(),
-            address_postal_code: normalizeSpaces(section.querySelector(".client-persona-postal")?.value),
-            address_country_code: (normalizeSpaces(section.querySelector(".client-persona-country")?.value) || "US").toUpperCase(),
-            email_address: normalizeSpaces(section.querySelector(".client-persona-email")?.value).toLowerCase(),
-            phone_number: personaPhoneForApi(section.querySelector(".client-persona-phone")?.value)
-          };
-          if (!personaFields.name_first || !personaFields.name_last || !personaFields.birthdate) {
-            if (status) status.textContent = "Enter the client's first name, last name, and birthdate before running Persona.";
-            return;
-          }
-          button.disabled = true;
-          if (status) status.textContent = "Submitting manually entered information to Persona...";
-          try {
-            const response = await fetch("/api/admin/clients/persona-verify", {
-              method:"POST",
-              headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({
-                client_id:Number(section.dataset.clientId),
-                booking_request_id:Number(latestAudit?.booking_request_id || 0),
-                persona_fields:personaFields
-              })
-            });
-            const result = await response.json();
-            if (!response.ok || !result.ok) throw new Error(result.message || "Unable to run Persona verification.");
+        section.querySelector(".client-verification-complete")?.addEventListener("click",()=>section.querySelector(".client-verification-save")?.click());
+        section.querySelector(".client-verification-save")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget, saveStatus=section.querySelector(".client-verification-save-status"), auditId=Number(section.dataset.verificationAuditId);
+          if(!auditId){if(saveStatus)saveStatus.textContent="No verification record is available.";return;}
+          button.disabled=true;if(saveStatus)saveStatus.textContent="Saving…";
+          try{
+            const response=await fetch("/api/admin/clients/verification-audit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+              audit_id:auditId,client_id:Number(section.dataset.clientId),verification_status:auditStatus?.value||"pending_review",
+              submitted_industry:section.querySelector(".client-verification-industry")?.value||"",
+              verification_method:section.querySelector(".client-verification-method")?.value||"",
+              identity_confirmed:section.querySelector(".client-check-identity")?.checked||false,
+              employer_confirmed:section.querySelector(".client-check-employer")?.checked||false,
+              job_title_confirmed:section.querySelector(".client-check-job-title")?.checked||false,
+              industry_confirmed:section.querySelector(".client-check-industry")?.checked||false,
+              contact_confirmed:section.querySelector(".client-check-contact")?.checked||false,
+              evidence_notes:section.querySelector(".client-verification-evidence")?.value||"",
+              decision_reason:reasonInput?.value||"",decision_notes:decisionNotes?.value||"",
+              birthdate:section.querySelector(".client-persona-birthdate")?.value||"",
+              confirm_reopen:section.dataset.confirmReopen==="1"
+            })});
+            const result=await response.json();
+            if(response.status===409&&result.requires_confirmation){
+              if(window.confirm(result.message||"Reopen this verification?")){section.dataset.confirmReopen="1";button.disabled=false;button.click();return;}
+            }
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save verification record.");
+            section.dataset.confirmReopen="0";
             await loadVerificationAudits(section);
-            if (status) status.textContent = result.message || "Persona verification submitted.";
-          } catch (error) {
-            if (status) status.textContent = error.message || "Unable to run Persona verification.";
-          } finally {
-            button.disabled = false;
-          }
+            await loadIdDocument(section,true);
+            const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};
+            verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,verification_status:result.record?.verification_status||"pending_review",completed_at:result.record?.completed_at||""});
+            if(saveStatus)saveStatus.textContent=result.record?.verification_status==="pending_review"?"Progress saved.":"Manual verification completed.";
+          }catch(error){if(saveStatus)saveStatus.textContent=error.message||"Unable to save verification record.";}
+          finally{button.disabled=false;updateCompletionControls();}
         });
 
-        section.querySelector(".client-id-save-status")?.addEventListener("click", async (event) => {
-          const button = event.currentTarget;
-          const status = section.querySelector(".client-id-status");
-          button.disabled = true;
-          if (status) status.textContent = "Saving verification details...";
-          try {
-            const response = await fetch("/api/admin/clients/id-document/status", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                client_id: Number(section.dataset.clientId),
-                received_at: section.querySelector(".client-id-received")?.value || "",
-                verification_status: verificationStatus?.value || "pending_review",
-                verified_at: verifiedDate?.value || ""
-              })
-            });
-            const result = await response.json();
-            if (!response.ok || !result.ok) throw new Error(result.message || "Unable to save verification details.");
-            setIdDocumentState(section, result.document);
-            if (status) status.textContent = "Verification details saved.";
-          } catch (error) {
-            if (status) status.textContent = error.message || "Unable to save verification details.";
-          } finally {
-            button.disabled = false;
-          }
+        section.querySelector(".client-id-upload")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget,fileInput=section.querySelector(".client-id-file"),status=section.querySelector(".client-id-status"),file=fileInput?.files?.[0];
+          if(!file){if(status)status.textContent="Choose an ID image first.";return;}
+          if(file.size>10*1024*1024){if(status)status.textContent="ID images must be 10 MB or smaller.";return;}
+          const form=new FormData();form.append("client_id",section.dataset.clientId);form.append("file",file);form.append("received_at",section.querySelector(".client-id-received")?.value||"");form.append("verification_status","pending_review");form.append("verified_at","");
+          button.disabled=true;if(status)status.textContent=section.dataset.hasDocument==="1"?"Replacing private ID…":"Uploading private ID…";
+          try{
+            const response=await fetch("/api/admin/clients/id-document",{method:"POST",body:form});const result=await response.json();
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to upload ID document.");
+            if(fileInput)fileInput.value="";setIdDocumentState(section,result.document);section.dataset.loaded="1";
+            const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,has_id:true});
+            if(status)status.textContent="ID document stored privately.";
+          }catch(error){if(status)status.textContent=error.message||"Unable to upload ID document.";}finally{button.disabled=false;}
         });
-        section.querySelector(".client-id-delete")?.addEventListener("click", async (event) => {
-          if (!window.confirm("Permanently delete this client's ID image and verification record? This cannot be undone.")) return;
-          const button = event.currentTarget;
-          const status = section.querySelector(".client-id-status");
-          button.disabled = true;
-          if (status) status.textContent = "Permanently deleting...";
-          try {
-            const response = await fetch("/api/admin/clients/id-document?client_id=" + encodeURIComponent(section.dataset.clientId), { method: "DELETE" });
-            const result = await response.json();
-            if (!response.ok || !result.ok) throw new Error(result.message || "Unable to delete ID document.");
-            setIdDocumentState(section, null);
-            if (status) status.textContent = "ID document permanently deleted.";
-          } catch (error) {
-            if (status) status.textContent = error.message || "Unable to delete ID document.";
-          } finally {
-            button.disabled = false;
-          }
+
+        section.querySelector(".client-persona-verify")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget,status=section.querySelector(".client-persona-status"),latestAudit=section._verificationAuditRecords?.[0]||null;
+          if(section.dataset.personaConnected!=="1"){if(status)status.textContent="Persona setup is still pending. Manual verification remains available.";return;}
+          normalizePersonaFields(section);capturePersonaDraft(section);
+          const personaFields={
+            name_first:normalizeSpaces(section.querySelector(".client-persona-name-first")?.value),
+            name_middle:normalizeSpaces(section.querySelector(".client-persona-name-middle")?.value),
+            name_last:normalizeSpaces(section.querySelector(".client-persona-name-last")?.value),
+            birthdate:section.querySelector(".client-persona-birthdate")?.value||"",
+            address_street_1:normalizeSpaces(section.querySelector(".client-persona-address-1")?.value),
+            address_street_2:normalizeSpaces(section.querySelector(".client-persona-address-2")?.value),
+            address_city:normalizeSpaces(section.querySelector(".client-persona-city")?.value),
+            address_subdivision:normalizeSpaces(section.querySelector(".client-persona-state")?.value).toUpperCase(),
+            address_postal_code:normalizeSpaces(section.querySelector(".client-persona-postal")?.value),
+            address_country_code:(normalizeSpaces(section.querySelector(".client-persona-country")?.value)||"US").toUpperCase(),
+            email_address:normalizeSpaces(section.querySelector(".client-persona-email")?.value).toLowerCase(),
+            phone_number:personaPhoneForApi(section.querySelector(".client-persona-phone")?.value)
+          };
+          if(!personaFields.name_first||!personaFields.name_last||!personaFields.birthdate){if(status)status.textContent="Enter first name, last name, and birthdate before running Persona.";return;}
+          button.disabled=true;if(status)status.textContent="Submitting information to Persona…";
+          try{
+            const response=await fetch("/api/admin/clients/persona-verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),booking_request_id:Number(latestAudit?.booking_request_id||0),persona_fields:personaFields})});
+            const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.message||"Unable to run Persona verification.");
+            await loadVerificationAudits(section);if(status)status.textContent=result.message||"Persona verification submitted.";
+          }catch(error){if(status)status.textContent=error.message||"Unable to run Persona verification.";}finally{button.disabled=false;}
         });
+
+        section.querySelector(".client-id-delete")?.addEventListener("click",async(event)=>{
+          if(!window.confirm("Permanently delete this private ID document? This cannot be undone."))return;
+          const button=event.currentTarget,status=section.querySelector(".client-id-status");button.disabled=true;
+          try{
+            const response=await fetch("/api/admin/clients/id-document?client_id="+encodeURIComponent(section.dataset.clientId),{method:"DELETE"});const result=await response.json();
+            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to delete ID document.");
+            setIdDocumentState(section,null);section.dataset.loaded="1";
+            const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};verificationOverviewByClient.set(Number(section.dataset.clientId),{...overview,has_id:false});
+            if(status)status.textContent="ID document permanently deleted.";
+          }catch(error){if(status)status.textContent=error.message||"Unable to delete ID document.";}finally{button.disabled=false;}
+        });
+
+        updateCompletionControls();
       });
       clientRecords.querySelectorAll(".save-client-profile").forEach((button) => {
         button.addEventListener("click", async () => {
@@ -3093,10 +3089,13 @@ async function loadRequests() {
     if (clientSafetyFilter) clientSafetyFilter.addEventListener("change", renderClients);
     const clientValueFilter = document.getElementById("client-value-filter");
     if (clientValueFilter) clientValueFilter.addEventListener("change", renderClients);
+    const clientVerificationFilter = document.getElementById("client-verification-filter");
+    if (clientVerificationFilter) clientVerificationFilter.addEventListener("change", renderClients);
     document.getElementById("client-clear-filters")?.addEventListener("click",()=>{
       if(clientSearch){clientSearch.value="";clientSearch.focus();}
       if(clientSafetyFilter) clientSafetyFilter.value="all";
       if(clientValueFilter) clientValueFilter.value="all";
+      if(clientVerificationFilter) clientVerificationFilter.value="all";
       renderClients();
     });
     document.querySelectorAll("[data-client-retention]").forEach(button=>button.addEventListener("click",()=>{
