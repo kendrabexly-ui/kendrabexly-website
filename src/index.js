@@ -3814,17 +3814,6 @@ My journal will continue to be a place where I share a little more of that side 
         const screeningAcknowledgement =
           data.screening_acknowledgement === "yes";
 
-        const depositAcknowledgement =
-          data.deposit_acknowledgement === "yes";
-
-        const depositPaymentMethod =
-          String(data.deposit_payment_method || "").trim().toLowerCase();
-
-        const allowedDepositPaymentMethods = new Set(["gift-card", "stripe", "crypto"]);
-        if (!allowedDepositPaymentMethods.has(depositPaymentMethod)) {
-          return Response.json({ ok:false, message:"Please choose how you would like to secure the date." }, { status:400 });
-        }
-
         const newsletterOfferId =
           String(data.newsletter_offer || "").trim();
 
@@ -4172,14 +4161,6 @@ My journal will continue to be a place where I share a little more of that side 
 
           screeningAcknowledgement
             ? "Screening requirement acknowledged: Yes"
-            : null,
-
-          depositAcknowledgement
-            ? "Deposit requirement acknowledged: Yes"
-            : null,
-
-          depositPaymentMethod
-            ? `Deposit payment method: ${depositPaymentMethod}`
             : null
         ]
           .filter(Boolean)
@@ -4312,10 +4293,13 @@ My journal will continue to be a place where I share a little more of that side 
         `).bind(tokenHash).first();
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired. Please contact Kendra for a new link."},{status:410});
-        const paymentMethod=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim()||"As arranged";
-        const depositAmount=Number(row.deposit_amount||0);
-        const depositProcessingFee=["stripe","crypto"].includes(paymentMethod)
-          ? Math.round((depositAmount/11)*100)/100
+        const paymentMethodKey=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim().toLowerCase()||"";
+        const storedDepositAmount=Number(row.deposit_amount||0);
+        const baseDepositAmount=row.completed_at && ["stripe","crypto"].includes(paymentMethodKey)
+          ? Math.round((storedDepositAmount/1.10)*100)/100
+          : storedDepositAmount;
+        const depositProcessingFee=["stripe","crypto"].includes(paymentMethodKey)
+          ? Math.round(baseDepositAmount*0.10*100)/100
           : 0;
         return Response.json({
           ok:true,
@@ -4324,9 +4308,11 @@ My journal will continue to be a place where I share a little more of that side 
           requested_date:row.requested_date||"",
           requested_time:row.requested_time||"",
           location_name:row.location_name||"",
-          deposit_amount:depositAmount,
+          deposit_amount:storedDepositAmount,
+          base_deposit_amount:baseDepositAmount,
           deposit_processing_fee:depositProcessingFee,
-          deposit_payment_method:paymentMethod==="gift-card"?"Gift Card":paymentMethod==="stripe"?"Stripe":paymentMethod==="crypto"?"Crypto":paymentMethod,
+          deposit_payment_method_key:paymentMethodKey,
+          deposit_payment_method:paymentMethodKey==="gift-card"?"Gift Card":paymentMethodKey==="stripe"?"Stripe":paymentMethodKey==="crypto"?"Crypto":"",
           current_employer:row.submitted_employer||"",
           job_title:row.submitted_job_title||"",
           industry:row.submitted_industry||"",
@@ -4346,7 +4332,12 @@ My journal will continue to be a place where I share a little more of that side 
         const token=String(data.token||"").trim();
         if(!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
         const tokenHash=await sha256Hex(token);
-        const row=await env.DB.prepare("SELECT date_request_id,expires_at,completed_at FROM booking_continuations WHERE token_hash=? LIMIT 1").bind(tokenHash).first();
+        const row=await env.DB.prepare(`
+          SELECT bc.date_request_id,bc.expires_at,bc.completed_at,dr.deposit_amount,dr.notes
+          FROM booking_continuations bc
+          JOIN date_requests dr ON dr.id=bc.date_request_id
+          WHERE bc.token_hash=? LIMIT 1
+        `).bind(tokenHash).first();
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
         if(row.completed_at) {
@@ -4355,13 +4346,27 @@ My journal will continue to be a place where I share a little more of that side 
         const employer=String(data.current_employer||"").trim().slice(0,160);
         const jobTitle=String(data.job_title||"").trim().slice(0,160);
         const industry=String(data.industry||"").trim().slice(0,160);
+        const depositPaymentMethod=String(data.deposit_payment_method||"").trim().toLowerCase();
+        const allowedDepositPaymentMethods=new Set(["gift-card","stripe","crypto"]);
         const depositAck=data.deposit_step_acknowledged==="yes";
-        if(!employer||!jobTitle||!industry||!depositAck) return Response.json({ok:false,message:"Complete all screening details and acknowledge the deposit step."},{status:400});
+        if(!employer||!jobTitle||!industry||!allowedDepositPaymentMethods.has(depositPaymentMethod)||!depositAck) {
+          return Response.json({ok:false,message:"Complete all screening details, choose a payment method, and acknowledge the deposit step."},{status:400});
+        }
+        const baseDepositAmount=Number(row.deposit_amount||0);
+        if(baseDepositAmount<=0) return Response.json({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
+        const depositProcessingFee=["stripe","crypto"].includes(depositPaymentMethod)
+          ? Math.round(baseDepositAmount*0.10*100)/100
+          : 0;
+        const finalDepositAmount=Math.round((baseDepositAmount+depositProcessingFee)*100)/100;
+        let requestNotes=String(row.notes||"").replace(/^Deposit payment method:.*$/gmi,"").trim();
+        requestNotes += (requestNotes?"\n":"") + "Deposit payment method: " + depositPaymentMethod;
         await env.DB.prepare(`
           UPDATE client_verification_audits
           SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
           WHERE date_request_id=?
         `).bind(employer,jobTitle,industry,row.date_request_id).run();
+        await env.DB.prepare("UPDATE date_requests SET deposit_amount=?,notes=? WHERE id=?")
+          .bind(finalDepositAmount,requestNotes,row.date_request_id).run();
         await env.DB.prepare(`
           UPDATE booking_continuations
           SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP
@@ -4372,7 +4377,14 @@ My journal will continue to be a place where I share a little more of that side 
           requestId:row.date_request_id,
           path:"/complete"
         });
-        return Response.json({ok:true,request_id:Number(row.date_request_id),message:"Screening details received for final review."});
+        return Response.json({
+          ok:true,
+          request_id:Number(row.date_request_id),
+          deposit_amount:finalDepositAmount,
+          processing_fee:depositProcessingFee,
+          deposit_payment_method:depositPaymentMethod,
+          message:"Screening details and deposit selection received for final review."
+        });
       } catch(error) {
         console.error("Booking continuation submit error:",error);
         return Response.json({ok:false,message:"Unable to save your screening details."},{status:500});
@@ -7242,10 +7254,7 @@ if (
         const baseDepositAmount = bookingRate > 0
           ? Math.round(bookingRate * 0.25 * 100) / 100
           : 0;
-        const depositPaymentMethod = String(notesText.match(/Deposit payment method:\s*([^\n]+)/i)?.[1] || "gift-card").trim().toLowerCase();
-        const depositProcessingRate = ["stripe", "crypto"].includes(depositPaymentMethod) ? 0.10 : 0;
-        const depositProcessingFee = Math.round(baseDepositAmount * depositProcessingRate * 100) / 100;
-        const depositAmount = Math.round((baseDepositAmount + depositProcessingFee) * 100) / 100;
+        const depositAmount = baseDepositAmount;
 
         await ensureSiteContentTables(env);
         const continuationToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
@@ -7310,10 +7319,9 @@ Your next step is all in one private page:
 
 ${continuationUrl}
 
-There you can provide your employment and industry details, review your ${depositDisplay} deposit amount, and confirm the deposit step.
+There you can provide your employment and industry details, review your base deposit of ${depositDisplay}, choose how you'd like to secure the date, and see the exact total before you acknowledge the deposit step.
 
-You selected: ${depositPaymentMethod === "gift-card" ? "Gift Card" : depositPaymentMethod === "stripe" ? "Stripe" : "Crypto"}.
-${depositProcessingFee > 0 ? `Your deposit request includes the 10% payment processing fee (${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(depositProcessingFee)}).` : "No processing fee is added for Gift Card deposits."}
+Gift Card has no processing fee. Stripe and Crypto add a 10% processing fee to the deposit.
 
 You are not required to upload or email an ID through this page. Any additional screening needed for final approval will be handled privately.
 
@@ -7332,8 +7340,8 @@ Kendra`
           deposit_amount: depositAmount,
           booking_rate: bookingRate,
           base_deposit_amount: baseDepositAmount,
-          processing_fee: depositProcessingFee,
-          deposit_payment_method: depositPaymentMethod
+          processing_fee: 0,
+          deposit_payment_method: ""
         });
 
       } catch (error) {
