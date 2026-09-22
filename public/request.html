@@ -314,13 +314,6 @@
 
           </div>
 
-          <div id="early-price-estimate" class="booking-summary full-width" hidden>
-            <div class="eyebrow">ESTIMATED TOTAL</div>
-            <dl id="early-price-details"></dl>
-            <p class="booking-summary-note">No payment is due now. The deposit is requested only after screening has been reviewed and verified.</p>
-          </div>
-
-
           <!-- TIME -->
           <div class="field full-width">
 
@@ -389,17 +382,6 @@
 
       </div>
 
-
-
-      <!-- BOOKING SUMMARY -->
-      <section id="booking-summary" class="booking-summary" aria-labelledby="booking-summary-title" hidden>
-        <div class="eyebrow">REVIEW YOUR REQUEST</div>
-        <h2 id="booking-summary-title">Your Booking Summary</h2>
-        <dl id="booking-summary-details"></dl>
-        <p class="booking-summary-note"><strong>No payment is due when you submit this request.</strong> If your request moves forward, you will receive a private screening link first. A deposit is requested only after screening has been reviewed and verified. Your date is not reserved until final approval.</p>
-      </section>
-
-
       <!-- BEFORE SUBMITTING -->
       <div class="form-section">
 
@@ -435,7 +417,7 @@
 
         <!-- NEXT STEP NOTE -->
         <p>
-          <strong>Nothing is charged when you submit this request.</strong> If it moves forward, you’ll receive a private screening link first. A deposit is requested only after screening has been reviewed and verified.
+          If your request moves forward, I’ll send you a private link for the next screening step.
         </p>
 
 
@@ -536,13 +518,9 @@
       syncDurationOptions();
       trackFunnel("experience_selected");
       loadAvailableTimes();
-      updatePriceEstimate();
-      updateBookingSummary();
     });
     durationSelect?.addEventListener("change", () => {
       loadAvailableTimes();
-      updatePriceEstimate();
-      updateBookingSummary();
     });
     syncDurationOptions();
 
@@ -574,122 +552,6 @@
       dateType.value = requestedExperience;
       syncDurationOptions();
     }
-
-
-    let publicRateServices = [];
-
-    async function loadPublicRates() {
-      try {
-        const response = await fetch("/api/public/rates", { headers: { "Accept": "application/json" } });
-        const data = await response.json();
-        if (response.ok && data.ok && Array.isArray(data.services)) {
-          publicRateServices = data.services;
-        }
-      } catch (error) {
-        console.error("Unable to load current rates:", error);
-      }
-      updatePriceEstimate();
-      updateBookingSummary();
-    }
-
-    function selectedOptionText(select) {
-      const option = select?.selectedOptions?.[0];
-      return option && option.value ? option.textContent.trim() : "";
-    }
-
-    function selectedRate() {
-      const experienceName = selectedOptionText(dateType);
-      const durationName = selectedOptionText(durationSelect);
-      const service = publicRateServices.find(item =>
-        String(item.name || "").toLowerCase() === experienceName.toLowerCase()
-      );
-      const rate = service?.rates?.find(item =>
-        String(item?.[0] || "").toLowerCase() === durationName.toLowerCase()
-      );
-      if (rate) return Number(rate[1]) || 0;
-      const fallback = {
-        "private-introduction": { "20-minutes": 200 },
-        "private-uncovered-introduction": { "20-minutes": 250 },
-        "signature-brief-introduction": { "30-minutes": 300 },
-        "greek-princess-brief-introduction": { "30-minutes": 400 },
-        "signature-girlfriend-experience": { "1-hour": 500, "1.5-hours": 750, "2-hours": 1000, "4-hours": 2600 },
-        "greek-princess-experience": { "1-hour": 700, "1.5-hours": 1000, "2-hours": 1300, "4-hours": 3000 }
-      };
-      return fallback[dateType?.value]?.[durationSelect?.value] || 0;
-    }
-
-    function money(value) {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 0
-      }).format(Number(value) || 0);
-    }
-
-    function updatePriceEstimate() {
-      const panel = document.getElementById("early-price-estimate");
-      const details = document.getElementById("early-price-details");
-      if (!panel || !details) return;
-      const baseRate = selectedRate();
-      if (!dateType?.value || !durationSelect?.value || !baseRate) {
-        panel.hidden = true;
-        details.innerHTML = "";
-        return;
-      }
-      const outcallService = publicRateServices.find(item =>
-        item.add_on || String(item.name || "").toLowerCase() === "outcall"
-      );
-      const configuredOutcallFee = Number(outcallService?.rates?.[0]?.[1]) || 100;
-      const outcallFee = appointmentType?.value === "outcall" ? configuredOutcallFee : 0;
-      const total = baseRate + outcallFee;
-      details.innerHTML = [
-        ["Experience", selectedOptionText(dateType)],
-        ["Duration", selectedOptionText(durationSelect)],
-        ...(outcallFee ? [["Outcall add-on", money(outcallFee)]] : []),
-        ["Estimated total", money(total)],
-        ["Estimated deposit after screening (25%)", money(total * 0.25)]
-      ].map(row => '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>').join("");
-      panel.hidden = false;
-    }
-
-    function updateBookingSummary() {
-      const summary = document.getElementById("booking-summary");
-      const details = document.getElementById("booking-summary-details");
-      if (!summary || !details) return;
-      const ready = dateType?.value && appointmentType?.value && durationSelect?.value &&
-        requestedDate?.value && requestedTime?.value;
-      summary.hidden = !ready;
-      if (!ready) {
-        details.innerHTML = "";
-        return;
-      }
-      const baseRate = selectedRate();
-      const outcallService = publicRateServices.find(item =>
-        item.add_on || String(item.name || "").toLowerCase() === "outcall"
-      );
-      const configuredOutcallFee = Number(outcallService?.rates?.[0]?.[1]) || 100;
-      const outcallFee = appointmentType.value === "outcall" ? configuredOutcallFee : 0;
-      const total = baseRate + outcallFee;
-      const rows = [
-        ["Experience", selectedOptionText(dateType)],
-        ["Duration", selectedOptionText(durationSelect)],
-        ["Date", new Date(requestedDate.value + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })],
-        ["Start time", selectedOptionText(requestedTime)],
-        ["Location", selectedOptionText(appointmentType)],
-        ...(outcallFee ? [["Outcall add-on", money(outcallFee)]] : []),
-        ["Estimated total", money(total)],
-        ["Estimated deposit (25%)", money(total * 0.25)]
-      ];
-      details.innerHTML = rows.map(row =>
-        '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>'
-      ).join("");
-      if (!summary.dataset.tracked) {
-        summary.dataset.tracked = "true";
-        trackFunnel("booking_summary_viewed");
-      }
-    }
-
-
     let availabilityRequestId = 0;
 
     async function loadAvailableTimes() {
@@ -715,8 +577,7 @@
               ? "Choose your preferred date to see available start times."
               : "Choose how much time you would like to see available start times.";
         }
-        updateBookingSummary();
-        return;
+          return;
       }
 
       requestedTime.innerHTML = '<option value="">Loading available times…</option>';
@@ -763,10 +624,7 @@
         requestedTime.disabled = true;
         if (status) status.textContent = error.message || "Unable to load availability.";
       }
-      updateBookingSummary();
     }
-
-    loadPublicRates();
 
 
     const appointmentType = document.getElementById("appointment-type");
@@ -793,8 +651,6 @@
 
     appointmentType?.addEventListener("change", () => {
       syncOutcallAddress();
-      updatePriceEstimate();
-      updateBookingSummary();
     });
     syncOutcallAddress();
 
@@ -875,11 +731,9 @@
     requestedDate.addEventListener("change", () => {
       validateMinimumNotice();
       loadAvailableTimes();
-      updateBookingSummary();
     });
     requestedTime.addEventListener("change", () => {
       validateMinimumNotice();
-      updateBookingSummary();
     });
 
 
@@ -969,9 +823,9 @@
             '<h2 id="request-success-title">Your request is in 💋</h2>' +
             '<p>Thank you' + (firstName ? ', <strong>' + firstName.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong>' : '') + '. I received your private request and will review it personally.</p>' +
             '<div class="request-success-summary"><strong>' + (requestedDateText || 'Requested date') + '</strong>' + (timeText ? '<span>' + timeText + '</span>' : '') + '</div>' +
-            '<div class="no-payment-callout"><strong>No payment has been charged.</strong><span>Nothing else is required from you right now.</span></div>' +
+            '<div class="no-payment-callout"><strong>Nothing else is required from you right now.</strong><span>I’ll review your request personally.</span></div>' +
             '<h3>What happens next</h3>' +
-            '<ol><li>I review your request.</li><li>If I would like to move forward, you will receive a private link to complete screening details.</li><li>Only after screening is reviewed and verified will I request a deposit to secure the date.</li><li>After the deposit is confirmed, I make the final approval decision.</li></ol>' +
+            '<ol><li>I review your request.</li><li>If I would like to move forward, you will receive a private link to complete screening details.</li><li>After screening is complete, I’ll let you know the next step.</li></ol>' +
             '<p>Please watch <strong>' + emailAddress.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong> for the next step.</p>' +
             '<a class="button" href="/">Return to the website</a>' +
           '</section>';
