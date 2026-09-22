@@ -17,6 +17,19 @@ test("initial booking request collects occupation for basic screening",()=>{
   assert.match(worker,/`Occupation: \$\{occupation\}`/);
 });
 
+test("dashboard verification starts with request-based basic screening",()=>{
+  assert.match(portal,/data-progress-step="basic_screening">Basic Screening/);
+  assert.match(portal,/class="verification-card client-basic-screening"/);
+  assert.match(portal,/>1\. Basic Screening</);
+  assert.match(portal,/latestOccupation = requestNoteValue\("Occupation"\)/);
+  assert.match(portal,/client-basic-screening-open-request/);
+  assert.match(portal,/>2\. ID Record</);
+  assert.match(portal,/>3\. Manual Verification</);
+  assert.match(portal,/>8\. Final Review &amp; Decision</);
+  assert.match(portal,/>9\. Audit History</);
+  assert.match(portal,/finalReady=basicScreening==="confirmed"/);
+});
+
 test("address-based verification remains supported",()=>{
   assert.match(worker,/const addressComplete=Boolean\(personaFields\.address_street_1&&personaFields\.address_city&&personaFields\.address_subdivision&&personaFields\.address_postal_code\)/);
 });
@@ -296,10 +309,10 @@ test("confirmed credential requires an official source",()=>{
   assert.match(worker,/Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Active \/ verified/);
 });
 
-test("portal has License and Credential Verification as section 3",()=>{
-  assert.match(portal,/3\. License &amp; Credential Verification/);
-  assert.match(portal,/6\. Persona/);
-  assert.match(portal,/8\. Audit History/);
+test("portal has License and Credential Verification after basic screening",()=>{
+  assert.match(portal,/4\. License &amp; Credential Verification/);
+  assert.match(portal,/7\. Persona/);
+  assert.match(portal,/9\. Audit History/);
 });
 
 test("registry routing includes official licensing sources",()=>{
