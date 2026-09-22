@@ -4426,6 +4426,7 @@ async function loadRequests(options = {}) {
                   "<div><strong>Event ID:</strong> "+escapeHtml(triggerEvent.id||"—")+"</div>"
                 : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Trigger event:</strong> Not found.</div>";
               const diagnostics=workflow?.diagnostics||{};
+              const workflowErrored=String(workflow?.status||workflow?.state||"").toLowerCase()==="errored";
               const diagnosticText=Object.entries(diagnostics).map(([key,value])=>{
                 const cleanKey=String(key).replace(/^meta_/,"").replaceAll("_"," ").replaceAll("-"," ");
                 const rendered=typeof value==="string"?value:JSON.stringify(value);
@@ -4436,7 +4437,7 @@ async function loadRequests(options = {}) {
                   " · "+escapeHtml(workflow.workflow_name||"ClearPath - Inquiry Created - Database Verification")+"</div>"+
                   "<div><strong>Workflow Run ID:</strong> "+escapeHtml(workflow.id||"—")+"</div>"+
                   countryFieldHtml+
-                  (diagnosticText?"<div style=\"margin-top:6px;padding:7px 8px;background:#fff7f7;border-radius:6px;\"><strong>Persona error details</strong>"+diagnosticText+"</div>":"")
+                  (diagnosticText?"<div style=\"margin-top:6px;padding:7px 8px;background:"+(workflowErrored?"#fff7f7":"#f7f2e9")+";border-radius:6px;\"><strong>"+(workflowErrored?"Persona error details":"Workflow details")+"</strong>"+diagnosticText+"</div>":"")
                 : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Workflow:</strong> Not triggered / no matching run found.</div>"+countryFieldHtml;
               if(db){
                 const statusLabel=String(db.status||"unknown").replaceAll("_"," ");
@@ -4454,6 +4455,15 @@ async function loadRequests(options = {}) {
                   "<div><strong>Inquiry:</strong> "+escapeHtml(result.inquiry_id||"—")+" · "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
                   timing;
                 resultBox.style.borderColor=result.workflow_state==="completed"?"#9cc9a8":result.workflow_state==="running"?"#d9c37a":"#c8c8c8";
+                if(String(db.status||"").toLowerCase()==="passed"){
+                  const badge=section.querySelector(".client-persona-badge");
+                  if(badge){
+                    badge.textContent="Persona: Database Passed";
+                    badge.style.background="#e8f6ec";
+                    badge.style.color="#22613b";
+                  }
+                  if(status)status.textContent="Persona workflow check complete: Database (US) passed.";
+                }
               }else{
                 const workflowStatus=workflow?String(workflow.status||workflow.state||"unknown").replaceAll("_"," "):"not triggered";
                 resultBox.innerHTML=
