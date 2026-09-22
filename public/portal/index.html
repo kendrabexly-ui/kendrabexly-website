@@ -2777,7 +2777,6 @@ async function loadRequests(options = {}) {
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Profile</strong>
               <div style="margin-top:8px;font-size:12px;color:var(--muted);">Relationship notes, follow-up communication, and safety controls.</div>
-              <button type="button" class="client-verification-summary" style="display:block;width:100%;margin-top:10px;padding:10px 12px;border:1px solid #eee7dc;border-radius:9px;background:white;color:inherit;text-align:left;font:inherit;font-size:12px;line-height:1.55;cursor:pointer;"><strong>Verification summary</strong><br><span style="color:var(--muted);">Loading ID, manual review, Persona, and checklist status…</span></button>
               <details class="client-profile-section client-followup-agent" style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:700;">Follow Up</summary>
                 <div style="margin-top:10px;">
@@ -3436,11 +3435,10 @@ async function loadRequests(options = {}) {
         requestAnimationFrame(renderClients);
       });
       clientRecords.querySelectorAll(".client-profile-actions").forEach((controls)=>{
-        const summary=controls.querySelector(".client-verification-summary");
         const verification=controls.querySelector(".client-id-documents");
         const safety=controls.querySelector(".client-safety-section");
         const firstSection=controls.querySelector(".client-profile-section");
-        if(summary&&verification) summary.insertAdjacentElement("afterend",verification);
+        if(verification&&firstSection) firstSection.insertAdjacentElement("beforebegin",verification);
         if(verification&&safety) verification.insertAdjacentElement("afterend",safety);
       });
       clientRecords.querySelectorAll(".client-profile-toggle").forEach((button) => {
@@ -3622,54 +3620,7 @@ async function loadRequests(options = {}) {
       const statusLabel = value => ({
         pending_review:"Pending Review", needs_more_information:"Needs More Information", verified:"Verified", unable_to_verify:"Unable to Verify", declined:"Declined"
       }[value] || String(value || "Pending Review").replaceAll("_"," "));
-      const updateVerificationSummary=(section)=>{
-        const summary=section.closest(".client-profile-actions")?.querySelector(".client-verification-summary");
-        if(!summary)return;
-        const latest=Array.isArray(section._verificationAuditRecords)&&section._verificationAuditRecords.length?section._verificationAuditRecords[0]:null;
-        const checklist=latest?[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length:0;
-        const age=section.dataset.verificationAge||(latest?.birthdate?verificationAge(latest.birthdate):null);
-        const idLabel=section.dataset.hasDocument==="1"?"Received":"Not received";
-        const manualDecision=statusLabel(latest?.verification_status||"pending_review");
-        const personaStatus=String(latest?.persona_transaction_status||"").toLowerCase();
-        const personaDatabaseStatus=String(latest?.persona_database_status||"").toLowerCase();
-        const personaDatabasePassed=personaDatabaseStatus==="passed";
-        const personaActive=Boolean(latest?.persona_transaction_id)&&!personaDatabasePassed&&["created","pending","needs_review","pending_fallback_inquiry","processing"].includes(personaStatus);
-        const overallState=!latest
-          ?"Not Started"
-          :latest.verification_status==="declined"
-            ?"Declined"
-            :latest.verification_status==="unable_to_verify"
-              ?"Unable to Verify"
-              :latest.verification_status==="verified"
-                ?"Verification Complete"
-                :latest.verification_status==="needs_more_information"||section.dataset.hasDocument!=="1"||!latest.birthdate
-                  ?"Information Needed"
-                  :personaActive
-                    ?"Persona Pending"
-                    :"Manual Review Needed";
-        const pState=personaReadiness(section,section.dataset.personaConnected==="1");
-        const validation=section._personaValidation||{missing:[]};
-        const dobPresent=Boolean(section.querySelector(".client-persona-birthdate")?.value||latest?.birthdate);
-        const overview=verificationOverviewByClient.get(Number(section.dataset.clientId))||{};
-        const queueLabel=queueLabels?.[overview.queue_category]||overview.queue_category||"—";
-        const completed=latest?.completed_at?formatVerificationTimestamp(latest.completed_at):"Not completed";
-        const badgeStyle=overallState==="Verification Complete"?"background:#e8f6ec;color:#22613b;"
-          :overallState==="Information Needed"||overallState==="Persona Pending"||overallState==="Manual Review Needed"?"background:#fff4d8;color:#74520b;"
-          :["Declined","Unable to Verify"].includes(overallState)?"background:#fdeaea;color:#8a2424;"
-          :"background:#eef2f8;color:#38506f;";
-        summary.innerHTML="<div style=\"display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;\"><strong>Verification summary</strong><span class=\"verification-status-pill\" style=\""+badgeStyle+"\">"+escapeHtml(overallState)+"</span></div>"+
-          "<div style=\"margin-top:7px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:5px 12px;color:var(--muted);\">"+
-          "<span><strong>ID:</strong> "+escapeHtml(idLabel)+"</span>"+
-          "<span><strong>DOB:</strong> "+(dobPresent?"Saved":"Missing")+"</span>"+
-          "<span><strong>Age:</strong> "+escapeHtml(age===null||age===""?"Not checked":String(age))+"</span>"+
-          "<span><strong>Checklist:</strong> "+checklist+" of 5</span>"+
-          "<span><strong>Final decision:</strong> "+escapeHtml(manualDecision)+"</span>"+
-          "<span><strong>Persona:</strong> "+escapeHtml(personaDatabasePassed?"Database Passed":(latest?.persona_transaction_id?pState.label:"Not submitted"))+"</span>"+
-          "<span><strong>Missing fields:</strong> "+Number(validation.missing?.length||0)+"</span>"+
-          "<span><strong>Queue:</strong> "+escapeHtml(queueLabel)+"</span>"+
-          "<span><strong>Completed:</strong> "+escapeHtml(completed)+"</span></div>"+
-          "<div style=\"margin-top:6px;font-weight:700;\">Open verification →</div>";
-      };
+      const updateVerificationSummary=(section)=>updateVerificationFlowSummary(section);
       const US_STATE_ABBREVIATIONS={
         ALABAMA:"AL",ALASKA:"AK",ARIZONA:"AZ",ARKANSAS:"AR",CALIFORNIA:"CA",COLORADO:"CO",CONNECTICUT:"CT",
         DELAWARE:"DE",FLORIDA:"FL",GEORGIA:"GA",HAWAII:"HI",IDAHO:"ID",ILLINOIS:"IL",INDIANA:"IN",IOWA:"IA",
@@ -5582,21 +5533,6 @@ async function loadRequests(options = {}) {
           if (status) status.textContent = error.message || "Unable to load ID document.";
         }
       };
-      clientRecords.querySelectorAll(".client-verification-summary").forEach((summary) => {
-        summary.addEventListener("click", () => {
-          const controls = summary.closest(".client-profile-actions");
-          const section = controls?.querySelector(".client-id-documents");
-          if (!section) return;
-          const wasOpen=section.open;
-          section.open = true;
-          section.scrollIntoView({behavior:"smooth",block:"start"});
-          if(wasOpen){
-            if(typeof section._loadVerificationCore==="function")section._loadVerificationCore();
-            else loadVerificationAudits(section);
-            updateVerificationFlowSummary(section);
-          }
-        });
-      });
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
         const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone,.client-persona-id-number,.client-persona-issuing-state,.client-persona-id-expiration,.client-persona-id-class");
         personaInputs.forEach(input=>{
