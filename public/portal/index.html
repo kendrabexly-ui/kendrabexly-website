@@ -3030,8 +3030,7 @@ async function loadRequests(options = {}) {
                         <select class="client-public-record-scope" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
                           <option value="state_local">State / local court records</option>
                           <option value="federal">Federal court records</option>
-                          <option value="sex_offender_registry">Sex offender registry</option>
-                          <option value="multiple_sources">Multiple official sources</option>
+                          <option value="multiple_sources">State/local + federal court records</option>
                         </select>
                       </label>
                       <label style="font-size:12px;font-weight:700;">First name
@@ -3079,6 +3078,34 @@ async function loadRequests(options = {}) {
                     </label>
                     <div style="margin-top:8px;padding:9px 10px;border-radius:8px;background:#fff8e6;font-size:11px;color:#74520b;line-height:1.5;">
                       <strong>Important:</strong> “No public record located” means only that nothing was found in the source(s) you searched. It is not a nationwide criminal-history clearance. Potential matches must be corroborated before being recorded as confirmed.
+                    </div>
+                    <div style="margin-top:12px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
+                      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <strong style="font-size:12px;">Separate DOJ Sex Offender Registry Check</strong>
+                        <a href="https://www.nsopw.gov/" target="_blank" rel="noopener noreferrer" style="font-size:11px;font-weight:700;">Open DOJ NSOPW</a>
+                      </div>
+                      <div style="margin-top:4px;font-size:11px;color:var(--muted);">This is tracked separately from ordinary state/local and federal court-record searches.</div>
+                      <div class="verification-grid" style="margin-top:8px;">
+                        <label style="font-size:12px;font-weight:700;">Registry result
+                          <select class="client-sex-offender-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                            <option value="not_checked">Not checked</option>
+                            <option value="no_match">No matching public registry result</option>
+                            <option value="potential_match">Potential match — identity not confirmed</option>
+                            <option value="confirmed_match">Confirmed match</option>
+                            <option value="unable_to_verify">Unable to verify</option>
+                          </select>
+                        </label>
+                        <label style="font-size:12px;font-weight:700;">Record / reference <span style="font-weight:500;color:var(--muted);">(if applicable)</span>
+                          <input class="client-sex-offender-reference" type="text" maxlength="240" placeholder="Public registry reference" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                        </label>
+                      </div>
+                      <label style="display:block;margin-top:8px;font-size:12px;font-weight:700;">Evidence / identity reference
+                        <textarea class="client-sex-offender-evidence" rows="2" maxlength="1200" placeholder="For a potential or confirmed match, record the corroborating public identifiers used. A name-only match is not enough." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                      </label>
+                      <div class="verification-actions" style="margin-top:8px;">
+                        <button type="button" class="client-sex-offender-save" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Registry Check</button>
+                        <span class="client-sex-offender-save-status" style="font-size:11px;color:var(--muted);"></span>
+                      </div>
                     </div>
                     <div class="verification-actions" style="margin-top:9px;">
                       <button type="button" class="client-public-record-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Public Record Check</button><button type="button" class="client-public-record-add-search" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Add another jurisdiction / result</button>
@@ -4480,7 +4507,6 @@ async function loadRequests(options = {}) {
           }
         }
         if(sc==="federal"||sc==="multiple_sources")add("PACER Federal Case Search","https://pacer.uscourts.gov/find-case","PACER — U.S. Courts","official");
-        if(sc==="sex_offender_registry"||sc==="multiple_sources")add("National Sex Offender Public Website","https://www.nsopw.gov/","U.S. Department of Justice NSOPW","official");
         return links;
       };
       const renderPublicRecordLookups=(section)=>{
@@ -4643,7 +4669,7 @@ async function loadRequests(options = {}) {
           const response=await fetch("/api/admin/clients/verification-check-history?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load check history.");
-          const labels={credential:"License / Credential",address:"Address",public_records:"Public Records",employment:"Employment"};
+          const labels={credential:"License / Credential",address:"Address",public_records:"Public Records",employment:"Employment",sex_offender_registry:"DOJ Sex Offender Registry",federal_records:"Federal Records",supplemental_public_record:"Supplemental Public Record"};
           box.innerHTML=(result.history||[]).length?(result.history||[]).map(item=>`
             <div class="verification-check-history-item">
               <strong>${escapeHtml(labels[item.category]||verificationPretty(item.category))} · ${escapeHtml(verificationPretty(item.result_status))}</strong>
@@ -4740,6 +4766,30 @@ async function loadRequests(options = {}) {
         }catch(error){
           if(status){status.textContent=error.message||"Some verification sections could not be saved.";status.style.color="#8a2424";}
         }
+      };
+
+      const saveSexOffenderRegistryCheck=async(section)=>{
+        const button=section.querySelector(".client-sex-offender-save"),status=section.querySelector(".client-sex-offender-save-status");
+        if(button)button.disabled=true;if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
+        try{
+          const payload={
+            client_id:Number(section.dataset.clientId),
+            category:"sex_offender_registry",
+            result_status:section.querySelector(".client-sex-offender-status")?.value||"not_checked",
+            source_name:"U.S. Department of Justice NSOPW",
+            source_url:"https://www.nsopw.gov/",
+            reference:section.querySelector(".client-sex-offender-reference")?.value||"",
+            summary:section.querySelector(".client-sex-offender-evidence")?.value||""
+          };
+          const response=await fetch("/api/admin/clients/verification-check-history",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save registry check.");
+          if(status){status.textContent=payload.result_status==="not_checked"?"Not saved":"Saved just now";status.style.color="#2f6b45";}
+          await Promise.all([loadVerificationCheckHistory(section),loadVerificationActivity(section)]);
+          updateVerificationFlowSummary(section);
+        }catch(error){
+          if(status){status.textContent=error.message||"Unable to save registry check.";status.style.color="#8a2424";}
+        }finally{if(button)button.disabled=false;}
       };
 
       const applyPhoneLineCheck=(section,check)=>{
@@ -5227,6 +5277,7 @@ async function loadRequests(options = {}) {
         section.querySelector(".client-address-check-county")?.addEventListener("change",()=>renderAddressLookupLinks(section));
         syncAddressCheckFromVerification(section);
         section.querySelector(".client-public-record-save")?.addEventListener("click",()=>savePublicRecordCheck(section));
+        section.querySelector(".client-sex-offender-save")?.addEventListener("click",()=>saveSexOffenderRegistryCheck(section));
         const syncPublicRecordCountyVisibility=()=>{
           const state=section.querySelector(".client-public-record-state")?.value||"";
           const wrap=section.querySelector(".client-public-record-county-wrap");
