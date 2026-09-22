@@ -227,3 +227,8 @@ test("changing the phone invalidates the previous line-type result",()=>{
   assert.match(portal,/Phone changed · check again/);
   assert.match(portal,/phoneLineCheckedNumber="";/);
 });
+
+
+test("Persona readiness does not say Not ready after Database US already passed",()=>{
+  assert.match(portal,/databaseAlreadyPassed\?"External check complete":allReady\?"Ready to submit":"Not ready to submit"/);
+});
