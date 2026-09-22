@@ -8080,13 +8080,25 @@ function escapeHtml(value) {
           }
           const subject = card.querySelector("[data-email-subject]")?.value || "";
           const body = card.querySelector("[data-email-body]")?.value || "";
+          const emailType = drafts.find(item => String(item.id) === String(button.dataset.previewEmail))?.email_type;
           panel.replaceChildren();
           const subjectLine = document.createElement("div");
           subjectLine.style.cssText = "font-weight:700;margin-bottom:12px;";
           subjectLine.textContent = subject;
           const bodyText = document.createElement("div");
           bodyText.style.cssText = "white-space:pre-wrap;line-height:1.6;";
-          bodyText.textContent = body;
+          const privateLink = emailType === "pending_final_approval"
+            ? body.match(/https?:\/\/[^\s]+\/complete\/\?token=[^\s]+/i)?.[0]
+            : null;
+          if (privateLink) {
+            const [before, after] = body.split(privateLink);
+            bodyText.append(document.createTextNode(before));
+            const linkButton = document.createElement("a");
+            linkButton.href = privateLink;
+            linkButton.textContent = "Complete the Private Form";
+            linkButton.style.cssText = "display:inline-block;padding:10px 16px;border-radius:8px;background:var(--ink);color:white;text-decoration:none;font-weight:700;";
+            bodyText.append(linkButton, document.createTextNode(after));
+          } else bodyText.textContent = body;
           panel.append(subjectLine, bodyText);
           panel.style.display = "block";
           button.textContent = "Close Preview";
