@@ -53,16 +53,25 @@
 
       <section class="form-section">
         <div class="eyebrow">DEPOSIT</div>
-        <h2>Secure the date.</h2>
+        <h2>Choose how you'd like to secure the date.</h2>
+        <div class="field full-width">
+          <label for="continuation-payment-method">Payment method *</label>
+          <select id="continuation-payment-method" name="deposit_payment_method" required>
+            <option value="">Choose a payment method</option>
+            <option value="gift-card">Gift Card</option>
+            <option value="stripe">Stripe (10% processing fee)</option>
+            <option value="crypto">Crypto (10% processing fee)</option>
+          </select>
+        </div>
         <div class="no-payment-callout">
           <strong id="deposit-total">Deposit total</strong>
-          <span id="deposit-method">Payment method</span>
+          <span id="deposit-base">Base deposit</span>
           <span id="deposit-fee" hidden></span>
         </div>
-        <p id="deposit-instructions">Review the exact deposit amount and selected payment method below. This page records your acknowledgement only; it does not mark the deposit as paid. Kendra confirms payment separately from the admin side.</p>
+        <p id="deposit-instructions">Your deposit is 25% of the date total. Stripe and Crypto add a 10% processing fee to the deposit. This page records your selection and acknowledgement only; Kendra confirms payment separately from the admin side.</p>
         <label class="checkbox-label">
           <input type="checkbox" name="deposit_step_acknowledged" value="yes" required>
-          <span>I have reviewed the deposit amount and payment instructions and understand that final approval happens only after the deposit and screening are confirmed.</span>
+          <span>I have reviewed the deposit amount, selected payment method, and payment instructions and understand that final approval happens only after screening and the deposit are confirmed.</span>
         </label>
       </section>
 
@@ -84,6 +93,7 @@
   <script>
     const token = new URLSearchParams(location.search).get("token") || "";
     let requestId = null;
+    let baseDepositAmount = 0;
     const loading = document.getElementById("continuation-loading");
     const form = document.getElementById("continuation-form");
     const complete = document.getElementById("continuation-complete");
@@ -106,24 +116,18 @@
       }
       requestId = Number(data.request_id || 0) || null;
       track("continuation_opened");
+      baseDepositAmount = Number(data.base_deposit_amount || data.deposit_amount || 0);
       const rows = [
         ["Name", data.client_name],
         ["Date", data.requested_date],
         ["Time", data.requested_time],
         ["Location", data.location_name],
-        ["Deposit", money(data.deposit_amount)]
+        ["Base deposit (25%)", money(baseDepositAmount)]
       ];
       document.getElementById("continuation-summary").innerHTML = rows.map(row => "<div><dt>"+escapeHtml(row[0])+"</dt><dd>"+escapeHtml(row[1])+"</dd></div>").join("");
-      document.getElementById("deposit-total").textContent = "Deposit total: " + money(data.deposit_amount);
-      document.getElementById("deposit-method").textContent = "Selected payment method: " + (data.deposit_payment_method || "As arranged");
-      const fee = Number(data.deposit_processing_fee || 0);
-      const feeLine = document.getElementById("deposit-fee");
-      if (fee > 0) {
-        feeLine.textContent = "Processing fee included: " + money(fee);
-        feeLine.hidden = false;
-      } else {
-        feeLine.hidden = true;
-      }
+      const paymentSelect = document.getElementById("continuation-payment-method");
+      if (data.deposit_payment_method_key) paymentSelect.value = data.deposit_payment_method_key;
+      updateDepositTotal();
       document.getElementById("screening-employer").value = data.current_employer || "";
       document.getElementById("screening-title").value = data.job_title || "";
       document.getElementById("screening-industry").value = data.industry || "";
@@ -134,6 +138,22 @@
         form.hidden = false;
       }
     }
+    function updateDepositTotal() {
+      const method = document.getElementById("continuation-payment-method")?.value || "";
+      const fee = ["stripe","crypto"].includes(method) ? Math.round(baseDepositAmount * 0.10 * 100) / 100 : 0;
+      const total = Math.round((baseDepositAmount + fee) * 100) / 100;
+      document.getElementById("deposit-base").textContent = "Base deposit (25%): " + money(baseDepositAmount);
+      document.getElementById("deposit-total").textContent = method ? "Deposit total: " + money(total) : "Choose a payment method to see your final deposit total";
+      const feeLine = document.getElementById("deposit-fee");
+      if (fee > 0) {
+        feeLine.textContent = "Processing fee (10% of deposit): " + money(fee);
+        feeLine.hidden = false;
+      } else {
+        feeLine.hidden = true;
+      }
+    }
+    document.getElementById("continuation-payment-method")?.addEventListener("change", updateDepositTotal);
+
     form.addEventListener("submit", async event => {
       event.preventDefault();
       status.textContent = "Submitting…";
