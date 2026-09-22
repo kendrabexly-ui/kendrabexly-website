@@ -3682,7 +3682,8 @@ async function loadRequests(options = {}) {
         const currentHtml=`
           <div style="padding:10px 0;color:var(--ink);line-height:1.55;">
             <div><strong>Manual Decision:</strong> ${escapeHtml(statusLabel(latest.verification_status))}</div>
-            <div style="margin-top:3px;"><strong>Persona Result:</strong> ${escapeHtml(latest.persona_transaction_id ? (latest.persona_transaction_status || "pending").replaceAll("_"," ") : "Not submitted")}</div>
+            <div style="margin-top:3px;"><strong>Persona verification:</strong> ${escapeHtml(latest.persona_database_status ? ("Database (US) " + latest.persona_database_status.replaceAll("_"," ")) : (latest.persona_transaction_id ? "Database result not checked yet" : "Not submitted"))}</div>
+            ${latest.persona_transaction_id ? `<div style="margin-top:3px;color:var(--muted);"><strong>Inquiry state:</strong> ${escapeHtml((latest.persona_transaction_status || "pending").replaceAll("_"," "))}${latest.persona_database_status==="passed" ? " · administrative state only; Database (US) already passed" : ""}</div>` : ""}
             <div style="margin-top:3px;color:var(--muted);">Checklist: ${[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length} of 5</div>
             <div style="margin-top:5px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 12px;font-size:11px;color:var(--muted);">
               <span><strong>Created:</strong> ${escapeHtml(formatVerificationTimestamp(latest.accepted_at)||"—")}</span>
@@ -3839,11 +3840,15 @@ async function loadRequests(options = {}) {
           card.hidden=!hasExisting;
           if(hasExisting){
             const retryLabel=state.key==="failed"?"Eligible":"Not needed";
-            card.innerHTML="<strong>Persona inquiry</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
-              "<span><strong>Result:</strong> "+escapeHtml(state.label)+"</span>"+
+            const databaseStatus=String(latest.persona_database_status||"").toLowerCase();
+            const databasePassed=databaseStatus==="passed";
+            card.innerHTML="<strong>Persona verification</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
+              "<span><strong>Database (US):</strong> "+escapeHtml(databaseStatus?databaseStatus.replaceAll("_"," "):"Not checked yet")+"</span>"+
+              "<span><strong>Inquiry state:</strong> "+escapeHtml(state.label)+"</span>"+
               "<span><strong>Submitted:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_submitted_at)||"—")+"</span>"+
-              "<span><strong>Last updated:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_updated_at||latest.updated_at)||"—")+"</span>"+
-              "<span><strong>Retry:</strong> "+escapeHtml(retryLabel)+"</span></div>";
+              "<span><strong>Last updated:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_database_checked_at||latest.persona_updated_at||latest.updated_at)||"—")+"</span>"+
+              "<span><strong>Retry:</strong> "+escapeHtml(databasePassed?"Not needed":retryLabel)+"</span></div>"+
+              (databasePassed?"<div style=\"margin-top:7px;color:#22613b;font-weight:700;\">Database verification passed. A pending Persona inquiry state does not mean the Database (US) check is pending.</div>":"");
           }
         }
         const txDetails=section.querySelector(".client-persona-transaction-details");
@@ -3851,7 +3856,9 @@ async function loadRequests(options = {}) {
         if(txDetails&&txBody){
           txDetails.hidden=!hasExisting;
           if(hasExisting)txBody.innerHTML="<strong>Inquiry ID:</strong> "+escapeHtml(latest.persona_transaction_id)+
-            "<br><strong>Raw status:</strong> "+escapeHtml(latest.persona_transaction_status||"pending");
+            "<br><strong>Inquiry raw status:</strong> "+escapeHtml(latest.persona_transaction_status||"pending")+
+            (latest.persona_database_verification_id?"<br><strong>Database verification ID:</strong> "+escapeHtml(latest.persona_database_verification_id):"")+
+            (latest.persona_database_status?"<br><strong>Database raw status:</strong> "+escapeHtml(latest.persona_database_status):"");
         }
         updateVerificationSummary(section);
       };
@@ -4456,6 +4463,14 @@ async function loadRequests(options = {}) {
                   timing;
                 resultBox.style.borderColor=result.workflow_state==="completed"?"#9cc9a8":result.workflow_state==="running"?"#d9c37a":"#c8c8c8";
                 if(String(db.status||"").toLowerCase()==="passed"){
+                  const currentCard=section.querySelector(".client-persona-transaction-card");
+                  if(currentCard){
+                    currentCard.hidden=false;
+                    currentCard.innerHTML="<strong>Persona verification</strong>"+
+                      "<div style=\"margin-top:7px;color:#22613b;font-weight:700;\">Database (US): Passed</div>"+
+                      "<div style=\"margin-top:4px;\"><strong>Inquiry state:</strong> "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
+                      "<div style=\"margin-top:4px;color:var(--muted);\">The inquiry state is administrative. Database (US) has completed successfully.</div>";
+                  }
                   const badge=section.querySelector(".client-persona-badge");
                   if(badge){
                     badge.textContent="Persona: Database Passed";
