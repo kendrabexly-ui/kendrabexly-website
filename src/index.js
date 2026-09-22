@@ -127,10 +127,15 @@ async function ensureSiteContentTables(env) {
       expires_at TEXT NOT NULL,
       completed_at TEXT,
       deposit_step_acknowledged INTEGER NOT NULL DEFAULT 0,
+      combined_step INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+  const continuationColumns = await env.DB.prepare("PRAGMA table_info(booking_continuations)").all();
+  if (!(continuationColumns.results || []).some(column => column.name === "combined_step")) {
+    await env.DB.prepare("ALTER TABLE booking_continuations ADD COLUMN combined_step INTEGER NOT NULL DEFAULT 0").run();
+  }
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS booking_funnel_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -4268,7 +4273,7 @@ My journal will continue to be a place where I share a little more of that side 
         const tokenHash=await sha256Hex(token);
         const row=await env.DB.prepare(`
           SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
-                 bc.deposit_step_acknowledged,
+                 bc.deposit_step_acknowledged,bc.combined_step,
                  dr.requested_date,dr.requested_time,dr.location_name,dr.location_address,dr.deposit_amount,dr.notes,
                  c.first_name,c.last_name,
                  va.birthdate,va.submitted_employer,va.submitted_job_title,va.submitted_industry,
@@ -4308,6 +4313,7 @@ My journal will continue to be a place where I share a little more of that side 
           requires_outcall_address:/Appointment type:\s*outcall/i.test(String(row.notes||"")),
           outcall_address:row.location_address||"",
           screening_submitted:screeningSubmitted,
+          combined_step:Number(row.combined_step||0)===1,
           verification_status:row.verification_status||"pending_review",
           deposit_unlocked:depositUnlocked,
           deposit_completed:depositCompleted,
@@ -4324,6 +4330,102 @@ My journal will continue to be a place where I share a little more of that side 
       }
     }
 
+    if (url.pathname === "/api/booking/continuation/combined" && request.method === "POST") {
+      let newObjectKey = "";
+      try {
+        if (!env.ID_DOCUMENTS) return Response.json({ok:false,message:"Private ID storage is unavailable. Please try again later."},{status:503});
+        await ensureSiteContentTables(env);
+        await ensureClientVerificationAuditsTable(env);
+        await ensureClientIdDocumentsTable(env);
+        const form = await request.formData();
+        const token = String(form.get("token") || "").trim();
+        if (!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
+        const row = await env.DB.prepare(`
+          SELECT bc.date_request_id,bc.expires_at,bc.completed_at,bc.combined_step,
+                 dr.client_id,dr.deposit_amount,dr.notes,dr.status
+          FROM booking_continuations bc
+          JOIN date_requests dr ON dr.id=bc.date_request_id
+          WHERE bc.token_hash=? LIMIT 1
+        `).bind(await sha256Hex(token)).first();
+        if (!row || Number(row.combined_step) !== 1) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
+        if (new Date(String(row.expires_at)).getTime() < Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
+        if (row.completed_at) return Response.json({ok:true,screening_submitted:true,deposit_completed:true,message:"Your details were already received."});
+        if (row.status !== "screening_pending") return Response.json({ok:false,message:"This request can no longer be completed through this link."},{status:409});
+
+        const file = form.get("id_document");
+        if (!(file instanceof File) || !file.size) return Response.json({ok:false,message:"Upload a photo of your ID."},{status:400});
+        if (!new Set(["image/jpeg","image/png","image/webp"]).has(file.type) || file.size > 10*1024*1024) {
+          return Response.json({ok:false,message:"Use a JPG, PNG, or WebP image no larger than 10 MB."},{status:400});
+        }
+        const signature = new Uint8Array(await file.slice(0,12).arrayBuffer());
+        const validImage = file.type === "image/jpeg" ? signature[0]===0xff && signature[1]===0xd8 && signature[2]===0xff
+          : file.type === "image/png" ? [137,80,78,71,13,10,26,10].every((byte,index)=>signature[index]===byte)
+          : [82,73,70,70].every((byte,index)=>signature[index]===byte) && [87,69,66,80].every((byte,index)=>signature[index+8]===byte);
+        if (!validImage) return Response.json({ok:false,message:"That ID image could not be read. Upload a JPG, PNG, or WebP photo."},{status:400});
+
+        const birthdate = idDocumentDate(form.get("birthdate"));
+        const employer = String(form.get("current_employer")||"").trim().slice(0,160);
+        const jobTitle = String(form.get("job_title")||"").trim().slice(0,160);
+        const industry = String(form.get("industry")||"").trim().slice(0,160);
+        const plansNote = String(form.get("plans_note")||"").trim().replace(/\s+/g," ").slice(0,1200);
+        if (!birthdate || verificationAgeOnDate(birthdate) === null || verificationAgeOnDate(birthdate) < 0 || !employer || !jobTitle || !industry) {
+          return Response.json({ok:false,message:"Complete your birthday and screening details."},{status:400});
+        }
+        const requiresOutcallAddress = /Appointment type:\s*outcall/i.test(String(row.notes||""));
+        const addressParts = ["outcall_address_line_1","outcall_address_line_2","outcall_city","outcall_state","outcall_postal_code"].map(key=>String(form.get(key)||"").trim().slice(0,200));
+        if (requiresOutcallAddress && [0,2,3,4].some(index=>!addressParts[index])) return Response.json({ok:false,message:"Complete the exact outcall address."},{status:400});
+        const method = String(form.get("deposit_payment_method")||"").trim().toLowerCase();
+        const appNumber = String(form.get("app_text_number")||"").trim().slice(0,40);
+        const appDigits = appNumber.replace(/\D/g,"");
+        if (!new Set(["gift-card","stripe","crypto"]).has(method) || form.get("deposit_step_acknowledged") !== "yes") {
+          return Response.json({ok:false,message:"Choose a deposit method and acknowledge the amount."},{status:400});
+        }
+        if (appNumber && (appDigits.length < 7 || appDigits.length > 15)) return Response.json({ok:false,message:"Enter a valid app-based text number or leave it blank."},{status:400});
+        const base = Number(row.deposit_amount||0);
+        if (base <= 0) return Response.json({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
+        const fee = ["stripe","crypto"].includes(method) ? Math.round(base*10)/100 : 0;
+        const total = Math.round((base+fee)*100)/100;
+        const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+        const previous = await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(row.client_id).first();
+        newObjectKey = "clients/"+row.client_id+"/id-documents/"+crypto.randomUUID()+"."+extension;
+        await env.ID_DOCUMENTS.put(newObjectKey,file.stream(),{
+          httpMetadata:{contentType:file.type},customMetadata:{client_id:String(row.client_id),uploaded_for:"identity_screening"}
+        });
+        let notes = String(row.notes||"").replace(/^Plans note:.*$/gmi,"").replace(/^Deposit payment method:.*$/gmi,"").replace(/^App-based text number:.*$/gmi,"").trim();
+        if (plansNote) notes += (notes?"\n":"")+"Plans note: "+plansNote;
+        notes += (notes?"\n":"")+"Deposit payment method: "+method;
+        if (appNumber) notes += "\nApp-based text number: "+appNumber;
+        try {
+          await env.DB.batch([
+            env.DB.prepare("UPDATE client_verification_audits SET birthdate=?,submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?")
+              .bind(birthdate,employer,jobTitle,industry,row.date_request_id),
+            env.DB.prepare(`INSERT INTO client_id_documents (client_id,object_key,file_name,mime_type,file_size,verification_status,received_at,verified_at,updated_at)
+              VALUES (?,?,?,?,?,'pending_review',?,NULL,CURRENT_TIMESTAMP)
+              ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,mime_type=excluded.mime_type,
+                file_size=excluded.file_size,verification_status='pending_review',received_at=excluded.received_at,verified_at=NULL,updated_at=CURRENT_TIMESTAMP`)
+              .bind(row.client_id,newObjectKey,String(file.name||"id-document."+extension).slice(0,180),file.type,file.size,idDocumentToday()),
+            env.DB.prepare("UPDATE date_requests SET notes=?,location_address=CASE WHEN ? THEN ? ELSE location_address END,deposit_amount=? WHERE id=?")
+              .bind(notes,requiresOutcallAddress?1:0,addressParts.filter(Boolean).join(", "),total,row.date_request_id),
+            env.DB.prepare("UPDATE booking_continuations SET completed_at=CURRENT_TIMESTAMP,deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=? AND completed_at IS NULL")
+              .bind(row.date_request_id)
+          ]);
+        } catch (databaseError) {
+          await env.ID_DOCUMENTS.delete(newObjectKey);
+          newObjectKey = "";
+          throw databaseError;
+        }
+        if (previous?.object_key && previous.object_key !== newObjectKey) {
+          try { await env.ID_DOCUMENTS.delete(previous.object_key); } catch (cleanupError) { console.error("Previous ID cleanup error:",cleanupError); }
+        }
+        try { await recordBookingFunnelEvent(env,"continuation_completed",{sessionId:"server:continuation",requestId:row.date_request_id,path:"/complete"}); }
+        catch (trackingError) { console.error("Continuation tracking error:",trackingError); }
+        return Response.json({ok:true,screening_submitted:true,deposit_completed:true,request_id:Number(row.date_request_id),deposit_amount:total,message:"Your screening, ID, and deposit selection were received. Your date awaits review, payment confirmation, and final approval."});
+      } catch (error) {
+        console.error("Combined booking continuation error:",error);
+        return Response.json({ok:false,message:"Unable to save this private step. Please try again."},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/booking/continuation" && request.method === "POST") {
       try {
         await ensureSiteContentTables(env);
@@ -4335,7 +4437,7 @@ My journal will continue to be a place where I share a little more of that side 
         const tokenHash=await sha256Hex(token);
         const row=await env.DB.prepare(`
           SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
-                 bc.deposit_step_acknowledged,dr.deposit_amount,dr.notes,
+                 bc.deposit_step_acknowledged,bc.combined_step,dr.deposit_amount,dr.notes,
                  va.verification_status,va.completed_at AS verification_completed_at
           FROM booking_continuations bc
           JOIN date_requests dr ON dr.id=bc.date_request_id
@@ -4344,6 +4446,7 @@ My journal will continue to be a place where I share a little more of that side 
         `).bind(tokenHash).first();
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
+        if(Number(row.combined_step||0)===1) return Response.json({ok:false,message:"Please submit the screening, ID, and deposit selection together on this page."},{status:400});
 
         if(step==="screening") {
           if(row.screening_submitted_at) {
@@ -5001,6 +5104,7 @@ if (
           (SELECT completed_at FROM client_verification_audits va WHERE va.date_request_id=dr.id AND va.client_id=dr.client_id LIMIT 1) AS verification_completed_at,
           (SELECT completed_at FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS screening_submitted_at,
           (SELECT deposit_step_acknowledged FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS deposit_step_acknowledged,
+          (SELECT combined_step FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS combined_step,
           (SELECT ed.sent_at FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='pending_final_approval' AND ed.status='sent' ORDER BY ed.sent_at DESC, ed.id DESC LIMIT 1) AS private_screening_email_sent_at
         FROM date_requests dr
         JOIN clients c
@@ -7330,13 +7434,14 @@ if (
         const continuationTokenHash=await sha256Hex(continuationToken);
         const continuationExpiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
         await env.DB.prepare(`
-          INSERT INTO booking_continuations (date_request_id,token_hash,expires_at,completed_at,deposit_step_acknowledged,updated_at)
-          VALUES (?,?,?,NULL,0,CURRENT_TIMESTAMP)
+          INSERT INTO booking_continuations (date_request_id,token_hash,expires_at,completed_at,deposit_step_acknowledged,combined_step,updated_at)
+          VALUES (?,?,?,NULL,0,1,CURRENT_TIMESTAMP)
           ON CONFLICT(date_request_id) DO UPDATE SET
             token_hash=excluded.token_hash,
             expires_at=excluded.expires_at,
             completed_at=NULL,
             deposit_step_acknowledged=0,
+            combined_step=1,
             updated_at=CURRENT_TIMESTAMP
         `).bind(requestId,continuationTokenHash,continuationExpiresAt).run();
         const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
@@ -7358,11 +7463,6 @@ if (
         });
 
         if (bookingRate > 0) {
-          const depositDisplay = new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD"
-          }).format(depositAmount);
-
           await env.DB.prepare(`
             INSERT INTO email_drafts (
               client_id,
@@ -7389,19 +7489,13 @@ Your next step is all in one private page:
 
 ${continuationUrl}
 
-Before you continue, please review The Details, including screening, reservation, and planning information:
+On that page, you can upload your ID, provide the remaining screening details, and choose your deposit method and amount.
+
+Please also review The Details before continuing:
 
 ${detailsUrl}
 
-There you can provide the additional details I need for private screening.
-
-No deposit is requested at this stage. I will review your screening first. If I’m comfortable moving forward after verification, I’ll send you a separate deposit request.
-
-You are not required to upload or email an ID through this page. Any additional screening needed for final approval will be handled privately.
-
-Please complete the screening details as soon as you can.
-
-Once I finish the review, I’ll let you know the next step.
+Please do not email your ID. Submitting the page does not automatically confirm that your deposit has been paid or reserve the date. Once I have reviewed your ID and screening and confirmed the deposit, I’ll send your confirmation email.
 
 Kendra`
           ).run();
@@ -7456,6 +7550,8 @@ Kendra`
           WHERE dr.id=? LIMIT 1
         `).bind(requestId).first();
         if(!row) return Response.json({ok:false,message:"Request not found."},{status:404});
+        const continuation=await env.DB.prepare("SELECT combined_step FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
+        if(Number(continuation?.combined_step||0)===1) return Response.json({ok:false,message:"This client already received the combined screening and deposit request. Review the submitted form and confirm payment from the dashboard."},{status:409});
         if(!row.screening_submitted_at) return Response.json({ok:false,message:"The client must submit screening details before a deposit can be requested."},{status:409});
         if(String(row.verification_status||"")!=="verified"||!row.verification_completed_at) {
           return Response.json({ok:false,message:"Mark screening Verified before requesting a deposit."},{status:409});

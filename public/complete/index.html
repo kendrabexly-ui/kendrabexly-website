@@ -37,7 +37,7 @@
       <section class="form-section">
         <div class="eyebrow">SCREENING DETAILS</div>
         <h2>A few final details.</h2>
-        <p>These details are used only for private screening and review. <strong>No deposit is requested at this stage.</strong> You are not required to upload an ID on this page, and you should never email an ID document.</p>
+        <p id="screening-intro">These details are used only for private screening and review. No deposit is requested at this stage. You are not required to upload an ID on this page, and you should never email an ID document.</p>
         <div class="form-grid">
           <div class="field full-width">
             <label for="screening-birthdate">Birthdays are special, and I love celebrating—when’s yours? *</label>
@@ -90,6 +90,37 @@
           </div>
         </fieldset>
       </section>
+      <section id="combined-step" class="form-section" hidden>
+        <div class="eyebrow">IDENTITY &amp; DEPOSIT</div>
+        <h2>Complete your private next step.</h2>
+        <p>Upload your ID securely here; please never send it by email. Choose your deposit method and review the amount below. Your date remains subject to Kendra’s screening review, confirmation of payment, and final approval.</p>
+        <div class="field full-width">
+          <label for="screening-id-document">Photo of your valid ID *</label>
+          <input id="screening-id-document" name="id_document" type="file" accept="image/jpeg,image/png,image/webp" disabled>
+          <small>JPG, PNG, or WebP, up to 10 MB. Stored privately for Kendra’s review; never sent to Persona.</small>
+        </div>
+        <div class="field full-width">
+          <label for="combined-payment-method">Deposit method *</label>
+          <select id="combined-payment-method" name="deposit_payment_method" disabled>
+            <option value="">Choose a method</option>
+            <option value="gift-card" data-method="gift-card">Gift Card</option>
+            <option value="stripe" data-method="stripe">Stripe</option>
+            <option value="crypto" data-method="crypto">Crypto</option>
+          </select>
+        </div>
+        <div class="field full-width">
+          <label for="combined-app-text-number">App-based number for text communication</label>
+          <input id="combined-app-text-number" name="app_text_number" type="tel" inputmode="tel" maxlength="40" placeholder="Optional" disabled>
+          <small>This optional number is for text communication; your standard mobile number remains the screening contact.</small>
+        </div>
+        <div class="no-payment-callout">
+          <strong id="combined-deposit-total">Choose a method to see the deposit total</strong>
+          <span id="combined-deposit-base">Base deposit</span>
+          <span id="combined-deposit-fee" hidden></span>
+        </div>
+        <p>The base deposit is 25% of the date total. Stripe and Crypto add a 10% processing fee to the deposit. This form records your selection; payment is confirmed separately.</p>
+        <label class="checkbox-label"><input id="combined-acknowledgment" type="checkbox" name="deposit_step_acknowledged" value="yes" disabled><span>I have reviewed the deposit amount and understand that the date is not final until payment is confirmed and Kendra gives final approval.</span></label>
+      </section>
       <section class="form-section">
         <button type="submit" class="button" id="submit-screening">Submit Screening Details</button>
         <small id="screening-status" role="status" aria-live="polite"></small>
@@ -101,6 +132,12 @@
       <h2>Your details are in review.</h2>
       <p>No deposit is due right now.</p>
       <p>Kendra will review your screening first. If she is comfortable moving forward after verification, you will receive a separate deposit request with a private link.</p>
+      <a class="button" href="/">Return to the website</a>
+    </section>
+    <section id="combined-review" class="request-success" hidden>
+      <div class="eyebrow">DETAILS RECEIVED</div>
+      <h2>Thank you. Your request is in review.</h2>
+      <p>Your screening details, ID, and deposit selection have been received. Your date is not confirmed until Kendra verifies your details, confirms payment, and sends final approval.</p>
       <a class="button" href="/">Return to the website</a>
     </section>
 
@@ -157,6 +194,7 @@
     const summaryCard = document.getElementById("continuation-summary-card");
     const screeningForm = document.getElementById("screening-form");
     const screeningReview = document.getElementById("screening-review");
+    const combinedReview = document.getElementById("combined-review");
     const depositForm = document.getElementById("deposit-form");
     const depositComplete = document.getElementById("deposit-complete");
     const screeningStatus = document.getElementById("screening-status");
@@ -193,6 +231,22 @@
       if (crypto) crypto.textContent = "Crypto — " + money(feeTotal) + " total (" + money(fee) + " fee)";
     }
 
+    function updateCombinedDeposit() {
+      const select = document.getElementById("combined-payment-method");
+      const fee = Math.round(baseDepositAmount * 10) / 100;
+      const feeTotal = Math.round((baseDepositAmount + fee) * 100) / 100;
+      for (const [method,label,total] of [["gift-card","Gift Card",baseDepositAmount],["stripe","Stripe",feeTotal],["crypto","Crypto",feeTotal]]) {
+        const option = select.querySelector('[data-method="'+method+'"]');
+        if (option) option.textContent = label + " — " + money(total) + (method === "gift-card" ? "" : " total (" + money(fee) + " fee)");
+      }
+      const withFee = ["stripe","crypto"].includes(select.value);
+      document.getElementById("combined-deposit-base").textContent = "Base deposit (25%): " + money(baseDepositAmount);
+      document.getElementById("combined-deposit-total").textContent = select.value ? "Deposit total: " + money(withFee ? feeTotal : baseDepositAmount) : "Choose a method to see the deposit total";
+      const feeLine = document.getElementById("combined-deposit-fee");
+      feeLine.textContent = "Processing fee: " + money(fee);
+      feeLine.hidden = !withFee;
+    }
+
     function updateDepositTotal() {
       updatePaymentMethodLabels();
       const method = document.getElementById("continuation-payment-method")?.value || "";
@@ -224,6 +278,35 @@
       track("continuation_opened");
       renderSummary(data);
       loading.hidden = true;
+
+      if (data.combined_step) {
+        if (data.screening_submitted) {
+          combinedReview.hidden = false;
+          return;
+        }
+        baseDepositAmount = Number(data.base_deposit_amount || data.deposit_amount || 0);
+        document.getElementById("screening-intro").textContent = "Complete your screening, upload your ID securely, and choose a deposit method on this private page.";
+        document.getElementById("screening-birthdate").value = data.birthdate || "";
+        document.getElementById("screening-employer").value = data.current_employer || "";
+        document.getElementById("screening-title").value = data.job_title || "";
+        document.getElementById("screening-industry").value = data.industry || "";
+        const outcallFieldset = document.getElementById("screening-outcall-address");
+        if (data.requires_outcall_address && outcallFieldset) {
+          outcallFieldset.hidden = false;
+          outcallFieldset.querySelectorAll("input").forEach(input => { input.disabled = false; });
+          ["screening-outcall-address-line-1","screening-outcall-city","screening-outcall-state","screening-outcall-postal-code"].forEach(id => { document.getElementById(id).required = true; });
+        }
+        const combined = document.getElementById("combined-step");
+        combined.hidden = false;
+        combined.querySelectorAll("input,select").forEach(input => { input.disabled = false; });
+        document.getElementById("screening-id-document").required = true;
+        document.getElementById("combined-payment-method").required = true;
+        document.getElementById("combined-acknowledgment").required = true;
+        document.getElementById("submit-screening").textContent = "Submit Screening, ID & Deposit Selection";
+        updateCombinedDeposit();
+        screeningForm.hidden = false;
+        return;
+      }
 
       if (!data.screening_submitted) {
         document.getElementById("screening-birthdate").value = data.birthdate || "";
@@ -264,6 +347,7 @@
     }
 
     document.getElementById("continuation-payment-method")?.addEventListener("change", updateDepositTotal);
+    document.getElementById("combined-payment-method")?.addEventListener("change", updateCombinedDeposit);
 
     screeningForm.addEventListener("submit", async event => {
       event.preventDefault();
@@ -271,15 +355,18 @@
       const button = document.getElementById("submit-screening");
       button.disabled = true;
       try {
-        const body = Object.fromEntries(new FormData(screeningForm).entries());
-        body.token = token;
-        body.step = "screening";
-        const response = await fetch("/api/booking/continuation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const combined = !document.getElementById("combined-step").hidden;
+        const body = new FormData(screeningForm);
+        body.set("token",token);
+        const response = combined
+          ? await fetch("/api/booking/continuation/combined",{method:"POST",body})
+          : await fetch("/api/booking/continuation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...Object.fromEntries(body.entries()),step:"screening"})});
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.message || "Unable to submit.");
         requestId = Number(data.request_id || requestId || 0) || requestId;
         screeningForm.hidden = true;
-        screeningReview.hidden = false;
+        if (combined) combinedReview.hidden = false;
+        else screeningReview.hidden = false;
       } catch(error) {
         screeningStatus.textContent = error.message || "Unable to submit. Please try again.";
       } finally {

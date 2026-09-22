@@ -260,7 +260,7 @@
 
         const workflow=document.getElementById("request-workflow");
         const workflowCopy={
-          pending:["1 of 3 · Review Request","Review the request details. Choose Proceed to private screening to create the client's private form email draft."],
+          pending:["1 of 3 · Review Request","Review the request details. Choose Proceed to private screening to create one email for ID, screening, and deposit selection."],
           pending_final_approval:["2 of 3 · Final Approval","Confirm the deposit and ID screening, then give final approval."],
           screening_pending:["2 of 3 · Final Approval","Complete ID screening and deposit confirmation before final approval."],
           approved:["3 of 3 · Confirmed","This date is confirmed. After the appointment, mark it Successfully Completed."],
@@ -401,12 +401,12 @@
     <div id="screening-stage-summary" style="margin:7px 0 14px;font-size:13px;color:#6f675f;line-height:1.5;">
       ${item.screening_submitted_at
         ? (String(item.verification_status||"")==="verified" && item.verification_completed_at
-          ? "✓ Screening details received and verification is complete. You can now request the deposit."
-          : "Screening details received. Complete verification before requesting a deposit.")
-        : "Waiting for the client to submit screening details."}
+          ? "✓ Screening details received. Confirm the payment and complete final approval."
+          : "Screening details received. Review the ID and verify screening before final approval.")
+        : "Waiting for the client to submit the private form."}
     </div>
     <button type="button" id="request-deposit-button" style="background:#25252d;color:white;border:none;padding:12px 20px;border-radius:999px;font-family:inherit;cursor:pointer;">
-      Request Deposit
+      Request Deposit (older requests only)
     </button>
     <div id="request-deposit-status" style="margin-top:10px;font-size:13px;color:#6f675f;"></div>
   </div>
@@ -517,13 +517,14 @@ renderBasicScreeningMilestones(["screening_pending","pending_final_approval","ap
 const screeningStageControls=document.getElementById("screening-stage-controls");
 const requestDepositButton=document.getElementById("request-deposit-button");
 const requestDepositStatus=document.getElementById("request-deposit-status");
-const screeningReadyForDeposit=Boolean(item.screening_submitted_at && String(item.verification_status||"")==="verified" && item.verification_completed_at);
+const screeningReadyForDeposit=Boolean(item.screening_submitted_at && String(item.verification_status||"")==="verified" && item.verification_completed_at && !item.combined_step);
 
 if (item.status === "screening_pending") {
   moveForwardButton.style.display = "none";
   screeningStageControls.style.display = "block";
-  finalApprovalControls.style.display = "none";
+  finalApprovalControls.style.display = item.combined_step && item.screening_submitted_at ? "block" : "none";
   if(requestDepositButton){
+    if(item.combined_step) requestDepositButton.style.display="none";
     requestDepositButton.disabled=!screeningReadyForDeposit;
     requestDepositButton.style.opacity=screeningReadyForDeposit?"1":".5";
     requestDepositButton.style.cursor=screeningReadyForDeposit?"pointer":"not-allowed";
@@ -681,6 +682,7 @@ moveForwardButton.addEventListener(
       finalApprovalControls.style.display = "none";
       if(screeningStageControls) screeningStageControls.style.display = "block";
       if(requestDepositButton){
+        requestDepositButton.style.display="none";
         requestDepositButton.disabled=true;
         requestDepositButton.style.opacity=".5";
         requestDepositButton.style.cursor="not-allowed";

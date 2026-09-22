@@ -513,7 +513,7 @@ test("booking form has no before-you-submit section or acknowledgement",()=>{
 });
 
 
-test("continuation keeps deposit hidden until screening is verified",()=>{
+test("older continuations keep their verified-screening deposit step",()=>{
   assert.match(continuationPage,/id="screening-form"/);
   assert.match(continuationPage,/No deposit is requested at this stage/);
   assert.match(continuationPage,/if \(!data\.deposit_unlocked\)/);
@@ -536,18 +536,20 @@ test("request deposit admin action requires verified screening",()=>{
   assert.match(requestAdmin,/screeningReadyForDeposit/);
 });
 
-test("move forward email requests screening only",()=>{
+test("move forward email requests ID, screening, and deposit selection together",()=>{
   const start=worker.indexOf('url.pathname === "/api/admin/request/move-forward"');
   const end=worker.indexOf("// CALCULATE / REPAIR DEPOSIT",start);
   const route=worker.slice(start,end);
   assert.match(route,/SET status = 'screening_pending'/);
-  assert.match(route,/No deposit is requested at this stage/);
-  assert.match(route,/separate deposit request/);
+  assert.match(route,/combined_step=1/);
+  assert.match(route,/upload your ID, provide the remaining screening details, and choose your deposit method/);
+  assert.match(route,/confirmed the deposit, I’ll send your confirmation email/);
+  assert.doesNotMatch(route.slice(0,route.indexOf('REQUEST DEPOSIT')),/No deposit is requested at this stage/);
 });
 
-test("private screening and deposit emails link to the unlisted details page",()=>{
+test("combined and older deposit emails link to the unlisted details page",()=>{
   assert.match(worker,/const detailsUrl=new URL\("\/the-details",request\.url\)\.toString\(\)/);
-  assert.match(worker,/Before you continue, please review The Details/);
+  assert.match(worker,/Please also review The Details before continuing/);
   assert.match(worker,/Please review The Details before completing the deposit step/);
   assert.match(worker,/\$\{detailsUrl\}/);
 });
@@ -568,8 +570,25 @@ test("initial booking request stays non-transactional",()=>{
   assert.doesNotMatch(requestPage,/charged/i);
   assert.doesNotMatch(requestPage,/deposit/i);
   assert.doesNotMatch(requestPage,/Estimated total/i);
-  assert.match(requestPage,/private link to complete screening details/);
-  assert.match(requestPage,/After screening is complete, I’ll let you know the next step/);
+  assert.match(requestPage,/one private link to complete the next step/);
+  assert.match(requestPage,/After I finish my review, I’ll send your confirmation/);
+});
+
+test("combined continuation securely accepts ID and deposit choice while leaving approval manual",()=>{
+  const start=worker.indexOf('url.pathname === "/api/booking/continuation/combined"');
+  const end=worker.indexOf('url.pathname === "/api/booking/continuation" && request.method === "POST"',start);
+  const route=worker.slice(start,end);
+  assert.match(route,/bc\.token_hash=\? LIMIT 1/);
+  assert.match(route,/new Date\(String\(row\.expires_at\)\)\.getTime\(\) < Date\.now\(\)/);
+  assert.match(route,/file\.size > 10\*1024\*1024/);
+  assert.match(route,/env\.ID_DOCUMENTS\.put\(newObjectKey,file\.stream\(\)/);
+  assert.match(route,/verification_status='pending_review'/);
+  assert.match(route,/deposit_step_acknowledged=1/);
+  assert.doesNotMatch(route,/deposit_paid\s*=\s*1|status\s*=\s*'approved'/);
+  assert.match(continuationPage,/id="screening-id-document"[^>]*type="file"/);
+  assert.match(continuationPage,/id="combined-payment-method"/);
+  assert.match(continuationPage,/id="combined-review"/);
+  assert.match(requestAdmin,/item\.combined_step && item\.screening_submitted_at/);
 });
 
 test("plans note is collected only during private screening",()=>{

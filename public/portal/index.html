@@ -2897,7 +2897,7 @@ async function loadRequests(options = {}) {
                       <strong style="font-size:13px;">1. Proceed to private screening</strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-basic-screening-badge" style="${basicScreeningStyle}">Basic screening: ${escapeHtml(basicScreeningLabel)}</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-basic-screening">Expand</button></span>
                     </div>
-                    <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">Review the information submitted with the initial booking request before deciding whether to move the client forward to private screening. No deposit is requested at this stage.</div>
+                    <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">Review the initial request before inviting the client to provide their ID, screening details, and deposit selection on one private page.</div>
                     <div class="verification-overview-grid" style="margin-top:10px;">
                       <div class="verification-overview-item"><strong>Approved to proceed</strong><div>${basicScreeningState === "confirmed" ? "Yes" : basicScreeningState === "declined" ? "No · Request closed" : "Awaiting decision"}</div></div>
                       <div class="verification-overview-item"><strong>Private form email sent</strong><div>${privateScreeningEmailSent ? "Sent " + escapeHtml(formatVerificationTimestamp(latest.private_screening_email_sent_at)) : "Not sent"}</div></div>
