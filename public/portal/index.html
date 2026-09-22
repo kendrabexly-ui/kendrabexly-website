@@ -1032,6 +1032,10 @@
             <div id="verification-queue-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;">
               <button type="button" data-queue-filter="all" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">All <span data-queue-count="all">0</span></button>
               <button type="button" data-queue-filter="needs_id" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Needs ID <span data-queue-count="needs_id">0</span></button>
+              <button type="button" data-queue-filter="public_record_match" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Public Record Match <span data-queue-count="public_record_match">0</span></button>
+              <button type="button" data-queue-filter="address_mismatch" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Address Mismatch <span data-queue-count="address_mismatch">0</span></button>
+              <button type="button" data-queue-filter="credential_issue" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Credential Issue <span data-queue-count="credential_issue">0</span></button>
+              <button type="button" data-queue-filter="persona_error" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Persona Error <span data-queue-count="persona_error">0</span></button>
               <button type="button" data-queue-filter="needs_more_information" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Needs More Information <span data-queue-count="needs_more_information">0</span></button>
               <button type="button" data-queue-filter="checklist_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Checklist Incomplete <span data-queue-count="checklist_incomplete">0</span></button>
               <button type="button" data-queue-filter="persona_pending" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Persona Pending <span data-queue-count="persona_pending">0</span></button>
@@ -1071,6 +1075,10 @@
                 <option value="needs_more_information">Needs More Information</option>
                 <option value="declined">Declined</option>
                 <option value="persona_pending">Persona Pending</option>
+                <option value="persona_error">Persona Error</option>
+                <option value="public_record_match">Potential / Confirmed Public Record Match</option>
+                <option value="address_mismatch">Address Mismatch</option>
+                <option value="credential_issue">Credential Issue</option>
                 <option value="no_id">No ID Received</option>
                 <option value="retention_due">Retention Due</option>
               </select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="client-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
@@ -2143,8 +2151,10 @@ async function loadRequests(options = {}) {
     };
     Object.entries(verificationCountIds).forEach(([key,id])=>{const el=document.getElementById(id);if(el)el.textContent=String(verificationCounts[key]||0);});
     const queueLabels={
-      needs_id:"Needs ID",needs_more_information:"Needs More Information",checklist_incomplete:"Checklist Incomplete",
-      persona_pending:"Persona Pending",needs_manual_review:"Needs Manual Review",ready_for_final_decision:"Ready for Final Decision"
+      needs_id:"Needs ID",public_record_match:"Public Record Match",address_mismatch:"Address Mismatch",
+      credential_issue:"Credential Issue",persona_error:"Persona Error",needs_more_information:"Needs More Information",
+      checklist_incomplete:"Checklist Incomplete",persona_pending:"Persona Pending",needs_manual_review:"Needs Manual Review",
+      ready_for_final_decision:"Ready for Final Decision"
     };
     const verificationQueueBox=document.getElementById("verification-queue");
     let activeVerificationQueueFilter="all";
@@ -2159,7 +2169,7 @@ async function loadRequests(options = {}) {
       const flaggedOnly=document.getElementById("verification-queue-flagged")?.checked;
       if(flaggedOnly)items=items.filter(item=>item.review_flag);
       const sortMode=document.getElementById("verification-queue-sort")?.value||"urgent";
-      const queuePriority={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
+      const queuePriority={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,persona_error:4,needs_more_information:5,checklist_incomplete:6,persona_pending:7,needs_manual_review:8,ready_for_final_decision:9};
       const createdTime=item=>new Date(item.booking_request_created_at||0).getTime()||0;
       items.sort((a,b)=>{
         if(sortMode==="oldest")return createdTime(a)-createdTime(b);
@@ -2543,6 +2553,10 @@ async function loadRequests(options = {}) {
         if (verificationFilter === "needs_more_information" && verification.verification_status !== "needs_more_information") return false;
         if (verificationFilter === "declined" && verification.verification_status !== "declined") return false;
         if (verificationFilter === "persona_pending" && !verification.persona_pending) return false;
+        if (verificationFilter === "persona_error" && verification.queue_category !== "persona_error") return false;
+        if (verificationFilter === "public_record_match" && verification.queue_category !== "public_record_match") return false;
+        if (verificationFilter === "address_mismatch" && verification.queue_category !== "address_mismatch") return false;
+        if (verificationFilter === "credential_issue" && verification.queue_category !== "credential_issue") return false;
         if (verificationFilter === "no_id" && verification.has_id) return false;
         if (verificationFilter === "retention_due" && !verification.retention_due) return false;
         return true;
