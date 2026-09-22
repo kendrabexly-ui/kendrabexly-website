@@ -6,6 +6,7 @@ const worker=fs.readFileSync(new URL("../src/index.js",import.meta.url),"utf8");
 const portal=fs.readFileSync(new URL("../public/portal/index.html",import.meta.url),"utf8");
 const requestPage=fs.readFileSync(new URL("../public/request.html",import.meta.url),"utf8");
 const continuationPage=fs.readFileSync(new URL("../public/complete/index.html",import.meta.url),"utf8");
+const requestAdmin=fs.readFileSync(new URL("../public/portal/request/index.html",import.meta.url),"utf8");
 const security=fs.readFileSync(new URL("../src/verification-security.js",import.meta.url),"utf8");
 
 test("address-based verification remains supported",()=>{
@@ -380,8 +381,8 @@ test("request deposit admin action requires verified screening",()=>{
   assert.match(worker,/Mark screening Verified before requesting a deposit/);
   assert.match(worker,/email_type='deposit_request'/);
   assert.match(worker,/UPDATE date_requests SET status='pending_final_approval'/);
-  assert.match(portal,/id="request-deposit-button"/);
-  assert.match(portal,/screeningReadyForDeposit/);
+  assert.match(requestAdmin,/id="request-deposit-button"/);
+  assert.match(requestAdmin,/screeningReadyForDeposit/);
 });
 
 test("move forward email requests screening only",()=>{
