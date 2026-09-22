@@ -4923,7 +4923,8 @@ My journal will continue to be a place where I share a little more of that side 
                 dr.final_approval,
                 dr.notes,
                 dr.created_at,
-                (SELECT ed.sent_at FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='after_date_follow_up' AND ed.status='sent' ORDER BY ed.sent_at DESC, ed.id DESC LIMIT 1) AS after_date_follow_up_sent_at
+                (SELECT ed.sent_at FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='after_date_follow_up' AND ed.status='sent' ORDER BY ed.sent_at DESC, ed.id DESC LIMIT 1) AS after_date_follow_up_sent_at,
+                (SELECT ed.sent_at FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='pending_final_approval' AND ed.status='sent' ORDER BY ed.sent_at DESC, ed.id DESC LIMIT 1) AS private_screening_email_sent_at
               FROM date_requests dr
               JOIN clients c
                 ON c.id = dr.client_id
@@ -4999,7 +5000,8 @@ if (
           (SELECT verification_status FROM client_verification_audits va WHERE va.date_request_id=dr.id AND va.client_id=dr.client_id LIMIT 1) AS verification_status,
           (SELECT completed_at FROM client_verification_audits va WHERE va.date_request_id=dr.id AND va.client_id=dr.client_id LIMIT 1) AS verification_completed_at,
           (SELECT completed_at FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS screening_submitted_at,
-          (SELECT deposit_step_acknowledged FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS deposit_step_acknowledged
+          (SELECT deposit_step_acknowledged FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS deposit_step_acknowledged,
+          (SELECT ed.sent_at FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='pending_final_approval' AND ed.status='sent' ORDER BY ed.sent_at DESC, ed.id DESC LIMIT 1) AS private_screening_email_sent_at
         FROM date_requests dr
         JOIN clients c
           ON c.id = dr.client_id
