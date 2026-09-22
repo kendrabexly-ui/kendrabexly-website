@@ -1209,6 +1209,9 @@ export default {
                  COALESCE(a.verification_method, '') AS verification_method,
                  COALESCE(a.persona_transaction_id, '') AS persona_transaction_id,
                  COALESCE(a.persona_transaction_status, '') AS persona_transaction_status,
+                 COALESCE(a.persona_database_status, '') AS persona_database_status,
+                 COALESCE(a.persona_database_verification_id, '') AS persona_database_verification_id,
+                 COALESCE(a.persona_database_checked_at, '') AS persona_database_checked_at,
                  COALESCE(a.persona_submitted_at, '') AS persona_submitted_at,
                  COALESCE(a.persona_updated_at, '') AS persona_updated_at,
                  COALESCE(a.completed_at, '') AS completed_at,
@@ -1299,7 +1302,7 @@ export default {
           submitted_industry, identity_confirmed, employer_confirmed,
           job_title_confirmed, industry_confirmed, contact_confirmed,
           evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-          persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
+          persona_transaction_id, persona_transaction_status, persona_database_status, persona_database_verification_id, persona_database_checked_at, persona_submitted_at, persona_updated_at, completed_at, updated_at
         `;
         let result = await env.DB.prepare(`
           SELECT ${selectColumns}
@@ -1522,7 +1525,7 @@ export default {
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
                  evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
+                 persona_transaction_id, persona_transaction_status, persona_database_status, persona_database_verification_id, persona_database_checked_at, persona_submitted_at, persona_updated_at, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
@@ -5501,7 +5504,7 @@ if (
                  submitted_industry, identity_confirmed, employer_confirmed,
                  job_title_confirmed, industry_confirmed, contact_confirmed,
                  evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
-                 persona_transaction_id, persona_transaction_status, persona_submitted_at, persona_updated_at, completed_at, updated_at
+                 persona_transaction_id, persona_transaction_status, persona_database_status, persona_database_verification_id, persona_database_checked_at, persona_submitted_at, persona_updated_at, completed_at, updated_at
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
 
