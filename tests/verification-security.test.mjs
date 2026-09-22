@@ -204,3 +204,26 @@ test("Persona readiness prioritizes Database Passed over pending inquiry",()=>{
 test("workflow result reloads persisted audit state before final Persona badge render",()=>{
   assert.match(portal,/await loadVerificationAudits\(section\);\n\s*renderPersonaReadiness\(section,section\.dataset\.personaConnected==="1"\);/);
 });
+
+
+test("phone line-type verification route is permission protected",()=>{
+  assert.match(worker,/\["\/api\/admin\/clients\/phone-line-type", "edit_verification"\]/);
+});
+
+test("phone line-type verification uses Twilio Lookup Intelligence",()=>{
+  assert.match(worker,/lookups\.twilio\.com\/v2\/PhoneNumbers/);
+  assert.match(worker,/Fields=line_type_intelligence/);
+  assert.match(worker,/fixedVoip/);
+  assert.match(worker,/nonFixedVoip/);
+});
+
+test("VoIP phone numbers fail verification readiness",()=>{
+  assert.match(portal,/VoIP phone number detected\. Use a non-VoIP number\./);
+  assert.match(portal,/Phone valid \/ non-VoIP/);
+  assert.match(portal,/client-phone-line-check/);
+});
+
+test("changing the phone invalidates the previous line-type result",()=>{
+  assert.match(portal,/Phone changed · check again/);
+  assert.match(portal,/phoneLineCheckedNumber="";/);
+});
