@@ -1082,7 +1082,9 @@
               </select><select id="client-value-filter" aria-label="Filter clients by activity" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="all">All Activity</option><option value="repeat">Repeat Clients</option><option value="recent">Seen Recently</option><option value="inactive">Due for Reconnect</option><option value="upcoming">Upcoming Date</option></select>
               <select id="client-verification-filter" aria-label="Filter clients by verification" style="padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
                 <option value="all">All Verification</option>
-                <option value="pending_review">Pending Review</option>
+                <option value="pending_review">Pending Verification</option>
+                <option value="needs_manual_review">Needs Review</option>
+                <option value="checklist_incomplete">Checklist Incomplete</option>
                 <option value="verified">Verified</option>
                 <option value="unable_to_verify">Unable to Verify</option>
                 <option value="needs_more_information">Needs More Information</option>
@@ -2562,6 +2564,8 @@ async function loadRequests(options = {}) {
         if(valueFilter!=="all" && !["repeat","recent","inactive","upcoming"].includes(valueFilter)) return false;
         const verification = verificationOverviewByClient.get(Number(client.client_id)) || {};
         if (verificationFilter === "pending_review" && String(verification.verification_status || "pending_review") !== "pending_review") return false;
+        if (verificationFilter === "needs_manual_review" && verification.queue_category !== "needs_manual_review") return false;
+        if (verificationFilter === "checklist_incomplete" && verification.queue_category !== "checklist_incomplete") return false;
         if (verificationFilter === "verified" && verification.verification_status !== "verified") return false;
         if (verificationFilter === "unable_to_verify" && verification.verification_status !== "unable_to_verify") return false;
         if (verificationFilter === "needs_more_information" && verification.verification_status !== "needs_more_information") return false;
@@ -4303,7 +4307,7 @@ async function loadRequests(options = {}) {
           section.dataset.credentialStatus=result.credential?.credential_status||"not_checked";
           await setOptionalSectionState(section,"credential",result.credential?.credential_status==="confirmed"?"confirmed":result.credential?.credential_status==="mismatch"?"mismatch":result.credential?.credential_status==="unable_to_verify"?"unable_to_verify":"in_progress").catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
+          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");if(result.credential?.credential_status==="confirmed"){card.classList.add("is-collapsed");const collapse=card.querySelector(".verification-card-collapse");if(collapse)collapse.textContent="Expand";}}
           updateVerificationFlowSummary(section);
         }catch(error){if(status){status.textContent=error.message||"Unable to save credential verification.";status.style.color="#8a2424";}if(card)setCardSaveState(card,"Save failed","#8a2424");}finally{if(button)button.disabled=false;}
       };
@@ -4674,7 +4678,7 @@ async function loadRequests(options = {}) {
           const publicState=result.check?.record_status==="potential_match"?"potential_match":result.check?.record_status==="confirmed_match"?"needs_review":result.check?.record_status==="unable_to_verify"?"unable_to_verify":result.check?.record_status==="no_public_record_found"?"confirmed":"in_progress";
           await setOptionalSectionState(section,"public_records",publicState).catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
+          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");if(result.address_check?.result_status==="confirmed"){card.classList.add("is-collapsed");const collapse=card.querySelector(".verification-card-collapse");if(collapse)collapse.textContent="Expand";}}
           updateVerificationFlowSummary(section);
           return true;
         }catch(error){
@@ -4686,7 +4690,8 @@ async function loadRequests(options = {}) {
         const labels={
           not_checked:"Not checked",pending:"In progress",confirmed:"Confirmed",partial_match:"Partial match",
           potential_match:"Potential match",confirmed_match:"Confirmed match",mismatch:"Mismatch",
-          unable_to_confirm:"Unable to verify",unable_to_verify:"Unable to verify",not_found:"No record located",
+          unable_to_confirm:"Unable to verify",unable_to_verify:"Unable to verify",not_found:"Needs review — no record located",
+          expired:"Needs review — expired",inactive:"Needs review — inactive",suspended:"Needs review — suspended",revoked:"Needs review — revoked",
           no_public_record_found:"No public record located in searched source",skipped:"Skipped",
           needs_review:"Needs review",verified:"Verified",pending_review:"Pending Review",
           needs_more_information:"Needs More Information",declined:"Declined",passed:"Passed",
@@ -4848,7 +4853,7 @@ async function loadRequests(options = {}) {
         badge.textContent=(prefix?prefix+": ":"")+label;
         const good=["confirmed","verified","passed","database_passed","approved"].includes(normalized);
         const bad=["mismatch","failed","errored","declined"].includes(normalized);
-        const warn=["partial_match","potential_match","unable_to_verify","unable_to_confirm","needs_review","pending_review","pending","in_progress","needs_more_information"].includes(normalized);
+        const warn=["partial_match","potential_match","unable_to_verify","unable_to_confirm","needs_review","pending_review","pending","in_progress","needs_more_information","not_found","expired","inactive","suspended","revoked"].includes(normalized);
         badge.style.background=good?"#e8f6ec":bad?"#fdeaea":warn?"#fff4d8":normalized==="skipped"?"#f1f1f1":"#f7f2e9";
         badge.style.color=good?"#22613b":bad?"#8a2424":warn?"#74520b":normalized==="skipped"?"#666":"var(--muted)";
       };
@@ -5428,8 +5433,8 @@ async function loadRequests(options = {}) {
           section.open = true;
           section.scrollIntoView({behavior:"smooth",block:"start"});
           if(wasOpen){
-            loadVerificationAudits(section);
-            loadVerificationActivity(section);
+            if(typeof section._loadVerificationCore==="function")section._loadVerificationCore();
+            else loadVerificationAudits(section);
             updateVerificationFlowSummary(section);
           }
         });
@@ -5504,9 +5509,10 @@ async function loadRequests(options = {}) {
         section._loadVerificationCore=loadVerificationCore;
         const loadVerificationCardData=(target)=>{
           if(!target)return Promise.resolve();
-          if(target.matches(".client-credential-card"))return verificationLoadOnce("credential",()=>loadCredentialVerification(section),30000);
-          if(target.matches(".client-address-verification-card"))return verificationLoadOnce("address",()=>loadAddressVerification(section),30000);
-          if(target.matches(".client-public-record-card"))return verificationLoadOnce("publicRecords",()=>loadPublicRecordCheck(section),30000);
+          if(target.matches(".client-employment-verification"))return verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000);
+          if(target.matches(".client-credential-card"))return Promise.all([verificationLoadOnce("credential",()=>loadCredentialVerification(section),30000),verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000)]);
+          if(target.matches(".client-address-verification-card"))return Promise.all([verificationLoadOnce("address",()=>loadAddressVerification(section),30000),verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000)]);
+          if(target.matches(".client-public-record-card"))return Promise.all([verificationLoadOnce("publicRecords",()=>loadPublicRecordCheck(section),30000),verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000)]);
           if(target.matches(".client-persona-card"))return Promise.all([
             verificationLoadOnce("persona",()=>loadPersonaStatus(section),15000),
             verificationLoadOnce("phone",()=>loadPhoneLineCheck(section),30000)
@@ -5561,10 +5567,19 @@ async function loadRequests(options = {}) {
           const hiddenComplete=section.querySelector(".client-verification-complete");
           if(hiddenComplete&&!hiddenComplete.disabled)hiddenComplete.click();
         });
+        const syncCollapsedMeta=(card)=>{
+          if(!card)return;
+          const header=card.firstElementChild;if(!header)return;
+          let meta=header.querySelector(".verification-collapsed-meta");
+          if(!meta){meta=document.createElement("span");meta.className="verification-collapsed-meta";meta.style.cssText="font-size:10px;color:var(--muted);";header.appendChild(meta);}
+          const checked=card.querySelector(".client-employment-checked,.client-credential-checked,.client-address-check-checked,.client-public-record-checked");
+          meta.textContent=card.classList.contains("is-collapsed")&&checked&&checked.textContent?" · "+checked.textContent.replace(/^Last checked:\s*/,""):"";
+        };
         section.querySelectorAll(".verification-card-collapse").forEach(button=>button.addEventListener("click",()=>{
           const card=section.querySelector(button.dataset.collapseCard||"");if(!card)return;
           card.classList.toggle("is-collapsed");
           button.textContent=card.classList.contains("is-collapsed")?"Expand":"Collapse";
+          syncCollapsedMeta(card);
         }));
         section.querySelectorAll(".client-optional-skip").forEach(button=>button.addEventListener("click",async()=>{
           const key=button.dataset.sectionKey;
