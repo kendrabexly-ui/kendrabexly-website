@@ -272,6 +272,8 @@ function verificationAuditPublicRecord(row) {
     employment_verification_method: row.employment_verification_method || "",
     employment_work_email: row.employment_work_email || "",
     employment_employer_website: row.employment_employer_website || "",
+    employment_source_name: row.employment_source_name || "",
+    employment_source_url: row.employment_source_url || "",
     employment_evidence_reference: row.employment_evidence_reference || "",
     employment_checked_at: row.employment_checked_at || "",
     identity_confirmed: Number(row.identity_confirmed || 0) === 1,
@@ -502,6 +504,12 @@ async function ensureVerificationWorkspaceTables(env) {
   const auditNames = new Set((auditColumns.results || []).map(row => String(row.name || "")));
   if (!auditNames.has("review_flag")) {
     await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN review_flag INTEGER NOT NULL DEFAULT 0").run();
+  }
+  if (!auditNames.has("employment_source_name")) {
+    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN employment_source_name TEXT NOT NULL DEFAULT ''").run();
+  }
+  if (!auditNames.has("employment_source_url")) {
+    await env.DB.prepare("ALTER TABLE client_verification_audits ADD COLUMN employment_source_url TEXT NOT NULL DEFAULT ''").run();
   }
 
   await ensureClientIdDocumentsTable(env);
@@ -1401,6 +1409,7 @@ export default {
                  COALESCE(a.persona_updated_at, '') AS persona_updated_at,
                  COALESCE(a.completed_at, '') AS completed_at,
                  COALESCE(a.review_flag, 0) AS review_flag,
+                 COALESCE(a.employment_verification_status, 'not_checked') AS employment_status,
                  COALESCE((SELECT created_at FROM date_requests r WHERE r.id=a.date_request_id LIMIT 1),'') AS booking_request_created_at,
                  COALESCE(a.identity_confirmed,0)+COALESCE(a.employer_confirmed,0)+
                  COALESCE(a.job_title_confirmed,0)+COALESCE(a.industry_confirmed,0)+
@@ -1431,6 +1440,7 @@ export default {
           else if (["potential_match","confirmed_match"].includes(String(row.public_record_status||""))) queue_category="public_record_match";
           else if (String(row.address_status||"")==="mismatch") queue_category="address_mismatch";
           else if (["expired","inactive","suspended","revoked","mismatch","unable_to_verify"].includes(String(row.credential_status||""))) queue_category="credential_issue";
+          else if (["unable_to_confirm","mismatch"].includes(String(row.employment_status||""))) queue_category="employment_unable";
           else if (["errored","failed"].includes(personaStatus) || ["errored","failed"].includes(personaDatabaseStatus)) queue_category="persona_error";
           else if (personaPending) queue_category="persona_pending";
           else if (checklistCount < 5) queue_category="checklist_incomplete";
@@ -1459,6 +1469,7 @@ export default {
             address_status:row.address_status||"not_checked",
             public_record_status:row.public_record_status||"not_checked",
             credential_status:row.credential_status||"not_checked",
+            employment_status:row.employment_status||"not_checked",
             persona_pending:personaPending,
             queue_category
           };
@@ -1478,11 +1489,12 @@ export default {
           public_record_match:clients.filter(x=>x.queue_category==="public_record_match").length,
           address_mismatch:clients.filter(x=>x.queue_category==="address_mismatch").length,
           credential_issue:clients.filter(x=>x.queue_category==="credential_issue").length,
+          employment_unable:clients.filter(x=>x.queue_category==="employment_unable").length,
           persona_error:clients.filter(x=>x.queue_category==="persona_error").length
         };
-        const order={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,persona_error:4,needs_more_information:5,checklist_incomplete:6,persona_pending:7,needs_manual_review:8,ready_for_final_decision:9};
+        const order={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,employment_unable:4,persona_error:5,needs_more_information:6,checklist_incomplete:7,persona_pending:8,needs_manual_review:9,ready_for_final_decision:10};
         const queue=[...clients]
-          .filter(x=>["pending_review","needs_more_information"].includes(x.verification_status) || x.persona_pending || x.review_flag || ["public_record_match","address_mismatch","credential_issue","persona_error"].includes(x.queue_category))
+          .filter(x=>["pending_review","needs_more_information"].includes(x.verification_status) || x.persona_pending || x.review_flag || ["public_record_match","address_mismatch","credential_issue","employment_unable","persona_error"].includes(x.queue_category))
           .sort((a,b)=>(order[a.queue_category]??9)-(order[b.queue_category]??9) || a.client_id-b.client_id);
         return Response.json({ok:true,clients,counts,queue}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
@@ -1503,7 +1515,7 @@ export default {
           authorization_version, accepted_at, verification_status,
           verification_method, submitted_employer, submitted_job_title,
           submitted_industry, employment_verification_status, employment_verification_method,
-          employment_work_email, employment_employer_website, employment_evidence_reference, employment_checked_at,
+          employment_work_email, employment_employer_website, employment_source_name, employment_source_url, employment_evidence_reference, employment_checked_at,
           identity_confirmed, employer_confirmed,
           job_title_confirmed, industry_confirmed, contact_confirmed,
           evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
@@ -5406,6 +5418,8 @@ if (
         const method=String(data.employment_verification_method||"").trim().slice(0,160);
         const workEmail=String(data.employment_work_email||"").trim().toLowerCase().slice(0,254);
         const website=String(data.employment_employer_website||"").trim().slice(0,500);
+        const sourceName=String(data.employment_source_name||"").trim().slice(0,200);
+        const sourceUrl=String(data.employment_source_url||"").trim().slice(0,800);
         const evidence=String(data.employment_evidence_reference||"").trim().slice(0,1200);
         if(workEmail&&!verificationEmailValid(workEmail))return Response.json({ok:false,message:"Enter a valid work email address or leave it blank."},{status:400});
         if(status==="confirmed"&&!(employer&&jobTitle&&industry&&method&&evidence))return Response.json({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
@@ -5414,26 +5428,26 @@ if (
           UPDATE client_verification_audits
           SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,
               employment_verification_status=?,employment_verification_method=?,employment_work_email=?,
-              employment_employer_website=?,employment_evidence_reference=?,
+              employment_employer_website=?,employment_source_name=?,employment_source_url=?,employment_evidence_reference=?,
               employment_checked_at=CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,
               employer_confirmed=CASE WHEN ?='confirmed' THEN 1 ELSE employer_confirmed END,
               job_title_confirmed=CASE WHEN ?='confirmed' THEN 1 ELSE job_title_confirmed END,
               industry_confirmed=CASE WHEN ?='confirmed' THEN 1 ELSE industry_confirmed END,
               updated_at=CURRENT_TIMESTAMP
           WHERE id=? AND client_id=?
-        `).bind(employer,jobTitle,industry,status,method,workEmail,website,evidence,status,status,status,status,Number(audit.id),clientId).run();
+        `).bind(employer,jobTitle,industry,status,method,workEmail,website,sourceName,sourceUrl,evidence,status,status,status,status,Number(audit.id),clientId).run();
         const actor=accessIdentity(request).email||"authorized-admin";
         await logVerificationActivity(env,clientId,Number(audit.id),"employment_verification_updated",
           status==="confirmed"?"Employment confirmed":status==="mismatch"?"Employment mismatch":status==="unable_to_confirm"?"Employment unable to verify":"Employment verification saved",
-          "Method: "+(method||"not recorded")+(employer?" · Employer: "+employer:"")+" · Checked by "+actor);
+          "Method: "+(method||"not recorded")+(employer?" · Employer: "+employer:"")+(sourceName?" · Source: "+sourceName:"")+" · Checked by "+actor);
         if(status!=="not_checked"){
-          await logVerificationCheckHistory(env,clientId,"employment",status,"",website,"",evidence,
+          await logVerificationCheckHistory(env,clientId,"employment",status,sourceName,sourceUrl||website,"",evidence,
             {employer,job_title:jobTitle,industry,method},actor);
         }
         const row=await env.DB.prepare(`
           SELECT submitted_employer,submitted_job_title,submitted_industry,employment_verification_status,
                  employment_verification_method,employment_work_email,employment_employer_website,
-                 employment_evidence_reference,employment_checked_at,employer_confirmed,job_title_confirmed,industry_confirmed,updated_at
+                 employment_source_name,employment_source_url,employment_evidence_reference,employment_checked_at,employer_confirmed,job_title_confirmed,industry_confirmed,updated_at
           FROM client_verification_audits WHERE id=? AND client_id=? LIMIT 1
         `).bind(Number(audit.id),clientId).first();
         return Response.json({ok:true,employment:row},{headers:{"Cache-Control":"private, no-store"}});
