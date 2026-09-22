@@ -2183,7 +2183,7 @@ async function loadRequests(options = {}) {
       const flaggedOnly=document.getElementById("verification-queue-flagged")?.checked;
       if(flaggedOnly)items=items.filter(item=>item.review_flag);
       const sortMode=document.getElementById("verification-queue-sort")?.value||"urgent";
-      const queuePriority={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,persona_error:4,needs_more_information:5,checklist_incomplete:6,persona_pending:7,needs_manual_review:8,ready_for_final_decision:9};
+      const queuePriority={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,employment_unable:4,persona_error:5,needs_more_information:6,checklist_incomplete:7,persona_pending:8,needs_manual_review:9,ready_for_final_decision:10};
       const createdTime=item=>new Date(item.booking_request_created_at||0).getTime()||0;
       items.sort((a,b)=>{
         if(sortMode==="oldest")return createdTime(a)-createdTime(b);
@@ -2571,6 +2571,7 @@ async function loadRequests(options = {}) {
         if (verificationFilter === "public_record_match" && verification.queue_category !== "public_record_match") return false;
         if (verificationFilter === "address_mismatch" && verification.queue_category !== "address_mismatch") return false;
         if (verificationFilter === "credential_issue" && verification.queue_category !== "credential_issue") return false;
+        if (verificationFilter === "employment_unable" && verification.queue_category !== "employment_unable") return false;
         if (verificationFilter === "no_id" && verification.has_id) return false;
         if (verificationFilter === "retention_due" && !verification.retention_due) return false;
         return true;
@@ -3808,6 +3809,8 @@ async function loadRequests(options = {}) {
             employment_verification_method:section.querySelector(".client-employment-method")?.value||"",
             employment_work_email:section.querySelector(".client-employment-work-email")?.value||"",
             employment_employer_website:section.querySelector(".client-employment-website")?.value||"",
+            employment_source_name:section.querySelector(".client-employment-source-name")?.value||"",
+            employment_source_url:section.querySelector(".client-employment-source-url")?.value||"",
             employment_evidence_reference:section.querySelector(".client-employment-evidence")?.value||"",
             decision_reason:section.querySelector(".client-verification-reason")?.value||"",
             checklist:[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"].map(sel=>Boolean(section.querySelector(sel)?.checked))
@@ -4078,6 +4081,8 @@ async function loadRequests(options = {}) {
         const employmentMethodInput=section.querySelector(".client-employment-method");
         const employmentWorkEmailInput=section.querySelector(".client-employment-work-email");
         const employmentWebsiteInput=section.querySelector(".client-employment-website");
+        const employmentSourceNameInput=section.querySelector(".client-employment-source-name");
+        const employmentSourceUrlInput=section.querySelector(".client-employment-source-url");
         const employmentEvidenceInput=section.querySelector(".client-employment-evidence");
         const reasonInput=section.querySelector(".client-verification-reason");
         const decisionNotes=section.querySelector(".client-verification-decision-notes");
@@ -4091,7 +4096,15 @@ async function loadRequests(options = {}) {
         if(employmentMethodInput) employmentMethodInput.value=latest.employment_verification_method || "";
         if(employmentWorkEmailInput) employmentWorkEmailInput.value=latest.employment_work_email || "";
         if(employmentWebsiteInput) employmentWebsiteInput.value=latest.employment_employer_website || "";
+        if(employmentSourceNameInput) employmentSourceNameInput.value=latest.employment_source_name || "";
+        if(employmentSourceUrlInput) employmentSourceUrlInput.value=latest.employment_source_url || "";
         if(employmentEvidenceInput) employmentEvidenceInput.value=latest.employment_evidence_reference || "";
+        const employmentReopen=section.querySelector(".client-employment-reopen");
+        if(employmentReopen){
+          const href=latest.employment_source_url||latest.employment_employer_website||"";
+          employmentReopen.hidden=!href;
+          if(href)employmentReopen.href=/^https?:\/\//i.test(href)?href:"https://"+href;
+        }
         const employmentChecked=section.querySelector(".client-employment-checked");
         if(employmentChecked)employmentChecked.textContent=latest.employment_checked_at
           ?"Last checked: "+formatVerificationTimestamp(latest.employment_checked_at)
@@ -4733,6 +4746,21 @@ async function loadRequests(options = {}) {
           section.dataset.sexOffenderStatus=sexLatest?.result_status||"not_checked";
           const sexSelect=section.querySelector(".client-sex-offender-status");
           if(sexSelect&&sexLatest&&sexSelect.value==="not_checked")sexSelect.value=sexLatest.result_status||"not_checked";
+          const renderCategoryHistory=(selector,categories)=>{
+            const target=section.querySelector(selector);if(!target)return;
+            const items=history.filter(item=>categories.includes(item.category));
+            target.innerHTML=items.length?items.map(item=>'<div class="verification-check-history-item"><strong>'+escapeHtml(verificationPretty(item.result_status))+'</strong>'+
+              '<div style="color:var(--muted);">'+escapeHtml(formatVerificationTimestamp(item.checked_at)||"—")+(item.checked_by?' · '+escapeHtml(item.checked_by):'')+'</div>'+
+              (item.source_name?'<div>Source: '+escapeHtml(item.source_name)+'</div>':'')+
+              (item.reference?'<div>Reference: '+escapeHtml(item.reference)+'</div>':'')+
+              (item.summary?'<div>'+escapeHtml(item.summary)+'</div>':'')+
+              (item.source_url?'<a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(item.source_url)+'">Open source</a>':'')+
+              '</div>').join(""):'<div class="empty">No previous checks.</div>';
+          };
+          renderCategoryHistory(".client-employment-history",["employment"]);
+          renderCategoryHistory(".client-credential-history",["credential"]);
+          renderCategoryHistory(".client-address-history",["address"]);
+          renderCategoryHistory(".client-public-record-history",["public_records","supplemental_public_record","federal_records"]);
           const publicSaved=section.querySelector(".client-public-record-saved-results");
           if(publicSaved){
             const publicItems=history.filter(item=>["public_records","supplemental_public_record","federal_records"].includes(item.category));
@@ -4790,6 +4818,12 @@ async function loadRequests(options = {}) {
           if(checked)checked.textContent=result.employment?.employment_checked_at
             ?"Last checked: "+formatVerificationTimestamp(result.employment.employment_checked_at)
             :"Last checked: Not checked";
+          const employmentReopen=section.querySelector(".client-employment-reopen");
+          if(employmentReopen){
+            const href=result.employment?.employment_source_url||result.employment?.employment_employer_website||"";
+            employmentReopen.hidden=!href;
+            if(href)employmentReopen.href=/^https?:\/\//i.test(href)?href:"https://"+href;
+          }
           if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section),loadVerificationAudits(section)]);
           updateVerificationFlowSummary(section);
@@ -4873,7 +4907,16 @@ async function loadRequests(options = {}) {
         const warningBox=section.querySelector(".client-final-review-warnings");
         if(warningBox)warningBox.innerHTML=warnings.length?warnings.map(x=>'<div class="verification-warning">'+escapeHtml(x)+'</div>').join(""):'<div style="font-size:12px;color:#2f6b45;">No unresolved warnings from completed checks. Optional skipped checks do not block completion.</div>';
         const reviewSummary=section.querySelector(".client-final-review-summary");
-        if(reviewSummary)reviewSummary.textContent="Final decision remains manual. Automated and optional checks provide evidence only and never approve or decline the client automatically.";
+        if(reviewSummary)reviewSummary.innerHTML=
+          '<strong>Identity:</strong> '+escapeHtml(verificationPretty(identity))+
+          ' · <strong>Age:</strong> '+escapeHtml(age===null?"Not checked":String(age))+
+          ' · <strong>Employment:</strong> '+escapeHtml(verificationPretty(employment))+
+          ' · <strong>Credential:</strong> '+escapeHtml(verificationPretty(credential))+
+          ' · <strong>Address:</strong> '+escapeHtml(verificationPretty(address))+
+          ' · <strong>Public records:</strong> '+escapeHtml(verificationPretty(publicRecords))+
+          ' · <strong>Persona:</strong> '+escapeHtml(verificationPretty(persona))+
+          ' · <strong>Checklist:</strong> '+escapeHtml(checklist+" of 5")+
+          '<div style="margin-top:6px;">Final decision remains manual. Automated and optional checks provide evidence only and never approve or decline the client automatically.</div>';
         const finalReady=checklist===5&&age!==null&&age>=verificationMinimumAge&&employment==="confirmed";
         const completeState=["verified","unable_to_verify","declined"].includes(decision)?"complete":"not_checked";
         updateVerificationProgress(section,{
@@ -5672,7 +5715,7 @@ async function loadRequests(options = {}) {
         const checklistSelectors=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
         [".client-verification-status",".client-verification-method",".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-status",".client-employment-method",".client-employment-work-email",".client-employment-website",".client-employment-evidence",".client-verification-reason",...checklistSelectors].forEach(sel=>section.querySelector(sel)?.addEventListener("change",()=>{updateEmploymentVerificationUi();saveSafeVerificationLocalDraft(section);}));
         const checklistLabels={"client-check-identity":"Identity matches ID","client-check-employer":"Employer confirmed","client-check-job-title":"Job title confirmed","client-check-industry":"Industry confirmed","client-check-contact":"Contact information confirmed"};
-        [".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-work-email",".client-employment-website",".client-employment-evidence"].forEach(sel=>section.querySelector(sel)?.addEventListener("input",updateEmploymentVerificationUi));
+        [".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-work-email",".client-employment-website",".client-employment-source-name",".client-employment-source-url",".client-employment-evidence"].forEach(sel=>section.querySelector(sel)?.addEventListener("input",updateEmploymentVerificationUi));
         updateEmploymentVerificationUi();
 
         const updateCompletionControls=()=>{
