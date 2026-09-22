@@ -181,3 +181,16 @@ test("database-only Persona end-to-end state keeps manual decision separate",()=
   assert.match(portal,/Manual: /);
   assert.match(portal,/Persona: Database Passed/);
 });
+
+
+test("Persona section renders one status card and one technical details control",()=>{
+  assert.doesNotMatch(portal,/client-persona-transaction-card/);
+  assert.doesNotMatch(portal,/client-persona-transaction-details/);
+  assert.match(portal,/class="client-persona-workflow-result"/);
+  assert.match(portal,/class="client-persona-technical"/);
+});
+
+test("persisted Database Passed state uses the primary Persona result card",()=>{
+  assert.match(portal,/Database \(US\): "\+escapeHtml\(databaseLabel\)/);
+  assert.match(portal,/administrative Persona state/);
+});
