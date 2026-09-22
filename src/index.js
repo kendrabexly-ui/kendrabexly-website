@@ -5590,16 +5590,25 @@ if (
         const inquiryFields=personaPayload?.data?.attributes?.fields&&typeof personaPayload.data.attributes.fields==="object"
           ? personaPayload.data.attributes.fields
           : {};
+        const personaDiagnosticFieldValue=value=>{
+          if(value===undefined||value===null)return "";
+          if(typeof value==="string"||typeof value==="number"||typeof value==="boolean")return String(value);
+          if(typeof value==="object"){
+            for(const key of ["value","raw","text","code","country_code","country-code"]){
+              const nested=value?.[key];
+              if(nested!==undefined&&nested!==null&&typeof nested!=="object")return String(nested);
+            }
+          }
+          return "";
+        };
         const countryFieldDiagnostics={
-          selected_country_code:String(
+          selected_country_code:personaDiagnosticFieldValue(
             inquiryFields.selected_country_code ??
-            inquiryFields["selected-country-code"] ??
-            ""
+            inquiryFields["selected-country-code"]
           ),
-          address_country_code:String(
+          address_country_code:personaDiagnosticFieldValue(
             inquiryFields.address_country_code ??
-            inquiryFields["address-country-code"] ??
-            ""
+            inquiryFields["address-country-code"]
           )
         };
         const included=Array.isArray(personaPayload?.included)?personaPayload.included:[];
