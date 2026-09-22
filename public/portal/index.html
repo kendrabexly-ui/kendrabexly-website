@@ -1047,6 +1047,7 @@
               <button type="button" data-queue-filter="public_record_match" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Public Record Match <span data-queue-count="public_record_match">0</span></button>
               <button type="button" data-queue-filter="address_mismatch" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Address Mismatch <span data-queue-count="address_mismatch">0</span></button>
               <button type="button" data-queue-filter="credential_issue" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Credential Issue <span data-queue-count="credential_issue">0</span></button>
+              <button type="button" data-queue-filter="employment_unable" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Employment Unable to Verify <span data-queue-count="employment_unable">0</span></button>
               <button type="button" data-queue-filter="persona_error" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Persona Error <span data-queue-count="persona_error">0</span></button>
               <button type="button" data-queue-filter="needs_more_information" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Needs More Information <span data-queue-count="needs_more_information">0</span></button>
               <button type="button" data-queue-filter="checklist_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Checklist Incomplete <span data-queue-count="checklist_incomplete">0</span></button>
@@ -1091,7 +1092,8 @@
                 <option value="public_record_match">Potential / Confirmed Public Record Match</option>
                 <option value="address_mismatch">Address Mismatch</option>
                 <option value="credential_issue">Credential Issue</option>
-                <option value="no_id">No ID Received</option>
+                <option value="employment_unable">Employment Unable to Verify</option>
+                <option value="no_id">Awaiting ID</option>
                 <option value="retention_due">Retention Due</option>
               </select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="client-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
             </div>
@@ -2726,14 +2728,17 @@ async function loadRequests(options = {}) {
 
                   <div class="client-verification-flow">
                     <div class="verification-flow-nav" aria-label="Verification navigation">
+                      <button type="button" data-verification-jump=".client-verification-overview">Summary</button>
                       <button type="button" data-verification-jump=".client-id-record">Identity</button>
                       <button type="button" data-verification-jump=".client-verification-editor">Manual</button>
+                      <button type="button" data-verification-jump=".client-employment-verification">Employment</button>
                       <button type="button" data-verification-jump=".client-credential-card">Credentials</button>
                       <button type="button" data-verification-jump=".client-address-verification-card">Address</button>
                       <button type="button" data-verification-jump=".client-public-record-card">Public Records</button>
                       <button type="button" data-verification-jump=".client-persona-card">Persona</button>
                       <button type="button" data-verification-jump=".client-final-review">Final Review</button>
                       <button type="button" data-verification-jump=".client-audit-history">Audit</button>
+                      <button type="button" class="client-verification-back-top">Back to top</button>
                       <button type="button" class="client-verification-save-all" style="margin-left:auto;font-weight:700;">Save All Progress</button>
                     </div>
                     <div class="verification-progress-track" aria-label="Verification progress">
@@ -2772,7 +2777,7 @@ async function loadRequests(options = {}) {
                   <section class="verification-card client-id-record">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">1. ID Record</strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-id-badge">Identity: Not checked</span><span class="verification-badge">Private record only</span></span>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-id-badge">Identity: Not checked</span><span class="verification-badge">Private record only</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-id-record">Collapse</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">The ID image is stored for your private review and records. It is never sent to Persona.</div>
                     <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Checking for a saved ID document…</div>
@@ -2813,7 +2818,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <section class="verification-card client-verification-editor" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">2. Manual Verification</strong><span class="verification-badge client-manual-badge">Manual: Not checked</span></div>
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">2. Manual Verification</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Manual: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Collapse</button></span></div>
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">This section controls the final verification decision. Persona does not automatically approve or decline a client.</div>
                     <div class="verification-grid">
                       <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
@@ -2829,6 +2834,8 @@ async function loadRequests(options = {}) {
                         <label style="font-size:12px;font-weight:700;">Industry<input class="client-verification-industry" type="text" maxlength="160" placeholder="Industry received from client" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note">Uses the client-provided industry when one is already saved; edit only if it needs correction.</span></label>
                         <label style="font-size:12px;font-weight:700;">Work email <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-work-email" type="email" maxlength="254" placeholder="name@company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Employer website <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-website" type="url" maxlength="500" placeholder="https://company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Official source name <span style="font-weight:500;color:var(--muted);">(when external source used)</span><input class="client-employment-source-name" type="text" maxlength="200" placeholder="Employer directory, HR, official registry..." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Official source URL <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-source-url" type="url" maxlength="800" placeholder="https://..." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Employment verification method<select class="client-employment-method" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
                           <option value="">Choose method</option>
                           <option value="work_email">Work email/domain</option>
@@ -2855,6 +2862,8 @@ async function loadRequests(options = {}) {
                         <span class="client-employment-save-status" style="font-size:11px;color:var(--muted);"></span>
                       </div>
                       <div class="client-employment-checked" style="margin-top:6px;font-size:11px;color:var(--muted);">Last checked: Not checked</div>
+                      <a class="verification-source-reopen client-employment-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a>
+                      <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Previous Employment Checks</summary><div class="client-employment-history" style="margin-top:6px;color:var(--muted);font-size:11px;">No previous checks loaded.</div></details>
                     </fieldset>
                     <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
                     <div class="verification-field-note">Birthdate is entered once in Manual Verification. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
@@ -2928,7 +2937,7 @@ async function loadRequests(options = {}) {
                       <label style="font-size:12px;font-weight:700;">Issuing state<select class="client-credential-state" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose state</option><option value="AL">Alabama</option><option value="AK">Alaska</option><option value="AZ">Arizona</option><option value="AR">Arkansas</option><option value="CA">California</option><option value="CO">Colorado</option><option value="CT">Connecticut</option><option value="DE">Delaware</option><option value="DC">District of Columbia</option><option value="FL">Florida</option><option value="GA">Georgia</option><option value="HI">Hawaii</option><option value="ID">Idaho</option><option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option><option value="KY">Kentucky</option><option value="LA">Louisiana</option><option value="ME">Maine</option><option value="MD">Maryland</option><option value="MA">Massachusetts</option><option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MS">Mississippi</option><option value="MO">Missouri</option><option value="MT">Montana</option><option value="NE">Nebraska</option><option value="NV">Nevada</option><option value="NH">New Hampshire</option><option value="NJ">New Jersey</option><option value="NM">New Mexico</option><option value="NY">New York</option><option value="NC">North Carolina</option><option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="OK">Oklahoma</option><option value="OR">Oregon</option><option value="PA">Pennsylvania</option><option value="RI">Rhode Island</option><option value="SC">South Carolina</option><option value="SD">South Dakota</option><option value="TN">Tennessee</option><option value="TX">Texas</option><option value="UT">Utah</option><option value="VT">Vermont</option><option value="VA">Virginia</option><option value="WA">Washington</option><option value="WV">West Virginia</option><option value="WI">Wisconsin</option><option value="WY">Wyoming</option></select></label>
                       <label style="font-size:12px;font-weight:700;">Issuing board / authority<input class="client-credential-board" type="text" maxlength="200" placeholder="Board or licensing authority" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Credential result<select class="client-credential-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-                        <option value="not_checked">Not checked</option><option value="pending">Pending</option><option value="confirmed">Active / verified</option><option value="expired">Expired</option><option value="not_found">No record found</option><option value="unable_to_verify">Unable to verify</option><option value="mismatch">Record mismatch</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option><option value="revoked">Revoked</option><option value="needs_review">Needs review</option>
+                        <option value="not_checked">Not checked</option><option value="pending">In progress</option><option value="confirmed">Confirmed</option><option value="expired">Needs review — expired</option><option value="not_found">Needs review — no record located</option><option value="unable_to_verify">Unable to verify</option><option value="mismatch">Mismatch</option><option value="inactive">Needs review — inactive</option><option value="suspended">Needs review — suspended</option><option value="revoked">Needs review — revoked</option><option value="needs_review">Needs review</option>
                       </select></label>
                       <label style="font-size:12px;font-weight:700;">Issue date <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-credential-issue-date" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Expiration date <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-credential-expiration-date" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2948,7 +2957,7 @@ async function loadRequests(options = {}) {
                       <button type="button" class="client-credential-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Credential Check</button>
                       <span class="client-credential-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
                     </div>
-                    <div class="client-credential-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div><a class="verification-source-reopen client-credential-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a>
+                    <div class="client-credential-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div><a class="verification-source-reopen client-credential-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a><details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Previous Credential Checks</summary><div class="client-credential-history" style="margin-top:6px;color:var(--muted);font-size:11px;">No previous checks loaded.</div></details>
                   </section>
 
                   <section class="verification-card client-address-verification-card">
@@ -3017,7 +3026,7 @@ async function loadRequests(options = {}) {
                       <button type="button" class="client-address-check-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Address Check</button>
                       <span class="client-address-check-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
                     </div>
-                    <div class="client-address-check-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div><a class="verification-source-reopen client-address-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a>
+                    <div class="client-address-check-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div><a class="verification-source-reopen client-address-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a><details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Previous Address Checks</summary><div class="client-address-history" style="margin-top:6px;color:var(--muted);font-size:11px;">No previous checks loaded.</div></details>
                   </section>
 
                   <section class="verification-card client-public-record-card">
@@ -3124,7 +3133,7 @@ async function loadRequests(options = {}) {
                       <span class="client-public-record-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
                     </div>
                     <div class="client-public-record-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div><a class="verification-source-reopen client-public-record-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a>
-                    <details style="margin-top:9px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Saved jurisdictions &amp; case results</summary><div class="client-public-record-saved-results" style="margin-top:7px;color:var(--muted);font-size:11px;">No saved public-record results yet.</div></details>
+                    <details style="margin-top:9px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Saved jurisdictions &amp; case results</summary><div class="client-public-record-saved-results client-public-record-history" style="margin-top:7px;color:var(--muted);font-size:11px;">No saved public-record results yet.</div></details>
                   </section>
 
                   <section class="verification-card client-persona-card">
@@ -3194,7 +3203,7 @@ async function loadRequests(options = {}) {
                   <section class="verification-card client-final-review">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">7. Final Review &amp; Decision</strong>
-                      <span class="verification-badge client-final-review-badge">Pending Review</span>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-final-review-badge">Pending Review</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-final-review">Collapse</button></span>
                     </div>
                     <div class="client-final-review-summary" style="margin-top:8px;font-size:12px;line-height:1.55;color:var(--muted);">Complete or skip the optional checks, then review unresolved items before making the final decision.</div>
                     <div class="client-final-review-warnings" style="margin-top:8px;"></div>
