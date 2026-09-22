@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import vm from "node:vm";
 
 const worker=fs.readFileSync(new URL("../src/index.js",import.meta.url),"utf8");
 const portal=fs.readFileSync(new URL("../public/portal/index.html",import.meta.url),"utf8");
@@ -542,16 +543,37 @@ test("move forward email requests ID, screening, and deposit selection together"
   const route=worker.slice(start,end);
   assert.match(route,/SET status = 'screening_pending'/);
   assert.match(route,/combined_step=1/);
-  assert.match(route,/upload your ID, provide the remaining screening details, and choose your deposit method/);
-  assert.match(route,/confirmed the deposit, I’ll send your confirmation email/);
+  assert.match(route,/privateScreeningEmailBody\(existingRequest\.first_name,existingRequest\.requested_date,existingRequest\.requested_time,continuationUrl\)/);
+  assert.match(worker,/There you can upload your ID, complete the screening details, and select your deposit method/);
+  assert.match(worker,/Once I finish my review and confirm the deposit, I’ll send your confirmation email/);
   assert.doesNotMatch(route.slice(0,route.indexOf('REQUEST DEPOSIT')),/No deposit is requested at this stage/);
 });
 
 test("combined and older deposit emails link to the unlisted details page",()=>{
   assert.match(worker,/const detailsUrl=new URL\("\/the-details\/#token="\+encodeURIComponent\(continuationToken\),request\.url\)\.toString\(\)/);
-  assert.match(worker,/Please also review The Details before continuing/);
+  assert.match(worker,/The Details are available in the private page menu/);
   assert.match(worker,/Please review The Details before completing the deposit step/);
   assert.match(worker,/\$\{detailsUrl\}/);
+});
+
+test("saved generated screening drafts refresh without changing edited or sent emails",()=>{
+  const code=worker.slice(worker.indexOf("function privateScreeningEmailBody"),worker.indexOf("const VALID_BOOKING_STATE_CODES"));
+  const context=vm.createContext({URL,encodeURIComponent});
+  vm.runInContext(code,context);
+  const url="https://kendrabexly.com/complete/?token="+"a".repeat(64);
+  const oldBody=vm.runInContext("previousPrivateScreeningEmailBody",context)("Cashiya","2026-09-27","13:00",url);
+  const base={email_type:"pending_final_approval",status:"draft",subject:"A few details before our date",body:oldBody,requested_date:"2026-09-30",requested_time:"15:00"};
+  const refresh=vm.runInContext("refreshGeneratedScreeningDraft",context);
+  const updated=refresh(base);
+  assert.match(updated,/Date: 2026-09-30\nTime: 15:00/);
+  assert.match(updated,/all in one private page/);
+  assert.match(updated,/The Details are available in the private page menu/);
+  assert.ok(updated.includes(url));
+  assert.doesNotMatch(updated,/Please do not email your ID|Please also review The Details before continuing/);
+  assert.equal(refresh({...base,body:oldBody+"\nPersonal note"}),null);
+  assert.equal(refresh({...base,status:"sent"}),null);
+  assert.equal(refresh({...base,body:updated}),null);
+  assert.match(worker,/UPDATE email_drafts SET body=\? WHERE id=\? AND body=\? AND status='draft'/);
 });
 
 test("deposit confirmation requires client deposit-step completion",()=>{

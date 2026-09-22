@@ -4,6 +4,62 @@ async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env
 
 
 const SITE_TIME_ZONE = "America/Los_Angeles";
+function privateScreeningEmailBody(name,date,time,continuationUrl) {
+  return `Hi ${name},
+
+I'd love to move forward with your request.
+
+Date: ${date}
+Time: ${time}
+
+Your next step is all in one private page:
+
+${continuationUrl}
+
+There you can upload your ID, complete the screening details, and select your deposit method. The Details are available in the private page menu.
+
+Once I finish my review and confirm the deposit, I’ll send your confirmation email.
+
+Kendra`;
+}
+
+function previousPrivateScreeningEmailBody(name,date,time,continuationUrl) {
+  const token = new URL(continuationUrl).searchParams.get("token") || "";
+  const detailsUrl = new URL("/the-details/#token="+encodeURIComponent(token),continuationUrl).toString();
+  return `Hi ${name},
+
+I'd love to move forward with your request.
+
+Date: ${date}
+Time: ${time}
+
+Your next step is all in one private page:
+
+${continuationUrl}
+
+On that page, you can upload your ID, provide the remaining screening details, and choose your deposit method and amount.
+
+Please also review The Details before continuing:
+
+${detailsUrl}
+
+Please do not email your ID. Submitting the page does not automatically confirm that your deposit has been paid or reserve the date. Once I have reviewed your ID and screening and confirmed the deposit, I’ll send your confirmation email.
+
+Kendra`;
+}
+
+function refreshGeneratedScreeningDraft(draft) {
+  if (draft.email_type !== "pending_final_approval" || draft.status !== "draft" || draft.subject !== "A few details before our date") return null;
+  const match = String(draft.body||"").match(/^Hi ([^\n]+),\n\nI'd love to move forward with your request\.\n\nDate: ([^\n]+)\nTime: ([^\n]+)\n\nYour next step is all in one private page:\n\n(https?:\/\/[^\s]+)\n/);
+  if (!match) return null;
+  const [,name,date,time,continuationUrl] = match;
+  try {
+    const url = new URL(continuationUrl);
+    if (url.pathname !== "/complete/" || !/^[a-f0-9]{64}$/i.test(url.searchParams.get("token")||"")) return null;
+    if (draft.body !== previousPrivateScreeningEmailBody(name,date,time,continuationUrl)) return null;
+    return privateScreeningEmailBody(name,draft.requested_date||date,draft.requested_time||time,continuationUrl);
+  } catch { return null; }
+}
 const VALID_BOOKING_STATE_CODES = new Set([
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
 ]);
@@ -5496,10 +5552,14 @@ if (
                 et.provider_email_id,
                 c.first_name,
                 c.last_name,
-                c.email
+                c.email,
+                dr.requested_date,
+                dr.requested_time
               FROM email_drafts ed
               LEFT JOIN clients c
                 ON c.id = ed.client_id
+              LEFT JOIN date_requests dr
+                ON dr.id = ed.date_request_id
               LEFT JOIN email_tracking et
                 ON et.email_draft_id = ed.id
               ORDER BY ed.created_at DESC
@@ -5509,10 +5569,17 @@ if (
             .all();
 
 
+        const drafts = result.results || [];
+        for (const draft of drafts) {
+          const updatedBody = refreshGeneratedScreeningDraft(draft);
+          if (!updatedBody) continue;
+          const result = await env.DB.prepare("UPDATE email_drafts SET body=? WHERE id=? AND body=? AND status='draft'")
+            .bind(updatedBody,draft.id,draft.body).run();
+          if (result.meta?.changes) draft.body = updatedBody;
+        }
         return Response.json({
           ok: true,
-          email_drafts:
-            result.results || []
+          email_drafts: drafts
         });
 
       } catch (error) {
@@ -7445,7 +7512,6 @@ if (
             updated_at=CURRENT_TIMESTAMP
         `).bind(requestId,continuationTokenHash,continuationExpiresAt).run();
         const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
-        const detailsUrl=new URL("/the-details/#token="+encodeURIComponent(continuationToken),request.url).toString();
 
         await env.DB
           .prepare(`
@@ -7478,26 +7544,7 @@ if (
             requestId,
             "pending_final_approval",
             "A few details before our date",
-            `Hi ${existingRequest.first_name},
-
-I'd love to move forward with your request.
-
-Date: ${existingRequest.requested_date}
-Time: ${existingRequest.requested_time}
-
-Your next step is all in one private page:
-
-${continuationUrl}
-
-On that page, you can upload your ID, provide the remaining screening details, and choose your deposit method and amount.
-
-Please also review The Details before continuing:
-
-${detailsUrl}
-
-Please do not email your ID. Submitting the page does not automatically confirm that your deposit has been paid or reserve the date. Once I have reviewed your ID and screening and confirmed the deposit, I’ll send your confirmation email.
-
-Kendra`
+            privateScreeningEmailBody(existingRequest.first_name,existingRequest.requested_date,existingRequest.requested_time,continuationUrl)
           ).run();
         }
 
