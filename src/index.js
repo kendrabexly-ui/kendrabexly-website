@@ -4277,7 +4277,7 @@ My journal will continue to be a place where I share a little more of that side 
         `).bind(tokenHash).first();
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired. Please contact Kendra for a new link."},{status:410});
-        const paymentMethod=String(row.notes||"").match(/Deposit payment method:\\s*([^\\n]+)/i)?.[1]?.trim()||"As arranged";
+        const paymentMethod=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim()||"As arranged";
         return Response.json({
           ok:true,
           client_name:[row.first_name,row.last_name].filter(Boolean).join(" "),
