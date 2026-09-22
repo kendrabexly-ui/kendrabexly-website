@@ -3841,6 +3841,7 @@ async function loadRequests(options = {}) {
         const add=(label,url,source,kind)=>{if(!links.some(x=>x.url===url))links.push({label,url,source,kind});};
         if(st==="CA")add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
         if(/attorney|lawyer|counsel|bar/.test(occ)&&st==="CA")add("State Bar of California","https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch","State Bar of California","license");
+        if(st==="NV"&&/esthetic|aesthetic|cosmetolog|hair design|hair braider|nail|electrolog|makeup/.test(occ))add("Nevada Cosmetology License Lookup","https://www.nvcosmo.com/licensee-lookup","Nevada State Board of Cosmetology","license");
         if(/nurse|nursing|\brn\b|\blvn\b|\blpn\b/.test(occ))add("Nursys QuickConfirm","https://www.nursys.com/LQC/LQCTerms.aspx","Nursys / NCSBN","license");
         if(/doctor|physician|nurse|nursing|dentist|dental|therap|psych|pharmac|chiropr|optometr|health|medical|surgeon|provider/.test(occ))add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
         if(/broker|financial advisor|financial adviser|securities|investment adviser|investment advisor/.test(occ))add("FINRA BrokerCheck","https://brokercheck.finra.org/","FINRA BrokerCheck","license");
