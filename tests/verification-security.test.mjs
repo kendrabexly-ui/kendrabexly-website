@@ -204,3 +204,10 @@ test("Persona readiness prioritizes Database Passed over pending inquiry",()=>{
 test("workflow result reloads persisted audit state before final Persona badge render",()=>{
   assert.match(portal,/await loadVerificationAudits\(section\);\n\s*renderPersonaReadiness\(section,section\.dataset\.personaConnected==="1"\);/);
 });
+
+
+test("Database Passed copy does not assume inquiry state is pending",()=>{
+  assert.match(portal,/database_passed:"Database \(US\) passed\."/);
+  assert.doesNotMatch(portal,/may remain pending administratively/);
+  assert.match(portal,/Persona's administrative inquiry state/);
+});
