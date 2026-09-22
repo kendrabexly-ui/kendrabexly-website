@@ -5610,6 +5610,8 @@ if (
         }
 
         const inquiryStatus=String(personaPayload?.data?.attributes?.status||audit.persona_transaction_status||"created").toLowerCase();
+        const inquiryCreatedAt=String(personaPayload?.data?.attributes?.created_at||personaPayload?.data?.attributes?.["created-at"]||"");
+        const inquiryCreatedMs=inquiryCreatedAt?Date.parse(inquiryCreatedAt):0;
         const inquiryFields=personaPayload?.data?.attributes?.fields&&typeof personaPayload.data.attributes.fields==="object"
           ? personaPayload.data.attributes.fields
           : {};
@@ -5705,8 +5707,6 @@ if (
             // Fallback for Persona responses that omit creator relationship data:
             // match a recent run created immediately after this inquiry's creation.
             if(!matchedWorkflowRun){
-              const inquiryCreatedAt=String(personaPayload?.data?.attributes?.created_at||personaPayload?.data?.attributes?.["created-at"]||"");
-              const inquiryCreatedMs=inquiryCreatedAt?Date.parse(inquiryCreatedAt):0;
               const candidates=runs.filter(run=>{
                 const runCreated=String(run?.attributes?.created_at||run?.attributes?.["created-at"]||"");
                 const runMs=runCreated?Date.parse(runCreated):0;
@@ -5785,9 +5785,21 @@ if (
         }
 
         if(latestDatabase){
-          await env.DB.prepare(
-            "UPDATE client_verification_audits SET persona_database_status=?, persona_database_verification_id=?, persona_database_checked_at=CURRENT_TIMESTAMP, persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?"
-          ).bind(databaseStatus||"unknown",String(latestDatabase.id||""),audit.id).run();
+          const databaseVerificationId=String(latestDatabase.id||"");
+          const previousDatabaseStatus=String(audit.persona_database_status||"").toLowerCase();
+          const previousDatabaseVerificationId=String(audit.persona_database_verification_id||"");
+          const persisted=await env.DB.prepare(
+            "UPDATE client_verification_audits SET persona_database_status=?, persona_database_verification_id=?, persona_database_checked_at=CURRENT_TIMESTAMP, persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND persona_transaction_id=?"
+          ).bind(databaseStatus||"unknown",databaseVerificationId,audit.id,inquiryId).run();
+          if(Number(persisted.meta?.changes||0)===0){
+            return Response.json({ok:false,code:"stale_persona_result",message:"This Persona result belongs to an older inquiry and was not applied.",inquiry_id:inquiryId},{status:409,headers:{"Cache-Control":"private, no-store"}});
+          }
+          if(databaseStatus==="passed"&&(previousDatabaseStatus!=="passed"||previousDatabaseVerificationId!==databaseVerificationId)){
+            await logVerificationActivity(
+              env,clientId,audit.id,"persona_database_passed","Persona Database (US) passed",
+              "Verification ID: "+databaseVerificationId+" · Inquiry ID: "+inquiryId
+            );
+          }
         }
 
         const checkList=Array.isArray(attrs.checks)?attrs.checks:[];
@@ -5840,6 +5852,8 @@ if (
           } : null,
           workflow_triggered:Boolean(matchedWorkflowRun),
           workflow_state:latestDatabase ? workflowState : workflowRunState,
+          database_delayed:Boolean(!latestDatabase&&inquiryCreatedMs&&Date.now()-inquiryCreatedMs>60000),
+          inquiry_created_at:inquiryCreatedAt,
           message:latestDatabase
             ? "Database (US) verification found for this Persona inquiry."
             : matchedWorkflowRun
@@ -5947,11 +5961,19 @@ if (
         }
 
         const audit = await env.DB.prepare(
-          "SELECT id, client_id FROM client_verification_audits WHERE date_request_id=? LIMIT 1"
+          "SELECT id, client_id, persona_transaction_id, persona_database_status FROM client_verification_audits WHERE date_request_id=? LIMIT 1"
         ).bind(requestId).first();
         if (!audit) {
           console.warn("Persona webhook has no matching verification audit:", requestId, objectId);
           return Response.json({ok:true,ignored:true,reason:"audit_not_found"});
+        }
+        const currentInquiryId=String(audit.persona_transaction_id||"");
+        if(currentInquiryId&&objectId&&currentInquiryId!==objectId){
+          await logVerificationActivity(
+            env,Number(audit.client_id),Number(audit.id),"persona_stale_webhook_ignored","Older Persona webhook ignored",
+            "Current inquiry preserved. Incoming inquiry: "+objectId
+          );
+          return Response.json({ok:true,ignored:true,reason:"stale_persona_inquiry"});
         }
 
         await env.DB.prepare(`
