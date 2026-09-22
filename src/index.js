@@ -5563,6 +5563,68 @@ if (
       }
     }
 
+    // Regenerate the flexible wording of a private-screening email while
+    // keeping every booking fact and action requirement server-controlled.
+    if (
+      /^\/api\/admin\/email-drafts\/\d+\/regenerate$/.test(url.pathname) &&
+      request.method === "POST"
+    ) {
+      try {
+        const draftId=Number(url.pathname.split("/").slice(-2,-1)[0]);
+        if(!Number.isInteger(draftId)||draftId<=0) return Response.json({ok:false,message:"Invalid email draft ID."},{status:400});
+        const draft=await env.DB.prepare(`
+          SELECT ed.id,ed.email_type,ed.subject,ed.body,ed.status,
+                 c.first_name,dr.requested_date,dr.requested_time
+          FROM email_drafts ed
+          LEFT JOIN clients c ON c.id=ed.client_id
+          LEFT JOIN date_requests dr ON dr.id=ed.date_request_id
+          WHERE ed.id=? LIMIT 1
+        `).bind(draftId).first();
+        if(!draft) return Response.json({ok:false,message:"Email draft not found."},{status:404});
+        if(String(draft.status||"draft")!=="draft") return Response.json({ok:false,message:"Only unsent drafts can be regenerated."},{status:400});
+        if(String(draft.email_type||"")!=="pending_final_approval") return Response.json({ok:false,message:"Protected regeneration is available for private screening emails."},{status:400});
+
+        const privateLink=String(draft.body||"").match(/https?:\/\/[^\s]+\/complete\/\?token=[^\s]+/i)?.[0]||"";
+        if(!draft.first_name||!draft.requested_date||!draft.requested_time||!privateLink) {
+          return Response.json({ok:false,message:"This draft is missing protected booking details and cannot be regenerated safely."},{status:409});
+        }
+
+        const protectedTokens=["[[GREETING]]","[[APPOINTMENT]]","[[PRIVATE_LINK]]","[[SCREENING_AND_DEPOSIT]]","[[SIGNATURE]]"];
+        const variations=[
+          `[[GREETING]]\n\nI'd be happy to move forward with your request.\n\n[[APPOINTMENT]]\n\nEverything you need for the next step is on one private page:\n\n[[PRIVATE_LINK]]\n\n[[SCREENING_AND_DEPOSIT]]\n\n[[SIGNATURE]]`,
+          `[[GREETING]]\n\nI'd love to continue with your request.\n\n[[APPOINTMENT]]\n\nYou can take care of the next step through one private page:\n\n[[PRIVATE_LINK]]\n\n[[SCREENING_AND_DEPOSIT]]\n\n[[SIGNATURE]]`,
+          `[[GREETING]]\n\nI'd love to move forward with your request.\n\n[[APPOINTMENT]]\n\nYour next step is all in one private page:\n\n[[PRIVATE_LINK]]\n\n[[SCREENING_AND_DEPOSIT]]\n\n[[SIGNATURE]]`
+        ];
+        let regenerated=variations[(Date.now()+draftId)%variations.length];
+        if(env.AI){
+          try{
+            const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+              {role:"system",content:"Rewrite a short, warm, personal client email in first person. Return only the plain-text email body. Keep every bracketed token exactly once and unchanged. Do not add facts, dates, times, links, payment amounts, promises, pressure, markdown, or a second signature. The protected tokens contain all essential booking information."},
+              {role:"user",content:"Rewrite the flexible wording around these protected blocks while keeping the message concise and natural:\n\n"+variations[2]}
+            ],max_tokens:280,temperature:.75});
+            const candidate=String(ai?.response||ai?.result?.response||"").trim().replace(/^[\"“]|[\"”]$/g,"");
+            const preservesEveryToken=protectedTokens.every(token=>candidate.split(token).length===2);
+            if(candidate&&candidate.length<=2400&&preservesEveryToken) regenerated=candidate;
+          }catch(error){
+            console.error("Protected email regeneration error:",error);
+          }
+        }
+
+        const protectedValues={
+          "[[GREETING]]":"Hi "+String(draft.first_name).trim()+",",
+          "[[APPOINTMENT]]":"Date: "+String(draft.requested_date).trim()+"\nTime: "+String(draft.requested_time).trim(),
+          "[[PRIVATE_LINK]]":privateLink,
+          "[[SCREENING_AND_DEPOSIT]]":"There, you can provide the additional details needed to complete screening. Once I finish the review and confirm your deposit, I’ll send your confirmation email.",
+          "[[SIGNATURE]]":"Kendra"
+        };
+        for(const token of protectedTokens) regenerated=regenerated.replace(token,protectedValues[token]);
+        return Response.json({ok:true,subject:String(draft.subject||"A few details before our date"),body:regenerated,protected:true,message:"Wording regenerated. Protected booking details were preserved."});
+      }catch(error){
+        console.error("Email draft regeneration error:",error);
+        return Response.json({ok:false,message:"Unable to regenerate this email safely."},{status:500});
+      }
+    }
+
 // ========================================
 // UPDATE ADMIN EMAIL DRAFT
 // ========================================
