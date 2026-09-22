@@ -3722,21 +3722,7 @@ async function loadRequests(options = {}) {
             <div style="margin-top:7px;">${decisionHistory.map(item=>`<div style="padding:7px 0;border-top:1px solid #eee7dc;"><strong>${escapeHtml(statusLabel(item.verification_status))}</strong> · ${escapeHtml(formatVerificationTimestamp(item.changed_at)||"—")}${item.decision_reason ? `<div>Reason: ${escapeHtml(String(item.decision_reason).replaceAll("_"," "))}</div>` : ""}</div>`).join("")}</div>
           </details>` : "";
         if(list) list.innerHTML=currentHtml+older+decisions;
-        const txCard=section.querySelector(".client-persona-transaction-card");
-        const txDetails=section.querySelector(".client-persona-transaction-details");
-        const txBody=section.querySelector(".client-persona-transaction-details-body");
-        if(txCard){
-          const attempts=section._personaAttempts||[];
-          txCard.hidden=!attempts.length;
-          if(attempts.length){
-            const current=attempts[0];
-            txCard.innerHTML="<strong>Current Persona attempt</strong><div style=\"margin-top:4px;\">Transaction: "+escapeHtml(current.transaction_id||"Pending transaction ID")+"</div><div>Status: "+escapeHtml(String(current.transaction_status||"submitting").replaceAll("_"," "))+"</div><div>Submitted: "+escapeHtml(formatVerificationTimestamp(current.submitted_at)||"—")+"</div><div>Last refresh: "+escapeHtml(formatVerificationTimestamp(current.last_refreshed_at)||"Not refreshed")+"</div>";
-            if(txDetails&&txBody){
-              txDetails.hidden=attempts.length<2;
-              txBody.innerHTML=attempts.slice(1).map(item=>"<div style=\"padding:6px 0;border-top:1px solid var(--line);\"><strong>Attempt #"+escapeHtml(item.id)+"</strong> · "+escapeHtml(String(item.transaction_status||"").replaceAll("_"," "))+"<br>Transaction: "+escapeHtml(item.transaction_id||"Not assigned")+"<br>Submitted: "+escapeHtml(formatVerificationTimestamp(item.submitted_at)||"—")+(item.replaces_attempt_id?"<br>Replaced attempt #"+escapeHtml(item.replaces_attempt_id):"")+"</div>").join("");
-            }
-          }
-        }
+
         updatePersonaAgeStatus(section);
         renderPersonaReadiness(section,section.dataset.personaConnected==="1");
         updateVerificationSummary(section);
