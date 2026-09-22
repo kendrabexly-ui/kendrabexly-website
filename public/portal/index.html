@@ -699,7 +699,7 @@
 @media (max-width:640px){
   .client-persona-card .persona-button{padding:10px 12px!important;font-size:14px!important;line-height:1.25!important;min-height:44px!important}
   .client-persona-card .verification-actions{gap:6px!important;margin-top:7px!important}
-  .client-persona-workflow-result,.client-persona-transaction-card{padding:9px!important;margin-top:7px!important;line-height:1.45!important}
+  .client-persona-workflow-result{padding:9px!important;margin-top:7px!important;line-height:1.45!important}
   .client-persona-technical{margin-top:5px!important}
 }
 </style>
@@ -2858,8 +2858,6 @@ async function loadRequests(options = {}) {
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
                     <div class="client-persona-workflow-result" hidden role="status" aria-live="polite" style="margin-top:9px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;line-height:1.55;"></div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
-                    <div class="client-persona-transaction-card" hidden style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:9px;background:#faf8f4;font-size:12px;line-height:1.55;"></div>
-                    <details class="client-persona-transaction-details" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-transaction-details-body" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;overflow-wrap:anywhere;"></div></details>
                   </section>
 
                   <details class="verification-card client-audit-history">
@@ -3851,28 +3849,34 @@ async function loadRequests(options = {}) {
         if(current)current.innerHTML=
           '<span class="verification-status-pill" style="background:#eef2f8;color:#38506f;margin-right:6px;">Manual: '+escapeHtml(statusLabel(latest.verification_status||"pending_review"))+'</span>'+
           '<span class="verification-status-pill" style="background:'+(databasePassed?"#e8f6ec":state.bg)+';color:'+(databasePassed?"#22613b":state.color)+';">Persona: '+escapeHtml(databasePassed?"Database Passed":(hasExisting?state.label:"Not submitted"))+"</span>";
-        const card=section.querySelector(".client-persona-transaction-card");
-        if(card){
-          card.hidden=!hasExisting;
+        const resultBox=section.querySelector(".client-persona-workflow-result");
+        if(resultBox){
+          resultBox.hidden=!hasExisting;
           if(hasExisting){
-            const retryLabel=state.key==="failed"?"Eligible":"Not needed";
-            card.innerHTML="<strong>Persona verification</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
-              "<span><strong>Database (US):</strong> "+escapeHtml(databaseStatus?databaseStatus.replaceAll("_"," "):"Not checked yet")+"</span>"+
-              "<span><strong>Inquiry state:</strong> "+escapeHtml(state.label)+"</span>"+
-              "<span><strong>Submitted:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_submitted_at)||"—")+"</span>"+
-              "<span><strong>Last updated:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_database_checked_at||latest.persona_updated_at||latest.updated_at)||"—")+"</span>"+
-              "<span><strong>Retry:</strong> "+escapeHtml(databasePassed?"Not needed":retryLabel)+"</span></div>"+
-              (databasePassed?"<div style=\"margin-top:7px;color:#22613b;font-weight:700;\">Database verification passed. A pending Persona inquiry state does not mean the Database (US) check is pending.</div>":"");
+            const inquiryLabel=String(latest.persona_transaction_status||"pending").replaceAll("_"," ");
+            const databaseLabel=databaseStatus?databaseStatus.replaceAll("_"," "):"Not checked yet";
+            resultBox.innerHTML="<strong>Persona verification</strong>"+
+              "<div style=\"margin-top:7px;color:"+(databasePassed?"#22613b":"var(--ink)")+";font-weight:700;\">Database (US): "+escapeHtml(databaseLabel)+"</div>"+
+              "<div style=\"margin-top:4px;\"><strong>Inquiry state:</strong> "+escapeHtml(inquiryLabel)+"</div>"+
+              (latest.persona_database_checked_at?"<div><strong>Last checked:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_database_checked_at)||latest.persona_database_checked_at)+"</div>":"")+
+              (databasePassed?"<div style=\"margin-top:5px;color:var(--muted);\">Database (US) completed successfully. The inquiry state may remain pending as an administrative Persona state.</div>":"");
+            resultBox.style.borderColor=databasePassed?"#9cc9a8":"var(--line)";
           }
         }
-        const txDetails=section.querySelector(".client-persona-transaction-details");
-        const txBody=section.querySelector(".client-persona-transaction-details-body");
-        if(txDetails&&txBody){
-          txDetails.hidden=!hasExisting;
-          if(hasExisting)txBody.innerHTML="<strong>Inquiry ID:</strong> "+escapeHtml(latest.persona_transaction_id)+
-            "<br><strong>Inquiry raw status:</strong> "+escapeHtml(latest.persona_transaction_status||"pending")+
-            (latest.persona_database_verification_id?"<br><strong>Database verification ID:</strong> "+escapeHtml(latest.persona_database_verification_id):"")+
-            (latest.persona_database_status?"<br><strong>Database raw status:</strong> "+escapeHtml(latest.persona_database_status):"");
+        const technical=section.querySelector(".client-persona-technical");
+        const technicalDetails=section.querySelector(".client-persona-technical-details");
+        if(technical&&technicalDetails&&hasExisting){
+          const savedTechnical=[
+            latest.persona_transaction_id?"Inquiry ID: "+latest.persona_transaction_id:"",
+            latest.persona_transaction_status?"Inquiry raw status: "+latest.persona_transaction_status:"",
+            latest.persona_database_verification_id?"Verification ID: "+latest.persona_database_verification_id:"",
+            latest.persona_database_status?"Database raw status: "+latest.persona_database_status:""
+          ].filter(Boolean);
+          if(savedTechnical.length&&!technicalDetails.textContent.trim()){
+            technical.hidden=false;
+            technicalDetails.textContent=savedTechnical.join("\n");
+            technicalDetails.style.whiteSpace="pre-wrap";
+          }
         }
         updateVerificationSummary(section);
       };
@@ -4411,11 +4415,9 @@ async function loadRequests(options = {}) {
           if(button.disabled)return;
           button.disabled=true;
           const resultBox=section.querySelector(".client-persona-workflow-result");
-          const personaCard=section.querySelector(".client-persona-transaction-card");
           const badge=section.querySelector(".client-persona-badge");
           if(status)status.textContent="Starting a brand-new Persona test inquiry…";
           if(resultBox){resultBox.hidden=false;resultBox.innerHTML="<strong>New Persona test started</strong><div style=\"margin-top:4px;\">Awaiting Database (US)…</div>";resultBox.style.borderColor="#d9c37a";}
-          if(personaCard){personaCard.hidden=false;personaCard.innerHTML="<strong>Persona verification</strong><div style=\"margin-top:6px;\"><strong>Database (US):</strong> Awaiting new result</div>";}
           if(badge){badge.textContent="Persona: Awaiting Database";badge.style.background="#fff4d8";badge.style.color="#74520b";}
           try{
             await submitPersona(false,true);
@@ -4483,14 +4485,6 @@ async function loadRequests(options = {}) {
                   (db.completed_at?"<div><strong>Completed:</strong> "+escapeHtml(formatVerificationTimestamp(db.completed_at)||db.completed_at)+"</div>":"");
                 resultBox.style.borderColor=result.workflow_state==="completed"?"#9cc9a8":result.workflow_state==="running"?"#d9c37a":"#c8c8c8";
                 if(String(db.status||"").toLowerCase()==="passed"){
-                  const currentCard=section.querySelector(".client-persona-transaction-card");
-                  if(currentCard){
-                    currentCard.hidden=false;
-                    currentCard.innerHTML="<strong>Persona verification</strong>"+
-                      "<div style=\"margin-top:7px;color:#22613b;font-weight:700;\">Database (US): Passed</div>"+
-                      "<div style=\"margin-top:4px;\"><strong>Inquiry state:</strong> "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
-                      "<div style=\"margin-top:4px;color:var(--muted);\">The inquiry state is administrative. Database (US) has completed successfully.</div>";
-                  }
                   const badge=section.querySelector(".client-persona-badge");
                   if(badge){
                     badge.textContent="Persona: Database Passed";
