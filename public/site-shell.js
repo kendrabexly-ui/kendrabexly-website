@@ -10,11 +10,23 @@
   class SiteHeader extends HTMLElement {
     connectedCallback() {
       const active = this.getAttribute("active") || "";
+      const isPrivate = this.hasAttribute("private");
+      const privateToken = isPrivate
+        ? (location.pathname.startsWith("/the-details")
+            ? new URLSearchParams(location.hash.slice(1)).get("token")
+            : new URLSearchParams(location.search).get("token")) || ""
+        : "";
+      const safeToken = /^[a-f0-9]{64}$/i.test(privateToken) ? privateToken : "";
+      const privateLinks = [
+        ...(safeToken ? [{ key: "complete", href: "/complete/?token=" + encodeURIComponent(safeToken), label: "Your Request" }] : []),
+        { key: "the-details", href: "/the-details/" + (safeToken ? "#token=" + encodeURIComponent(safeToken) : ""), label: "The Details" }
+      ];
+      const navLinks = isPrivate ? privateLinks : links;
       this.innerHTML = '<header class="nav">' +
-        '<a class="brand" href="/" aria-label="Kendra Bexly home">Kendra Bexly</a>' +
+        (isPrivate ? '<span class="brand">Kendra Bexly</span>' : '<a class="brand" href="/" aria-label="Kendra Bexly home">Kendra Bexly</a>') +
         '<button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>' +
-        '<nav id="site-nav" aria-label="Primary navigation">' +
-        links.map(link =>
+        '<nav id="site-nav" aria-label="' + (isPrivate ? "Private request navigation" : "Primary navigation") + '">' +
+        navLinks.map(link =>
           '<a href="' + link.href + '"' +
           (link.button ? ' class="button small"' : "") +
           (link.key === active ? ' aria-current="page"' : "") +

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Private etiquette, policies, and planning details for clients of Kendra Bexly.">
   <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#f5f1eb">
   <title>The Details | Kendra Bexly</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,7 +17,7 @@
 <body class="etiquette-page pillow-talk-page details-page">
   <a class="skip-link" href="#main-content">Skip to content</a>
 
-  <site-header></site-header>
+  <site-header private active="the-details"></site-header>
 
   <main id="main-content">
     <section class="page-hero" aria-labelledby="details-title">
@@ -96,9 +97,18 @@
         <p>Yes, when availability allows. Same-day requests must be submitted at least two hours before the requested start time to allow time for screening.</p>
       </details>
     </section>
+    <p class="details-return" hidden><a class="button" id="return-private-request" href="/complete/">Return to Your Request</a></p>
   </main>
 
   <site-footer></site-footer>
   <script src="/newsletter.js"></script>
+  <script>
+    const privateToken = new URLSearchParams(location.hash.slice(1)).get("token") || "";
+    if (/^[a-f0-9]{64}$/i.test(privateToken)) {
+      const returnLink = document.getElementById("return-private-request");
+      returnLink.href = "/complete/?token=" + encodeURIComponent(privateToken);
+      returnLink.parentElement.hidden = false;
+    }
+  </script>
 </body>
 </html>

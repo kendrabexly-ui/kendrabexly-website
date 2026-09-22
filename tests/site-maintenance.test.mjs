@@ -34,6 +34,36 @@ test('etiquette and FAQ are combined into the unlisted The Details page', () => 
   assert.match(read('pillow-talk/index.html'),/location\.replace\("\/the-details"\)/);
 });
 
+test('private menu stays within the request and its separate Details page', () => {
+  const accessToken='a'.repeat(64);
+  function renderHeader(pathname,search,hash,privatePage=true){
+    const components=new Map();
+    class Element {
+      getAttribute(name){return name==='active' ? (pathname.startsWith('/complete')?'complete':'the-details') : '';}
+      hasAttribute(name){return name==='private' && privatePage;}
+      querySelector(){return null;}
+    }
+    const context=vm.createContext({HTMLElement:Element,URLSearchParams,location:{pathname,search,hash},document:{querySelector:()=>({}),addEventListener(){}},window:{addEventListener(){},innerWidth:375},customElements:{get:name=>components.get(name),define:(name,component)=>components.set(name,component)}});
+    vm.runInContext(read('site-shell.js'),context);
+    const header=new (components.get('site-header'))();
+    header.connectedCallback();
+    return header.innerHTML;
+  }
+  const requestMenu=renderHeader('/complete/','?token='+accessToken,'');
+  assert.match(requestMenu,/Your Request/);
+  assert.match(requestMenu,/The Details/);
+  assert.match(requestMenu,new RegExp('/the-details/#token='+accessToken));
+  assert.doesNotMatch(requestMenu,/href="\/"|href="\/request"|Meet Kendra|Gallery|Our Time/);
+  const detailsMenu=renderHeader('/the-details/','','#token='+accessToken);
+  assert.match(detailsMenu,new RegExp('/complete/\\?token='+accessToken));
+  assert.doesNotMatch(detailsMenu,/href="\/"|href="\/request"|Meet Kendra|Gallery|Our Time/);
+  const publicMenu=renderHeader('/request','','',false);
+  assert.match(publicMenu,/Request a Date/);
+  assert.doesNotMatch(publicMenu,/The Details/);
+  assert.match(read('complete/index.html'),/<site-header private active="complete">/);
+  assert.match(read('the-details/index.html'),/<site-header private active="the-details">/);
+});
+
 test('analytics identifiers survive blocked browser storage', () => {
   const code=between(read('request.html'),'    const funnelSession =','    function trackFunnel');
   const context=vm.createContext({sessionStorage:{getItem(){throw new Error('blocked');}},crypto:{randomUUID:()=> 'independent-id'}});

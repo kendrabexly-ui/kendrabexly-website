@@ -548,7 +548,7 @@ test("move forward email requests ID, screening, and deposit selection together"
 });
 
 test("combined and older deposit emails link to the unlisted details page",()=>{
-  assert.match(worker,/const detailsUrl=new URL\("\/the-details",request\.url\)\.toString\(\)/);
+  assert.match(worker,/const detailsUrl=new URL\("\/the-details\/#token="\+encodeURIComponent\(continuationToken\),request\.url\)\.toString\(\)/);
   assert.match(worker,/Please also review The Details before continuing/);
   assert.match(worker,/Please review The Details before completing the deposit step/);
   assert.match(worker,/\$\{detailsUrl\}/);
