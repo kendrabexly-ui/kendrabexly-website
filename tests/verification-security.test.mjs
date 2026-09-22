@@ -302,3 +302,28 @@ test("registry routing includes official licensing sources",()=>{
 test("NPI is treated as supporting provider data instead of licensure proof",()=>{
   assert.match(portal,/NPI only as supporting provider data/);
 });
+
+
+test("booking final approval stays a separate admin decision",()=>{
+  const route=worker.slice(worker.indexOf('url.pathname === "/api/admin/request/final-approve"'));
+  assert.match(route,/Deposit must be confirmed before final approval/);
+  assert.match(route,/Screening must be marked Verified and completed before final approval/);
+  assert.match(route,/status = 'approved'/);
+  assert.match(route,/final_approval = 1/);
+  const continuationStart=worker.indexOf('url.pathname === "/api/booking/continuation"');
+  const continuationEnd=worker.indexOf("// Reject unsupported methods to request API",continuationStart);
+  const continuation=worker.slice(continuationStart,continuationEnd);
+  assert.doesNotMatch(continuation,/SET[\s\S]{0,300}status = 'approved'/);
+  assert.doesNotMatch(continuation,/final_approval = 1/);
+});
+
+test("booking availability keeps duration-aware lookup and minimum notice",()=>{
+  assert.match(worker,/siteAvailableSlots\(env, date, duration\)/);
+  assert.match(worker,/requestedStart\.getTime\(\) < Date\.now\(\) \+ 2 \* 60 \* 60 \* 1000/);
+  assert.match(worker,/Please choose a start time at least 2 hours from the time you submit your request/);
+});
+
+test("outcall still requires complete location details",()=>{
+  assert.match(worker,/appointmentType === "outcall" &&\s*\(!outcallAddressLine1 \|\| !outcallCity \|\| !outcallState \|\| !outcallPostalCode\)/);
+  assert.match(worker,/Please complete the outcall address/);
+});
