@@ -4348,7 +4348,9 @@ async function loadRequests(options = {}) {
         "NV|Washoe":["Washoe County Assessor Property Search","https://www.washoecounty.gov/assessor/cama/search.php","Washoe County Assessor","official"],
         "AZ|Maricopa":["Maricopa County Assessor Parcel & Address Search","https://www.mcassessor.maricopa.gov/","Maricopa County Assessor","official"],
         "TX|Harris":["Harris Central Appraisal District Property Search","https://hcad.org/property-search/","Harris Central Appraisal District","official"],
+        "TX|Dallas":["Dallas Central Appraisal District Address Search","https://esearch.dallascad.org/SearchAddr.aspx","Dallas Central Appraisal District","official"],
         "FL|Miami-Dade":["Miami-Dade Property Search","https://www.miamidade.gov/propertysearch/","Miami-Dade County Property Appraiser","official"],
+        "FL|Broward":["Broward County Property Appraiser Record Search","https://web.bcpa.net/bcpaclient/#/Record-Search","Broward County Property Appraiser","official"],
         "NY|New York City":["NYC Property Tax Address Search","https://a836-citypay.nyc.gov/citypay/PropertyTax","New York City Department of Finance","official"]
       };
       const statePropertyDirectories={
@@ -4380,7 +4382,7 @@ async function loadRequests(options = {}) {
         if(st==="NV"){if(/^89[0-1]/.test(zip))return "Clark";if(/^895/.test(zip))return "Washoe";}
         if(st==="AZ"){if(/^85[0-3]/.test(zip))return "Maricopa";if(/^857/.test(zip))return "Pima";}
         if(st==="FL"){if(/^33[0-2]/.test(zip))return "Miami-Dade";if(/^333/.test(zip))return "Broward";}
-        if(st==="NY"&&/^10[0-4]|^11[0-6]/.test(zip))return "New York City";
+        if(st==="NY"&&(/^(10[0-4]|11[0-6])/.test(zip)))return "New York City";
         return "";
       };
       const renderAddressLookupLinks=(section)=>{
@@ -4430,11 +4432,13 @@ async function loadRequests(options = {}) {
         const addressState=String(section.querySelector(".client-address-check-state")?.value||"").toUpperCase();
         const inferredCounty=inferVerificationCounty(addressState,section.querySelector(".client-address-check-city")?.value,section.querySelector(".client-address-check-postal")?.value);
         const addressCounty=section.querySelector(".client-address-check-county");
+        populateCountySelect(addressCounty,addressState,addressCounty?.value||inferredCounty);
         if(addressCounty&&inferredCounty&&!addressCounty.value)addressCounty.value=inferredCounty;
         const publicState=section.querySelector(".client-public-record-state");
         const publicCounty=section.querySelector(".client-public-record-county");
         if(publicState&&!publicState.value&&addressState)publicState.value=addressState;
-        if(publicCounty&&publicState?.value==="CA"&&inferredCounty&&!publicCounty.value)publicCounty.value=inferredCounty;
+        populateCountySelect(publicCounty,publicState?.value||addressState,publicCounty?.value||inferredCounty);
+        if(publicCounty&&inferredCounty&&!publicCounty.value)publicCounty.value=inferredCounty;
         renderAddressLookupLinks(section);
         renderPublicRecordLookups(section);
       };
@@ -4565,9 +4569,11 @@ async function loadRequests(options = {}) {
           renderPublicRecordLookups(section);return;
         }
         set(".client-public-record-state",record.jurisdiction_state);
-        set(".client-public-record-county",record.jurisdiction_county);
+        const countySelect=section.querySelector(".client-public-record-county");
+        populateCountySelect(countySelect,record.jurisdiction_state||"",record.jurisdiction_county||"");
+        if(countySelect)countySelect.value=record.jurisdiction_county||"";
         const countyWrap=section.querySelector(".client-public-record-county-wrap");
-        if(countyWrap)countyWrap.hidden=record.jurisdiction_state!=="CA";
+        if(countyWrap)countyWrap.hidden=!(verificationCountyOptions[record.jurisdiction_state||""]?.length);
         set(".client-public-record-scope",record.search_scope||"state_local");
         set(".client-public-record-status",record.record_status||"not_checked");
         set(".client-public-record-source-name",record.source_name);
@@ -4704,6 +4710,8 @@ async function loadRequests(options = {}) {
               const jurisdiction=[meta.state,meta.county].filter(Boolean).join(" · ")||verificationPretty(item.category);
               return '<div class="verification-check-history-item"><strong>'+escapeHtml(jurisdiction)+' · '+escapeHtml(verificationPretty(item.result_status))+'</strong>'+
                 (item.reference?'<div>Case/reference: '+escapeHtml(item.reference)+'</div>':'')+
+                (meta.disposition_summary?'<div>Disposition/status: '+escapeHtml(meta.disposition_summary)+'</div>':'')+
+                (meta.evidence_reference?'<div>Evidence/reference: '+escapeHtml(meta.evidence_reference)+'</div>':'')+
                 (item.source_name?'<div>Source: '+escapeHtml(item.source_name)+'</div>':'')+
                 '<div style="color:var(--muted);">'+escapeHtml(formatVerificationTimestamp(item.checked_at)||"—")+'</div>'+
                 (item.source_url?'<a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(item.source_url)+'">Open source</a>':'')+'</div>';
