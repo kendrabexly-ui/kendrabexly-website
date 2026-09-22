@@ -14,6 +14,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-overview", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/credential-verification", "edit_verification"],
+  ["/api/admin/clients/employment-verification", "edit_verification"],
   ["/api/admin/clients/public-record-check", "edit_verification"],
   ["/api/admin/clients/address-verification", "edit_verification"],
   ["/api/admin/clients/verification-section-state", "edit_verification"],
@@ -5356,6 +5357,59 @@ if (
           return {...health,warning:Boolean(submitted&&Date.now()-submitted>15*60*1000&&success<submitted)};
         })()
       }, {headers:{"Cache-Control":"private, no-store"}});
+    }
+
+    if (url.pathname === "/api/admin/clients/employment-verification" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const audit=await env.DB.prepare("SELECT id,employment_verification_status FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+        if(!audit)return Response.json({ok:false,message:"No verification record is available for this client."},{status:404});
+        const employer=String(data.submitted_employer||"").trim().slice(0,200);
+        const jobTitle=String(data.submitted_job_title||"").trim().slice(0,160);
+        const industry=String(data.submitted_industry||"").trim().slice(0,160);
+        const status=String(data.employment_verification_status||"not_checked").trim().toLowerCase();
+        const allowed=new Set(["not_checked","pending","confirmed","unable_to_confirm","mismatch"]);
+        if(!allowed.has(status))return Response.json({ok:false,message:"Choose a valid employment verification result."},{status:400});
+        const method=String(data.employment_verification_method||"").trim().slice(0,160);
+        const workEmail=String(data.employment_work_email||"").trim().toLowerCase().slice(0,254);
+        const website=String(data.employment_employer_website||"").trim().slice(0,500);
+        const evidence=String(data.employment_evidence_reference||"").trim().slice(0,1200);
+        if(workEmail&&!verificationEmailValid(workEmail))return Response.json({ok:false,message:"Enter a valid work email address or leave it blank."},{status:400});
+        if(status==="confirmed"&&!(employer&&jobTitle&&industry&&method&&evidence))return Response.json({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
+        if(["unable_to_confirm","mismatch"].includes(status)&&!evidence)return Response.json({ok:false,message:"Add an evidence/reference note for this employment result."},{status:400});
+        await env.DB.prepare(`
+          UPDATE client_verification_audits
+          SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,
+              employment_verification_status=?,employment_verification_method=?,employment_work_email=?,
+              employment_employer_website=?,employment_evidence_reference=?,
+              employment_checked_at=CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,
+              employer_confirmed=CASE WHEN ?='confirmed' THEN 1 ELSE employer_confirmed END,
+              job_title_confirmed=CASE WHEN ?='confirmed' THEN 1 ELSE job_title_confirmed END,
+              industry_confirmed=CASE WHEN ?='confirmed' THEN 1 ELSE industry_confirmed END,
+              updated_at=CURRENT_TIMESTAMP
+          WHERE id=? AND client_id=?
+        `).bind(employer,jobTitle,industry,status,method,workEmail,website,evidence,status,status,status,status,Number(audit.id),clientId).run();
+        const actor=accessIdentity(request).email||"authorized-admin";
+        await logVerificationActivity(env,clientId,Number(audit.id),"employment_verification_updated",
+          status==="confirmed"?"Employment confirmed":status==="mismatch"?"Employment mismatch":status==="unable_to_confirm"?"Employment unable to verify":"Employment verification saved",
+          "Method: "+(method||"not recorded")+(employer?" · Employer: "+employer:"")+" · Checked by "+actor);
+        if(status!=="not_checked"){
+          await logVerificationCheckHistory(env,clientId,"employment",status,"",website,"",evidence,
+            {employer,job_title:jobTitle,industry,method},actor);
+        }
+        const row=await env.DB.prepare(`
+          SELECT submitted_employer,submitted_job_title,submitted_industry,employment_verification_status,
+                 employment_verification_method,employment_work_email,employment_employer_website,
+                 employment_evidence_reference,employment_checked_at,employer_confirmed,job_title_confirmed,industry_confirmed,updated_at
+          FROM client_verification_audits WHERE id=? AND client_id=? LIMIT 1
+        `).bind(Number(audit.id),clientId).first();
+        return Response.json({ok:true,employment:row},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to save employment verification.",technical_details:String(error?.message||error)},{status:500});
+      }
     }
 
     if (url.pathname === "/api/admin/clients/credential-verification" && request.method === "GET") {
