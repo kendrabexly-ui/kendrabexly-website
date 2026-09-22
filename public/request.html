@@ -357,27 +357,6 @@
             </div>
           </fieldset>
 
-
-          <!-- DETAILS -->
-          <div class="field full-width">
-
-            <label for="request-details">
-              Anything you'd like me to know about your plans?
-            </label>
-
-            <textarea
-              id="request-details"
-              name="request_details"
-              rows="3"
-              placeholder="Optional"
-            ></textarea>
-
-            <small>
-              Optional. Please keep your message respectful and do not use explicit language.
-            </small>
-
-          </div>
-
         </div>
 
       </div>
@@ -681,8 +660,6 @@
     ["first-name","last-name","email","phone"].forEach(id => {
       document.getElementById(id)?.addEventListener("blur", maybeTrackAboutYou);
     });
-    const requestDetailsField = document.getElementById("request-details");
-    requestDetailsField?.addEventListener("focus", () => trackOnce("details_reached"));
     const beforeSubmitSection = document.getElementById("screening-acknowledgement");
     beforeSubmitSection?.addEventListener("focus", () => trackOnce("before_submit_reached"));
 
