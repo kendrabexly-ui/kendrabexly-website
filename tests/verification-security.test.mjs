@@ -194,3 +194,13 @@ test("persisted Database Passed state uses the primary Persona result card",()=>
   assert.match(portal,/Database \(US\): "\+escapeHtml\(databaseLabel\)/);
   assert.match(portal,/administrative Persona state/);
 });
+
+
+test("Persona readiness prioritizes Database Passed over pending inquiry",()=>{
+  assert.match(portal,/if\(databaseStatus==="passed"\)return \{key:"database_passed",label:"Database Passed"/);
+  assert.match(portal,/database_passed:"Database \(US\) passed/);
+});
+
+test("workflow result reloads persisted audit state before final Persona badge render",()=>{
+  assert.match(portal,/await loadVerificationAudits\(section\);\n\s*renderPersonaReadiness\(section,section\.dataset\.personaConnected==="1"\);/);
+});

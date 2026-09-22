@@ -3776,8 +3776,10 @@ async function loadRequests(options = {}) {
       const personaReadiness=(section,connected)=>{
         const latest=section._verificationAuditRecords?.[0]||{};
         const status=String(latest.persona_transaction_status||"").toLowerCase();
+        const databaseStatus=String(latest.persona_database_status||"").toLowerCase();
         if(!connected)return {key:"pending_setup",label:"Pending Setup",bg:"#f7f2e9",color:"#5f5446"};
         if(!latest.persona_transaction_id)return {key:"ready",label:"Ready",bg:"#edf7ef",color:"#2f6b45"};
+        if(databaseStatus==="passed")return {key:"database_passed",label:"Database Passed",bg:"#e8f6ec",color:"#22613b"};
         if(status==="approved")return {key:"approved",label:"Approved",bg:"#e8f6ec",color:"#22613b"};
         if(status==="needs_review")return {key:"needs_review",label:"Needs Review",bg:"#fff4d8",color:"#74520b"};
         if(["declined","errored","failed"].includes(status))return {key:"failed",label:"Failed",bg:"#fdeaea",color:"#8a2424"};
@@ -3825,6 +3827,7 @@ async function loadRequests(options = {}) {
             pending_setup:"Persona setup is still pending. You can still complete and review all required Persona fields now.",
             ready:"Persona is ready for an optional external check.",
             pending:"Persona verification is pending.",
+            database_passed:"Database (US) passed. Persona inquiry state may remain pending administratively.",
             approved:"Persona returned Approved. Manual Decision remains separate and authoritative.",
             needs_review:"Persona returned Needs Review. Review the result before making the Manual Decision.",
             failed:"Persona did not complete successfully. Retry is available if appropriate."
@@ -4517,6 +4520,8 @@ async function loadRequests(options = {}) {
               technicalDetails.textContent=technicalLines.join("\n");
               technicalDetails.style.whiteSpace="pre-wrap";
             }
+            await loadVerificationAudits(section);
+            renderPersonaReadiness(section,section.dataset.personaConnected==="1");
             await loadVerificationActivity(section);
           }catch(error){
             if(status)status.textContent="Unable to check Persona workflow result.";
