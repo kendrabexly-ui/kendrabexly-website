@@ -2918,7 +2918,7 @@ async function loadRequests(options = {}) {
                     </div>
                     <div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
                       <strong style="font-size:12px;">Address lookup shortcuts</strong>
-                      <div style="margin-top:4px;font-size:11px;color:var(--muted);">Use an official source to validate the address itself. Property-owner records, when available, are supporting information only and should not be treated as proof that the client currently lives there.</div>
+                      <div style="margin-top:4px;font-size:11px;color:var(--muted);">Use an official source to validate the address itself. County assessor, property appraiser, appraisal district, or parcel/GIS records can help confirm that the property exists and may show parcel or owner-of-record information. They are supporting records only and do not prove that the client currently lives there.</div>
                       <div class="client-address-lookup-links" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;"></div>
                     </div>
                     <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Evidence / reference
@@ -4168,6 +4168,14 @@ async function loadRequests(options = {}) {
         "San Diego":["San Diego Court Index","https://courtindex.sdcourt.ca.gov/CISPublic/","Superior Court of California, County of San Diego","official"],
         "Sacramento":["Sacramento Public Case Access","https://services.saccourt.ca.gov/PublicCaseAccess","Superior Court of California, County of Sacramento","official"]
       };
+      const addressPropertyLookupRoutes={
+        CA:["California County Assessors Directory","https://www.boe.ca.gov/proptaxes/countycontacts.htm","California State Board of Equalization","directory"],
+        NV:["Nevada County Assessors","https://tax.nv.gov/LocalGovt/County_Assessors/","Nevada Department of Taxation","directory"],
+        AZ:["Arizona County Assessor Directory","https://azdor.gov/property-tax/county-assessors","Arizona Department of Revenue","directory"],
+        TX:["Texas County Appraisal District Directory","https://comptroller.texas.gov/taxes/property-tax/county-directory/","Texas Comptroller","directory"],
+        FL:["Florida Property Appraiser Directory","https://floridarevenue.com/property/Pages/LocalOfficials.aspx","Florida Department of Revenue","directory"],
+        NY:["New York Real Property Tax Services","https://www.tax.ny.gov/research/property/assess/local.htm","New York State Department of Taxation and Finance","directory"]
+      };
       const renderAddressLookupLinks=(section)=>{
         const wrap=section.querySelector(".client-address-lookup-links");
         if(!wrap)return;
@@ -4176,8 +4184,11 @@ async function loadRequests(options = {}) {
         const links=[
           ["USPS ZIP Code Lookup","https://tools.usps.com/zip-code-lookup.htm","USPS","directory"]
         ];
-        if(state==="CA"){
-          links.push(["California County Assessors Directory","https://www.boe.ca.gov/proptaxes/countycontacts.htm","California State Board of Equalization","directory"]);
+        const propertyRoute=addressPropertyLookupRoutes[state];
+        if(propertyRoute){
+          links.push([propertyRoute[0],propertyRoute[1],propertyRoute[2],propertyRoute[3]]);
+        }else if(state){
+          links.push(["Find County Assessor / Property Records","https://www.usa.gov/property-records","USA.gov property records","directory"]);
         }
         links.forEach(([label,url,source,kind])=>{
           const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=label;
