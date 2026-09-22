@@ -418,12 +418,13 @@ test("initial booking request stays non-transactional",()=>{
   assert.match(requestPage,/After screening is complete, I’ll let you know the next step/);
 });
 
-test("public request details are lighter and optional",()=>{
-  assert.match(requestPage,/Anything you'd like me to know about your plans\?/);
-  assert.match(requestPage,/rows="3"/);
-  assert.doesNotMatch(requestPage,/name="request_details"[\s\S]{0,120}required/);
-  const requestRoute=worker.slice(worker.indexOf('// PRIVATE REQUEST FORM'),worker.indexOf('// PRIVATE BOOKING CONTINUATION'));
-  assert.doesNotMatch(requestRoute,/!duration \|\|\s*!requestDetails/);
+test("plans note is collected only during private screening",()=>{
+  assert.doesNotMatch(requestPage,/Anything you'd like me to know about your plans\?/);
+  assert.doesNotMatch(requestPage,/name="request_details"/);
+  assert.match(continuationPage,/Anything you'd like me to know about your plans\?/);
+  assert.match(continuationPage,/name="plans_note"/);
+  assert.match(worker,/const plansNote=String\(data\.plans_note/);
+  assert.match(worker,/Plans note: /);
 });
 
 test("fixed-duration experiences auto-select their only duration",()=>{
@@ -444,7 +445,7 @@ test("mobile number requirement explains screening purpose",()=>{
 });
 
 test("section-level booking funnel events are privacy-safe and dashboard-visible",()=>{
-  for(const event of ["about_you_completed","experience_selected","availability_shown","details_reached","before_submit_reached","submit_attempted","validation_phone","validation_outcall","validation_availability","validation_other"]){
+  for(const event of ["about_you_completed","experience_selected","availability_shown","before_submit_reached","submit_attempted","validation_phone","validation_outcall","validation_availability","validation_other"]){
     assert.match(requestPage,new RegExp(event));
     assert.match(worker,new RegExp(event));
   }

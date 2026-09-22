@@ -48,6 +48,11 @@
             <label for="screening-industry">Industry *</label>
             <input id="screening-industry" name="industry" type="text" maxlength="160" required>
           </div>
+          <div class="field full-width">
+            <label for="screening-plans-note">Anything you'd like me to know about your plans?</label>
+            <textarea id="screening-plans-note" name="plans_note" rows="3" maxlength="1200" placeholder="Optional"></textarea>
+            <small>Optional. Share anything helpful for me to know before I review your request.</small>
+          </div>
         </div>
 
         <fieldset id="screening-outcall-address" class="outcall-address" hidden>
@@ -210,6 +215,7 @@
         document.getElementById("screening-employer").value = data.current_employer || "";
         document.getElementById("screening-title").value = data.job_title || "";
         document.getElementById("screening-industry").value = data.industry || "";
+        document.getElementById("screening-plans-note").value = data.plans_note || "";
         const outcallFieldset = document.getElementById("screening-outcall-address");
         const outcallInputs = outcallFieldset ? Array.from(outcallFieldset.querySelectorAll("input")) : [];
         if (data.requires_outcall_address && outcallFieldset) {

@@ -3797,9 +3797,6 @@ My journal will continue to be a place where I share a little more of that side 
         const locationName =
           appointmentType === "outcall" ? outcallAddress : "Incall";
 
-        const requestDetails =
-          String(data.request_details || "").trim();
-
         const requestedStart =
           siteZonedDateTime(requestedDate, requestedTime);
 
@@ -4139,10 +4136,6 @@ My journal will continue to be a place where I share a little more of that side 
             ? `Duration: ${duration}`
             : null,
 
-          requestDetails
-            ? `Request details: ${requestDetails}`
-            : null,
-
           newsletterOffer
             ? `Newsletter special: Newsletter #${newsletterOffer.id}\nSelected monthly special: ${selectedSubscriberSpecial.experience} — ${selectedSubscriberSpecial.duration} at ${selectedSubscriberSpecial.price}\nOffer: ${newsletterOffer.special_offer || "Subscriber special"}`
             : newsletterOfferId
@@ -4307,6 +4300,7 @@ My journal will continue to be a place where I share a little more of that side 
           current_employer:row.submitted_employer||"",
           job_title:row.submitted_job_title||"",
           industry:row.submitted_industry||"",
+          plans_note:String(row.notes||"").match(/Plans note:\s*([^\n]+)/i)?.[1]?.trim()||"",
           requires_outcall_address:/Appointment type:\s*outcall/i.test(String(row.notes||"")),
           outcall_address:row.location_address||"",
           screening_submitted:screeningSubmitted,
@@ -4353,6 +4347,7 @@ My journal will continue to be a place where I share a little more of that side 
           const employer=String(data.current_employer||"").trim().slice(0,160);
           const jobTitle=String(data.job_title||"").trim().slice(0,160);
           const industry=String(data.industry||"").trim().slice(0,160);
+          const plansNote=String(data.plans_note||"").trim().replace(/\s+/g," ").slice(0,1200);
           const outcallAddressLine1=String(data.outcall_address_line_1||"").trim().slice(0,200);
           const outcallAddressLine2=String(data.outcall_address_line_2||"").trim().slice(0,120);
           const outcallCity=String(data.outcall_city||"").trim().slice(0,120);
@@ -4369,6 +4364,10 @@ My journal will continue to be a place where I share a little more of that side 
             SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
             WHERE date_request_id=?
           `).bind(employer,jobTitle,industry,row.date_request_id).run();
+          let updatedNotes=String(row.notes||"").replace(/^Plans note:.*$/gmi,"").trim();
+          if(plansNote) updatedNotes += (updatedNotes?"\n":"") + "Plans note: " + plansNote;
+          await env.DB.prepare("UPDATE date_requests SET notes=? WHERE id=?")
+            .bind(updatedNotes,row.date_request_id).run();
           if(requiresOutcallAddress) {
             await env.DB.prepare("UPDATE date_requests SET location_address=? WHERE id=?")
               .bind(exactOutcallAddress,row.date_request_id).run();
