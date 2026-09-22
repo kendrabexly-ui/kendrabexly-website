@@ -4417,6 +4417,10 @@ async function loadRequests(options = {}) {
             if(resultBox){
               const workflow=result.workflow_run||null;
               const triggerEvent=result.trigger_event||null;
+              const countryFields=result.inquiry_country_fields||{};
+              const countryFieldHtml="<div style=\"margin-top:6px;padding:7px 8px;background:#f7f2e9;border-radius:6px;\"><strong>Inquiry country fields</strong>"+
+                "<div><strong>selected_country_code:</strong> "+escapeHtml(countryFields.selected_country_code||"Not stored")+"</div>"+
+                "<div><strong>address_country_code:</strong> "+escapeHtml(countryFields.address_country_code||"Not stored")+"</div></div>";
               const triggerHtml=triggerEvent
                 ? "<div style=\"margin-top:6px;\"><strong>Trigger event:</strong> Found · "+escapeHtml(triggerEvent.name||"inquiry.created")+"</div>"+
                   "<div><strong>Event ID:</strong> "+escapeHtml(triggerEvent.id||"—")+"</div>"
@@ -4431,8 +4435,9 @@ async function loadRequests(options = {}) {
                 ? "<div style=\"margin-top:6px;\"><strong>Workflow:</strong> "+escapeHtml(String(workflow.state||workflow.status||"triggered").replaceAll("_"," "))+
                   " · "+escapeHtml(workflow.workflow_name||"ClearPath - Inquiry Created - Database Verification")+"</div>"+
                   "<div><strong>Workflow Run ID:</strong> "+escapeHtml(workflow.id||"—")+"</div>"+
+                  countryFieldHtml+
                   (diagnosticText?"<div style=\"margin-top:6px;padding:7px 8px;background:#fff7f7;border-radius:6px;\"><strong>Persona error details</strong>"+diagnosticText+"</div>":"")
-                : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Workflow:</strong> Not triggered / no matching run found.</div>";
+                : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Workflow:</strong> Not triggered / no matching run found.</div>"+countryFieldHtml;
               if(db){
                 const statusLabel=String(db.status||"unknown").replaceAll("_"," ");
                 const timing=[
