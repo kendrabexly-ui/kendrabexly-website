@@ -359,6 +359,7 @@ async function ensureVerificationWorkspaceTables(env) {
     CREATE TABLE IF NOT EXISTS client_public_record_checks (
       client_id INTEGER PRIMARY KEY,
       jurisdiction_state TEXT NOT NULL DEFAULT '',
+      jurisdiction_county TEXT NOT NULL DEFAULT '',
       search_scope TEXT NOT NULL DEFAULT 'state_local',
       record_status TEXT NOT NULL DEFAULT 'not_checked',
       source_name TEXT NOT NULL DEFAULT '',
@@ -371,6 +372,12 @@ async function ensureVerificationWorkspaceTables(env) {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+  const publicRecordColumns = await env.DB.prepare("PRAGMA table_info(client_public_record_checks)").all();
+  const publicRecordNames = new Set((publicRecordColumns.results || []).map(row => String(row.name || "")));
+  if (!publicRecordNames.has("jurisdiction_county")) {
+    await env.DB.prepare("ALTER TABLE client_public_record_checks ADD COLUMN jurisdiction_county TEXT NOT NULL DEFAULT ''").run();
+  }
+
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_verification_activity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -5381,13 +5388,13 @@ if (
         const clientId=Number(url.searchParams.get("client_id")||0);
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
         const row=await env.DB.prepare(`
-          SELECT client_id,jurisdiction_state,search_scope,record_status,source_name,source_url,
+          SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
           FROM client_public_record_checks WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
         return Response.json({ok:true,check:row?{
           client_id:Number(row.client_id),jurisdiction_state:row.jurisdiction_state||"",
-          search_scope:row.search_scope||"state_local",record_status:row.record_status||"not_checked",
+          jurisdiction_county:row.jurisdiction_county||"",search_scope:row.search_scope||"state_local",record_status:row.record_status||"not_checked",
           source_name:row.source_name||"",source_url:row.source_url||"",case_reference:row.case_reference||"",
           disposition_summary:row.disposition_summary||"",evidence_reference:row.evidence_reference||"",
           checked_at:row.checked_at||"",checked_by:row.checked_by||"",updated_at:row.updated_at||""
@@ -5404,6 +5411,7 @@ if (
         const clientId=Number(data.client_id||0);
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
         const jurisdictionState=normalizeVerificationState(data.jurisdiction_state||"").slice(0,40);
+        const jurisdictionCounty=String(data.jurisdiction_county||"").trim().slice(0,120);
         const searchScope=String(data.search_scope||"state_local").trim().toLowerCase();
         if(!["state_local","federal","sex_offender_registry","multiple_sources"].includes(searchScope)){
           return Response.json({ok:false,message:"Choose a valid public-record search scope."},{status:400});
@@ -5429,17 +5437,17 @@ if (
         const actor=accessIdentity(request).email||"authorized-admin";
         await env.DB.prepare(`
           INSERT INTO client_public_record_checks
-            (client_id,jurisdiction_state,search_scope,record_status,source_name,source_url,case_reference,
+            (client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,case_reference,
              disposition_summary,evidence_reference,checked_at,checked_by,updated_at)
-          VALUES(?,?,?,?,?,?,?,?,?,CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,?,CURRENT_TIMESTAMP)
+          VALUES(?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,?,CURRENT_TIMESTAMP)
           ON CONFLICT(client_id) DO UPDATE SET
-            jurisdiction_state=excluded.jurisdiction_state,search_scope=excluded.search_scope,
+            jurisdiction_state=excluded.jurisdiction_state,jurisdiction_county=excluded.jurisdiction_county,search_scope=excluded.search_scope,
             record_status=excluded.record_status,source_name=excluded.source_name,source_url=excluded.source_url,
             case_reference=excluded.case_reference,disposition_summary=excluded.disposition_summary,
             evidence_reference=excluded.evidence_reference,
             checked_at=CASE WHEN excluded.record_status='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,
             checked_by=excluded.checked_by,updated_at=CURRENT_TIMESTAMP
-        `).bind(clientId,jurisdictionState,searchScope,recordStatus,sourceName,sourceUrl,caseReference,
+        `).bind(clientId,jurisdictionState,jurisdictionCounty,searchScope,recordStatus,sourceName,sourceUrl,caseReference,
                  dispositionSummary,evidenceReference,recordStatus,actor).run();
         const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
         if(recordStatus!=="not_checked"){
@@ -5447,11 +5455,12 @@ if (
             recordStatus==="confirmed_match"?"Public court record match recorded":"Public court record check saved",
             "Checked by: "+actor+" · Scope: "+searchScope+" · Result: "+recordStatus+
             (jurisdictionState?" · State: "+jurisdictionState:"")+
+            (jurisdictionCounty?" · County: "+jurisdictionCounty:"")+
             (sourceName?" · Source: "+sourceName:"")+
             (caseReference?" · Reference: "+caseReference:""));
         }
         const saved=await env.DB.prepare(`
-          SELECT client_id,jurisdiction_state,search_scope,record_status,source_name,source_url,
+          SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
           FROM client_public_record_checks WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
