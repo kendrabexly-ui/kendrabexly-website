@@ -160,6 +160,39 @@ async function ensureSiteContentTables(env) {
 
 
 
+async function recordBookingFunnelEvent(env,eventName,{sessionId="",requestId=null,path=""}={}) {
+  await ensureSiteContentTables(env);
+  const normalizedEvent=String(eventName||"").trim().slice(0,80);
+  const normalizedSession=String(sessionId||"").trim().slice(0,160);
+  const numericRequest=Number(requestId||0);
+  const normalizedRequest=Number.isInteger(numericRequest)&&numericRequest>0?numericRequest:null;
+  const normalizedPath=String(path||"").trim().slice(0,200);
+  if(!normalizedEvent)return;
+  if(normalizedRequest){
+    await env.DB.prepare(`
+      INSERT INTO booking_funnel_events (event_name,session_id,request_id,path)
+      SELECT ?,?,?,?
+      WHERE NOT EXISTS (
+        SELECT 1 FROM booking_funnel_events WHERE event_name=? AND request_id=?
+      )
+    `).bind(normalizedEvent,normalizedSession,normalizedRequest,normalizedPath,normalizedEvent,normalizedRequest).run();
+    return;
+  }
+  if(normalizedSession){
+    await env.DB.prepare(`
+      INSERT INTO booking_funnel_events (event_name,session_id,request_id,path)
+      SELECT ?,?,?,?
+      WHERE NOT EXISTS (
+        SELECT 1 FROM booking_funnel_events
+        WHERE event_name=? AND request_id IS NULL AND session_id=?
+      )
+    `).bind(normalizedEvent,normalizedSession,null,normalizedPath,normalizedEvent,normalizedSession).run();
+    return;
+  }
+  await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
+    .bind(normalizedEvent,"",null,normalizedPath).run();
+}
+
 async function sha256Hex(value){
   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(value||"")));
   return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
@@ -3657,16 +3690,18 @@ My journal will continue to be a place where I share a little more of that side 
 
     if (url.pathname === "/api/public/funnel" && request.method === "POST") {
       try {
-        await ensureSiteContentTables(env);
         const data=await request.json().catch(()=>({}));
-        const allowed=new Set(["request_page_view","form_started","availability_checked","booking_summary_viewed","form_submitted","continuation_opened","continuation_completed"]);
+        const allowed=new Set(["request_page_view","form_started","availability_checked","booking_summary_viewed","form_submitted","continuation_opened"]);
         const eventName=String(data.event||"").trim();
         if(!allowed.has(eventName)) return Response.json({ok:false,message:"Invalid funnel event."},{status:400});
         const sessionId=String(data.session_id||"").trim().slice(0,160);
         const requestId=Number(data.request_id||0);
         const path=String(data.path||"").trim().slice(0,200);
-        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
-          .bind(eventName,sessionId,Number.isInteger(requestId)&&requestId>0?requestId:null,path).run();
+        await recordBookingFunnelEvent(env,eventName,{
+          sessionId,
+          requestId:Number.isInteger(requestId)&&requestId>0?requestId:null,
+          path
+        });
         return Response.json({ok:true});
       } catch(error) {
         console.error("Booking funnel event error:",error);
@@ -4332,8 +4367,11 @@ My journal will continue to be a place where I share a little more of that side 
           SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP
           WHERE date_request_id=?
         `).bind(row.date_request_id).run();
-        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
-          .bind("continuation_completed","server:continuation",row.date_request_id,"/complete").run();
+        await recordBookingFunnelEvent(env,"continuation_completed",{
+          sessionId:"server:continuation",
+          requestId:row.date_request_id,
+          path:"/complete"
+        });
         return Response.json({ok:true,request_id:Number(row.date_request_id),message:"Screening details received for final review."});
       } catch(error) {
         console.error("Booking continuation submit error:",error);
@@ -7234,8 +7272,11 @@ if (
           `)
           .bind(depositAmount, requestId)
           .run();
-        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
-          .bind("moved_forward","server:admin",requestId,"/portal/request").run();
+        await recordBookingFunnelEvent(env,"moved_forward",{
+          sessionId:"server:admin",
+          requestId,
+          path:"/portal/request"
+        });
 
         if (bookingRate > 0) {
           const depositDisplay = new Intl.NumberFormat("en-US", {
@@ -7447,9 +7488,11 @@ Kendra`
         await env.DB.prepare(
           "UPDATE date_requests SET deposit_paid = 1, notes = ? WHERE id = ?"
         ).bind(notes, requestId).run();
-        await ensureSiteContentTables(env);
-        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
-          .bind("deposit_confirmed","server:admin",requestId,"/portal/request").run();
+        await recordBookingFunnelEvent(env,"deposit_confirmed",{
+          sessionId:"server:admin",
+          requestId,
+          path:"/portal/request"
+        });
 
         return Response.json({
           ok:true,
@@ -7768,9 +7811,11 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           `)
           .bind(requestId)
           .run();
-        await ensureSiteContentTables(env);
-        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
-          .bind("final_approved","server:admin",requestId,"/portal/request").run();
+        await recordBookingFunnelEvent(env,"final_approved",{
+          sessionId:"server:admin",
+          requestId,
+          path:"/portal/request"
+        });
 const approvedRequest = await env.DB
   .prepare(`
     SELECT
