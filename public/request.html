@@ -565,6 +565,31 @@
       updateBookingSummary();
     });
     syncDurationOptions();
+
+    const funnelSession = (() => {
+      const key = "booking_funnel_session";
+      let value = sessionStorage.getItem(key);
+      if (!value) {
+        value = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+        sessionStorage.setItem(key, value);
+      }
+      return value;
+    })();
+    function trackFunnel(eventName, requestId) {
+      fetch("/api/public/funnel", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        keepalive: true,
+        body: JSON.stringify({
+          event: eventName,
+          session_id: funnelSession,
+          request_id: requestId || null,
+          path: location.pathname
+        })
+      }).catch(() => {});
+    }
+    trackFunnel("request_page_view");
+
     if (requestedExperience && dateType && Array.from(dateType.options).some(option => option.value === requestedExperience)) {
       dateType.value = requestedExperience;
       syncDurationOptions();
@@ -774,29 +799,6 @@
     const form =
       document.getElementById("request-form");
 
-    const funnelSession = (() => {
-      const key = "booking_funnel_session";
-      let value = sessionStorage.getItem(key);
-      if (!value) {
-        value = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
-        sessionStorage.setItem(key, value);
-      }
-      return value;
-    })();
-    function trackFunnel(eventName, requestId) {
-      fetch("/api/public/funnel", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        keepalive: true,
-        body: JSON.stringify({
-          event: eventName,
-          session_id: funnelSession,
-          request_id: requestId || null,
-          path: location.pathname
-        })
-      }).catch(() => {});
-    }
-    trackFunnel("request_page_view");
     let formStarted = false;
     form.addEventListener("input", () => {
       if (!formStarted) {
