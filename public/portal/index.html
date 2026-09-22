@@ -3827,7 +3827,7 @@ async function loadRequests(options = {}) {
             pending_setup:"Persona setup is still pending. You can still complete and review all required Persona fields now.",
             ready:"Persona is ready for an optional external check.",
             pending:"Persona verification is pending.",
-            database_passed:"Database (US) passed. Persona inquiry state may remain pending administratively.",
+            database_passed:"Database (US) passed.",
             approved:"Persona returned Approved. Manual Decision remains separate and authoritative.",
             needs_review:"Persona returned Needs Review. Review the result before making the Manual Decision.",
             failed:"Persona did not complete successfully. Retry is available if appropriate."
@@ -3848,7 +3848,7 @@ async function loadRequests(options = {}) {
               "<div style=\"margin-top:7px;color:"+(databasePassed?"#22613b":"var(--ink)")+";font-weight:700;\">Database (US): "+escapeHtml(databaseLabel)+"</div>"+
               "<div style=\"margin-top:4px;\"><strong>Inquiry state:</strong> "+escapeHtml(inquiryLabel)+"</div>"+
               (latest.persona_database_checked_at?"<div><strong>Last checked:</strong> "+escapeHtml(formatVerificationTimestamp(latest.persona_database_checked_at)||latest.persona_database_checked_at)+"</div>":"")+
-              (databasePassed?"<div style=\"margin-top:5px;color:var(--muted);\">Database (US) completed successfully. The inquiry state may remain pending as an administrative Persona state.</div>":"");
+              (databasePassed?"<div style=\"margin-top:5px;color:var(--muted);\">Database (US) completed successfully. The inquiry state shown above is Persona's administrative inquiry state.</div>":"");
             resultBox.style.borderColor=databasePassed?"#9cc9a8":"var(--line)";
           }
         }
