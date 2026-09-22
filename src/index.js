@@ -5586,6 +5586,21 @@ if (
         }
 
         const inquiryStatus=String(personaPayload?.data?.attributes?.status||audit.persona_transaction_status||"created").toLowerCase();
+        const inquiryFields=personaPayload?.data?.attributes?.fields&&typeof personaPayload.data.attributes.fields==="object"
+          ? personaPayload.data.attributes.fields
+          : {};
+        const countryFieldDiagnostics={
+          selected_country_code:String(
+            inquiryFields.selected_country_code ??
+            inquiryFields["selected-country-code"] ??
+            ""
+          ),
+          address_country_code:String(
+            inquiryFields.address_country_code ??
+            inquiryFields["address-country-code"] ??
+            ""
+          )
+        };
         const included=Array.isArray(personaPayload?.included)?personaPayload.included:[];
         const verifications=included.filter(item=>String(item?.type||"").startsWith("verification/"));
         const createdMs=item=>{
@@ -5755,6 +5770,7 @@ if (
           ok:true,
           inquiry_id:inquiryId,
           inquiry_status:inquiryStatus,
+          inquiry_country_fields:countryFieldDiagnostics,
           database_ran:Boolean(latestDatabase),
           workflow_state:workflowState,
           database_verification:latestDatabase ? {
