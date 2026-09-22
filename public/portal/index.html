@@ -7676,7 +7676,7 @@ function escapeHtml(value) {
       const xFlowButtons=[...xSectionNav.querySelectorAll("[data-x-jump]")];
       const xViewKeys=["create","planner","drafts","schedule","library","social"];
       const xAnchorPanel=key=>document.querySelector('[data-x-anchor="'+key+'"]')?.closest(".panel");
-      const xPanels=[...document.querySelectorAll("#x-agent > .panel, #x-agent > details.panel")];
+      const xPanels=[...document.querySelectorAll("#x-agent-boundary > .panel, #x-agent-boundary > details.panel")];
       const xAlwaysVisible=new Set(["x-today-workflow","x-today-plan"]);
       const setXFlowActive=key=>xFlowButtons.forEach(btn=>{
         const active=btn.dataset.xJump===key;
@@ -8576,6 +8576,54 @@ function escapeHtml(value) {
   </script>
 
 <script>
+  // Keep the X Agent's local tabs usable even if an unrelated dashboard
+  // initializer fails before the full X controller is attached.
+  (() => {
+    const nav = document.getElementById("x-section-nav");
+    const boundary = document.getElementById("x-agent-boundary");
+    if (!nav || !boundary) return;
+
+    const keys = new Set(["create", "planner", "drafts", "schedule", "library", "social"]);
+    const buttons = [...nav.querySelectorAll("[data-x-jump]")];
+    const panels = [...boundary.querySelectorAll(":scope > .panel, :scope > details.panel")];
+    const alwaysVisible = new Set(["x-today-workflow", "x-today-plan"]);
+    const targetFor = key => boundary.querySelector('[data-x-anchor="' + key + '"]')?.closest(".panel");
+
+    const show = requestedKey => {
+      const key = keys.has(requestedKey) ? requestedKey : "create";
+      const target = targetFor(key);
+      if (!target) return;
+
+      panels.forEach(panel => {
+        panel.style.display = panel === target || alwaysVisible.has(panel.id) ? "" : "none";
+      });
+      buttons.forEach(button => {
+        const active = button.dataset.xJump === key;
+        button.style.cssText = "border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:" + (active ? "var(--ink)" : "white") + ";color:" + (active ? "white" : "var(--ink)") + ";cursor:pointer;font-size:12px;transition:.15s ease;touch-action:manipulation;";
+        button.setAttribute("aria-current", active ? "page" : "false");
+      });
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("x_view", key);
+      window.history.replaceState({}, "", url);
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+
+      if (typeof window.__loadAdminSectionData === "function") {
+        window.__loadAdminSectionData("x-agent", true);
+      }
+    };
+
+    nav.addEventListener("click", event => {
+      const button = event.target.closest?.("[data-x-jump]");
+      if (!button) return;
+      event.preventDefault();
+      show(button.dataset.xJump);
+    }, true);
+
+    show(new URLSearchParams(window.location.search).get("x_view") || "create");
+    window.__showXAgentView = show;
+  })();
+
   (() => {
     const strategy = document.getElementById("retention-offer-strategy");
     const guidance = document.getElementById("retention-offer-guidance");
