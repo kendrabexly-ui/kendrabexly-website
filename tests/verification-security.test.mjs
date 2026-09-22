@@ -117,3 +117,21 @@ test("Database verification result is returned to the dashboard",()=>{
   assert.match(worker,/persona_database_checked_at/);
   assert.match(portal,/Database \(US\):/);
 });
+
+
+test("pending inquiry plus passed database is not Persona Pending",()=>{
+  const match=worker.match(/function isPersonaDatabasePending\(transactionId,inquiryStatus,databaseStatus\) \{[\s\S]*?\n\}/);
+  assert.ok(match,"isPersonaDatabasePending helper should exist");
+  const isPersonaDatabasePending=new Function(match[0]+"; return isPersonaDatabasePending;")();
+  assert.equal(isPersonaDatabasePending("inq_test","pending","passed"),false);
+  assert.equal(isPersonaDatabasePending("inq_test","pending",""),true);
+});
+
+test("Persona workflow result endpoint requires run_persona permission",()=>{
+  assert.match(worker,/\["\/api\/admin\/clients\/persona-workflow-result", "run_persona"\]/);
+});
+
+test("Persona Pending dashboard filter uses computed database-aware state",()=>{
+  assert.match(portal,/verificationFilter === "persona_pending" && !verification\.persona_pending/);
+  assert.match(portal,/Persona: Database Passed/);
+});
