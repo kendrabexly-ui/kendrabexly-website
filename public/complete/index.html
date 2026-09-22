@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Complete the private next step for your booking request.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
   <title>Complete Your Request | Kendra Bexly</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,15 +14,16 @@
   <script src="/site-shell.js"></script>
 </head>
 <body class="rendezvous-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <site-header></site-header>
-  <main class="request-page">
+  <main id="main-content" class="request-page">
     <section class="request-intro">
       <div class="eyebrow">PRIVATE NEXT STEP</div>
       <h1>Complete Your Request</h1>
       <p>This private page is tied only to the request link sent to you.</p>
     </section>
 
-    <section id="continuation-loading" class="form-section">
+    <section id="continuation-loading" class="form-section" role="status" aria-live="polite">
       <p>Loading your private request…</p>
     </section>
 
@@ -161,8 +164,9 @@
     const money = value => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(value)||0);
     const escapeHtml = value => String(value||"").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]));
 
+    const analyticsSession = globalThis.crypto?.randomUUID?.() || String(Date.now()) + Math.random();
     async function track(eventName) {
-      fetch("/api/public/funnel",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({event:eventName,session_id:"continuation:"+token.slice(0,12),request_id:requestId,path:location.pathname})}).catch(()=>{});
+      fetch("/api/public/funnel",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({event:eventName,session_id:analyticsSession,request_id:requestId,path:location.pathname})}).catch(()=>{});
     }
 
     function renderSummary(data) {
@@ -305,7 +309,10 @@
       }
     });
 
-    load();
+    load().catch(() => {
+      loading.hidden = false;
+      loading.textContent = "This page could not load. Check your connection and reload the page. If the link has expired, request a new private link from the sender.";
+    });
   </script>
 </body>
 </html>

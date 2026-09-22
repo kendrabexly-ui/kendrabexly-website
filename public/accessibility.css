@@ -1,0 +1,46 @@
+/* Shared safeguards for narrow viewports, enlarged text, and keyboard use. */
+:where(main, section, article, fieldset, label, .field, .verification-card) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+input, select, textarea {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+input[type="date"], input[type="datetime-local"], input[type="time"] {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  width: 100%;
+}
+input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+img { max-width: 100%; }
+:is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #6f4f41 !important;
+  outline-offset: 3px !important;
+}
+main :is(section, article, [tabindex="-1"]) { scroll-margin-top: 100px; }
+.verification-warning-link {
+  display: grid;
+  gap: 4px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.verification-warning-link span:last-child { text-decoration: underline; }
+.verification-card label, .verification-overview-item { min-width: 0; overflow-wrap: anywhere; }
+.client-final-review-warnings:focus { outline: 3px solid #6f4f41; outline-offset: 3px; }
+@media (max-width: 600px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; }
+  .client-id-documents :is(input, select, textarea) { max-width: 100% !important; min-width: 0 !important; }
+  .client-id-documents button { white-space: normal; overflow-wrap: anywhere; }
+  body .nav { gap: 12px; flex-wrap: wrap; }
+  body .nav .brand { white-space: normal; }
+  body .rate-list > div { flex-wrap: wrap; }
+  body .policy-list article { grid-template-columns: minmax(0, 1fr); }
+  body .page-hero h1, body.invitation-page .hero h1, body .request-intro h1 { font-size: clamp(2rem, 10vw, 3rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

@@ -1,11 +1,11 @@
 (() => {
   const links = [
-    { key: "invitation", href: "/", label: "The Invitation" },
+    { key: "invitation", href: "/", label: "Home" },
     { key: "meet-kendra", href: "/meet-kendra", label: "Meet Kendra" },
-    { key: "the-muse", href: "/the-muse", label: "The Muse" },
+    { key: "the-muse", href: "/the-muse", label: "Gallery" },
     { key: "our-time", href: "/our-time", label: "Our Time" },
     { key: "etiquette", href: "/etiquette", label: "Etiquette" },
-    { key: "pillow-talk", href: "/pillow-talk", label: "Pillow Talk" },
+    { key: "pillow-talk", href: "/pillow-talk", label: "FAQ" },
     { key: "request", href: "/request", label: "Request a Date", button: true }
   ];
 
@@ -71,7 +71,7 @@
             '<small class="footer-subscribe-status" hidden role="status" aria-live="polite"></small>' +
           '</form>' +
         '</div>' +
-        '<div class="footer-bottom"><span>Copyright 2025 by Kendra Bexly</span></div>' +
+        '<div class="footer-bottom"><span>Copyright ' + new Date().getFullYear() + ' by Kendra Bexly</span></div>' +
       '</footer>';
     }
   }
