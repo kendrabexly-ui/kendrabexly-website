@@ -4281,10 +4281,12 @@ My journal will continue to be a place where I share a little more of that side 
         if(!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
         const tokenHash=await sha256Hex(token);
         const row=await env.DB.prepare(`
-          SELECT bc.date_request_id,bc.expires_at,bc.completed_at,
+          SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
+                 bc.deposit_step_acknowledged,
                  dr.requested_date,dr.requested_time,dr.location_name,dr.deposit_amount,dr.notes,
                  c.first_name,c.last_name,
-                 va.submitted_employer,va.submitted_job_title,va.submitted_industry
+                 va.submitted_employer,va.submitted_job_title,va.submitted_industry,
+                 va.verification_status,va.completed_at AS verification_completed_at
           FROM booking_continuations bc
           JOIN date_requests dr ON dr.id=bc.date_request_id
           JOIN clients c ON c.id=dr.client_id
@@ -4293,9 +4295,13 @@ My journal will continue to be a place where I share a little more of that side 
         `).bind(tokenHash).first();
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired. Please contact Kendra for a new link."},{status:410});
+        const screeningSubmitted=Boolean(row.screening_submitted_at);
+        const verified=String(row.verification_status||"")==="verified"&&Boolean(row.verification_completed_at);
+        const depositUnlocked=screeningSubmitted&&verified;
+        const depositCompleted=Number(row.deposit_step_acknowledged||0)===1;
         const paymentMethodKey=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim().toLowerCase()||"";
         const storedDepositAmount=Number(row.deposit_amount||0);
-        const baseDepositAmount=row.completed_at && ["stripe","crypto"].includes(paymentMethodKey)
+        const baseDepositAmount=depositCompleted&&["stripe","crypto"].includes(paymentMethodKey)
           ? Math.round((storedDepositAmount/1.10)*100)/100
           : storedDepositAmount;
         const depositProcessingFee=["stripe","crypto"].includes(paymentMethodKey)
@@ -4308,15 +4314,18 @@ My journal will continue to be a place where I share a little more of that side 
           requested_date:row.requested_date||"",
           requested_time:row.requested_time||"",
           location_name:row.location_name||"",
+          current_employer:row.submitted_employer||"",
+          job_title:row.submitted_job_title||"",
+          industry:row.submitted_industry||"",
+          screening_submitted:screeningSubmitted,
+          verification_status:row.verification_status||"pending_review",
+          deposit_unlocked:depositUnlocked,
+          deposit_completed:depositCompleted,
           deposit_amount:storedDepositAmount,
           base_deposit_amount:baseDepositAmount,
           deposit_processing_fee:depositProcessingFee,
           deposit_payment_method_key:paymentMethodKey,
-          deposit_payment_method:paymentMethodKey==="gift-card"?"Gift Card":paymentMethodKey==="stripe"?"Stripe":paymentMethodKey==="crypto"?"Crypto":"",
-          current_employer:row.submitted_employer||"",
-          job_title:row.submitted_job_title||"",
-          industry:row.submitted_industry||"",
-          completed:Boolean(row.completed_at)
+          deposit_payment_method:paymentMethodKey==="gift-card"?"Gift Card":paymentMethodKey==="stripe"?"Stripe":paymentMethodKey==="crypto"?"Crypto":""
         });
       } catch(error) {
         console.error("Booking continuation load error:",error);
@@ -4330,64 +4339,91 @@ My journal will continue to be a place where I share a little more of that side 
         await ensureClientVerificationAuditsTable(env);
         const data=await request.json().catch(()=>({}));
         const token=String(data.token||"").trim();
+        const step=String(data.step||"screening").trim().toLowerCase();
         if(!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
         const tokenHash=await sha256Hex(token);
         const row=await env.DB.prepare(`
-          SELECT bc.date_request_id,bc.expires_at,bc.completed_at,dr.deposit_amount,dr.notes
+          SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
+                 bc.deposit_step_acknowledged,dr.deposit_amount,dr.notes,
+                 va.verification_status,va.completed_at AS verification_completed_at
           FROM booking_continuations bc
           JOIN date_requests dr ON dr.id=bc.date_request_id
+          LEFT JOIN client_verification_audits va ON va.date_request_id=dr.id
           WHERE bc.token_hash=? LIMIT 1
         `).bind(tokenHash).first();
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
-        if(row.completed_at) {
-          return Response.json({ok:true,completed:true,request_id:Number(row.date_request_id),message:"This private step is already complete."});
+
+        if(step==="screening") {
+          if(row.screening_submitted_at) {
+            return Response.json({ok:true,screening_submitted:true,request_id:Number(row.date_request_id),message:"Your screening details were already received."});
+          }
+          const employer=String(data.current_employer||"").trim().slice(0,160);
+          const jobTitle=String(data.job_title||"").trim().slice(0,160);
+          const industry=String(data.industry||"").trim().slice(0,160);
+          if(!employer||!jobTitle||!industry) return Response.json({ok:false,message:"Complete all screening details."},{status:400});
+          await env.DB.prepare(`
+            UPDATE client_verification_audits
+            SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
+            WHERE date_request_id=?
+          `).bind(employer,jobTitle,industry,row.date_request_id).run();
+          await env.DB.prepare(`
+            UPDATE booking_continuations
+            SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),updated_at=CURRENT_TIMESTAMP
+            WHERE date_request_id=?
+          `).bind(row.date_request_id).run();
+          await recordBookingFunnelEvent(env,"continuation_completed",{
+            sessionId:"server:continuation",
+            requestId:row.date_request_id,
+            path:"/complete"
+          });
+          return Response.json({ok:true,screening_submitted:true,request_id:Number(row.date_request_id),message:"Screening details received. Kendra will review them before any deposit is requested."});
         }
-        const employer=String(data.current_employer||"").trim().slice(0,160);
-        const jobTitle=String(data.job_title||"").trim().slice(0,160);
-        const industry=String(data.industry||"").trim().slice(0,160);
-        const depositPaymentMethod=String(data.deposit_payment_method||"").trim().toLowerCase();
-        const allowedDepositPaymentMethods=new Set(["gift-card","stripe","crypto"]);
-        const depositAck=data.deposit_step_acknowledged==="yes";
-        if(!employer||!jobTitle||!industry||!allowedDepositPaymentMethods.has(depositPaymentMethod)||!depositAck) {
-          return Response.json({ok:false,message:"Complete all screening details, choose a payment method, and acknowledge the deposit step."},{status:400});
+
+        if(step==="deposit") {
+          const verified=String(row.verification_status||"")==="verified"&&Boolean(row.verification_completed_at);
+          if(!row.screening_submitted_at||!verified) {
+            return Response.json({ok:false,message:"Deposit selection is not available until screening is completed and verified."},{status:403});
+          }
+          if(Number(row.deposit_step_acknowledged||0)===1) {
+            return Response.json({ok:true,deposit_completed:true,request_id:Number(row.date_request_id),message:"Your deposit selection was already received."});
+          }
+          const depositPaymentMethod=String(data.deposit_payment_method||"").trim().toLowerCase();
+          const allowedDepositPaymentMethods=new Set(["gift-card","stripe","crypto"]);
+          const depositAck=data.deposit_step_acknowledged==="yes";
+          if(!allowedDepositPaymentMethods.has(depositPaymentMethod)||!depositAck) {
+            return Response.json({ok:false,message:"Choose a payment method and acknowledge the deposit step."},{status:400});
+          }
+          const baseDepositAmount=Number(row.deposit_amount||0);
+          if(baseDepositAmount<=0) return Response.json({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
+          const depositProcessingFee=["stripe","crypto"].includes(depositPaymentMethod)
+            ? Math.round(baseDepositAmount*0.10*100)/100
+            : 0;
+          const finalDepositAmount=Math.round((baseDepositAmount+depositProcessingFee)*100)/100;
+          let requestNotes=String(row.notes||"").replace(/^Deposit payment method:.*$/gmi,"").trim();
+          requestNotes += (requestNotes?"\n":"") + "Deposit payment method: " + depositPaymentMethod;
+          await env.DB.prepare("UPDATE date_requests SET deposit_amount=?,notes=? WHERE id=?")
+            .bind(finalDepositAmount,requestNotes,row.date_request_id).run();
+          await env.DB.prepare(`
+            UPDATE booking_continuations
+            SET deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP
+            WHERE date_request_id=?
+          `).bind(row.date_request_id).run();
+          return Response.json({
+            ok:true,
+            deposit_completed:true,
+            request_id:Number(row.date_request_id),
+            deposit_amount:finalDepositAmount,
+            processing_fee:depositProcessingFee,
+            deposit_payment_method:depositPaymentMethod,
+            message:"Deposit selection received. Payment is confirmed separately by Kendra."
+          });
         }
-        const baseDepositAmount=Number(row.deposit_amount||0);
-        if(baseDepositAmount<=0) return Response.json({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
-        const depositProcessingFee=["stripe","crypto"].includes(depositPaymentMethod)
-          ? Math.round(baseDepositAmount*0.10*100)/100
-          : 0;
-        const finalDepositAmount=Math.round((baseDepositAmount+depositProcessingFee)*100)/100;
-        let requestNotes=String(row.notes||"").replace(/^Deposit payment method:.*$/gmi,"").trim();
-        requestNotes += (requestNotes?"\n":"") + "Deposit payment method: " + depositPaymentMethod;
-        await env.DB.prepare(`
-          UPDATE client_verification_audits
-          SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
-          WHERE date_request_id=?
-        `).bind(employer,jobTitle,industry,row.date_request_id).run();
-        await env.DB.prepare("UPDATE date_requests SET deposit_amount=?,notes=? WHERE id=?")
-          .bind(finalDepositAmount,requestNotes,row.date_request_id).run();
-        await env.DB.prepare(`
-          UPDATE booking_continuations
-          SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP
-          WHERE date_request_id=?
-        `).bind(row.date_request_id).run();
-        await recordBookingFunnelEvent(env,"continuation_completed",{
-          sessionId:"server:continuation",
-          requestId:row.date_request_id,
-          path:"/complete"
-        });
-        return Response.json({
-          ok:true,
-          request_id:Number(row.date_request_id),
-          deposit_amount:finalDepositAmount,
-          processing_fee:depositProcessingFee,
-          deposit_payment_method:depositPaymentMethod,
-          message:"Screening details and deposit selection received for final review."
-        });
+
+        return Response.json({ok:false,message:"Invalid continuation step."},{status:400});
       } catch(error) {
         console.error("Booking continuation submit error:",error);
-        return Response.json({ok:false,message:"Unable to save your screening details."},{status:500});
+        return Response.json({ok:false,message:"Unable to save this private step."},{status:500});
       }
     }
 
@@ -4931,7 +4967,11 @@ if (
           dr.id_received,
           dr.final_approval,
           dr.notes,
-          dr.created_at
+          dr.created_at,
+          (SELECT verification_status FROM client_verification_audits va WHERE va.date_request_id=dr.id AND va.client_id=dr.client_id LIMIT 1) AS verification_status,
+          (SELECT completed_at FROM client_verification_audits va WHERE va.date_request_id=dr.id AND va.client_id=dr.client_id LIMIT 1) AS verification_completed_at,
+          (SELECT completed_at FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS screening_submitted_at,
+          (SELECT deposit_step_acknowledged FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS deposit_step_acknowledged
         FROM date_requests dr
         JOIN clients c
           ON c.id = dr.client_id
@@ -7275,7 +7315,7 @@ if (
         await env.DB
           .prepare(`
             UPDATE date_requests
-            SET status = 'pending_final_approval',
+            SET status = 'screening_pending',
                 deposit_amount = ?
             WHERE id = ?
           `)
@@ -7319,15 +7359,15 @@ Your next step is all in one private page:
 
 ${continuationUrl}
 
-There you can provide your employment and industry details, review your base deposit of ${depositDisplay}, choose how you'd like to secure the date, and see the exact total before you acknowledge the deposit step.
+There you can provide the additional details I need for private screening.
 
-Gift Card has no processing fee. Stripe and Crypto add a 10% processing fee to the deposit.
+No deposit is requested at this stage. I will review your screening first. If I’m comfortable moving forward after verification, I’ll send you a separate deposit request.
 
 You are not required to upload or email an ID through this page. Any additional screening needed for final approval will be handled privately.
 
-Please complete the screening details and deposit step no later than 4 hours before our scheduled date and time.
+Please complete the screening details as soon as you can.
 
-Once everything is complete, I'll personally review the request and send final confirmation if approved.
+Once I finish the review, I’ll let you know the next step.
 
 Kendra`
           ).run();
@@ -7336,7 +7376,7 @@ Kendra`
         return Response.json({
           ok: true,
           message: "Request moved forward.",
-          status: "pending_final_approval",
+          status: "screening_pending",
           deposit_amount: depositAmount,
           booking_rate: bookingRate,
           base_deposit_amount: baseDepositAmount,
@@ -7357,6 +7397,77 @@ Kendra`
           },
           { status: 500 }
         );
+      }
+    }
+
+        // ============================================================
+    // REQUEST DEPOSIT — only after screening is verified
+    // ============================================================
+    if (url.pathname === "/api/admin/request/request-deposit" && request.method === "POST") {
+      try {
+        const data=await request.json().catch(()=>({}));
+        const requestId=Number(data.id);
+        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        await ensureSiteContentTables(env);
+        await ensureClientVerificationAuditsTable(env);
+        const row=await env.DB.prepare(`
+          SELECT dr.id,dr.client_id,dr.requested_date,dr.requested_time,dr.deposit_amount,dr.status,
+                 c.first_name,
+                 va.verification_status,va.completed_at AS verification_completed_at,
+                 bc.completed_at AS screening_submitted_at
+          FROM date_requests dr
+          JOIN clients c ON c.id=dr.client_id
+          LEFT JOIN client_verification_audits va ON va.date_request_id=dr.id AND va.client_id=dr.client_id
+          LEFT JOIN booking_continuations bc ON bc.date_request_id=dr.id
+          WHERE dr.id=? LIMIT 1
+        `).bind(requestId).first();
+        if(!row) return Response.json({ok:false,message:"Request not found."},{status:404});
+        if(!row.screening_submitted_at) return Response.json({ok:false,message:"The client must submit screening details before a deposit can be requested."},{status:409});
+        if(String(row.verification_status||"")!=="verified"||!row.verification_completed_at) {
+          return Response.json({ok:false,message:"Mark screening Verified before requesting a deposit."},{status:409});
+        }
+        if(Number(row.deposit_amount||0)<=0) return Response.json({ok:false,message:"Deposit amount is unavailable."},{status:409});
+
+        const continuationToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
+        const continuationTokenHash=await sha256Hex(continuationToken);
+        const continuationExpiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
+        await env.DB.prepare(`
+          UPDATE booking_continuations
+          SET token_hash=?,expires_at=?,deposit_step_acknowledged=0,updated_at=CURRENT_TIMESTAMP
+          WHERE date_request_id=?
+        `).bind(continuationTokenHash,continuationExpiresAt,requestId).run();
+        const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
+        const depositDisplay=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(row.deposit_amount||0));
+
+        const existingDraft=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='deposit_request' AND status='draft' LIMIT 1").bind(requestId).first();
+        const subject="Deposit details for our date";
+        const body=`Hi ${row.first_name},
+
+Your screening is complete and I’m comfortable moving forward with your request.
+
+Date: ${row.requested_date}
+Time: ${row.requested_time}
+
+Your base deposit is ${depositDisplay}. Use the private link below to choose your payment method and review the exact total:
+
+${continuationUrl}
+
+Gift Card has no processing fee. Stripe and Crypto add a 10% processing fee to the deposit.
+
+Selecting a payment method does not confirm payment automatically. I’ll confirm the deposit separately once it is received, and the date is not final until I send confirmation.
+
+Kendra`;
+        if(existingDraft){
+          await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(subject,body,existingDraft.id).run();
+        } else {
+          await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')")
+            .bind(row.client_id,requestId,"deposit_request",subject,body).run();
+        }
+        await env.DB.prepare("UPDATE date_requests SET status='pending_final_approval' WHERE id=?").bind(requestId).run();
+        return Response.json({ok:true,status:"pending_final_approval",deposit_amount:Number(row.deposit_amount),message:"Deposit request draft created. Review it in Email Drafts before sending."});
+      } catch(error) {
+        console.error("Request deposit error:",error);
+        return Response.json({ok:false,message:"Unable to create the deposit request."},{status:500});
       }
     }
 
@@ -7427,6 +7538,10 @@ Kendra`
           "SELECT id, status, deposit_amount, deposit_paid, requested_date, requested_time, notes FROM date_requests WHERE id = ? LIMIT 1"
         ).bind(requestId).first();
         if (!item) return Response.json({ ok:false, message:"Request not found." }, { status:404 });
+        const depositStep=await env.DB.prepare("SELECT deposit_step_acknowledged FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
+        if(Number(depositStep?.deposit_step_acknowledged||0)!==1) {
+          return Response.json({ok:false,message:"The client must complete the deposit selection step before payment can be confirmed."},{status:409});
+        }
         // Older/in-flight requests may have reached final approval before a
         // deposit amount was stored. Recalculate it from the same rate source used
         // by Move Forward so an already-sent request is not permanently stuck.
