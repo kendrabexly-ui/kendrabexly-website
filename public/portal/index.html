@@ -695,6 +695,14 @@
     }
 
   </style>
+<style>
+@media (max-width:640px){
+  .client-persona-card .persona-button{padding:10px 12px!important;font-size:14px!important;line-height:1.25!important;min-height:44px!important}
+  .client-persona-card .verification-actions{gap:6px!important;margin-top:7px!important}
+  .client-persona-workflow-result,.client-persona-transaction-card{padding:9px!important;margin-top:7px!important;line-height:1.45!important}
+  .client-persona-technical{margin-top:5px!important}
+}
+</style>
 </head>
 
 <body>
@@ -4382,6 +4390,10 @@ async function loadRequests(options = {}) {
             await loadVerificationAudits(section);await loadVerificationActivity(section);
             renderPersonaReadiness(section,true);
             if(status)status.textContent=result.message||"Persona verification submitted.";
+            const workflowButton=section.querySelector(".client-persona-workflow-check");
+            [2500,7500,15000].forEach(delay=>setTimeout(()=>{
+              if(workflowButton&&!workflowButton.disabled)workflowButton.click();
+            },delay));
           }catch(error){
             if(status)status.textContent="Persona could not complete this verification request. Manual verification remains available.";
             if(technical&&technicalDetails){technical.hidden=false;technicalDetails.textContent=error.message||String(error);}
@@ -4398,7 +4410,13 @@ async function loadRequests(options = {}) {
           const status=section.querySelector(".client-persona-status");
           if(button.disabled)return;
           button.disabled=true;
+          const resultBox=section.querySelector(".client-persona-workflow-result");
+          const personaCard=section.querySelector(".client-persona-transaction-card");
+          const badge=section.querySelector(".client-persona-badge");
           if(status)status.textContent="Starting a brand-new Persona test inquiry…";
+          if(resultBox){resultBox.hidden=false;resultBox.innerHTML="<strong>New Persona test started</strong><div style=\"margin-top:4px;\">Awaiting Database (US)…</div>";resultBox.style.borderColor="#d9c37a";}
+          if(personaCard){personaCard.hidden=false;personaCard.innerHTML="<strong>Persona verification</strong><div style=\"margin-top:6px;\"><strong>Database (US):</strong> Awaiting new result</div>";}
+          if(badge){badge.textContent="Persona: Awaiting Database";badge.style.background="#fff4d8";badge.style.color="#74520b";}
           try{
             await submitPersona(false,true);
           }finally{
@@ -4458,12 +4476,11 @@ async function loadRequests(options = {}) {
                   db.completed_at?("<div><strong>Completed:</strong> "+escapeHtml(formatVerificationTimestamp(db.completed_at)||db.completed_at)+"</div>"):""
                 ].join("");
                 resultBox.innerHTML=
-                  "<strong>Persona Workflow Result</strong>"+
-                  triggerHtml+
-                  workflowHtml+
-                  "<div style=\"margin-top:6px;\"><strong>Database (US):</strong> "+escapeHtml(stateLabel)+" · "+escapeHtml(statusLabel)+"</div>"+
+                  "<strong>Persona verification</strong>"+
+                  "<div style=\"margin-top:7px;color:"+(String(db.status||"").toLowerCase()==="passed"?"#22613b":"var(--ink)")+";font-weight:700;\">Database (US): "+escapeHtml(statusLabel)+"</div>"+
+                  "<div style=\"margin-top:4px;\"><strong>Workflow:</strong> "+escapeHtml(String(result.workflow_run?.state||result.workflow_state||"unknown").replaceAll("_"," "))+"</div>"+
                   "<div><strong>Inquiry state:</strong> "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
-                  timing;
+                  (db.completed_at?"<div><strong>Completed:</strong> "+escapeHtml(formatVerificationTimestamp(db.completed_at)||db.completed_at)+"</div>":"");
                 resultBox.style.borderColor=result.workflow_state==="completed"?"#9cc9a8":result.workflow_state==="running"?"#d9c37a":"#c8c8c8";
                 if(String(db.status||"").toLowerCase()==="passed"){
                   const currentCard=section.querySelector(".client-persona-transaction-card");
@@ -4484,17 +4501,19 @@ async function loadRequests(options = {}) {
                 }
               }else{
                 const workflowStatus=workflow?String(workflow.status||workflow.state||"unknown").replaceAll("_"," "):"not triggered";
+                const workflowErroredNow=String(workflow?.status||workflow?.state||"").toLowerCase()==="errored";
+                const delayed=Boolean(result.database_delayed);
                 resultBox.innerHTML=
-                  "<strong>Persona Workflow Result</strong>"+
-                  triggerHtml+
-                  workflowHtml+
-                  "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Database (US):</strong> Not found for this inquiry yet.</div>"+
+                  "<strong>"+(workflowErroredNow?"Workflow Error — Database (US) did not run":delayed?"Database verification delayed":"Persona verification")+"</strong>"+
+                  "<div style=\"margin-top:7px;color:"+(workflowErroredNow?"#8a2424":delayed?"#74520b":"var(--muted)")+";\"><strong>Database (US):</strong> "+(workflowErroredNow?"Did not run":"Not available yet")+"</div>"+
+                  "<div><strong>Workflow:</strong> "+escapeHtml(workflowStatus)+"</div>"+
                   "<div><strong>Inquiry state:</strong> "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
-                  "<div style=\"margin-top:6px;color:var(--muted);\">"+
-                    (workflow
-                      ? "The workflow run exists with status "+escapeHtml(workflowStatus)+", but no Database verification is attached yet."
-                      : "No matching ClearPath inquiry-created workflow run was found for this inquiry.")+
-                  "</div>";
+                  "<div style=\"margin-top:6px;color:var(--muted);\">"+(workflowErroredNow
+                    ?"Open View technical details for Persona error information."
+                    :delayed
+                      ?"Database verification is taking longer than expected. Refresh or inspect the workflow."
+                      :"The workflow may still be starting. ClearPath will check again automatically.")+"</div>";
+                resultBox.style.borderColor=workflowErroredNow?"#d8a0a0":delayed?"#d9c37a":"#c8c8c8";
               }
             }
             if(status)status.textContent=result.database_ran
@@ -4509,6 +4528,9 @@ async function loadRequests(options = {}) {
                 result.database_verification?.id?"Verification ID: "+result.database_verification.id:"",
                 result.inquiry_id?"Inquiry ID: "+result.inquiry_id:"",
                 result.persona_request_id?"Persona request ID: "+result.persona_request_id:"",
+                result.inquiry_country_fields?.selected_country_code?"selected_country_code: "+result.inquiry_country_fields.selected_country_code:"",
+                result.inquiry_country_fields?.address_country_code?"address_country_code: "+result.inquiry_country_fields.address_country_code:"",
+                result.workflow_run?.diagnostics&&Object.keys(result.workflow_run.diagnostics).length?"Workflow diagnostics: "+JSON.stringify(result.workflow_run.diagnostics):"",
                 result.technical_details||""
               ].filter(Boolean);
               technical.hidden=!technicalLines.length;
@@ -4535,7 +4557,9 @@ async function loadRequests(options = {}) {
             if(!response.ok||!result.ok)throw new Error(result.technical_details||result.message||"Unable to refresh Persona status.");
             await loadVerificationAudits(section);await loadVerificationActivity(section);
             renderPersonaReadiness(section,section.dataset.personaConnected==="1");
-            if(status)status.textContent="Persona status refreshed: "+String(result.transaction_status||"").replaceAll("_"," ")+". Manual Decision was not changed.";
+            if(status)status.textContent="Inquiry refreshed. Checking Database (US)…";
+            const workflowButton=section.querySelector(".client-persona-workflow-check");
+            if(workflowButton&&!workflowButton.disabled)workflowButton.click();
             if(technical)technical.hidden=true;
           }catch(error){
             if(status)status.textContent="Unable to refresh Persona status.";
