@@ -2525,7 +2525,7 @@ async function loadRequests(options = {}) {
         if (verificationFilter === "unable_to_verify" && verification.verification_status !== "unable_to_verify") return false;
         if (verificationFilter === "needs_more_information" && verification.verification_status !== "needs_more_information") return false;
         if (verificationFilter === "declined" && verification.verification_status !== "declined") return false;
-        if (verificationFilter === "persona_pending" && !(verification.persona_transaction_id && !["approved","declined","errored"].includes(String(verification.persona_transaction_status || "").toLowerCase()))) return false;
+        if (verificationFilter === "persona_pending" && !verification.persona_pending) return false;
         if (verificationFilter === "no_id" && verification.has_id) return false;
         if (verificationFilter === "retention_due" && !verification.retention_due) return false;
         return true;
@@ -3113,7 +3113,9 @@ async function loadRequests(options = {}) {
         const idLabel=section.dataset.hasDocument==="1"?"Received":"Not received";
         const manualDecision=statusLabel(latest?.verification_status||"pending_review");
         const personaStatus=String(latest?.persona_transaction_status||"").toLowerCase();
-        const personaActive=Boolean(latest?.persona_transaction_id)&&["created","pending","needs_review","pending_fallback_inquiry","processing"].includes(personaStatus);
+        const personaDatabaseStatus=String(latest?.persona_database_status||"").toLowerCase();
+        const personaDatabasePassed=personaDatabaseStatus==="passed";
+        const personaActive=Boolean(latest?.persona_transaction_id)&&!personaDatabasePassed&&["created","pending","needs_review","pending_fallback_inquiry","processing"].includes(personaStatus);
         const overallState=!latest
           ?"Not Started"
           :latest.verification_status==="declined"
@@ -3144,7 +3146,7 @@ async function loadRequests(options = {}) {
           "<span><strong>Age:</strong> "+escapeHtml(age===null||age===""?"Not checked":String(age))+"</span>"+
           "<span><strong>Checklist:</strong> "+checklist+" of 5</span>"+
           "<span><strong>Manual:</strong> "+escapeHtml(manualDecision)+"</span>"+
-          "<span><strong>Persona readiness:</strong> "+escapeHtml(pState.label)+"</span>"+
+          "<span><strong>Persona:</strong> "+escapeHtml(personaDatabasePassed?"Database Passed":(latest?.persona_transaction_id?pState.label:"Not submitted"))+"</span>"+
           "<span><strong>Missing fields:</strong> "+Number(validation.missing?.length||0)+"</span>"+
           "<span><strong>Queue:</strong> "+escapeHtml(queueLabel)+"</span>"+
           "<span><strong>Completed:</strong> "+escapeHtml(completed)+"</span></div>"+
@@ -3799,7 +3801,13 @@ async function loadRequests(options = {}) {
         const statusBox=section.querySelector(".client-persona-status");
         const latest=section._verificationAuditRecords?.[0]||{};
         const state=personaReadiness(section,connected);
-        if(badge){badge.textContent="Persona: "+state.label;badge.style.background=state.bg;badge.style.color=state.color;}
+        const databaseStatus=String(latest.persona_database_status||"").toLowerCase();
+        const databasePassed=databaseStatus==="passed";
+        if(badge){
+          badge.textContent=databasePassed?"Persona: Database Passed":"Persona: "+state.label;
+          badge.style.background=databasePassed?"#e8f6ec":state.bg;
+          badge.style.color=databasePassed?"#22613b":state.color;
+        }
         const hasExisting=Boolean(latest.persona_transaction_id);
         if(run){
           run.hidden=hasExisting;
@@ -3834,14 +3842,12 @@ async function loadRequests(options = {}) {
         const current=section.querySelector(".client-persona-current");
         if(current)current.innerHTML=
           '<span class="verification-status-pill" style="background:#eef2f8;color:#38506f;margin-right:6px;">Manual: '+escapeHtml(statusLabel(latest.verification_status||"pending_review"))+'</span>'+
-          '<span class="verification-status-pill" style="background:'+state.bg+';color:'+state.color+';">Persona: '+escapeHtml(hasExisting?state.label:"Not submitted")+"</span>";
+          '<span class="verification-status-pill" style="background:'+(databasePassed?"#e8f6ec":state.bg)+';color:'+(databasePassed?"#22613b":state.color)+';">Persona: '+escapeHtml(databasePassed?"Database Passed":(hasExisting?state.label:"Not submitted"))+"</span>";
         const card=section.querySelector(".client-persona-transaction-card");
         if(card){
           card.hidden=!hasExisting;
           if(hasExisting){
             const retryLabel=state.key==="failed"?"Eligible":"Not needed";
-            const databaseStatus=String(latest.persona_database_status||"").toLowerCase();
-            const databasePassed=databaseStatus==="passed";
             card.innerHTML="<strong>Persona verification</strong><div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;margin-top:7px;\">"+
               "<span><strong>Database (US):</strong> "+escapeHtml(databaseStatus?databaseStatus.replaceAll("_"," "):"Not checked yet")+"</span>"+
               "<span><strong>Inquiry state:</strong> "+escapeHtml(state.label)+"</span>"+
@@ -4429,8 +4435,7 @@ async function loadRequests(options = {}) {
                 "<div><strong>selected_country_code:</strong> "+escapeHtml(countryFields.selected_country_code||"Not stored")+"</div>"+
                 "<div><strong>address_country_code:</strong> "+escapeHtml(countryFields.address_country_code||"Not stored")+"</div></div>";
               const triggerHtml=triggerEvent
-                ? "<div style=\"margin-top:6px;\"><strong>Trigger event:</strong> Found · "+escapeHtml(triggerEvent.name||"inquiry.created")+"</div>"+
-                  "<div><strong>Event ID:</strong> "+escapeHtml(triggerEvent.id||"—")+"</div>"
+                ? "<div style=\"margin-top:6px;\"><strong>Trigger event:</strong> Found · "+escapeHtml(triggerEvent.name||"inquiry.created")+"</div>"
                 : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Trigger event:</strong> Not found.</div>";
               const diagnostics=workflow?.diagnostics||{};
               const workflowErrored=String(workflow?.status||workflow?.state||"").toLowerCase()==="errored";
@@ -4442,7 +4447,6 @@ async function loadRequests(options = {}) {
               const workflowHtml=workflow
                 ? "<div style=\"margin-top:6px;\"><strong>Workflow:</strong> "+escapeHtml(String(workflow.state||workflow.status||"triggered").replaceAll("_"," "))+
                   " · "+escapeHtml(workflow.workflow_name||"ClearPath - Inquiry Created - Database Verification")+"</div>"+
-                  "<div><strong>Workflow Run ID:</strong> "+escapeHtml(workflow.id||"—")+"</div>"+
                   countryFieldHtml+
                   (diagnosticText?"<div style=\"margin-top:6px;padding:7px 8px;background:"+(workflowErrored?"#fff7f7":"#f7f2e9")+";border-radius:6px;\"><strong>"+(workflowErrored?"Persona error details":"Workflow details")+"</strong>"+diagnosticText+"</div>":"")
                 : "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Workflow:</strong> Not triggered / no matching run found.</div>"+countryFieldHtml;
@@ -4458,8 +4462,7 @@ async function loadRequests(options = {}) {
                   triggerHtml+
                   workflowHtml+
                   "<div style=\"margin-top:6px;\"><strong>Database (US):</strong> "+escapeHtml(stateLabel)+" · "+escapeHtml(statusLabel)+"</div>"+
-                  "<div><strong>Verification ID:</strong> "+escapeHtml(db.id||"—")+"</div>"+
-                  "<div><strong>Inquiry:</strong> "+escapeHtml(result.inquiry_id||"—")+" · "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
+                  "<div><strong>Inquiry state:</strong> "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
                   timing;
                 resultBox.style.borderColor=result.workflow_state==="completed"?"#9cc9a8":result.workflow_state==="running"?"#d9c37a":"#c8c8c8";
                 if(String(db.status||"").toLowerCase()==="passed"){
@@ -4486,7 +4489,7 @@ async function loadRequests(options = {}) {
                   triggerHtml+
                   workflowHtml+
                   "<div style=\"margin-top:6px;color:#8a2424;\"><strong>Database (US):</strong> Not found for this inquiry yet.</div>"+
-                  "<div><strong>Inquiry:</strong> "+escapeHtml(result.inquiry_id||"—")+" · "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
+                  "<div><strong>Inquiry state:</strong> "+escapeHtml(String(result.inquiry_status||"unknown").replaceAll("_"," "))+"</div>"+
                   "<div style=\"margin-top:6px;color:var(--muted);\">"+
                     (workflow
                       ? "The workflow run exists with status "+escapeHtml(workflowStatus)+", but no Database verification is attached yet."
@@ -4499,12 +4502,18 @@ async function loadRequests(options = {}) {
               : result.workflow_triggered
                 ? "Persona workflow triggered, but Database (US) was not attached. Workflow status: "+String(result.workflow_run?.status||"unknown").replaceAll("_"," ")+"."
                 : "Persona workflow did not trigger for this inquiry.";
-            if(result.technical_details&&technical&&technicalDetails){
-              technical.hidden=false;
-              technicalDetails.textContent=result.technical_details+
-                (result.persona_request_id?" Persona request: "+result.persona_request_id+".":"");
-            }else if(technical){
-              technical.hidden=true;
+            if(technical&&technicalDetails){
+              const technicalLines=[
+                result.trigger_event?.id?"Event ID: "+result.trigger_event.id:"",
+                result.workflow_run?.id?"Workflow Run ID: "+result.workflow_run.id:"",
+                result.database_verification?.id?"Verification ID: "+result.database_verification.id:"",
+                result.inquiry_id?"Inquiry ID: "+result.inquiry_id:"",
+                result.persona_request_id?"Persona request ID: "+result.persona_request_id:"",
+                result.technical_details||""
+              ].filter(Boolean);
+              technical.hidden=!technicalLines.length;
+              technicalDetails.textContent=technicalLines.join("\n");
+              technicalDetails.style.whiteSpace="pre-wrap";
             }
             await loadVerificationActivity(section);
           }catch(error){
