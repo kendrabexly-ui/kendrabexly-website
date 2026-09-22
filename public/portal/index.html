@@ -2866,9 +2866,74 @@ async function loadRequests(options = {}) {
                     <div class="client-credential-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div>
                   </section>
 
+                  <section class="verification-card client-address-verification-card">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                      <strong style="font-size:13px;">4. Address Verification <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
+                      <span class="verification-badge client-address-verification-badge">Address: Not checked</span>
+                    </div>
+                    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
+                      Use this optional step to confirm that a supplied address exists and is consistent with the client's information. Do not treat an address match by itself as proof of identity or residency.
+                    </div>
+                    <div class="verification-grid" style="margin-top:10px;">
+                      <label style="font-size:12px;font-weight:700;">Street address
+                        <input class="client-address-check-line1" type="text" maxlength="240" placeholder="Street address" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Address line 2 <span style="font-weight:500;color:var(--muted);">(optional)</span>
+                        <input class="client-address-check-line2" type="text" maxlength="160" placeholder="Apartment, unit, suite" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">City
+                        <input class="client-address-check-city" type="text" maxlength="120" placeholder="City" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">State
+                        <input class="client-address-check-state" type="text" maxlength="2" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">ZIP / postal code
+                        <input class="client-address-check-postal" type="text" maxlength="20" placeholder="ZIP code" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Verification method
+                        <select class="client-address-check-method" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="">Choose method</option>
+                          <option value="usps_lookup">USPS address lookup</option>
+                          <option value="county_assessor">County assessor / parcel records</option>
+                          <option value="county_recorder">County recorder / property records</option>
+                          <option value="official_gis">Official county/city GIS</option>
+                          <option value="other_official_source">Other official public source</option>
+                        </select>
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Address result
+                        <select class="client-address-check-result" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="not_checked">Not checked</option>
+                          <option value="confirmed">Address confirmed</option>
+                          <option value="partial_match">Partial match</option>
+                          <option value="mismatch">Address mismatch</option>
+                          <option value="unable_to_verify">Unable to verify</option>
+                        </select>
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Official source name
+                        <input class="client-address-check-source-name" type="text" maxlength="200" placeholder="USPS, county assessor, recorder, GIS..." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Official source URL
+                        <input class="client-address-check-source-url" type="url" maxlength="800" placeholder="https://..." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                    </div>
+                    <div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
+                      <strong style="font-size:12px;">Address lookup shortcuts</strong>
+                      <div style="margin-top:4px;font-size:11px;color:var(--muted);">Use an official source to validate the address itself. Property-owner records, when available, are supporting information only and should not be treated as proof that the client currently lives there.</div>
+                      <div class="client-address-lookup-links" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;"></div>
+                    </div>
+                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Evidence / reference
+                      <textarea class="client-address-check-evidence" rows="2" maxlength="1200" placeholder="Record the official source result and any relevant match/mismatch. Avoid unnecessary personal details." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                    </label>
+                    <div class="verification-actions" style="margin-top:9px;">
+                      <button type="button" class="client-address-check-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Address Check</button>
+                      <span class="client-address-check-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
+                    </div>
+                    <div class="client-address-check-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div>
+                  </section>
+
                   <section class="verification-card client-public-record-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">4. Public Court &amp; Criminal Record Search</strong>
+                      <strong style="font-size:13px;">5. Public Court &amp; Criminal Record Search</strong>
                       <span class="verification-badge client-public-record-badge">Public records: Not checked</span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
@@ -2946,7 +3011,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-persona-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">5. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
+                      <strong style="font-size:13px;">6. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
                       <span class="verification-badge client-persona-badge">Persona: Checking…</span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
@@ -3005,7 +3070,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <details class="verification-card client-audit-history">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">6. Audit History</summary>
+                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">7. Audit History</summary>
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification history…</div>
                     <details style="margin-top:10px;padding-top:9px;border-top:1px solid var(--line);">
                       <summary style="cursor:pointer;font-size:12px;font-weight:700;">Verification Activity Log</summary>
@@ -4103,6 +4168,107 @@ async function loadRequests(options = {}) {
         "San Diego":["San Diego Court Index","https://courtindex.sdcourt.ca.gov/CISPublic/","Superior Court of California, County of San Diego","official"],
         "Sacramento":["Sacramento Public Case Access","https://services.saccourt.ca.gov/PublicCaseAccess","Superior Court of California, County of Sacramento","official"]
       };
+      const renderAddressLookupLinks=(section)=>{
+        const wrap=section.querySelector(".client-address-lookup-links");
+        if(!wrap)return;
+        wrap.innerHTML="";
+        const state=String(section.querySelector(".client-address-check-state")?.value||"").trim().toUpperCase();
+        const links=[
+          ["USPS ZIP Code Lookup","https://tools.usps.com/zip-code-lookup.htm","USPS","directory"]
+        ];
+        if(state==="CA"){
+          links.push(["California County Assessors Directory","https://www.boe.ca.gov/proptaxes/countycontacts.htm","California State Board of Equalization","directory"]);
+        }
+        links.forEach(([label,url,source,kind])=>{
+          const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=label;
+          a.style.cssText="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);text-decoration:none;font-size:11px;font-weight:700;";
+          a.addEventListener("click",()=>{
+            if(kind==="directory")return;
+            const n=section.querySelector(".client-address-check-source-name"),u=section.querySelector(".client-address-check-source-url");
+            if(n&&!n.value)n.value=source;if(u&&!u.value)u.value=url;
+          });
+          wrap.appendChild(a);
+        });
+      };
+      const syncAddressCheckFromVerification=(section)=>{
+        const map=[
+          [".client-address-check-line1",".client-persona-address-1"],
+          [".client-address-check-line2",".client-persona-address-2"],
+          [".client-address-check-city",".client-persona-city"],
+          [".client-address-check-state",".client-persona-state"],
+          [".client-address-check-postal",".client-persona-postal"]
+        ];
+        map.forEach(([targetSel,sourceSel])=>{
+          const target=section.querySelector(targetSel),source=section.querySelector(sourceSel);
+          if(target&&source&&!target.value)target.value=source.value||"";
+        });
+        renderAddressLookupLinks(section);
+      };
+      const applyAddressVerification=(section,record)=>{
+        const set=(sel,val)=>{const el=section.querySelector(sel);if(el)el.value=val||"";};
+        if(!record){
+          set(".client-address-check-result","not_checked");
+          const c=section.querySelector(".client-address-check-checked");if(c)c.textContent="Last checked: Not checked";
+          syncAddressCheckFromVerification(section);return;
+        }
+        set(".client-address-check-line1",record.address_line1);
+        set(".client-address-check-line2",record.address_line2);
+        set(".client-address-check-city",record.city);
+        set(".client-address-check-state",record.state);
+        set(".client-address-check-postal",record.postal_code);
+        set(".client-address-check-result",record.result_status||"not_checked");
+        set(".client-address-check-method",record.verification_method);
+        set(".client-address-check-source-name",record.source_name);
+        set(".client-address-check-source-url",record.source_url);
+        set(".client-address-check-evidence",record.evidence_reference);
+        const labels={not_checked:"Not checked",confirmed:"Confirmed",partial_match:"Partial match",mismatch:"Mismatch",unable_to_verify:"Unable to verify"};
+        const badge=section.querySelector(".client-address-verification-badge"),raw=record.result_status||"not_checked";
+        if(badge){
+          badge.textContent="Address: "+(labels[raw]||raw);
+          badge.style.background=raw==="confirmed"?"#e8f6ec":raw==="mismatch"?"#fdeaea":"#fff4d8";
+          badge.style.color=raw==="confirmed"?"#22613b":raw==="mismatch"?"#8a2424":"#74520b";
+        }
+        const checked=section.querySelector(".client-address-check-checked");
+        if(checked)checked.textContent=record.checked_at
+          ?"Last checked: "+formatVerificationTimestamp(record.checked_at)+(record.checked_by?" · "+record.checked_by:"")+(record.source_name?" · Source: "+record.source_name:"")
+          :"Last checked: Not checked";
+        renderAddressLookupLinks(section);
+      };
+      const loadAddressVerification=async(section)=>{
+        try{
+          const response=await fetch("/api/admin/clients/address-verification?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(response.ok&&result.ok)applyAddressVerification(section,result.address_check);
+        }catch(_error){}
+      };
+      const saveAddressVerification=async(section)=>{
+        const button=section.querySelector(".client-address-check-save"),status=section.querySelector(".client-address-check-save-status");
+        if(button)button.disabled=true;if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
+        try{
+          const payload={
+            client_id:Number(section.dataset.clientId),
+            address_line1:section.querySelector(".client-address-check-line1")?.value||"",
+            address_line2:section.querySelector(".client-address-check-line2")?.value||"",
+            city:section.querySelector(".client-address-check-city")?.value||"",
+            state:section.querySelector(".client-address-check-state")?.value||"",
+            postal_code:section.querySelector(".client-address-check-postal")?.value||"",
+            result_status:section.querySelector(".client-address-check-result")?.value||"not_checked",
+            verification_method:section.querySelector(".client-address-check-method")?.value||"",
+            source_name:section.querySelector(".client-address-check-source-name")?.value||"",
+            source_url:section.querySelector(".client-address-check-source-url")?.value||"",
+            evidence_reference:section.querySelector(".client-address-check-evidence")?.value||""
+          };
+          const response=await fetch("/api/admin/clients/address-verification",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save address verification.");
+          applyAddressVerification(section,result.address_check);
+          if(status){status.textContent="Saved";status.style.color="#2f6b45";}
+          await loadVerificationActivity(section);
+        }catch(error){
+          if(status){status.textContent=error.message||"Unable to save address verification.";status.style.color="#8a2424";}
+        }finally{if(button)button.disabled=false;}
+      };
+
       const publicRecordLookupCatalog=(state,scope,county)=>{
         const st=String(state||"").trim().toUpperCase(),sc=String(scope||"state_local"),cty=String(county||"").trim(),links=[];
         const add=(label,url,source,kind)=>{if(!links.some(x=>x.url===url))links.push({label,url,source,kind});};
@@ -4583,7 +4749,7 @@ async function loadRequests(options = {}) {
           loadIdDocument(section, false);
           loadVerificationAudits(section);
           loadPhoneLineCheck(section);
-          loadCredentialVerification(section);loadPublicRecordCheck(section);
+          loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);
           loadPersonaStatus(section);
         });
       });
@@ -4634,13 +4800,18 @@ async function loadRequests(options = {}) {
         });
         section.addEventListener("toggle",()=>{
           if(section.open){
-            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadPublicRecordCheck(section);loadPersonaStatus(section);loadVerificationActivity(section);
+            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);loadPersonaStatus(section);loadVerificationActivity(section);
           }else if(section.dataset.draftDirty==="1"){
             if(!window.confirm("Verification fields are still unsaved. Close this section anyway?")){section.open=true;}
           }
         });
 
         section.querySelector(".client-credential-save")?.addEventListener("click",()=>saveCredentialVerification(section));
+        section.querySelector(".client-address-check-save")?.addEventListener("click",()=>saveAddressVerification(section));
+        [".client-address-check-state",".client-address-check-line1",".client-address-check-city",".client-address-check-postal"].forEach(sel=>{
+          section.querySelector(sel)?.addEventListener("change",()=>renderAddressLookupLinks(section));
+        });
+        syncAddressCheckFromVerification(section);
         section.querySelector(".client-public-record-save")?.addEventListener("click",()=>savePublicRecordCheck(section));
         const syncPublicRecordCountyVisibility=()=>{
           const state=section.querySelector(".client-public-record-state")?.value||"";
