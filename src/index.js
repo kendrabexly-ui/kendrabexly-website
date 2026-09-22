@@ -1390,7 +1390,10 @@ export default {
                  COALESCE(a.job_title_confirmed,0)+COALESCE(a.industry_confirmed,0)+
                  COALESCE(a.contact_confirmed,0) AS checklist_count,
                  CASE WHEN d.client_id IS NULL THEN 0 ELSE 1 END AS has_id,
-                 COALESCE(d.retention_reminder_at,'') AS retention_reminder_at
+                 COALESCE(d.retention_reminder_at,'') AS retention_reminder_at,
+                 COALESCE((SELECT result_status FROM client_address_verifications av WHERE av.client_id=c.id LIMIT 1),'not_checked') AS address_status,
+                 COALESCE((SELECT record_status FROM client_public_record_checks pr WHERE pr.client_id=c.id LIMIT 1),'not_checked') AS public_record_status,
+                 COALESCE((SELECT credential_status FROM client_credential_verifications cv WHERE cv.client_id=c.id LIMIT 1),'not_checked') AS credential_status
           FROM clients c
           LEFT JOIN client_id_documents d ON d.client_id = c.id
           LEFT JOIN client_verification_audits a ON a.id = (
@@ -1409,6 +1412,10 @@ export default {
           let queue_category="ready_for_final_decision";
           if (!Number(row.has_id || 0)) queue_category="needs_id";
           else if (status === "needs_more_information") queue_category="needs_more_information";
+          else if (["potential_match","confirmed_match"].includes(String(row.public_record_status||""))) queue_category="public_record_match";
+          else if (String(row.address_status||"")==="mismatch") queue_category="address_mismatch";
+          else if (["expired","inactive","suspended","revoked","mismatch","unable_to_verify"].includes(String(row.credential_status||""))) queue_category="credential_issue";
+          else if (["errored","failed"].includes(personaStatus) || ["errored","failed"].includes(personaDatabaseStatus)) queue_category="persona_error";
           else if (personaPending) queue_category="persona_pending";
           else if (checklistCount < 5) queue_category="checklist_incomplete";
           else if (status === "pending_review") queue_category="needs_manual_review";
@@ -1433,6 +1440,9 @@ export default {
             has_id:Number(row.has_id || 0)===1,
             retention_reminder_at:row.retention_reminder_at || "",
             retention_due:Boolean(row.retention_reminder_at) && String(row.retention_reminder_at) <= new Date().toISOString().slice(0,10),
+            address_status:row.address_status||"not_checked",
+            public_record_status:row.public_record_status||"not_checked",
+            credential_status:row.credential_status||"not_checked",
             persona_pending:personaPending,
             queue_category
           };
@@ -1448,11 +1458,15 @@ export default {
           needs_id:clients.filter(x=>x.queue_category==="needs_id").length,
           checklist_incomplete:clients.filter(x=>x.queue_category==="checklist_incomplete").length,
           ready_for_final_decision:clients.filter(x=>x.queue_category==="ready_for_final_decision").length,
-          retention_due:clients.filter(x=>x.retention_due).length
+          retention_due:clients.filter(x=>x.retention_due).length,
+          public_record_match:clients.filter(x=>x.queue_category==="public_record_match").length,
+          address_mismatch:clients.filter(x=>x.queue_category==="address_mismatch").length,
+          credential_issue:clients.filter(x=>x.queue_category==="credential_issue").length,
+          persona_error:clients.filter(x=>x.queue_category==="persona_error").length
         };
-        const order={needs_id:0,needs_more_information:1,checklist_incomplete:2,persona_pending:3,needs_manual_review:4,ready_for_final_decision:5};
+        const order={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,persona_error:4,needs_more_information:5,checklist_incomplete:6,persona_pending:7,needs_manual_review:8,ready_for_final_decision:9};
         const queue=[...clients]
-          .filter(x=>["pending_review","needs_more_information"].includes(x.verification_status) || x.persona_pending || x.review_flag)
+          .filter(x=>["pending_review","needs_more_information"].includes(x.verification_status) || x.persona_pending || x.review_flag || ["public_record_match","address_mismatch","credential_issue","persona_error"].includes(x.queue_category))
           .sort((a,b)=>(order[a.queue_category]??9)-(order[b.queue_category]??9) || a.client_id-b.client_id);
         return Response.json({ok:true,clients,counts,queue}, {headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
