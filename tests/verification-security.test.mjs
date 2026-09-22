@@ -359,3 +359,44 @@ test("final public booking section stays lightweight and audited",()=>{
   assert.match(worker,/SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-private-v3"/);
   assert.match(worker,/I understand that private screening is required before final approval and that I’ll receive next-step instructions only if my request moves forward/);
 });
+
+
+test("continuation keeps deposit hidden until screening is verified",()=>{
+  assert.match(continuationPage,/id="screening-form"/);
+  assert.match(continuationPage,/No deposit is requested at this stage/);
+  assert.match(continuationPage,/if \(!data\.deposit_unlocked\)/);
+  assert.match(continuationPage,/id="deposit-form" hidden/);
+  const routeStart=worker.indexOf('url.pathname === "/api/booking/continuation" && request.method === "POST"');
+  const routeEnd=worker.indexOf("// Reject unsupported methods to request API",routeStart);
+  const route=worker.slice(routeStart,routeEnd);
+  assert.match(route,/if\(step==="screening"\)/);
+  assert.match(route,/if\(step==="deposit"\)/);
+  assert.match(route,/Deposit selection is not available until screening is completed and verified/);
+});
+
+test("request deposit admin action requires verified screening",()=>{
+  assert.match(worker,/\/api\/admin\/request\/request-deposit/);
+  assert.match(worker,/The client must submit screening details before a deposit can be requested/);
+  assert.match(worker,/Mark screening Verified before requesting a deposit/);
+  assert.match(worker,/email_type='deposit_request'/);
+  assert.match(worker,/UPDATE date_requests SET status='pending_final_approval'/);
+  assert.match(portal,/id="request-deposit-button"/);
+  assert.match(portal,/screeningReadyForDeposit/);
+});
+
+test("move forward email requests screening only",()=>{
+  const start=worker.indexOf('url.pathname === "/api/admin/request/move-forward"');
+  const end=worker.indexOf("// CALCULATE / REPAIR DEPOSIT",start);
+  const route=worker.slice(start,end);
+  assert.match(route,/SET status = 'screening_pending'/);
+  assert.match(route,/No deposit is requested at this stage/);
+  assert.match(route,/separate deposit request/);
+});
+
+test("deposit confirmation requires client deposit-step completion",()=>{
+  const start=worker.indexOf('url.pathname === "/api/admin/request/confirm-deposit"');
+  const end=worker.indexOf('url.pathname === "/api/admin/request/complete"',start);
+  const route=worker.slice(start,end);
+  assert.match(route,/deposit_step_acknowledged/);
+  assert.match(route,/client must complete the deposit selection step before payment can be confirmed/);
+});
