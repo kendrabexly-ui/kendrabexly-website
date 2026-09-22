@@ -3691,7 +3691,12 @@ My journal will continue to be a place where I share a little more of that side 
     if (url.pathname === "/api/public/funnel" && request.method === "POST") {
       try {
         const data=await request.json().catch(()=>({}));
-        const allowed=new Set(["request_page_view","form_started","availability_checked","booking_summary_viewed","form_submitted","continuation_opened"]);
+        const allowed=new Set([
+          "request_page_view","form_started","about_you_completed","experience_selected",
+          "availability_checked","availability_shown","details_reached","before_submit_reached",
+          "booking_summary_viewed","submit_attempted","validation_phone","validation_outcall",
+          "validation_availability","validation_other","form_submitted","continuation_opened"
+        ]);
         const eventName=String(data.event||"").trim();
         if(!allowed.has(eventName)) return Response.json({ok:false,message:"Invalid funnel event."},{status:400});
         const sessionId=String(data.session_id||"").trim().slice(0,160);
@@ -3871,8 +3876,7 @@ My journal will continue to be a place where I share a little more of that side 
           !requestedTime ||
           !dateType ||
           !appointmentType ||
-          !duration ||
-          !requestDetails
+          !duration
         ) {
           return Response.json(
             {
@@ -3935,10 +3939,10 @@ My journal will continue to be a place where I share a little more of that side 
 
         if (
           appointmentType === "outcall" &&
-          (!outcallAddressLine1 || !outcallCity || !outcallState || !outcallPostalCode)
+          (!outcallAddressLine1 || !outcallCity)
         ) {
           return Response.json(
-            { ok: false, message: "Please complete the outcall address." },
+            { ok: false, message: "Please provide the outcall hotel, property, or neighborhood and city." },
             { status: 400 }
           );
         }
@@ -3964,20 +3968,6 @@ My journal will continue to be a place where I share a little more of that side 
               ok: false,
               message:
                 "Please acknowledge the screening requirement."
-            },
-            { status: 400 }
-          );
-        }
-
-
-        // Deposit acknowledgement required
-
-        if (!depositAcknowledgement) {
-          return Response.json(
-            {
-              ok: false,
-              message:
-                "Please acknowledge the deposit requirement."
             },
             { status: 400 }
           );
@@ -4142,7 +4132,7 @@ My journal will continue to be a place where I share a little more of that side 
             : null,
 
           appointmentType === "outcall" && outcallAddress
-            ? `Outcall address: ${outcallAddress}`
+            ? `Outcall area: ${outcallAddress}`
             : null,
 
           duration
@@ -4283,7 +4273,7 @@ My journal will continue to be a place where I share a little more of that side 
         const row=await env.DB.prepare(`
           SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
                  bc.deposit_step_acknowledged,
-                 dr.requested_date,dr.requested_time,dr.location_name,dr.deposit_amount,dr.notes,
+                 dr.requested_date,dr.requested_time,dr.location_name,dr.location_address,dr.deposit_amount,dr.notes,
                  c.first_name,c.last_name,
                  va.submitted_employer,va.submitted_job_title,va.submitted_industry,
                  va.verification_status,va.completed_at AS verification_completed_at
@@ -4317,6 +4307,8 @@ My journal will continue to be a place where I share a little more of that side 
           current_employer:row.submitted_employer||"",
           job_title:row.submitted_job_title||"",
           industry:row.submitted_industry||"",
+          requires_outcall_address:/Appointment type:\s*outcall/i.test(String(row.notes||"")),
+          outcall_address:row.location_address||"",
           screening_submitted:screeningSubmitted,
           verification_status:row.verification_status||"pending_review",
           deposit_unlocked:depositUnlocked,
@@ -4361,12 +4353,26 @@ My journal will continue to be a place where I share a little more of that side 
           const employer=String(data.current_employer||"").trim().slice(0,160);
           const jobTitle=String(data.job_title||"").trim().slice(0,160);
           const industry=String(data.industry||"").trim().slice(0,160);
+          const outcallAddressLine1=String(data.outcall_address_line_1||"").trim().slice(0,200);
+          const outcallAddressLine2=String(data.outcall_address_line_2||"").trim().slice(0,120);
+          const outcallCity=String(data.outcall_city||"").trim().slice(0,120);
+          const outcallState=String(data.outcall_state||"").trim().slice(0,80);
+          const outcallPostalCode=String(data.outcall_postal_code||"").trim().slice(0,20);
+          const requiresOutcallAddress=/Appointment type:\s*outcall/i.test(String(row.notes||""));
           if(!employer||!jobTitle||!industry) return Response.json({ok:false,message:"Complete all screening details."},{status:400});
+          if(requiresOutcallAddress&&(!outcallAddressLine1||!outcallCity||!outcallState||!outcallPostalCode)) {
+            return Response.json({ok:false,message:"Complete the exact outcall address before submitting screening."},{status:400});
+          }
+          const exactOutcallAddress=[outcallAddressLine1,outcallAddressLine2,outcallCity,outcallState,outcallPostalCode].filter(Boolean).join(", ");
           await env.DB.prepare(`
             UPDATE client_verification_audits
             SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
             WHERE date_request_id=?
           `).bind(employer,jobTitle,industry,row.date_request_id).run();
+          if(requiresOutcallAddress) {
+            await env.DB.prepare("UPDATE date_requests SET location_address=? WHERE id=?")
+              .bind(exactOutcallAddress,row.date_request_id).run();
+          }
           await env.DB.prepare(`
             UPDATE booking_continuations
             SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),updated_at=CURRENT_TIMESTAMP
