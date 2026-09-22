@@ -4271,7 +4271,7 @@ My journal will continue to be a place where I share a little more of that side 
                  bc.deposit_step_acknowledged,
                  dr.requested_date,dr.requested_time,dr.location_name,dr.location_address,dr.deposit_amount,dr.notes,
                  c.first_name,c.last_name,
-                 va.submitted_employer,va.submitted_job_title,va.submitted_industry,
+                 va.birthdate,va.submitted_employer,va.submitted_job_title,va.submitted_industry,
                  va.verification_status,va.completed_at AS verification_completed_at
           FROM booking_continuations bc
           JOIN date_requests dr ON dr.id=bc.date_request_id
@@ -4300,6 +4300,7 @@ My journal will continue to be a place where I share a little more of that side 
           requested_date:row.requested_date||"",
           requested_time:row.requested_time||"",
           location_name:row.location_name||"",
+          birthdate:row.birthdate||"",
           current_employer:row.submitted_employer||"",
           job_title:row.submitted_job_title||"",
           industry:row.submitted_industry||"",
@@ -4351,6 +4352,7 @@ My journal will continue to be a place where I share a little more of that side 
           const employer=String(data.current_employer||"").trim().slice(0,160);
           const jobTitle=String(data.job_title||"").trim().slice(0,160);
           const industry=String(data.industry||"").trim().slice(0,160);
+          const birthdate=idDocumentDate(data.birthdate);
           const plansNote=String(data.plans_note||"").trim().replace(/\s+/g," ").slice(0,1200);
           const outcallAddressLine1=String(data.outcall_address_line_1||"").trim().slice(0,200);
           const outcallAddressLine2=String(data.outcall_address_line_2||"").trim().slice(0,120);
@@ -4358,6 +4360,7 @@ My journal will continue to be a place where I share a little more of that side 
           const outcallState=String(data.outcall_state||"").trim().slice(0,80);
           const outcallPostalCode=String(data.outcall_postal_code||"").trim().slice(0,20);
           const requiresOutcallAddress=/Appointment type:\s*outcall/i.test(String(row.notes||""));
+          if(!birthdate||verificationAgeOnDate(birthdate)===null||verificationAgeOnDate(birthdate)<0) return Response.json({ok:false,message:"Enter a valid birthday before submitting screening."},{status:400});
           if(!employer||!jobTitle||!industry) return Response.json({ok:false,message:"Complete all screening details."},{status:400});
           if(requiresOutcallAddress&&(!outcallAddressLine1||!outcallCity||!outcallState||!outcallPostalCode)) {
             return Response.json({ok:false,message:"Complete the exact outcall address before submitting screening."},{status:400});
@@ -4365,9 +4368,9 @@ My journal will continue to be a place where I share a little more of that side 
           const exactOutcallAddress=[outcallAddressLine1,outcallAddressLine2,outcallCity,outcallState,outcallPostalCode].filter(Boolean).join(", ");
           await env.DB.prepare(`
             UPDATE client_verification_audits
-            SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
+            SET birthdate=?,submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
             WHERE date_request_id=?
-          `).bind(employer,jobTitle,industry,row.date_request_id).run();
+          `).bind(birthdate,employer,jobTitle,industry,row.date_request_id).run();
           let updatedNotes=String(row.notes||"").replace(/^Plans note:.*$/gmi,"").trim();
           if(plansNote) updatedNotes += (updatedNotes?"\n":"") + "Plans note: " + plansNote;
           await env.DB.prepare("UPDATE date_requests SET notes=? WHERE id=?")

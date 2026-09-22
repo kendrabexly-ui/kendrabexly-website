@@ -36,6 +36,11 @@
         <h2>A few final details.</h2>
         <p>These details are used only for private screening and review. <strong>No deposit is requested at this stage.</strong> You are not required to upload an ID on this page, and you should never email an ID document.</p>
         <div class="form-grid">
+          <div class="field full-width">
+            <label for="screening-birthdate">Birthdays are special, and I love celebrating—when’s yours? *</label>
+            <input id="screening-birthdate" name="birthdate" type="date" autocomplete="bday" required>
+            <small>Your birthday also helps me complete the private screening for your request.</small>
+          </div>
           <div class="field">
             <label for="screening-employer">Current employer *</label>
             <input id="screening-employer" name="current_employer" type="text" autocomplete="organization" maxlength="160" required>
@@ -217,6 +222,7 @@
       loading.hidden = true;
 
       if (!data.screening_submitted) {
+        document.getElementById("screening-birthdate").value = data.birthdate || "";
         document.getElementById("screening-employer").value = data.current_employer || "";
         document.getElementById("screening-title").value = data.job_title || "";
         document.getElementById("screening-industry").value = data.industry || "";
