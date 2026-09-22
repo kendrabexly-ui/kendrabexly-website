@@ -2818,8 +2818,8 @@ async function loadRequests(options = {}) {
                           <option value="not_checked">Not checked</option>
                           <option value="pending">Pending</option>
                           <option value="confirmed">Confirmed</option>
-                          <option value="unable_to_confirm">Unable to confirm</option>
-                          <option value="mismatch">Information mismatch</option>
+                          <option value="unable_to_confirm">Unable to verify</option>
+                          <option value="mismatch">Mismatch</option>
                         </select></label>
                       </div>
                       <label style="display:block;margin-top:9px;font-size:12px;font-weight:700;">Employment evidence / reference<textarea class="client-employment-evidence" rows="2" maxlength="1200" placeholder="Company directory URL, HR confirmation, work-email domain, document reference, or other source. Do not store unnecessary sensitive data." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
@@ -3867,6 +3867,10 @@ async function loadRequests(options = {}) {
         updatePersonaAgeStatus(section);
         validatePersonaFields(section,{show:true,force:false});
       };
+      const scheduleVerificationDraftSave=(section)=>{
+        clearTimeout(section._verificationDraftTimer);
+        section._verificationDraftTimer=setTimeout(()=>saveVerificationDraft(section),500);
+      };
       const loadVerificationDraft = async (section) => {
         try{
           const response=await fetch("/api/admin/clients/verification-draft?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
@@ -4338,6 +4342,25 @@ async function loadRequests(options = {}) {
         }
       };
 
+      const inferCaliforniaCounty=(city,postal)=>{
+        const c=String(city||"").trim().toLowerCase(),zip=String(postal||"").replace(/\D/g,"").slice(0,5);
+        const cityMap={
+          "inglewood":"Los Angeles","los angeles":"Los Angeles","long beach":"Los Angeles","pasadena":"Los Angeles","santa monica":"Los Angeles",
+          "anaheim":"Orange","irvine":"Orange","santa ana":"Orange","newport beach":"Orange","huntington beach":"Orange",
+          "riverside":"Riverside","corona":"Riverside","palm springs":"Riverside",
+          "san bernardino":"San Bernardino","fontana":"San Bernardino","ontario":"San Bernardino",
+          "san diego":"San Diego","chula vista":"San Diego","oceanside":"San Diego",
+          "sacramento":"Sacramento","elk grove":"Sacramento","folsom":"Sacramento"
+        };
+        if(cityMap[c])return cityMap[c];
+        if(/^90|^91/.test(zip))return "Los Angeles";
+        if(/^92[6-8]/.test(zip))return "Orange";
+        if(/^92[0-5]/.test(zip))return "San Diego";
+        if(/^925/.test(zip))return "Riverside";
+        if(/^923|^924/.test(zip))return "San Bernardino";
+        if(/^95[6-8]/.test(zip))return "Sacramento";
+        return "";
+      };
       const syncAddressCheckFromVerification=(section)=>{
         const map=[
           [".client-address-check-line1",".client-persona-address-1"],
@@ -4350,7 +4373,16 @@ async function loadRequests(options = {}) {
           const target=section.querySelector(targetSel),source=section.querySelector(sourceSel);
           if(target&&source&&!target.value)target.value=source.value||"";
         });
+        const addressState=String(section.querySelector(".client-address-check-state")?.value||"").toUpperCase();
+        const inferredCounty=addressState==="CA"?inferCaliforniaCounty(section.querySelector(".client-address-check-city")?.value,section.querySelector(".client-address-check-postal")?.value):"";
+        const addressCounty=section.querySelector(".client-address-check-county");
+        if(addressCounty&&inferredCounty&&!addressCounty.value)addressCounty.value=inferredCounty;
+        const publicState=section.querySelector(".client-public-record-state");
+        const publicCounty=section.querySelector(".client-public-record-county");
+        if(publicState&&!publicState.value&&addressState)publicState.value=addressState;
+        if(publicCounty&&publicState?.value==="CA"&&inferredCounty&&!publicCounty.value)publicCounty.value=inferredCounty;
         renderAddressLookupLinks(section);
+        renderPublicRecordLookups(section);
       };
       const applyAddressVerification=(section,record)=>{
         const set=(sel,val)=>{const el=section.querySelector(sel);if(el)el.value=val||"";};
@@ -5068,14 +5100,14 @@ async function loadRequests(options = {}) {
           const controls = summary.closest(".client-profile-actions");
           const section = controls?.querySelector(".client-id-documents");
           if (!section) return;
+          const wasOpen=section.open;
           section.open = true;
           section.scrollIntoView({behavior:"smooth",block:"start"});
-          loadIdDocument(section, false);
-          loadVerificationAudits(section);
-          loadPhoneLineCheck(section);
-          loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);
-          loadVerificationSectionStates(section);loadVerificationCheckHistory(section);
-          loadPersonaStatus(section);
+          if(wasOpen){
+            loadVerificationAudits(section);
+            loadVerificationActivity(section);
+            updateVerificationFlowSummary(section);
+          }
         });
       });
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
@@ -5107,8 +5139,8 @@ async function loadRequests(options = {}) {
             validatePersonaFields(section);
             renderPersonaReadiness(section,section.dataset.personaConnected==="1");
           });
-          input.addEventListener("change",()=>saveVerificationDraft(section));
-          input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);saveVerificationDraft(section);});
+          input.addEventListener("change",()=>scheduleVerificationDraftSave(section));
+          input.addEventListener("blur",()=>{normalizePersonaFields(section);capturePersonaDraft(section);scheduleVerificationDraftSave(section);});
         });
         normalizePersonaFields(section);
         capturePersonaDraft(section);
@@ -5125,7 +5157,13 @@ async function loadRequests(options = {}) {
         });
         section.addEventListener("toggle",()=>{
           if(section.open){
-            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);loadVerificationSectionStates(section);loadVerificationCheckHistory(section);loadPersonaStatus(section);loadVerificationActivity(section);
+            if(section.dataset.verificationLoaded!=="1"){
+              section.dataset.verificationLoaded="1";
+              loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);loadVerificationSectionStates(section);loadVerificationCheckHistory(section);loadPersonaStatus(section);loadVerificationActivity(section);
+            }else{
+              loadVerificationAudits(section);loadVerificationSectionStates(section);loadVerificationCheckHistory(section);loadVerificationActivity(section);
+              updateVerificationFlowSummary(section);
+            }
           }else if(section.dataset.draftDirty==="1"){
             if(!window.confirm("Verification fields are still unsaved. Close this section anyway?")){section.open=true;}
           }
