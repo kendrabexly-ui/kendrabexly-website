@@ -444,28 +444,9 @@
         </div>
 
 
-        <div class="field full-width">
-          <label for="deposit-payment-method">How would you like to secure the date? *</label>
-          <select id="deposit-payment-method" name="deposit_payment_method" required>
-            <option value="">Choose a deposit payment method</option>
-            <option value="gift-card">Gift Card</option>
-            <option value="stripe">Stripe (10% processing fee)</option>
-            <option value="crypto">Crypto (10% processing fee)</option>
-          </select>
-          <small><strong>No payment is due now.</strong> The deposit is 25% of the date total. Stripe and Crypto include a 10% processing fee on the deposit. If your request moves forward, you will receive one private link to complete screening details and review your deposit instructions.</small>
-        </div>
-
-        <div class="field full-width">
-          <label class="checkbox-label">
-            <input type="checkbox" id="deposit-acknowledgement" name="deposit_acknowledgement" value="yes" required>
-            <span>I understand that no payment is due when I submit this request, and that my date is not confirmed until screening, the required deposit, and final approval are complete.</span>
-          </label>
-        </div>
-
-
-        <!-- PRIVACY NOTE -->
+        <!-- NEXT STEP NOTE -->
         <p>
-          Nothing is charged when you submit this form. If your request moves forward, you will receive one private link to complete your screening details and deposit step.
+          <strong>No payment is due when you submit this request.</strong> If your request moves forward, your private link will include the screening details, deposit amount, payment-method choices, and any applicable processing fee.
         </p>
 
 
@@ -671,10 +652,7 @@
         ["Location", selectedOptionText(appointmentType)],
         ...(outcallFee ? [["Outcall add-on", money(outcallFee)]] : []),
         ["Estimated total", money(total)],
-        ["Base deposit (25%)", money(total * 0.25)],
-        ...(document.getElementById("deposit-payment-method")?.value === "stripe" || document.getElementById("deposit-payment-method")?.value === "crypto"
-          ? [["Payment processing fee (10% of deposit)", money(total * 0.25 * 0.10)], ["Deposit request total", money(total * 0.25 * 1.10)]]
-          : [["Deposit request total", money(total * 0.25)]])
+        ["Estimated deposit (25%)", money(total * 0.25)]
       ];
       details.innerHTML = rows.map(row =>
         '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>'
@@ -685,7 +663,6 @@
       }
     }
 
-    document.getElementById("deposit-payment-method")?.addEventListener("change", updateBookingSummary);
 
     let availabilityRequestId = 0;
 
