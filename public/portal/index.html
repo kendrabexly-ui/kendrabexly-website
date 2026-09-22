@@ -3841,19 +3841,20 @@ async function loadRequests(options = {}) {
         const add=(label,url,source,kind)=>{if(!links.some(x=>x.url===url))links.push({label,url,source,kind});};
 
         // State-specific general licensing sources.
-        if(st==="CA")add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
+        if(st==="CA"&&!/doctor|physician|medical doctor|\bmd\b|\bdo\b|surgeon/.test(occ))add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
         if(st==="NV"&&/esthetic|aesthetic|cosmetolog|hair design|hair braider|nail|electrolog|makeup/.test(occ))add("Nevada Cosmetology License Lookup","https://www.nvcosmo.com/licensee-lookup","Nevada State Board of Cosmetology","license");
 
         // Physicians / doctors.
         if(/doctor|physician|medical doctor|\bmd\b|\bdo\b|surgeon/.test(occ)){
           add("FSMB DocInfo Physician Search","https://www.docinfo.org/","Federation of State Medical Boards (FSMB) DocInfo","license");
-          add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
+          if(st==="CA")add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
+          add("Supporting NPI Lookup","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
         }
 
         // Registered nurses and other licensed nurses.
         if(/registered nurse|nurse|nursing|\brn\b|\blvn\b|\blpn\b|\baprn\b/.test(occ)){
           add("Nursys QuickConfirm","https://www.nursys.com/LQC/LQCTerms.aspx","Nursys / NCSBN","license");
-          add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
+          add("Supporting NPI Lookup","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
         }
 
         // Attorneys / lawyers.
@@ -3892,7 +3893,7 @@ async function loadRequests(options = {}) {
         // Other healthcare occupations can use NPI only as supporting provider data.
         if(!/doctor|physician|medical doctor|\bmd\b|\bdo\b|surgeon|registered nurse|nurse|nursing|\brn\b|\blvn\b|\blpn\b|\baprn\b/.test(occ)
            && /dentist|dental|therap|psych|pharmac|chiropr|optometr|health|medical|provider/.test(occ)){
-          add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
+          add("Supporting NPI Lookup","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
         }
 
         if(!links.length&&st==="CA")add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
@@ -4394,10 +4395,40 @@ async function loadRequests(options = {}) {
           section.querySelector(sel)?.addEventListener("change",()=>renderCredentialRegistries(section));
         });
         const credentialOccupation=section.querySelector(".client-credential-occupation");
+        const credentialTypeInput=section.querySelector(".client-credential-type");
         if(credentialOccupation&&!credentialOccupation.value){
           const employmentTitle=section.querySelector(".client-verification-job-title")?.value||"";
           if(employmentTitle)credentialOccupation.value=employmentTitle;
         }
+        const suggestedCredentialType=(occupation)=>{
+          const occ=String(occupation||"").trim().toLowerCase();
+          if(/doctor|physician|medical doctor|\bmd\b|\bdo\b|surgeon/.test(occ))return "Medical License";
+          if(/registered nurse|\brn\b/.test(occ))return "Registered Nurse License";
+          if(/nurse|nursing|\blvn\b|\blpn\b|\baprn\b/.test(occ))return "Nursing License";
+          if(/attorney|lawyer|counsel|bar/.test(occ))return "Bar License";
+          if(/real estate|realtor|realty|real estate agent/.test(occ))return "Real Estate License";
+          if(/real estate broker/.test(occ))return "Real Estate Broker License";
+          if(/police|peace officer|sheriff|deputy|state trooper|state police|law enforcement officer|corrections officer/.test(occ))return "Law Enforcement Certification";
+          if(/federal law enforcement|federal agent|fbi|dea|atf|secret service|homeland security|ice agent|cbp officer|us marshal|u\.s\. marshal/.test(occ))return "Federal Employment / Credential";
+          if(/military|army|navy|marine|air force|space force|coast guard|service member|servicemember|active duty/.test(occ))return "Military Service Status";
+          if(/esthetic|aesthetic/.test(occ))return "Esthetician License";
+          if(/cosmetolog/.test(occ))return "Cosmetology License";
+          return "";
+        };
+        const syncSuggestedCredentialType=()=>{
+          if(!credentialTypeInput)return;
+          const suggestion=suggestedCredentialType(credentialOccupation?.value);
+          const current=credentialTypeInput.value.trim();
+          const previous=credentialTypeInput.dataset.suggestedValue||"";
+          if(!current||current===previous){
+            credentialTypeInput.value=suggestion;
+            credentialTypeInput.dataset.suggestedValue=suggestion;
+          }
+        };
+        syncSuggestedCredentialType();
+        credentialOccupation?.addEventListener("input",syncSuggestedCredentialType);
+        credentialOccupation?.addEventListener("change",syncSuggestedCredentialType);
+        credentialTypeInput?.addEventListener("input",()=>{credentialTypeInput.dataset.suggestedValue="";});
         renderCredentialRegistries(section);
 
         const updateEmploymentVerificationUi=()=>{
