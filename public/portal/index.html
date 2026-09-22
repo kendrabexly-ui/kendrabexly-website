@@ -2891,7 +2891,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-credential-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">3. License &amp; Credential Verification</strong>
+                      <strong style="font-size:13px;">3. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-credential-badge">Credential: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-credential-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip</button><button type="button" class="client-optional-clear" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Use an official licensing board or credential registry to confirm a claimed professional license or credential. A public registry result confirms the credential record—not current employment.</div>
@@ -3004,7 +3004,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-public-record-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">5. Public Court &amp; Criminal Record Search</strong>
+                      <strong style="font-size:13px;">5. Public Court &amp; Criminal Record Search <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
@@ -3090,7 +3090,7 @@ async function loadRequests(options = {}) {
                   <section class="verification-card client-persona-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">6. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
-                      <span class="verification-badge client-persona-badge">Persona: Checking…</span>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-persona-badge">Persona: Checking…</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-persona-card">Collapse</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
                     <div class="verification-actions" style="margin-top:9px;align-items:flex-start;">
@@ -4217,7 +4217,7 @@ async function loadRequests(options = {}) {
           section.dataset.credentialStatus=result.credential?.credential_status||"not_checked";
           await setOptionalSectionState(section,"credential",result.credential?.credential_status==="confirmed"?"confirmed":result.credential?.credential_status==="mismatch"?"mismatch":result.credential?.credential_status==="unable_to_verify"?"unable_to_verify":"in_progress").catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          const card=section.querySelector(".client-credential-card");if(card)card.dataset.dirty="0";
+          const card=section.querySelector(".client-credential-card");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           updateVerificationFlowSummary(section);
         }catch(error){if(status){status.textContent=error.message||"Unable to save credential verification.";status.style.color="#8a2424";}}finally{if(button)button.disabled=false;}
       };
@@ -4451,7 +4451,7 @@ async function loadRequests(options = {}) {
           const addressState=result.address_check?.result_status==="confirmed"?"confirmed":result.address_check?.result_status==="partial_match"?"partial_match":result.address_check?.result_status==="mismatch"?"mismatch":result.address_check?.result_status==="unable_to_verify"?"unable_to_verify":"in_progress";
           await setOptionalSectionState(section,"address",addressState).catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          const card=section.querySelector(".client-address-verification-card");if(card)card.dataset.dirty="0";
+          const card=section.querySelector(".client-address-verification-card");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           updateVerificationFlowSummary(section);
         }catch(error){
           if(status){status.textContent=error.message||"Unable to save address verification.";status.style.color="#8a2424";}
@@ -4572,7 +4572,7 @@ async function loadRequests(options = {}) {
           const publicState=result.check?.record_status==="potential_match"?"potential_match":result.check?.record_status==="confirmed_match"?"needs_review":result.check?.record_status==="unable_to_verify"?"unable_to_verify":result.check?.record_status==="no_public_record_found"?"confirmed":"in_progress";
           await setOptionalSectionState(section,"public_records",publicState).catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          const card=section.querySelector(".client-public-record-card");if(card)card.dataset.dirty="0";
+          const card=section.querySelector(".client-public-record-card");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           updateVerificationFlowSummary(section);
         }catch(error){
           if(status){status.textContent=error.message||"Unable to save public record check.";status.style.color="#8a2424";}
@@ -4672,7 +4672,7 @@ async function loadRequests(options = {}) {
             const industryCheck=section.querySelector(".client-check-industry");if(industryCheck)industryCheck.checked=true;
           }
           if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
-          const card=section.querySelector(".client-verification-editor");if(card)card.dataset.dirty="0";
+          const card=section.querySelector(".client-verification-editor");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section),loadVerificationAudits(section)]);
           updateVerificationFlowSummary(section);
           return true;
@@ -5294,14 +5294,20 @@ async function loadRequests(options = {}) {
         credentialTypeInput?.addEventListener("input",()=>{credentialTypeInput.dataset.suggestedValue="";});
         renderCredentialRegistries(section);
 
+        const setCardSaveState=(card,text,color="var(--muted)")=>{
+          if(!card||card.classList.contains("client-verification-overview"))return;
+          let note=card.querySelector(":scope > .verification-card-save-state");
+          if(!note){note=document.createElement("div");note.className="verification-card-save-state";note.style.cssText="margin-top:6px;font-size:10px;font-weight:700;";card.appendChild(note);}
+          note.textContent=text;note.style.color=color;
+        };
         section.querySelectorAll(".verification-card input,.verification-card select,.verification-card textarea").forEach(input=>{
           input.addEventListener("input",()=>{
             const card=input.closest(".verification-card");
-            if(card&&!card.classList.contains("client-verification-overview"))card.dataset.dirty="1";
+            if(card&&!card.classList.contains("client-verification-overview")){card.dataset.dirty="1";setCardSaveState(card,"Unsaved changes","#9a6700");}
           });
           input.addEventListener("change",()=>{
             const card=input.closest(".verification-card");
-            if(card&&!card.classList.contains("client-verification-overview"))card.dataset.dirty="1";
+            if(card&&!card.classList.contains("client-verification-overview")){card.dataset.dirty="1";setCardSaveState(card,"Unsaved changes","#9a6700");}
             updateVerificationFlowSummary(section);
           });
         });
@@ -5690,6 +5696,7 @@ async function loadRequests(options = {}) {
           const button=event.currentTarget;
           const status=section.querySelector(".client-persona-status");
           if(button.disabled)return;
+          if(!window.confirm("Start a new Persona test inquiry? A new inquiry will be created, while the previous Persona inquiry and audit history remain preserved."))return;
           button.disabled=true;
           const resultBox=section.querySelector(".client-persona-workflow-result");
           const badge=section.querySelector(".client-persona-badge");
