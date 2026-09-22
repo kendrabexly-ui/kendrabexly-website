@@ -322,9 +322,6 @@ test("booking availability keeps duration-aware lookup and minimum notice",()=>{
 });
 
 test("outcall still requires complete location details",()=>{
-  assert.match(worker,/appointmentType === "outcall" && !outcallAddressLine1/);
-  assert.match(worker,/appointmentType === "outcall" && !outcallCity/);
-  assert.match(worker,/appointmentType === "outcall" && !outcallState/);
-  assert.match(worker,/appointmentType === "outcall" && !outcallPostalCode/);
-  assert.match(worker,/Please provide the complete outcall address/);
+  assert.match(worker,/appointmentType === "outcall" &&\s*\(!outcallAddressLine1 \|\| !outcallCity \|\| !outcallState \|\| !outcallPostalCode\)/);
+  assert.match(worker,/Please complete the outcall address/);
 });
