@@ -2884,7 +2884,7 @@ async function loadRequests(options = {}) {
                     <div class="verification-actions verification-sticky-actions">
                       <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
                       <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
-                      <button type="button" class="client-verification-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Manual Verification</button>
+                      <button type="button" class="client-verification-complete" disabled hidden style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Manual Verification</button>
                       <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
                     </div>
                   </section>
@@ -3139,9 +3139,14 @@ async function loadRequests(options = {}) {
                       <button type="button" class="client-persona-verify persona-button" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:not-allowed;opacity:.6;font:inherit;">Run Persona Verification</button>
                       <button type="button" class="client-persona-retry persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Retry Persona</button>
                       <button type="button" class="client-persona-new-test persona-button" hidden style="padding:8px 12px;border:1px solid #9a6700;border-radius:8px;background:#fffaf0;color:#74520b;cursor:pointer;font:inherit;font-weight:700;">Start New Persona Test</button>
-                      <button type="button" class="client-persona-refresh persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Refresh Persona Status</button>
-                      <button type="button" class="client-persona-workflow-check persona-button" hidden style="padding:8px 12px;border:1px solid #38506f;border-radius:8px;background:#f7f9fc;color:#38506f;cursor:pointer;font:inherit;font-weight:700;">Check Persona Workflow Result</button>
                     </div>
+                    <details class="client-persona-troubleshooting" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
+                      <summary style="cursor:pointer;font-size:11px;font-weight:700;">Persona troubleshooting tools</summary>
+                      <div class="verification-actions" style="margin-top:8px;">
+                        <button type="button" class="client-persona-refresh persona-button" hidden style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Refresh Persona Status</button>
+                        <button type="button" class="client-persona-workflow-check persona-button" hidden style="padding:8px 12px;border:1px solid #38506f;border-radius:8px;background:#f7f9fc;color:#38506f;cursor:pointer;font:inherit;font-weight:700;">Check Persona Workflow Result</button>
+                      </div>
+                    </details>
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — manual verification remains available.</div>
                     <div class="client-persona-workflow-result" hidden role="status" aria-live="polite" style="margin-top:9px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;line-height:1.55;"></div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
@@ -3154,7 +3159,10 @@ async function loadRequests(options = {}) {
                     </div>
                     <div class="client-final-review-summary" style="margin-top:8px;font-size:12px;line-height:1.55;color:var(--muted);">Complete or skip the optional checks, then review unresolved items before making the final decision.</div>
                     <div class="client-final-review-warnings" style="margin-top:8px;"></div>
-                    <button type="button" class="client-final-review-jump" style="margin-top:9px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Go to Final Decision</button>
+                    <div class="verification-actions" style="margin-top:9px;">
+                      <button type="button" class="client-final-review-jump" style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Edit Final Decision</button>
+                      <button type="button" class="client-final-review-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Verification</button>
+                    </div>
                   </section>
 
                   <details class="verification-card client-audit-history">
@@ -5179,6 +5187,10 @@ async function loadRequests(options = {}) {
           section.querySelector(".client-verification-editor")?.scrollIntoView({behavior:"smooth",block:"start"});
           section.querySelector(".client-verification-status")?.focus();
         });
+        section.querySelector(".client-final-review-complete")?.addEventListener("click",()=>{
+          const hiddenComplete=section.querySelector(".client-verification-complete");
+          if(hiddenComplete&&!hiddenComplete.disabled)hiddenComplete.click();
+        });
         section.querySelectorAll(".verification-card-collapse").forEach(button=>button.addEventListener("click",()=>{
           const card=section.querySelector(button.dataset.collapseCard||"");if(!card)return;
           card.classList.toggle("is-collapsed");
@@ -5388,7 +5400,10 @@ async function loadRequests(options = {}) {
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
+          const finalComplete=section.querySelector(".client-final-review-complete");
+          if(finalComplete){finalComplete.disabled=!ready;finalComplete.style.opacity=ready?"1":".5";finalComplete.style.cursor=ready?"pointer":"not-allowed";}
           updateVerificationSummary(section);
+          updateVerificationFlowSummary(section);
         };
 
         checklistSelectors.forEach(selector=>section.querySelector(selector)?.addEventListener("change",updateCompletionControls));
@@ -5697,6 +5712,7 @@ async function loadRequests(options = {}) {
           const status=section.querySelector(".client-persona-status");
           if(button.disabled)return;
           if(!window.confirm("Start a new Persona test inquiry? A new inquiry will be created, while the previous Persona inquiry and audit history remain preserved."))return;
+          if(!window.confirm("Start a new Persona test? This creates a new inquiry and keeps the previous inquiry and audit history."))return;
           button.disabled=true;
           const resultBox=section.querySelector(".client-persona-workflow-result");
           const badge=section.querySelector(".client-persona-badge");
