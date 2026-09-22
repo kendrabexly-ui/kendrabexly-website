@@ -43,9 +43,10 @@ test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/client-basic-screening-open-request/);
   assert.match(portal,/client-basic-screening-open-request"\)\.forEach\(\(button\)=>button\.addEventListener\("click",\(\)=>\{[\s\S]*\/portal\/request\?id=\$\{encodeURIComponent\(requestId\)\}/);
   assert.match(portal,/>2\. ID Record</);
-  assert.match(portal,/>3\. Manual Verification</);
-  assert.match(portal,/>8\. Final Review &amp; Decision</);
-  assert.match(portal,/>9\. Audit History</);
+  assert.match(portal,/>3\. Employment Verification</);
+  assert.match(portal,/>4\. Final Verification Checklist</);
+  assert.match(portal,/>9\. Final Review &amp; Decision</);
+  assert.match(portal,/>10\. Audit History</);
   assert.match(portal,/finalReady=basicScreening==="confirmed"/);
 });
 
@@ -53,6 +54,7 @@ test("verification field cards start collapsed and navigation expands them",()=>
   for(const cardClass of [
     "client-basic-screening",
     "client-id-record",
+    "client-employment-verification",
     "client-verification-editor",
     "client-credential-card",
     "client-address-verification-card",
@@ -66,6 +68,24 @@ test("verification field cards start collapsed and navigation expands them",()=>
   assert.match(portal,/const card=target\.matches\("\.verification-card"\)\?target:target\.closest\("\.verification-card"\)/);
   assert.match(portal,/card\.classList\.remove\("is-collapsed"\)/);
   assert.match(portal,/expandVerificationTarget\(target\);[\s\S]*loadVerificationCardData\(target\)/);
+});
+
+test("employment is separate from the final checklist and Final Review confirms the decision",()=>{
+  const employmentStart=portal.indexOf('class="verification-card client-employment-verification is-collapsed"');
+  const checklistStart=portal.indexOf('class="verification-card client-verification-editor is-collapsed"');
+  const credentialStart=portal.indexOf('class="verification-card client-credential-card is-collapsed"');
+  assert.ok(employmentStart>0&&checklistStart>employmentStart&&credentialStart>checklistStart);
+  const employmentCard=portal.slice(employmentStart,checklistStart);
+  const finalChecklist=portal.slice(checklistStart,credentialStart);
+  assert.match(employmentCard,/client-verification-employer/);
+  assert.match(employmentCard,/client-employment-method/);
+  assert.doesNotMatch(finalChecklist,/client-verification-employer/);
+  assert.match(finalChecklist,/client-persona-birthdate/);
+  assert.match(finalChecklist,/client-check-identity/);
+  assert.match(finalChecklist,/client-verification-status/);
+  assert.match(finalChecklist,/client-verification-decision-notes/);
+  assert.match(portal,/client-final-review-summary[\s\S]*Final decision:/);
+  assert.match(portal,/client-final-review-complete[\s\S]*confirmVerificationDecision/);
 });
 
 test("client dashboard renders verification profiles in bounded batches",()=>{
@@ -249,7 +269,7 @@ test("database-only Persona end-to-end state keeps manual decision separate",()=
   assert.ok(pendingMatch);
   const pending=new Function(pendingMatch[0]+"; return isPersonaDatabasePending;")();
   assert.equal(pending("inq_new","pending","passed"),false);
-  assert.match(portal,/Manual: /);
+  assert.match(portal,/Decision: /);
   assert.match(portal,/Persona: Database Passed/);
 });
 
@@ -319,7 +339,8 @@ test("employment verification requires evidence before Confirmed",()=>{
 });
 
 test("portal has structured employment verification workflow",()=>{
-  assert.match(portal,/Employment verification .*<\/legend>/);
+  assert.match(portal,/class="verification-card client-employment-verification is-collapsed"/);
+  assert.match(portal,/>3\. Employment Verification</);
   assert.match(portal,/client-verification-employer/);
   assert.match(portal,/client-verification-job-title/);
   assert.match(portal,/client-employment-method/);
@@ -357,9 +378,9 @@ test("confirmed credential requires an official source",()=>{
 });
 
 test("portal has License and Credential Verification after basic screening",()=>{
-  assert.match(portal,/4\. License &amp; Credential Verification/);
-  assert.match(portal,/7\. Persona/);
-  assert.match(portal,/9\. Audit History/);
+  assert.match(portal,/5\. License &amp; Credential Verification/);
+  assert.match(portal,/8\. Persona/);
+  assert.match(portal,/10\. Audit History/);
 });
 
 test("registry routing includes official licensing sources",()=>{
