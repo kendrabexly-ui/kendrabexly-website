@@ -15,6 +15,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/credential-verification", "edit_verification"],
   ["/api/admin/clients/public-record-check", "edit_verification"],
+  ["/api/admin/clients/address-verification", "edit_verification"],
   ["/api/admin/clients/verification-audit", "final_decision"],
   ["/api/admin/clients/persona-status", "run_persona"],
   ["/api/admin/clients/persona-test", "run_persona"],
@@ -379,6 +380,25 @@ async function ensureVerificationWorkspaceTables(env) {
   }
 
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_address_verifications (
+      client_id INTEGER PRIMARY KEY,
+      address_line1 TEXT NOT NULL DEFAULT '',
+      address_line2 TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      state TEXT NOT NULL DEFAULT '',
+      postal_code TEXT NOT NULL DEFAULT '',
+      result_status TEXT NOT NULL DEFAULT 'not_checked',
+      verification_method TEXT NOT NULL DEFAULT '',
+      source_name TEXT NOT NULL DEFAULT '',
+      source_url TEXT NOT NULL DEFAULT '',
+      evidence_reference TEXT NOT NULL DEFAULT '',
+      checked_at TEXT,
+      checked_by TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_verification_activity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER NOT NULL,
@@ -466,6 +486,7 @@ async function clearSensitiveVerificationData(env, clientId) {
   await env.DB.prepare("DELETE FROM client_verification_sensitive_fields WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("DELETE FROM client_credential_verifications WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("DELETE FROM client_public_record_checks WHERE client_id=?").bind(clientId).run();
+  await env.DB.prepare("DELETE FROM client_address_verifications WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("UPDATE client_verification_drafts SET birthdate='', persona_fields_json='{}', updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare(`
     UPDATE client_verification_audits
@@ -5468,6 +5489,86 @@ if (
       } catch(error) {
         console.error("Public record check save error:",error);
         return Response.json({ok:false,message:"Unable to save public court record check.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/address-verification" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId=Number(url.searchParams.get("client_id")||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const row=await env.DB.prepare(`
+          SELECT client_id,address_line1,address_line2,city,state,postal_code,result_status,verification_method,
+                 source_name,source_url,evidence_reference,checked_at,checked_by,updated_at
+          FROM client_address_verifications WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ok:true,address_check:row?{
+          client_id:Number(row.client_id),address_line1:row.address_line1||"",address_line2:row.address_line2||"",
+          city:row.city||"",state:row.state||"",postal_code:row.postal_code||"",result_status:row.result_status||"not_checked",
+          verification_method:row.verification_method||"",source_name:row.source_name||"",source_url:row.source_url||"",
+          evidence_reference:row.evidence_reference||"",checked_at:row.checked_at||"",checked_by:row.checked_by||"",
+          updated_at:row.updated_at||""
+        }:null},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to load address verification.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/address-verification" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const addressLine1=String(data.address_line1||"").trim().slice(0,240);
+        const addressLine2=String(data.address_line2||"").trim().slice(0,160);
+        const city=String(data.city||"").trim().slice(0,120);
+        const state=normalizeVerificationState(data.state||"").slice(0,40);
+        const postalCode=String(data.postal_code||"").trim().slice(0,20);
+        const resultStatus=String(data.result_status||"not_checked").trim().toLowerCase();
+        if(!["not_checked","confirmed","partial_match","mismatch","unable_to_verify"].includes(resultStatus)){
+          return Response.json({ok:false,message:"Choose a valid address verification result."},{status:400});
+        }
+        const verificationMethod=String(data.verification_method||"").trim().slice(0,120);
+        const sourceName=String(data.source_name||"").trim().slice(0,200);
+        const sourceUrl=String(data.source_url||"").trim().slice(0,800);
+        const evidenceReference=String(data.evidence_reference||"").trim().slice(0,1200);
+        if(resultStatus!=="not_checked" && !(addressLine1&&city&&state&&postalCode&&verificationMethod)){
+          return Response.json({ok:false,message:"Address, city, state, postal code, and verification method are required before saving an address result."},{status:400});
+        }
+        if(["partial_match","mismatch","unable_to_verify"].includes(resultStatus) && !evidenceReference){
+          return Response.json({ok:false,message:"Add an evidence/reference note for this address result."},{status:400});
+        }
+        const actor=accessIdentity(request).email||"authorized-admin";
+        await env.DB.prepare(`
+          INSERT INTO client_address_verifications
+            (client_id,address_line1,address_line2,city,state,postal_code,result_status,verification_method,
+             source_name,source_url,evidence_reference,checked_at,checked_by,updated_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id) DO UPDATE SET
+            address_line1=excluded.address_line1,address_line2=excluded.address_line2,city=excluded.city,state=excluded.state,
+            postal_code=excluded.postal_code,result_status=excluded.result_status,verification_method=excluded.verification_method,
+            source_name=excluded.source_name,source_url=excluded.source_url,evidence_reference=excluded.evidence_reference,
+            checked_at=CASE WHEN excluded.result_status='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,
+            checked_by=excluded.checked_by,updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId,addressLine1,addressLine2,city,state,postalCode,resultStatus,verificationMethod,
+                 sourceName,sourceUrl,evidenceReference,resultStatus,actor).run();
+        const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+        if(resultStatus!=="not_checked"){
+          await logVerificationActivity(env,clientId,audit?.id||null,"address_verification_updated",
+            resultStatus==="confirmed"?"Address verified":"Address verification updated",
+            "Checked by: "+actor+" · Result: "+resultStatus+" · Method: "+verificationMethod+
+            (sourceName?" · Source: "+sourceName:""));
+        }
+        const saved=await env.DB.prepare(`
+          SELECT client_id,address_line1,address_line2,city,state,postal_code,result_status,verification_method,
+                 source_name,source_url,evidence_reference,checked_at,checked_by,updated_at
+          FROM client_address_verifications WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ok:true,address_check:saved},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        console.error("Address verification save error:",error);
+        return Response.json({ok:false,message:"Unable to save address verification.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
