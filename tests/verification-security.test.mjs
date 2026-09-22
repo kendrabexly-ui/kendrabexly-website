@@ -339,7 +339,7 @@ test("outcall starts lightweight and defers exact address to screening",()=>{
 test("initial booking form defers deposit method until private continuation",()=>{
   assert.doesNotMatch(requestPage,/name="deposit_payment_method"/);
   assert.doesNotMatch(requestPage,/name="deposit_acknowledgement"/);
-  assert.match(requestPage,/No payment is due when you submit this request/);
+  assert.doesNotMatch(requestPage,/No payment/i);
   assert.match(continuationPage,/name="deposit_payment_method"/);
   assert.match(continuationPage,/data-method="gift-card"/);
   assert.match(continuationPage,/data-method="stripe"/);
