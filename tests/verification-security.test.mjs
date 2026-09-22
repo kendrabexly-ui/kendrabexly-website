@@ -151,6 +151,12 @@ test("birthdate supports numeric keypad entry while APIs receive ISO format",()=
   assert.match(portal,/birthdate:birthdateInputToIso\(section\.querySelector\("\.client-persona-birthdate"\)\?\.value\)/);
 });
 
+test("Persona error links reveal the correct verification card and focus its field",()=>{
+  assert.match(portal,/const jumpToPersonaField=\(section,selector\)=>\{[\s\S]*card\.hidden=false;[\s\S]*card\.classList\.remove\("is-collapsed"\);[\s\S]*target\.scrollIntoView\([\s\S]*target\.focus\(\{preventScroll:true\}\)/);
+  assert.match(portal,/const selector=personaFieldMeta\[field\]\?\.selector\|\|"";[\s\S]*const jump=selector\?/);
+  assert.match(portal,/jumpToPersonaField\(section,button\.dataset\.jumpTarget\)/);
+});
+
 test("duplicate Persona submissions are blocked",()=>{
   assert.match(worker,/persona_already_pending/);
   assert.match(worker,/A Persona verification is already pending for this client/);

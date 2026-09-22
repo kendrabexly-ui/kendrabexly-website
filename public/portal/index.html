@@ -3728,6 +3728,24 @@ async function loadRequests(options = {}) {
         return "("+digits.slice(0,3)+") "+digits.slice(3,6)+"-"+digits.slice(6);
       };
       const sanitizeEmailWhileTyping=(value)=>String(value||"").replace(/\s+/g,"").toLowerCase().replace(/[;,]+$/,"");
+      const jumpToPersonaField=(section,selector)=>{
+        if(!selector)return;
+        const target=section.querySelector(selector);
+        if(!target)return;
+        const card=target.closest(".verification-card");
+        if(card){
+          card.hidden=false;
+          card.classList.remove("is-collapsed");
+          const collapse=card.querySelector(".verification-card-collapse");
+          if(collapse)collapse.textContent="Collapse";
+        }
+        const label=target.closest("label");
+        if(label)label.hidden=false;
+        requestAnimationFrame(()=>{
+          target.scrollIntoView({behavior:"smooth",block:"center"});
+          target.focus({preventScroll:true});
+        });
+      };
       const validatePersonaFields=(section,{show=true,force=false}={})=>{
         clearPersonaFieldStates(section);
         const fieldErrors={};
@@ -3789,10 +3807,7 @@ async function loadRequests(options = {}) {
               return '<button type="button" class="persona-error-item" data-jump-target="'+escapeHtml(selector)+'">'+escapeHtml(item.label)+": "+escapeHtml(item.message)+"</button>";
             }).join("")+(warnings.length?'<div class="persona-warning-list" style="margin-top:8px;padding-top:7px;border-top:1px solid #f1c7c0;color:#7b5214;"><strong>Warnings</strong><br>'+warnings.map(x=>"• "+escapeHtml(x)).join("<br>")+"</div>":"");
             box.querySelectorAll("[data-jump-target]").forEach(button=>button.addEventListener("click",()=>{
-              const target=section.querySelector(button.dataset.jumpTarget);
-              const editor=section.querySelector(".client-verification-editor");
-              if(editor)editor.hidden=false;
-              target?.scrollIntoView({behavior:"smooth",block:"center"});target?.focus();
+              jumpToPersonaField(section,button.dataset.jumpTarget);
             }));
           }else if(warnings.length){
             box.className="client-persona-validation verification-warning";
@@ -3846,11 +3861,7 @@ async function loadRequests(options = {}) {
             ?"Saved DOB is present and will be used automatically if Persona requires it."
             :'<button type="button" class="persona-dob-jump" style="border:0;background:transparent;padding:0;color:#8a2424;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">DOB is missing — go to Final Verification Checklist</button>');
           dobHandoff.querySelector(".persona-dob-jump")?.addEventListener("click",()=>{
-            const target=section.querySelector(".client-persona-birthdate");
-            const editor=section.querySelector(".client-verification-editor");
-            if(editor)editor.hidden=false;
-            target?.scrollIntoView({behavior:"smooth",block:"center"});
-            target?.focus();
+            jumpToPersonaField(section,".client-persona-birthdate");
           });
         }
         return {valid:errors.length===0,errors,warnings,missing,readiness,allReady};
@@ -6185,14 +6196,12 @@ async function loadRequests(options = {}) {
                   box.className="client-persona-validation verification-error";
                   box.innerHTML="<strong>Fix before Persona submission:</strong>"+Object.entries(serverFieldErrors).map(([field,message])=>{
                     const label=personaFieldMeta[field]?.label||field.replaceAll("_"," ");
-                    const jump=field==="birthdate"?' data-jump-target=".client-persona-birthdate"':"";
+                    const selector=personaFieldMeta[field]?.selector||"";
+                    const jump=selector?' data-jump-target="'+escapeHtml(selector)+'"':"";
                     return '<button type="button" class="persona-error-item"'+jump+'>'+escapeHtml(label)+": "+escapeHtml(message)+"</button>";
                   }).join("");
                   box.querySelectorAll("[data-jump-target]").forEach(button=>button.addEventListener("click",()=>{
-                    const target=section.querySelector(button.dataset.jumpTarget);
-                    const editor=section.querySelector(".client-verification-editor");
-                    if(editor)editor.hidden=false;
-                    target?.scrollIntoView({behavior:"smooth",block:"center"});target?.focus();
+                    jumpToPersonaField(section,button.dataset.jumpTarget);
                   }));
                   box.scrollIntoView({behavior:"smooth",block:"center"});
                 }
