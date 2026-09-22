@@ -13,6 +13,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-activity", "edit_verification"],
   ["/api/admin/clients/verification-overview", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
+  ["/api/admin/clients/phone-reverse-lookup", "edit_verification"],
   ["/api/admin/clients/credential-verification", "edit_verification"],
   ["/api/admin/clients/employment-verification", "edit_verification"],
   ["/api/admin/clients/public-record-check", "edit_verification"],
@@ -335,10 +336,25 @@ async function ensureVerificationWorkspaceTables(env) {
       line_type TEXT NOT NULL DEFAULT '',
       carrier_name TEXT NOT NULL DEFAULT '',
       is_voip INTEGER NOT NULL DEFAULT 0,
+      caller_name TEXT NOT NULL DEFAULT '',
+      caller_type TEXT NOT NULL DEFAULT '',
+      caller_name_checked_at TEXT,
       checked_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+  const phoneCheckColumns = await env.DB.prepare("PRAGMA table_info(client_phone_line_checks)").all();
+  const phoneCheckNames = new Set((phoneCheckColumns.results || []).map(row => String(row.name || "")));
+  if (!phoneCheckNames.has("caller_name")) {
+    await env.DB.prepare("ALTER TABLE client_phone_line_checks ADD COLUMN caller_name TEXT NOT NULL DEFAULT ''").run();
+  }
+  if (!phoneCheckNames.has("caller_type")) {
+    await env.DB.prepare("ALTER TABLE client_phone_line_checks ADD COLUMN caller_type TEXT NOT NULL DEFAULT ''").run();
+  }
+  if (!phoneCheckNames.has("caller_name_checked_at")) {
+    await env.DB.prepare("ALTER TABLE client_phone_line_checks ADD COLUMN caller_name_checked_at TEXT").run();
+  }
+
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_credential_verifications (
       client_id INTEGER PRIMARY KEY,
@@ -5804,7 +5820,7 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const clientId=Number(url.searchParams.get("client_id")||0);
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
-        const row=await env.DB.prepare("SELECT client_id, phone_e164, provider, valid, line_type, carrier_name, is_voip, checked_at FROM client_phone_line_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
+        const row=await env.DB.prepare("SELECT client_id, phone_e164, provider, valid, line_type, carrier_name, is_voip, caller_name, caller_type, caller_name_checked_at, checked_at FROM client_phone_line_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
         return Response.json({ok:true,check:row?{
           client_id:Number(row.client_id),
           phone_e164:row.phone_e164||"",
@@ -5813,6 +5829,9 @@ if (
           line_type:row.line_type||"",
           carrier_name:row.carrier_name||"",
           is_voip:Number(row.is_voip||0)===1,
+          caller_name:row.caller_name||"",
+          caller_type:row.caller_type||"",
+          caller_name_checked_at:row.caller_name_checked_at||"",
           checked_at:row.checked_at||""
         }:null},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
@@ -5890,6 +5909,79 @@ if (
       } catch(error) {
         console.error("Phone line-type lookup error:",error);
         return Response.json({ok:false,message:"Unable to verify the phone line type.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/phone-reverse-lookup" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const phone=normalizePhoneForLookup(data.phone_number);
+        if(!phone)return Response.json({ok:false,code:"invalid_phone",message:"Enter a valid U.S. phone number before running reverse phone lookup."},{status:400});
+
+        const apiUser=String(env.TWILIO_API_KEY||env.TWILIO_ACCOUNT_SID||"").trim();
+        const apiSecret=String(env.TWILIO_API_SECRET||env.TWILIO_AUTH_TOKEN||"").trim();
+        if(!apiUser||!apiSecret){
+          return Response.json({
+            ok:false,code:"phone_lookup_not_configured",
+            message:"Reverse phone lookup is not configured.",
+            technical_details:"Add TWILIO_API_KEY and TWILIO_API_SECRET, or TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN, in Cloudflare."
+          },{status:503});
+        }
+
+        const actor=accessIdentity(request).email||"admin";
+        const rate=await enforceVerificationRateLimit(env,"phone_reverse_lookup",actor+":"+clientId,10,300);
+        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many reverse phone lookups. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+
+        const auth=btoa(apiUser+":"+apiSecret);
+        const lookupResponse=await fetch(
+          "https://lookups.twilio.com/v2/PhoneNumbers/"+encodeURIComponent(phone)+"?Fields=caller_name",
+          {headers:{Authorization:"Basic "+auth,"Accept":"application/json"}}
+        );
+        const lookup=await lookupResponse.json().catch(()=>({}));
+        if(!lookupResponse.ok){
+          const detail=lookup?.message||lookup?.detail||("Twilio Lookup returned HTTP "+lookupResponse.status+".");
+          return Response.json({ok:false,code:"phone_reverse_lookup_failed",message:"Unable to complete reverse phone lookup.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
+        }
+
+        const caller=lookup?.caller_name||{};
+        const callerName=String(caller?.caller_name||"").trim();
+        const callerType=String(caller?.caller_type||"").trim().toUpperCase();
+        const valid=Boolean(lookup?.valid);
+        await env.DB.prepare(`
+          INSERT INTO client_phone_line_checks
+            (client_id,phone_e164,provider,valid,line_type,carrier_name,is_voip,caller_name,caller_type,caller_name_checked_at,checked_at,updated_at)
+          VALUES(?,?,?,?,'','',0,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id) DO UPDATE SET
+            phone_e164=excluded.phone_e164,provider=excluded.provider,valid=excluded.valid,
+            caller_name=excluded.caller_name,caller_type=excluded.caller_type,
+            caller_name_checked_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId,phone,"twilio_caller_name",valid?1:0,callerName,callerType).run();
+
+        const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+        await logVerificationActivity(
+          env,clientId,audit?.id||null,"phone_reverse_lookup_checked",
+          callerName?"Reverse phone lookup returned a caller name":"Reverse phone lookup completed",
+          callerName?("Caller type: "+(callerType||"unknown")):"No caller name was returned."
+        );
+        await logVerificationCheckHistory(env,clientId,"phone_reverse_lookup",callerName?"name_returned":"no_name_returned","Twilio Caller Name","","",
+          callerName?("Caller name returned: "+callerName+" · Type: "+(callerType||"unknown")):"No caller name returned.",
+          {phone_last4:phone.slice(-4)},actor);
+
+        return Response.json({
+          ok:true,
+          phone_e164:phone,
+          valid,
+          caller_name:callerName,
+          caller_type:callerType,
+          name_found:Boolean(callerName),
+          checked_at:new Date().toISOString()
+        },{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        console.error("Reverse phone lookup error:",error);
+        return Response.json({ok:false,message:"Unable to complete reverse phone lookup.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
