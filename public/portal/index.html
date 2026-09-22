@@ -851,8 +851,11 @@
             <div class="stat"><div class="stat-label">Request Page Views</div><div class="stat-number" id="funnel-views">—</div></div>
             <div class="stat"><div class="stat-label">Form Starts</div><div class="stat-number" id="funnel-starts">—</div></div>
             <div class="stat"><div class="stat-label">Requests Submitted</div><div class="stat-number" id="funnel-submitted">—</div></div>
+            <div class="stat"><div class="stat-label">Moved Forward</div><div class="stat-number" id="funnel-moved-forward">—</div></div>
             <div class="stat"><div class="stat-label">Private Link Opens</div><div class="stat-number" id="funnel-continuation-opened">—</div></div>
-            <div class="stat"><div class="stat-label">Screening Step Complete</div><div class="stat-number" id="funnel-continuation-completed">—</div></div>
+            <div class="stat"><div class="stat-label">Screening Details Complete</div><div class="stat-number" id="funnel-continuation-completed">—</div></div>
+            <div class="stat"><div class="stat-label">Deposit Confirmed</div><div class="stat-number" id="funnel-deposit-confirmed">—</div></div>
+            <div class="stat"><div class="stat-label">Final Approved</div><div class="stat-number" id="funnel-final-approved">—</div></div>
           </div>
           <div id="booking-funnel-conversion" style="padding:0 22px 20px;color:var(--muted);font-size:13px;"></div>
         </div>
@@ -1954,14 +1957,30 @@
         setFunnel("funnel-views", funnel.request_page_view);
         setFunnel("funnel-starts", funnel.form_started);
         setFunnel("funnel-submitted", funnel.form_submitted);
+        setFunnel("funnel-moved-forward", funnel.moved_forward);
         setFunnel("funnel-continuation-opened", funnel.continuation_opened);
         setFunnel("funnel-continuation-completed", funnel.continuation_completed);
+        setFunnel("funnel-deposit-confirmed", funnel.deposit_confirmed);
+        setFunnel("funnel-final-approved", funnel.final_approved);
         const funnelNote=document.getElementById("booking-funnel-conversion");
         if(funnelNote){
-          const views=Number(funnel.request_page_view||0), starts=Number(funnel.form_started||0), submitted=Number(funnel.form_submitted||0);
-          const startRate=views?Math.round(starts/views*100):0;
-          const submitRate=starts?Math.round(submitted/starts*100):0;
-          funnelNote.textContent="Page → form start: "+startRate+"% · Form start → submitted request: "+submitRate+"%. Counts are event-based and intended for directional conversion tracking.";
+          const views=Number(funnel.request_page_view||0);
+          const starts=Number(funnel.form_started||0);
+          const submitted=Number(funnel.form_submitted||0);
+          const moved=Number(funnel.moved_forward||0);
+          const opened=Number(funnel.continuation_opened||0);
+          const completed=Number(funnel.continuation_completed||0);
+          const deposits=Number(funnel.deposit_confirmed||0);
+          const approved=Number(funnel.final_approved||0);
+          const pct=(value,base)=>base?Math.round(value/base*100):0;
+          funnelNote.textContent=
+            "Page → form start: "+pct(starts,views)+"% · "+
+            "Start → submit: "+pct(submitted,starts)+"% · "+
+            "Moved forward → private link opened: "+pct(opened,moved)+"% · "+
+            "Link opened → screening details complete: "+pct(completed,opened)+"% · "+
+            "Screening complete → deposit confirmed: "+pct(deposits,completed)+"% · "+
+            "Deposit confirmed → final approved: "+pct(approved,deposits)+"%. "+
+            "Repeat activity is de-duplicated by booking request or browser session.";
         }
 
         const recent = document.getElementById("recent-requests");
