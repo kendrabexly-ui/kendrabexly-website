@@ -323,6 +323,14 @@ test("phone line-type verification uses Twilio Lookup Intelligence",()=>{
   assert.match(worker,/nonFixedVoip/);
 });
 
+test("reverse phone lookup remains visible when Persona hides optional fields",()=>{
+  const phone=portal.slice(portal.indexOf('class="client-phone-checks"'),portal.indexOf('class="verification-grid client-id-fallback-fields"'));
+  assert.match(phone,/class="client-persona-phone"/);
+  assert.match(phone,/class="client-phone-reverse-lookup"/);
+  assert.doesNotMatch(phone,/data-persona-field=/);
+  assert.match(portal,/label\.hidden=Boolean\(configured\)&&confirmedSupported&&!isRequired/);
+});
+
 test("VoIP phone numbers fail verification readiness",()=>{
   assert.match(portal,/VoIP phone number detected\. Use a non-VoIP number\./);
   assert.match(portal,/Phone valid \/ non-VoIP/);
