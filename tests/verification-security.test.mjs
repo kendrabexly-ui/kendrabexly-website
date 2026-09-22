@@ -169,8 +169,8 @@ test("Refresh Persona Status also refreshes Database US",()=>{
 
 test("successful workflow card stays concise and IDs remain technical",()=>{
   assert.match(portal,/Database \(US\): \"\+escapeHtml\(statusLabel\)/);
-  assert.match(portal,/Event ID: \"\+result\.trigger_event\?\.id/);
-  assert.match(portal,/Verification ID: \"\+result\.database_verification\?\.id/);
+  assert.match(portal,/result\.trigger_event\?\.id\?"Event ID: "\+result\.trigger_event\.id/);
+  assert.match(portal,/result\.database_verification\?\.id\?"Verification ID: "\+result\.database_verification\.id/);
 });
 
 test("database-only Persona end-to-end state keeps manual decision separate",()=>{
