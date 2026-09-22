@@ -5717,7 +5717,10 @@ if (
         }
         if(recordStatus!=="not_checked"){
           await logVerificationCheckHistory(env,clientId,"public_records",recordStatus,sourceName,sourceUrl,caseReference,
-            dispositionSummary||evidenceReference,{state:jurisdictionState,county:jurisdictionCounty,scope:searchScope},actor);
+            dispositionSummary||evidenceReference,{
+              state:jurisdictionState,county:jurisdictionCounty,scope:searchScope,
+              disposition_summary:dispositionSummary,evidence_reference:evidenceReference
+            },actor);
         }
         const saved=await env.DB.prepare(`
           SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,
