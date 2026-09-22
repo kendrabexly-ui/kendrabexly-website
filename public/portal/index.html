@@ -8010,7 +8010,7 @@ function escapeHtml(value) {
                 <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">EMAIL</label>
                 <textarea data-email-body rows="10" ${sent ? "readonly" : ""} style="width:100%;margin-top:5px;padding:10px;border:1px solid var(--line);border-radius:8px;background:${sent ? "#faf8f4" : "white"};resize:vertical;">${escapeHtml(draft.body || "")}</textarea>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                  ${sent ? "" : `<button type="button" data-save-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Save Draft</button><button type="button" data-regenerate-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Regenerate</button>`}
+                  ${sent ? "" : `<button type="button" data-save-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Save Draft</button>${String(draft.email_type || "") === "pending_final_approval" ? `<button type="button" data-regenerate-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Regenerate Wording</button>` : ""}`}
                   <button type="button" data-preview-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Preview</button>
                   <button type="button" data-copy-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Copy</button>
                   ${sent ? "" : `<button type="button" data-send-email="${draft.id}" style="padding:9px 14px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font-weight:700;">Send Email</button>`}
@@ -8045,17 +8045,29 @@ function escapeHtml(value) {
             if (status) status.textContent = "Unable to copy.";
           }
         }));
-        box.querySelectorAll("[data-regenerate-email]").forEach((button) => button.addEventListener("click", () => {
-          if (button.disabled || !confirm("Regenerate this email? Unsaved edits will be replaced.")) return;
+        box.querySelectorAll("[data-regenerate-email]").forEach((button) => button.addEventListener("click", async () => {
+          if (button.disabled || !confirm("Regenerate the wording? The client name, date, time, private link, screening instructions, deposit condition, and signature will stay protected. Unsaved edits will be replaced.")) return;
           const card = button.closest("[data-email-draft]");
-          const draft = drafts.find((item) => String(item.id) === String(button.dataset.regenerateEmail));
-          if (!card || !draft) return;
+          if (!card) return;
           const subject = card.querySelector("[data-email-subject]");
           const body = card.querySelector("[data-email-body]");
           const status = card.querySelector("[data-email-status]");
-          if (subject) subject.value = draft.subject || "";
-          if (body) body.value = draft.body || "";
-          if (status) status.textContent = "Original generated email restored.";
+          button.disabled=true;
+          button.textContent="Regenerating…";
+          if(status) status.textContent="Protecting booking details and regenerating the wording…";
+          try{
+            const r=await fetch("/api/admin/email-drafts/"+button.dataset.regenerateEmail+"/regenerate",{method:"POST"});
+            const d=await r.json();
+            if(!r.ok||!d.ok) throw new Error(d.message||"Unable to regenerate.");
+            if(subject) subject.value=d.subject||subject.value;
+            if(body) body.value=d.body||body.value;
+            if(status) status.textContent="Wording regenerated. Protected details were preserved. Review it, then save the draft.";
+          }catch(error){
+            if(status) status.textContent=error.message;
+          }finally{
+            button.disabled=false;
+            button.textContent="Regenerate Wording";
+          }
         }));
         box.querySelectorAll("[data-preview-email]").forEach((button) => button.addEventListener("click", () => {
           const card = button.closest("[data-email-draft]");
