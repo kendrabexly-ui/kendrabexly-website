@@ -16,13 +16,20 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/persona-status", "run_persona"],
   ["/api/admin/clients/persona-test", "run_persona"],
   ["/api/admin/clients/persona-verify", "run_persona"],
-  ["/api/admin/clients/persona-refresh", "run_persona"]
+  ["/api/admin/clients/persona-refresh", "run_persona"],
+  ["/api/admin/clients/persona-workflow-result", "run_persona"]
 ];
 function verificationRouteAccess(pathname, method) {
   const match=VERIFICATION_ROUTE_PERMISSIONS.find(([path])=>pathname===path || pathname.startsWith(path+"/"));
   if(!match)return null;
   const fresh=(pathname==="/api/admin/clients/id-document/image"&&method==="GET") || method==="DELETE";
   return {permission:match[1],fresh};
+}
+
+function isPersonaDatabasePending(transactionId,inquiryStatus,databaseStatus) {
+  if (!transactionId) return false;
+  if (String(databaseStatus || "").toLowerCase() === "passed") return false;
+  return !["approved","declined","errored","failed"].includes(String(inquiryStatus || "").toLowerCase());
 }
 
 const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v4";
@@ -1233,7 +1240,8 @@ export default {
         `).all();
         const clients=(rows.results || []).map(row => {
           const personaStatus=String(row.persona_transaction_status || "").toLowerCase();
-          const personaPending=Boolean(row.persona_transaction_id) && !["approved","declined","errored","failed"].includes(personaStatus);
+          const personaDatabaseStatus=String(row.persona_database_status || "").toLowerCase();
+          const personaPending=isPersonaDatabasePending(row.persona_transaction_id,personaStatus,personaDatabaseStatus);
           const status=row.verification_status || "pending_review";
           const checklistCount=Number(row.checklist_count || 0);
           let queue_category="ready_for_final_decision";
@@ -1251,6 +1259,9 @@ export default {
             verification_method:row.verification_method || "",
             persona_transaction_id:row.persona_transaction_id || "",
             persona_transaction_status:row.persona_transaction_status || "",
+            persona_database_status:row.persona_database_status || "",
+            persona_database_verification_id:row.persona_database_verification_id || "",
+            persona_database_checked_at:row.persona_database_checked_at || "",
             persona_submitted_at:row.persona_submitted_at || "",
             persona_updated_at:row.persona_updated_at || "",
             completed_at:row.completed_at || "",
