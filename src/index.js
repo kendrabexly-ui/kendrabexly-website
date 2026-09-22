@@ -8151,7 +8151,13 @@ if (
     // =========================================================
 
     const assetResponse = await env.ASSETS.fetch(request);
-    if (url.pathname === "/portal" || url.pathname.startsWith("/portal/")) {
+    if (
+      url.pathname === "/portal" ||
+      url.pathname.startsWith("/portal/") ||
+      url.pathname === "/request" ||
+      url.pathname === "/request/" ||
+      url.pathname === "/request.html"
+    ) {
       const headers = new Headers(assetResponse.headers);
       headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
       headers.set("Pragma", "no-cache");
