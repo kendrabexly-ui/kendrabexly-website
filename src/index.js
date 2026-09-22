@@ -13,6 +13,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-activity", "edit_verification"],
   ["/api/admin/clients/verification-overview", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
+  ["/api/admin/clients/credential-verification", "edit_verification"],
   ["/api/admin/clients/verification-audit", "final_decision"],
   ["/api/admin/clients/persona-status", "run_persona"],
   ["/api/admin/clients/persona-test", "run_persona"],
@@ -334,6 +335,26 @@ async function ensureVerificationWorkspaceTables(env) {
     )
   `).run();
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_credential_verifications (
+      client_id INTEGER PRIMARY KEY,
+      occupation TEXT NOT NULL DEFAULT '',
+      credential_type TEXT NOT NULL DEFAULT '',
+      license_number TEXT NOT NULL DEFAULT '',
+      issuing_state TEXT NOT NULL DEFAULT '',
+      issuing_board TEXT NOT NULL DEFAULT '',
+      credential_status TEXT NOT NULL DEFAULT 'not_checked',
+      issue_date TEXT NOT NULL DEFAULT '',
+      expiration_date TEXT NOT NULL DEFAULT '',
+      disciplinary_indicator TEXT NOT NULL DEFAULT 'unknown',
+      source_name TEXT NOT NULL DEFAULT '',
+      source_url TEXT NOT NULL DEFAULT '',
+      evidence_notes TEXT NOT NULL DEFAULT '',
+      checked_at TEXT,
+      checked_by TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_verification_activity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER NOT NULL,
@@ -419,6 +440,7 @@ async function logVerificationActivity(env, clientId, auditId, eventType, eventL
 async function clearSensitiveVerificationData(env, clientId) {
   await ensureVerificationWorkspaceTables(env);
   await env.DB.prepare("DELETE FROM client_verification_sensitive_fields WHERE client_id=?").bind(clientId).run();
+  await env.DB.prepare("DELETE FROM client_credential_verifications WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("UPDATE client_verification_drafts SET birthdate='', persona_fields_json='{}', updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare(`
     UPDATE client_verification_audits
@@ -5234,6 +5256,95 @@ if (
           return {...health,warning:Boolean(submitted&&Date.now()-submitted>15*60*1000&&success<submitted)};
         })()
       }, {headers:{"Cache-Control":"private, no-store"}});
+    }
+
+    if (url.pathname === "/api/admin/clients/credential-verification" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId=Number(url.searchParams.get("client_id")||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const row=await env.DB.prepare(`
+          SELECT client_id,occupation,credential_type,license_number,issuing_state,issuing_board,
+                 credential_status,issue_date,expiration_date,disciplinary_indicator,source_name,
+                 source_url,evidence_notes,checked_at,checked_by,updated_at
+          FROM client_credential_verifications WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ok:true,credential:row?{
+          client_id:Number(row.client_id),occupation:row.occupation||"",credential_type:row.credential_type||"",
+          license_number:row.license_number||"",issuing_state:row.issuing_state||"",issuing_board:row.issuing_board||"",
+          credential_status:row.credential_status||"not_checked",issue_date:row.issue_date||"",expiration_date:row.expiration_date||"",
+          disciplinary_indicator:row.disciplinary_indicator||"unknown",source_name:row.source_name||"",source_url:row.source_url||"",
+          evidence_notes:row.evidence_notes||"",checked_at:row.checked_at||"",checked_by:row.checked_by||"",updated_at:row.updated_at||""
+        }:null},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to load license and credential verification.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/credential-verification" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const occupation=String(data.occupation||"").trim().slice(0,160);
+        const credentialType=String(data.credential_type||"").trim().slice(0,160);
+        const licenseNumber=String(data.license_number||"").trim().slice(0,120);
+        const issuingState=normalizeVerificationState(data.issuing_state||"").slice(0,40);
+        const issuingBoard=String(data.issuing_board||"").trim().slice(0,200);
+        const credentialStatus=String(data.credential_status||"not_checked").trim().toLowerCase();
+        const allowedStatuses=new Set(["not_checked","pending","confirmed","not_found","expired","inactive","suspended","revoked","mismatch","needs_review"]);
+        if(!allowedStatuses.has(credentialStatus))return Response.json({ok:false,message:"Choose a valid license or credential result."},{status:400});
+        const issueDate=idDocumentDate(data.issue_date)||"";
+        const expirationDate=idDocumentDate(data.expiration_date)||"";
+        const disciplinaryIndicator=String(data.disciplinary_indicator||"unknown").trim().toLowerCase();
+        if(!["unknown","none_found","public_record_found","not_applicable"].includes(disciplinaryIndicator)){
+          return Response.json({ok:false,message:"Choose a valid disciplinary/public-record result."},{status:400});
+        }
+        const sourceName=String(data.source_name||"").trim().slice(0,200);
+        const sourceUrl=String(data.source_url||"").trim().slice(0,800);
+        const evidenceNotes=String(data.evidence_notes||"").trim().slice(0,1600);
+        if(credentialStatus==="confirmed" && !(occupation&&credentialType&&licenseNumber&&issuingState&&issuingBoard&&sourceName&&sourceUrl)){
+          return Response.json({ok:false,message:"Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Confirmed."},{status:400});
+        }
+        if(["not_found","expired","inactive","suspended","revoked","mismatch","needs_review"].includes(credentialStatus) && !evidenceNotes){
+          return Response.json({ok:false,message:"Add an evidence note for this credential result."},{status:400});
+        }
+        const actor=accessIdentity(request).email||"authorized-admin";
+        const previous=await env.DB.prepare("SELECT credential_status FROM client_credential_verifications WHERE client_id=? LIMIT 1").bind(clientId).first();
+        await env.DB.prepare(`
+          INSERT INTO client_credential_verifications
+            (client_id,occupation,credential_type,license_number,issuing_state,issuing_board,credential_status,
+             issue_date,expiration_date,disciplinary_indicator,source_name,source_url,evidence_notes,checked_at,checked_by,updated_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id) DO UPDATE SET
+            occupation=excluded.occupation,credential_type=excluded.credential_type,license_number=excluded.license_number,
+            issuing_state=excluded.issuing_state,issuing_board=excluded.issuing_board,credential_status=excluded.credential_status,
+            issue_date=excluded.issue_date,expiration_date=excluded.expiration_date,disciplinary_indicator=excluded.disciplinary_indicator,
+            source_name=excluded.source_name,source_url=excluded.source_url,evidence_notes=excluded.evidence_notes,
+            checked_at=CASE WHEN excluded.credential_status='not_checked' THEN NULL
+                            WHEN client_credential_verifications.credential_status<>excluded.credential_status OR client_credential_verifications.checked_at IS NULL THEN CURRENT_TIMESTAMP
+                            ELSE client_credential_verifications.checked_at END,
+            checked_by=excluded.checked_by,updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId,occupation,credentialType,licenseNumber,issuingState,issuingBoard,credentialStatus,
+                 issueDate,expirationDate,disciplinaryIndicator,sourceName,sourceUrl,evidenceNotes,credentialStatus,actor).run();
+        const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+        if(String(previous?.credential_status||"not_checked")!==credentialStatus){
+          await logVerificationActivity(env,clientId,audit?.id||null,"credential_verification_updated",
+            credentialStatus==="confirmed"?"License or credential confirmed":"License or credential result updated",
+            "Result: "+credentialStatus+(credentialType?" · Credential: "+credentialType:"")+(issuingBoard?" · Board: "+issuingBoard:""));
+        }
+        const saved=await env.DB.prepare(`
+          SELECT client_id,occupation,credential_type,license_number,issuing_state,issuing_board,
+                 credential_status,issue_date,expiration_date,disciplinary_indicator,source_name,
+                 source_url,evidence_notes,checked_at,checked_by,updated_at
+          FROM client_credential_verifications WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ok:true,credential:saved},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        console.error("Credential verification save error:",error);
+        return Response.json({ok:false,message:"Unable to save license and credential verification.",technical_details:String(error?.message||error)},{status:500});
+      }
     }
 
     if (url.pathname === "/api/admin/clients/phone-line-type" && request.method === "GET") {

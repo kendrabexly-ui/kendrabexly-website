@@ -267,3 +267,38 @@ test("work email and employer website domains can be compared without deciding v
   assert.match(portal,/Work-email domain matches employer website domain/);
   assert.match(portal,/Work-email domain does not match the employer website domain/);
 });
+
+
+test("license and credential verification route is permission protected",()=>{
+  assert.match(worker,/\/api\/admin\/clients\/credential-verification/);
+  assert.match(worker,/\["\/api\/admin\/clients\/credential-verification", "edit_verification"\]/);
+});
+
+test("credential verification persists structured public license fields",()=>{
+  assert.match(worker,/CREATE TABLE IF NOT EXISTS client_credential_verifications/);
+  assert.match(worker,/credential_status TEXT NOT NULL DEFAULT 'not_checked'/);
+  assert.match(worker,/disciplinary_indicator TEXT NOT NULL DEFAULT 'unknown'/);
+  assert.match(worker,/source_url TEXT NOT NULL DEFAULT ''/);
+});
+
+test("confirmed credential requires an official source",()=>{
+  assert.match(worker,/Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Confirmed/);
+});
+
+test("portal has License and Credential Verification as section 3",()=>{
+  assert.match(portal,/3\. License &amp; Credential Verification/);
+  assert.match(portal,/4\. Persona/);
+  assert.match(portal,/5\. Audit History/);
+});
+
+test("registry routing includes official licensing sources",()=>{
+  assert.match(portal,/https:\/\/search\.dca\.ca\.gov\/advanced/);
+  assert.match(portal,/https:\/\/apps\.calbar\.ca\.gov\/attorney\/LicenseeSearch\/QuickSearch/);
+  assert.match(portal,/https:\/\/www\.nursys\.com\/LQC\/LQCTerms\.aspx/);
+  assert.match(portal,/https:\/\/npiregistry\.cms\.hhs\.gov\/search\//);
+  assert.match(portal,/https:\/\/brokercheck\.finra\.org\//);
+});
+
+test("NPI is treated as supporting provider data instead of licensure proof",()=>{
+  assert.match(portal,/NPI is supporting provider data and does not by itself prove licensure/);
+});
