@@ -2746,7 +2746,7 @@ async function loadRequests(options = {}) {
                       <div class="verification-grid">
                         <label style="font-size:12px;font-weight:700;">Employer / company<input class="client-verification-employer" type="text" maxlength="200" placeholder="Employer name" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Job title<input class="client-verification-job-title" type="text" maxlength="160" placeholder="Job title" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Industry<input class="client-verification-industry" type="text" maxlength="160" placeholder="Industry received from client" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Industry<input class="client-verification-industry" type="text" maxlength="160" placeholder="Industry received from client" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note">Uses the client-provided industry when one is already saved; edit only if it needs correction.</span></label>
                         <label style="font-size:12px;font-weight:700;">Work email <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-work-email" type="email" maxlength="254" placeholder="name@company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Employer website <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-website" type="url" maxlength="500" placeholder="https://company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                         <label style="font-size:12px;font-weight:700;">Employment verification method<select class="client-employment-method" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
@@ -2840,10 +2840,10 @@ async function loadRequests(options = {}) {
                       <label style="font-size:12px;font-weight:700;">Occupation<input class="client-credential-occupation" type="text" maxlength="160" placeholder="e.g. Registered Nurse, Attorney, Broker" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Credential type<input class="client-credential-type" type="text" maxlength="160" placeholder="e.g. RN License, Bar License, Series 7" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">License / credential number<input class="client-credential-number" type="text" maxlength="120" autocomplete="off" placeholder="Enter public license or credential number" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Issuing state<input class="client-credential-state" type="text" maxlength="40" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"></label>
+                      <label style="font-size:12px;font-weight:700;">Issuing state<select class="client-credential-state" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose state</option><option value="AL">Alabama</option><option value="AK">Alaska</option><option value="AZ">Arizona</option><option value="AR">Arkansas</option><option value="CA">California</option><option value="CO">Colorado</option><option value="CT">Connecticut</option><option value="DE">Delaware</option><option value="DC">District of Columbia</option><option value="FL">Florida</option><option value="GA">Georgia</option><option value="HI">Hawaii</option><option value="ID">Idaho</option><option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option><option value="KY">Kentucky</option><option value="LA">Louisiana</option><option value="ME">Maine</option><option value="MD">Maryland</option><option value="MA">Massachusetts</option><option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MS">Mississippi</option><option value="MO">Missouri</option><option value="MT">Montana</option><option value="NE">Nebraska</option><option value="NV">Nevada</option><option value="NH">New Hampshire</option><option value="NJ">New Jersey</option><option value="NM">New Mexico</option><option value="NY">New York</option><option value="NC">North Carolina</option><option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="OK">Oklahoma</option><option value="OR">Oregon</option><option value="PA">Pennsylvania</option><option value="RI">Rhode Island</option><option value="SC">South Carolina</option><option value="SD">South Dakota</option><option value="TN">Tennessee</option><option value="TX">Texas</option><option value="UT">Utah</option><option value="VT">Vermont</option><option value="VA">Virginia</option><option value="WA">Washington</option><option value="WV">West Virginia</option><option value="WI">Wisconsin</option><option value="WY">Wyoming</option></select></label>
                       <label style="font-size:12px;font-weight:700;">Issuing board / authority<input class="client-credential-board" type="text" maxlength="200" placeholder="Board or licensing authority" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Credential result<select class="client-credential-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-                        <option value="not_checked">Not checked</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="not_found">Not found</option><option value="expired">Expired</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option><option value="revoked">Revoked</option><option value="mismatch">Information mismatch</option><option value="needs_review">Needs review</option>
+                        <option value="not_checked">Not checked</option><option value="pending">Pending</option><option value="confirmed">Active / verified</option><option value="expired">Expired</option><option value="not_found">No record found</option><option value="unable_to_verify">Unable to verify</option><option value="mismatch">Record mismatch</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option><option value="revoked">Revoked</option><option value="needs_review">Needs review</option>
                       </select></label>
                       <label style="font-size:12px;font-weight:700;">Issue date <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-credential-issue-date" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Expiration date <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-credential-expiration-date" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
@@ -2858,7 +2858,7 @@ async function loadRequests(options = {}) {
                       <div class="client-credential-registry-note" style="margin-top:4px;font-size:11px;color:var(--muted);">Enter the occupation and issuing state to show the most relevant official registries.</div>
                       <div class="client-credential-registry-links" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;"></div>
                     </div>
-                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Credential evidence / notes<textarea class="client-credential-evidence" rows="2" maxlength="1600" placeholder="Record the registry result or public record reference. Avoid unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Credential evidence / reference<textarea class="client-credential-evidence" rows="2" maxlength="1600" placeholder="Record the registry result or public record reference. Avoid unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
                     <div class="verification-actions" style="margin-top:9px;">
                       <button type="button" class="client-credential-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Credential Check</button>
                       <span class="client-credential-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
@@ -3845,7 +3845,7 @@ async function loadRequests(options = {}) {
         if(/doctor|physician|nurse|nursing|dentist|dental|therap|psych|pharmac|chiropr|optometr|health|medical|surgeon|provider/.test(occ))add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
         if(/broker|financial advisor|financial adviser|securities|investment adviser|investment advisor/.test(occ))add("FINRA BrokerCheck","https://brokercheck.finra.org/","FINRA BrokerCheck","license");
         if(!links.length&&st==="CA")add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
-        if(!links.length)add("Find State Licensing Agency","https://www.usa.gov/state-governments","USAGov State Governments","directory");
+        if(!links.length)add("Find State Licensing Agency","https://www.usa.gov/state-governments","USA.gov State Governments","directory");
         return links;
       };
       const renderCredentialRegistries=(section)=>{
@@ -3856,14 +3856,20 @@ async function loadRequests(options = {}) {
           const a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.label;
           a.style.cssText="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);text-decoration:none;font-size:11px;font-weight:700;";
           a.addEventListener("click",()=>{
+            if(item.kind==="directory")return;
             const n=section.querySelector(".client-credential-source-name"),u=section.querySelector(".client-credential-source-url");
             if(n&&!n.value)n.value=item.source;if(u&&!u.value)u.value=item.url;
           });
           wrap.appendChild(a);
         });
-        if(note)note.textContent=links.some(x=>x.kind==="supporting")
-          ?"Open the official registry and search the client manually. NPI is supporting provider data and does not by itself prove licensure."
-          :"Open the official registry and search the client manually, then record the result below.";
+        if(note){
+          const onlyDirectory=links.length===1&&links[0].kind==="directory";
+          note.textContent=onlyDirectory
+            ?"Use this directory only to locate the correct state licensing board. After opening the actual board or registry, record that board's name and direct registry URL below. The USA.gov directory is not verification evidence."
+            :links.some(x=>x.kind==="supporting")
+              ?"Open the official registry and search the client manually. NPI is supporting provider data and does not by itself prove licensure."
+              :"Open the official registry and search the client manually, then record the actual board or registry result below.";
+        }
       };
       const applyCredentialVerification=(section,record)=>{
         const set=(sel,val)=>{const el=section.querySelector(sel);if(el)el.value=val||"";};
@@ -3880,9 +3886,14 @@ async function loadRequests(options = {}) {
         set(".client-credential-source-url",record.source_url);set(".client-credential-evidence",record.evidence_notes);
         const raw=String(record.credential_status||"not_checked"),pretty=raw.replaceAll("_"," ").replace(/^./,c=>c.toUpperCase());
         const badge=section.querySelector(".client-credential-badge");
-        if(badge){const good=raw==="confirmed",bad=["expired","inactive","suspended","revoked","mismatch","not_found"].includes(raw);badge.textContent="Credential: "+pretty;badge.style.background=good?"#e8f6ec":bad?"#fdeaea":"#fff4d8";badge.style.color=good?"#22613b":bad?"#8a2424":"#74520b";}
+        if(badge){const good=raw==="confirmed",bad=["expired","inactive","suspended","revoked","mismatch","not_found","unable_to_verify"].includes(raw);badge.textContent="Credential: "+pretty;badge.style.background=good?"#e8f6ec":bad?"#fdeaea":"#fff4d8";badge.style.color=good?"#22613b":bad?"#8a2424":"#74520b";}
         const checked=section.querySelector(".client-credential-checked");
-        if(checked)checked.textContent=record.checked_at?"Last checked: "+formatVerificationTimestamp(record.checked_at)+(record.checked_by?" · "+record.checked_by:""):"Last checked: Not checked";
+        if(checked){
+          const source=record.source_name||record.source_url||"";
+          checked.textContent=record.checked_at
+            ?"Last checked: "+formatVerificationTimestamp(record.checked_at)+(record.checked_by?" · "+record.checked_by:"")+(source?" · Source: "+source:"")+" · Result: "+pretty
+            :"Last checked: Not checked";
+        }
         renderCredentialRegistries(section);
       };
       const loadCredentialVerification=async(section)=>{
