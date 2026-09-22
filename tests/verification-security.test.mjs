@@ -17,11 +17,22 @@ test("initial booking request collects occupation for basic screening",()=>{
   assert.match(worker,/`Occupation: \$\{occupation\}`/);
 });
 
+test("initial booking request collects a validated base state for basic screening",()=>{
+  assert.match(requestPage,/label for="base-state"[\s\S]*What is your base state\? \*/);
+  assert.match(requestPage,/name="base_state"[\s\S]*required/);
+  assert.match(worker,/const baseState =[\s\S]*String\(data\.base_state \|\| ""\)\.trim\(\)\.toUpperCase\(\)/);
+  assert.match(worker,/!baseState \|\|/);
+  assert.match(worker,/US_STATE_CODES\.has\(baseState\)/);
+  assert.match(worker,/`Base state: \$\{baseState\}`/);
+});
+
 test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/data-progress-step="basic_screening">Basic Screening/);
   assert.match(portal,/class="verification-card client-basic-screening"/);
   assert.match(portal,/>1\. Basic Screening</);
   assert.match(portal,/latestOccupation = requestNoteValue\("Occupation"\)/);
+  assert.match(portal,/latestBaseState = requestNoteValue\("Base state"\)/);
+  assert.match(portal,/<strong>Base state<\/strong><div>\$\{escapeHtml\(latestBaseState \|\| "Not provided"\)\}<\/div>/);
   assert.match(portal,/client-basic-screening-open-request/);
   assert.match(portal,/>2\. ID Record</);
   assert.match(portal,/>3\. Manual Verification</);

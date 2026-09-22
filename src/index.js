@@ -4,6 +4,9 @@ async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env
 
 
 const SITE_TIME_ZONE = "America/Los_Angeles";
+const US_STATE_CODES = new Set([
+  "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
+]);
 const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/id-document/image", "view_id_images"],
   ["/api/admin/clients/id-document/retention", "delete_sensitive"],
@@ -3756,6 +3759,9 @@ My journal will continue to be a place where I share a little more of that side 
         const occupation =
           String(data.occupation || "").trim().slice(0, 160);
 
+        const baseState =
+          String(data.base_state || "").trim().toUpperCase();
+
         const requestedDate =
           String(data.requested_date || "").trim();
 
@@ -3867,6 +3873,7 @@ My journal will continue to be a place where I share a little more of that side 
           !email ||
           !phone ||
           !occupation ||
+          !baseState ||
           !requestedDate ||
           !requestedTime ||
           !dateType ||
@@ -3879,6 +3886,13 @@ My journal will continue to be a place where I share a little more of that side 
               message:
                 "Please complete all required fields."
             },
+            { status: 400 }
+          );
+        }
+
+        if (!US_STATE_CODES.has(baseState)) {
+          return Response.json(
+            { ok: false, message: "Please choose a valid base state." },
             { status: 400 }
           );
         }
@@ -3996,6 +4010,7 @@ My journal will continue to be a place where I share a little more of that side 
             "Submitted email: " + email,
             "Submitted phone: " + phone,
             "Occupation: " + occupation,
+            "Base state: " + baseState,
             "Requested date: " + requestedDate,
             "Requested time: " + requestedTime,
             dateType ? "Date type: " + dateType : null,
@@ -4123,6 +4138,10 @@ My journal will continue to be a place where I share a little more of that side 
 
           occupation
             ? `Occupation: ${occupation}`
+            : null,
+
+          baseState
+            ? `Base state: ${baseState}`
             : null,
 
           newsletterOffer
