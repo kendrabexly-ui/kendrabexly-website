@@ -4232,7 +4232,7 @@ My journal will continue to be a place where I share a little more of that side 
 
         // Do not create an email draft when a booking request is submitted.
         // The first client email is created only when the request is moved
-        // forward for ID screening and deposit instructions.
+        // forward for screening. Deposit instructions are created only after verification.
 
         return Response.json({
           ok: true,
@@ -4542,8 +4542,18 @@ My journal will continue to be a place where I share a little more of that side 
             period_days: 30,
             request_page_view: funnel.request_page_view || 0,
             form_started: funnel.form_started || 0,
+            about_you_completed: funnel.about_you_completed || 0,
+            experience_selected: funnel.experience_selected || 0,
             availability_checked: funnel.availability_checked || 0,
+            availability_shown: funnel.availability_shown || 0,
+            details_reached: funnel.details_reached || 0,
+            before_submit_reached: funnel.before_submit_reached || 0,
             booking_summary_viewed: funnel.booking_summary_viewed || 0,
+            submit_attempted: funnel.submit_attempted || 0,
+            validation_phone: funnel.validation_phone || 0,
+            validation_outcall: funnel.validation_outcall || 0,
+            validation_availability: funnel.validation_availability || 0,
+            validation_other: funnel.validation_other || 0,
             form_submitted: funnel.form_submitted || 0,
             moved_forward: funnel.moved_forward || 0,
             continuation_opened: funnel.continuation_opened || 0,
