@@ -50,6 +50,12 @@ test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/finalReady=basicScreening==="confirmed"/);
 });
 
+test("client profile shows one verification summary",()=>{
+  assert.equal((portal.match(/>Verification Summary</g)||[]).length,1);
+  assert.doesNotMatch(portal,/client-verification-summary/);
+  assert.match(portal,/if\(verification&&firstSection\) firstSection\.insertAdjacentElement\("beforebegin",verification\)/);
+});
+
 test("verification field cards start collapsed and navigation expands them",()=>{
   for(const cardClass of [
     "client-basic-screening",
