@@ -4,6 +4,8 @@ import fs from "node:fs";
 
 const worker=fs.readFileSync(new URL("../src/index.js",import.meta.url),"utf8");
 const portal=fs.readFileSync(new URL("../public/portal/index.html",import.meta.url),"utf8");
+const requestPage=fs.readFileSync(new URL("../public/request.html",import.meta.url),"utf8");
+const continuationPage=fs.readFileSync(new URL("../public/complete/index.html",import.meta.url),"utf8");
 const security=fs.readFileSync(new URL("../src/verification-security.js",import.meta.url),"utf8");
 
 test("address-based verification remains supported",()=>{
@@ -326,4 +328,25 @@ test("booking availability keeps duration-aware lookup and minimum notice",()=>{
 test("outcall still requires complete location details",()=>{
   assert.match(worker,/appointmentType === "outcall" &&\s*\(!outcallAddressLine1 \|\| !outcallCity \|\| !outcallState \|\| !outcallPostalCode\)/);
   assert.match(worker,/Please complete the outcall address/);
+});
+
+
+test("initial booking form defers deposit method until private continuation",()=>{
+  assert.doesNotMatch(requestPage,/name="deposit_payment_method"/);
+  assert.doesNotMatch(requestPage,/name="deposit_acknowledgement"/);
+  assert.match(requestPage,/No payment is due when you submit this request/);
+  assert.match(continuationPage,/name="deposit_payment_method"/);
+  assert.match(continuationPage,/Gift Card/);
+  assert.match(continuationPage,/Stripe \(10% processing fee\)/);
+  assert.match(continuationPage,/Crypto \(10% processing fee\)/);
+});
+
+test("continuation calculates and persists the selected deposit method",()=>{
+  const routeStart=worker.indexOf('url.pathname === "/api/booking/continuation" && request.method === "POST"');
+  const routeEnd=worker.indexOf("// Reject unsupported methods to request API",routeStart);
+  const route=worker.slice(routeStart,routeEnd);
+  assert.match(route,/allowedDepositPaymentMethods=new Set\(\["gift-card","stripe","crypto"\]\)/);
+  assert.match(route,/finalDepositAmount/);
+  assert.match(route,/Deposit payment method: /);
+  assert.match(route,/UPDATE date_requests SET deposit_amount=\?,notes=\?/);
 });
