@@ -16,6 +16,8 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/credential-verification", "edit_verification"],
   ["/api/admin/clients/public-record-check", "edit_verification"],
   ["/api/admin/clients/address-verification", "edit_verification"],
+  ["/api/admin/clients/verification-section-state", "edit_verification"],
+  ["/api/admin/clients/verification-check-history", "edit_verification"],
   ["/api/admin/clients/verification-audit", "final_decision"],
   ["/api/admin/clients/persona-status", "run_persona"],
   ["/api/admin/clients/persona-test", "run_persona"],
@@ -399,6 +401,33 @@ async function ensureVerificationWorkspaceTables(env) {
   `).run();
 
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_section_states (
+      client_id INTEGER NOT NULL,
+      section_key TEXT NOT NULL,
+      section_state TEXT NOT NULL DEFAULT 'not_checked',
+      updated_by TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(client_id, section_key)
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_verification_check_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      result_status TEXT NOT NULL DEFAULT '',
+      source_name TEXT NOT NULL DEFAULT '',
+      source_url TEXT NOT NULL DEFAULT '',
+      reference TEXT NOT NULL DEFAULT '',
+      summary TEXT NOT NULL DEFAULT '',
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      checked_by TEXT NOT NULL DEFAULT '',
+      checked_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_verification_check_history_client ON client_verification_check_history(client_id, category, checked_at DESC, id DESC)").run();
+
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_verification_activity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER NOT NULL,
@@ -481,12 +510,33 @@ async function logVerificationActivity(env, clientId, auditId, eventType, eventL
   ).run();
 }
 
+async function logVerificationCheckHistory(env, clientId, category, resultStatus, sourceName = "", sourceUrl = "", reference = "", summary = "", metadata = {}, checkedBy = "") {
+  await ensureVerificationWorkspaceTables(env);
+  await env.DB.prepare(`
+    INSERT INTO client_verification_check_history
+      (client_id,category,result_status,source_name,source_url,reference,summary,metadata_json,checked_by,checked_at)
+    VALUES(?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+  `).bind(
+    Number(clientId),
+    String(category||"verification").slice(0,80),
+    String(resultStatus||"").slice(0,80),
+    sanitizeVerificationActivity(sourceName||"").slice(0,200),
+    String(sourceUrl||"").slice(0,800),
+    sanitizeVerificationActivity(reference||"").slice(0,240),
+    sanitizeVerificationActivity(summary||"").slice(0,1200),
+    JSON.stringify(metadata&&typeof metadata==="object"?metadata:{}).slice(0,4000),
+    sanitizeVerificationActivity(checkedBy||"").slice(0,240)
+  ).run();
+}
+
 async function clearSensitiveVerificationData(env, clientId) {
   await ensureVerificationWorkspaceTables(env);
   await env.DB.prepare("DELETE FROM client_verification_sensitive_fields WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("DELETE FROM client_credential_verifications WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("DELETE FROM client_public_record_checks WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("DELETE FROM client_address_verifications WHERE client_id=?").bind(clientId).run();
+  await env.DB.prepare("DELETE FROM client_verification_section_states WHERE client_id=?").bind(clientId).run();
+  await env.DB.prepare("DELETE FROM client_verification_check_history WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("UPDATE client_verification_drafts SET birthdate='', persona_fields_json='{}', updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare(`
     UPDATE client_verification_audits
@@ -1650,6 +1700,10 @@ export default {
             employmentStatus==="confirmed"?"Employment confirmed":employmentStatus==="mismatch"?"Employment mismatch":employmentStatus==="unable_to_confirm"?"Employment unable to confirm":"Employment verification updated",
             "Method: "+(employmentMethod||"not recorded")+(submittedEmployer?" · Employer: "+submittedEmployer:"")
           );
+        }
+        if(employmentStatus!=="not_checked" && String(previous.employment_verification_status||"not_checked")!==employmentStatus){
+          await logVerificationCheckHistory(env,clientId,"employment",employmentStatus,"",employmentEmployerWebsite,"",
+            employmentEvidenceReference,{employer:submittedEmployer,job_title:submittedJobTitle,industry:submittedIndustry,method:employmentMethod},adminIdentity);
         }
         if(previous.completed_at && decisionChanged){
           await logVerificationActivity(env,clientId,auditId,"decision_changed",
@@ -5390,6 +5444,10 @@ if (
             (sourceUrl?" · Source URL: "+sourceUrl:"")+
             (evidenceNotes?" · Evidence/reference: "+evidenceNotes:""));
         }
+        if(credentialStatus!=="not_checked"){
+          await logVerificationCheckHistory(env,clientId,"credential",credentialStatus,sourceName,sourceUrl,licenseNumber,
+            evidenceNotes,{occupation,credential_type:credentialType,issuing_state:issuingState,issuing_board:issuingBoard},actor);
+        }
         const saved=await env.DB.prepare(`
           SELECT client_id,occupation,credential_type,license_number,issuing_state,issuing_board,
                  credential_status,issue_date,expiration_date,disciplinary_indicator,source_name,
@@ -5400,6 +5458,67 @@ if (
       } catch(error) {
         console.error("Credential verification save error:",error);
         return Response.json({ok:false,message:"Unable to save license and credential verification.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-section-state" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId=Number(url.searchParams.get("client_id")||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const rows=await env.DB.prepare("SELECT section_key,section_state,updated_by,updated_at FROM client_verification_section_states WHERE client_id=? ORDER BY section_key").bind(clientId).all();
+        return Response.json({ok:true,states:rows.results||[]},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to load verification section states.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-section-state" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const sectionKey=String(data.section_key||"").trim().toLowerCase();
+        const allowedSections=new Set(["credential","address","public_records"]);
+        if(!allowedSections.has(sectionKey))return Response.json({ok:false,message:"Choose a valid optional verification section."},{status:400});
+        const sectionState=String(data.section_state||"not_checked").trim().toLowerCase();
+        const allowedStates=new Set(["not_checked","in_progress","confirmed","partial_match","potential_match","mismatch","unable_to_verify","needs_review","skipped"]);
+        if(!allowedStates.has(sectionState))return Response.json({ok:false,message:"Choose a valid section status."},{status:400});
+        const actor=accessIdentity(request).email||"authorized-admin";
+        if(data.clear_data){
+          if(sectionKey==="credential")await env.DB.prepare("DELETE FROM client_credential_verifications WHERE client_id=?").bind(clientId).run();
+          if(sectionKey==="address")await env.DB.prepare("DELETE FROM client_address_verifications WHERE client_id=?").bind(clientId).run();
+          if(sectionKey==="public_records")await env.DB.prepare("DELETE FROM client_public_record_checks WHERE client_id=?").bind(clientId).run();
+        }
+        await env.DB.prepare(`
+          INSERT INTO client_verification_section_states(client_id,section_key,section_state,updated_by,updated_at)
+          VALUES(?,?,?,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id,section_key) DO UPDATE SET section_state=excluded.section_state,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId,sectionKey,sectionState,actor).run();
+        const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+        await logVerificationActivity(env,clientId,audit?.id||null,
+          sectionState==="skipped"?"verification_section_skipped":"verification_section_state_changed",
+          sectionKey.replaceAll("_"," ").replace(/^./,c=>c.toUpperCase())+(sectionState==="skipped"?" skipped":" status updated"),
+          "Status: "+sectionState+" · Updated by "+actor+(data.clear_data?" · Saved working data cleared":""));
+        return Response.json({ok:true,state:{section_key:sectionKey,section_state:sectionState,updated_by:actor}},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to update verification section status.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/verification-check-history" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId=Number(url.searchParams.get("client_id")||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const category=String(url.searchParams.get("category")||"").trim();
+        const result=category
+          ? await env.DB.prepare("SELECT id,category,result_status,source_name,source_url,reference,summary,metadata_json,checked_by,checked_at FROM client_verification_check_history WHERE client_id=? AND category=? ORDER BY checked_at DESC,id DESC LIMIT 100").bind(clientId,category).all()
+          : await env.DB.prepare("SELECT id,category,result_status,source_name,source_url,reference,summary,metadata_json,checked_by,checked_at FROM client_verification_check_history WHERE client_id=? ORDER BY checked_at DESC,id DESC LIMIT 200").bind(clientId).all();
+        return Response.json({ok:true,history:result.results||[]},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to load verification check history.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -5480,6 +5599,10 @@ if (
             (sourceName?" · Source: "+sourceName:"")+
             (caseReference?" · Reference: "+caseReference:""));
         }
+        if(recordStatus!=="not_checked"){
+          await logVerificationCheckHistory(env,clientId,"public_records",recordStatus,sourceName,sourceUrl,caseReference,
+            dispositionSummary||evidenceReference,{state:jurisdictionState,county:jurisdictionCounty,scope:searchScope},actor);
+        }
         const saved=await env.DB.prepare(`
           SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
@@ -5559,6 +5682,10 @@ if (
             resultStatus==="confirmed"?"Address verified":"Address verification updated",
             "Checked by: "+actor+" · Result: "+resultStatus+" · Method: "+verificationMethod+
             (sourceName?" · Source: "+sourceName:""));
+        }
+        if(resultStatus!=="not_checked"){
+          await logVerificationCheckHistory(env,clientId,"address",resultStatus,sourceName,sourceUrl,"",
+            evidenceReference,{city,state,postal_code:postalCode,method:verificationMethod},actor);
         }
         const saved=await env.DB.prepare(`
           SELECT client_id,address_line1,address_line2,city,state,postal_code,result_status,verification_method,
