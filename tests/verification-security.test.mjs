@@ -135,3 +135,49 @@ test("Persona Pending dashboard filter uses computed database-aware state",()=>{
   assert.match(portal,/verificationFilter === "persona_pending" && !verification\.persona_pending/);
   assert.match(portal,/Persona: Database Passed/);
 });
+
+
+test("Persona database persistence is tied to the current inquiry",()=>{
+  assert.match(worker,/WHERE id=\? AND persona_transaction_id=\?/);
+  assert.match(worker,/stale_persona_result/);
+});
+
+test("passed database creates a dedicated audit event once",()=>{
+  assert.match(worker,/persona_database_passed/);
+  assert.match(worker,/Persona Database \(US\) passed/);
+});
+
+test("stale Persona webhooks cannot overwrite a newer inquiry",()=>{
+  assert.match(worker,/stale_persona_inquiry/);
+  assert.match(worker,/Older Persona webhook ignored/);
+});
+
+test("Persona workflow exposes delayed database state",()=>{
+  assert.match(worker,/database_delayed:Boolean\(!latestDatabase&&inquiryCreatedMs&&Date\.now\(\)-inquiryCreatedMs>60000\)/);
+  assert.match(portal,/Database verification is taking longer than expected/);
+});
+
+test("new Persona inquiry auto-checks workflow and resets previous result",()=>{
+  assert.match(portal,/Awaiting Database \(US\)…/);
+  assert.match(portal,/\[2500,7500,15000\]\.forEach/);
+});
+
+test("Refresh Persona Status also refreshes Database US",()=>{
+  assert.match(portal,/Inquiry refreshed\. Checking Database \(US\)…/);
+  assert.match(portal,/workflowButton\.click\(\)/);
+});
+
+test("successful workflow card stays concise and IDs remain technical",()=>{
+  assert.match(portal,/Database \(US\): \"\+escapeHtml\(statusLabel\)/);
+  assert.match(portal,/Event ID: \"\+result\.trigger_event\?\.id/);
+  assert.match(portal,/Verification ID: \"\+result\.database_verification\?\.id/);
+});
+
+test("database-only Persona end-to-end state keeps manual decision separate",()=>{
+  const pendingMatch=worker.match(/function isPersonaDatabasePending\(transactionId,inquiryStatus,databaseStatus\) \{[\s\S]*?\n\}/);
+  assert.ok(pendingMatch);
+  const pending=new Function(pendingMatch[0]+"; return isPersonaDatabasePending;")();
+  assert.equal(pending("inq_new","pending","passed"),false);
+  assert.match(portal,/Manual: /);
+  assert.match(portal,/Persona: Database Passed/);
+});
