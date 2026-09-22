@@ -57,8 +57,9 @@
         <div class="no-payment-callout">
           <strong id="deposit-total">Deposit total</strong>
           <span id="deposit-method">Payment method</span>
+          <span id="deposit-fee" hidden></span>
         </div>
-        <p id="deposit-instructions">Use the payment instructions provided with your private invitation. This page does not automatically mark a payment as received; Kendra will confirm it after review.</p>
+        <p id="deposit-instructions">Review the exact deposit amount and selected payment method below. This page records your acknowledgement only; it does not mark the deposit as paid. Kendra confirms payment separately from the admin side.</p>
         <label class="checkbox-label">
           <input type="checkbox" name="deposit_step_acknowledged" value="yes" required>
           <span>I have reviewed the deposit amount and payment instructions and understand that final approval happens only after the deposit and screening are confirmed.</span>
@@ -74,8 +75,8 @@
     <section id="continuation-complete" class="request-success" hidden>
       <div class="eyebrow">STEP COMPLETE</div>
       <h2>You're all set for review.</h2>
-      <p>Your screening details were received. If your deposit has also been completed, there is nothing else you need to submit here.</p>
-      <p>Kendra will personally review the request and send final confirmation if approved.</p>
+      <p>Your screening details and deposit-step acknowledgement were received.</p>
+      <p>Payment is confirmed separately, and Kendra will personally review the screening and make the final approval decision. If no additional information is needed, there is nothing else to submit on this page.</p>
       <a class="button" href="/">Return to the website</a>
     </section>
   </main>
@@ -115,6 +116,14 @@
       document.getElementById("continuation-summary").innerHTML = rows.map(row => "<div><dt>"+escapeHtml(row[0])+"</dt><dd>"+escapeHtml(row[1])+"</dd></div>").join("");
       document.getElementById("deposit-total").textContent = "Deposit total: " + money(data.deposit_amount);
       document.getElementById("deposit-method").textContent = "Selected payment method: " + (data.deposit_payment_method || "As arranged");
+      const fee = Number(data.deposit_processing_fee || 0);
+      const feeLine = document.getElementById("deposit-fee");
+      if (fee > 0) {
+        feeLine.textContent = "Processing fee included: " + money(fee);
+        feeLine.hidden = false;
+      } else {
+        feeLine.hidden = true;
+      }
       document.getElementById("screening-employer").value = data.current_employer || "";
       document.getElementById("screening-title").value = data.job_title || "";
       document.getElementById("screening-industry").value = data.industry || "";
