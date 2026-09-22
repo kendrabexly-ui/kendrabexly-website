@@ -217,9 +217,6 @@ async function verifyPersonaWebhookSignature(rawBody,signatureHeader,secret){
   return signatures.some(sig=>timingSafeEqualHex(sig,expected));
 }
 
-const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that private screening is required before final approval and that I’ll receive next-step instructions only if my request moves forward.";
-const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-private-v3";
-
 async function ensureClientVerificationAuditsTable(env) {
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_verification_audits (
@@ -3693,7 +3690,7 @@ My journal will continue to be a place where I share a little more of that side 
         const data=await request.json().catch(()=>({}));
         const allowed=new Set([
           "request_page_view","form_started","about_you_completed","experience_selected",
-          "availability_checked","availability_shown","details_reached","before_submit_reached",
+          "availability_checked","availability_shown","details_reached",
           "booking_summary_viewed","submit_attempted","validation_phone","validation_outcall",
           "validation_availability","validation_other","form_submitted","continuation_opened"
         ]);
@@ -3815,9 +3812,6 @@ My journal will continue to be a place where I share a little more of that side 
             { status: 400 }
           );
         }
-
-        const screeningAcknowledgement =
-          data.screening_acknowledgement === "yes";
 
         const newsletterOfferId =
           String(data.newsletter_offer || "").trim();
@@ -3957,20 +3951,6 @@ My journal will continue to be a place where I share a little more of that side 
           return Response.json(
             { ok: false, message: "That start time is no longer available. Please choose another opening." },
             { status: 409 }
-          );
-        }
-
-
-        // Screening acknowledgement required
-
-        if (!screeningAcknowledgement) {
-          return Response.json(
-            {
-              ok: false,
-              message:
-                "Please acknowledge the screening requirement."
-            },
-            { status: 400 }
           );
         }
 
@@ -4149,11 +4129,7 @@ My journal will continue to be a place where I share a little more of that side 
             ? `Newsletter special: Newsletter #${newsletterOffer.id}\nSelected monthly special: ${selectedSubscriberSpecial.experience} — ${selectedSubscriberSpecial.duration} at ${selectedSubscriberSpecial.price}\nOffer: ${newsletterOffer.special_offer || "Subscriber special"}`
             : newsletterOfferId
               ? `Newsletter special code received but not recognized: ${newsletterOfferId}`
-              : null,
-
-          screeningAcknowledgement
-            ? "Screening requirement acknowledged: Yes"
-            : null
+              : null
         ]
           .filter(Boolean)
           .join("\n");
@@ -4209,9 +4185,8 @@ My journal will continue to be a place where I share a little more of that side 
         const requestId =
           requestResult.meta.last_row_id;
 
-        // Preserve the screening acknowledgement exactly as presented when
-        // this booking request was submitted. This is an audit record only;
-        // it does not add or change wording on the public form.
+        // Create the verification audit record without recording acceptance of
+        // wording that is no longer shown on the public booking form.
         await ensureClientVerificationAuditsTable(env);
         await env.DB.prepare(`
           INSERT INTO client_verification_audits
@@ -4223,9 +4198,9 @@ My journal will continue to be a place where I share a little more of that side 
         `).bind(
           clientId,
           requestId,
-          screeningAcknowledgement ? 1 : 0,
-          SCREENING_ACKNOWLEDGEMENT_WORDING,
-          SCREENING_ACKNOWLEDGEMENT_VERSION,
+          0,
+          "",
+          "not_present",
           "",
           "",
           ""
@@ -4555,7 +4530,6 @@ My journal will continue to be a place where I share a little more of that side 
             availability_checked: funnel.availability_checked || 0,
             availability_shown: funnel.availability_shown || 0,
             details_reached: funnel.details_reached || 0,
-            before_submit_reached: funnel.before_submit_reached || 0,
             booking_summary_viewed: funnel.booking_summary_viewed || 0,
             submit_attempted: funnel.submit_attempted || 0,
             validation_phone: funnel.validation_phone || 0,

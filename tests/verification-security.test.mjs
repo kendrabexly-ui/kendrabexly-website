@@ -378,12 +378,12 @@ test("continuation calculates and persists the selected deposit method",()=>{
 });
 
 
-test("final public booking section stays lightweight and audited",()=>{
-  assert.match(requestPage,/BEFORE YOU SUBMIT/);
-  assert.match(requestPage,/One last thing\./);
-  assert.doesNotMatch(requestPage,/>\s*SCREENING\s*</);
-  assert.match(worker,/SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-private-v3"/);
-  assert.match(worker,/I understand that private screening is required before final approval and that I’ll receive next-step instructions only if my request moves forward/);
+test("booking form has no before-you-submit section or acknowledgement",()=>{
+  assert.doesNotMatch(requestPage,/BEFORE YOU SUBMIT/);
+  assert.doesNotMatch(requestPage,/One last thing\./);
+  assert.doesNotMatch(requestPage,/screening-acknowledgement/);
+  assert.doesNotMatch(worker,/Please acknowledge the screening requirement/);
+  assert.match(worker,/0,\s*"",\s*"not_present"/);
 });
 
 
@@ -435,7 +435,7 @@ test("initial booking request stays non-transactional",()=>{
   assert.doesNotMatch(requestPage,/charged/i);
   assert.doesNotMatch(requestPage,/deposit/i);
   assert.doesNotMatch(requestPage,/Estimated total/i);
-  assert.match(requestPage,/private link for the next screening step/);
+  assert.match(requestPage,/private link to complete screening details/);
   assert.match(requestPage,/After screening is complete, I’ll let you know the next step/);
 });
 
@@ -466,10 +466,12 @@ test("mobile number requirement explains screening purpose",()=>{
 });
 
 test("section-level booking funnel events are privacy-safe and dashboard-visible",()=>{
-  for(const event of ["about_you_completed","experience_selected","availability_shown","before_submit_reached","submit_attempted","validation_phone","validation_outcall","validation_availability","validation_other"]){
+  for(const event of ["about_you_completed","experience_selected","availability_shown","submit_attempted","validation_phone","validation_outcall","validation_availability","validation_other"]){
     assert.match(requestPage,new RegExp(event));
     assert.match(worker,new RegExp(event));
   }
+  assert.doesNotMatch(requestPage,/before_submit_reached/);
+  assert.doesNotMatch(worker,/before_submit_reached/);
   assert.match(portal,/Initial-form diagnostics/);
   assert.match(portal,/No field values are stored in funnel analytics/);
 });

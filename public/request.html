@@ -380,62 +380,19 @@
 
       </div>
 
-      <!-- BEFORE SUBMITTING -->
-      <div class="form-section">
+      <button
+        type="submit"
+        class="button"
+        id="submit-request"
+      >
+        Submit Private Request
+      </button>
 
-        <div class="eyebrow">
-          BEFORE YOU SUBMIT
-        </div>
-
-        <h2>
-          One last thing.
-        </h2>
-
-
-        <div class="field full-width">
-
-          <label class="checkbox-label">
-
-            <input
-              type="checkbox"
-              id="screening-acknowledgement"
-              name="screening_acknowledgement"
-              value="yes"
-              required
-            >
-
-            <span>
-              I understand that private screening is required before final approval and that I’ll receive next-step instructions only if my request moves forward.
-            </span>
-
-          </label>
-
-        </div>
-
-
-        <!-- NEXT STEP NOTE -->
-        <p>
-          If your request moves forward, I’ll send you a private link for the next screening step.
-        </p>
-
-
-        <!-- SUBMIT -->
-        <button
-          type="submit"
-          class="button"
-          id="submit-request"
-        >
-          Submit Private Request
-        </button>
-
-
-        <small
-          id="form-status"
-          role="status"
-          aria-live="polite"
-        ></small>
-
-      </div>
+      <small
+        id="form-status"
+        role="status"
+        aria-live="polite"
+      ></small>
 
     </form>
 
@@ -671,16 +628,14 @@
       trackFunnel(eventName);
     }
     function maybeTrackAboutYou() {
-      const fields = ["first-name","last-name","email","phone"].map(id => document.getElementById(id));
+      const fields = ["first-name","last-name","email","phone","occupation"].map(id => document.getElementById(id));
       if (fields.every(field => field && String(field.value || "").trim() && field.checkValidity())) {
         trackOnce("about_you_completed");
       }
     }
-    ["first-name","last-name","email","phone"].forEach(id => {
+    ["first-name","last-name","email","phone","occupation"].forEach(id => {
       document.getElementById(id)?.addEventListener("blur", maybeTrackAboutYou);
     });
-    const beforeSubmitSection = document.getElementById("screening-acknowledgement");
-    beforeSubmitSection?.addEventListener("focus", () => trackOnce("before_submit_reached"));
 
     const status =
       document.getElementById("form-status");
