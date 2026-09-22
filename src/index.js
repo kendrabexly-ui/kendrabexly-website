@@ -4,7 +4,7 @@ async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env
 
 
 const SITE_TIME_ZONE = "America/Los_Angeles";
-const US_STATE_CODES = new Set([
+const VALID_BOOKING_STATE_CODES = new Set([
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
 ]);
 const VERIFICATION_ROUTE_PERMISSIONS = [
@@ -3890,7 +3890,7 @@ My journal will continue to be a place where I share a little more of that side 
           );
         }
 
-        if (!US_STATE_CODES.has(baseState)) {
+        if (!VALID_BOOKING_STATE_CODES.has(baseState)) {
           return Response.json(
             { ok: false, message: "Please choose a valid base state." },
             { status: 400 }
@@ -6924,7 +6924,6 @@ if (
           inquiry_status:inquiryStatus,
           inquiry_country_fields:countryFieldDiagnostics,
           database_ran:Boolean(latestDatabase),
-          workflow_state:workflowState,
           database_verification:latestDatabase ? {
             id:String(latestDatabase.id||""),
             type:String(latestDatabase.type||""),

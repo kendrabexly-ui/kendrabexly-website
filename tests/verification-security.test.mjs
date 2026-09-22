@@ -22,7 +22,7 @@ test("initial booking request collects a validated base state for basic screenin
   assert.match(requestPage,/name="base_state"[\s\S]*required/);
   assert.match(worker,/const baseState =[\s\S]*String\(data\.base_state \|\| ""\)\.trim\(\)\.toUpperCase\(\)/);
   assert.match(worker,/!baseState \|\|/);
-  assert.match(worker,/US_STATE_CODES\.has\(baseState\)/);
+  assert.match(worker,/VALID_BOOKING_STATE_CODES\.has\(baseState\)/);
   assert.match(worker,/`Base state: \$\{baseState\}`/);
 });
 
