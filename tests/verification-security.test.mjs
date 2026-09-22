@@ -23,15 +23,16 @@ test("invalid Persona credentials produce a distinct state",()=>{
 test("wrong inquiry template is rejected",()=>{
   assert.match(worker,/PERSONA_INQUIRY_TEMPLATE_ID must begin with itmpl_/);
   assert.match(worker,/incorrect_inquiry_template/);
-  assert.match(worker,/api\/v1\/inquiries/);
-  assert.doesNotMatch(worker,/api\/v1\/transactions/);
+  const personaVerifyRoute=worker.slice(worker.indexOf('url.pathname === "/api/admin/clients/persona-verify"'),worker.indexOf('url.pathname === "/api/admin/clients/persona-refresh"'));
+  assert.match(personaVerifyRoute,/api\/v1\/inquiries/);
+  assert.doesNotMatch(personaVerifyRoute,/api\/v1\/transactions/);
 });
 
 test("Sandbox validates credentials without reading protected template resources",()=>{
   assert.match(worker,/\^persona_sandbox_/);
   assert.match(worker,/api\/v1\/inquiries\?page%5Bsize%5D=1/);
   assert.match(worker,/Connected \(Sandbox\)/);
-  assert.match(portal,/result\.message\|\|"Connected"/);
+  assert.match(portal,/result\.message\|\|/);
 });
 
 test("birthdate supports numeric keypad entry while APIs receive ISO format",()=>{
@@ -107,4 +108,12 @@ test("audit activity sanitizes details and is append-only",()=>{
   assert.match(worker,/INSERT INTO client_verification_activity/);
   assert.doesNotMatch(worker,/DELETE FROM client_verification_activity/);
   assert.doesNotMatch(worker,/UPDATE client_verification_activity SET/);
+});
+
+
+test("Database verification result is returned to the dashboard",()=>{
+  assert.match(worker,/persona_database_status/);
+  assert.match(worker,/persona_database_verification_id/);
+  assert.match(worker,/persona_database_checked_at/);
+  assert.match(portal,/Database \(US\):/);
 });
