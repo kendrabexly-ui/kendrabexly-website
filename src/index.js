@@ -5293,7 +5293,7 @@ if (
         const issuingState=normalizeVerificationState(data.issuing_state||"").slice(0,40);
         const issuingBoard=String(data.issuing_board||"").trim().slice(0,200);
         const credentialStatus=String(data.credential_status||"not_checked").trim().toLowerCase();
-        const allowedStatuses=new Set(["not_checked","pending","confirmed","not_found","expired","inactive","suspended","revoked","mismatch","needs_review"]);
+        const allowedStatuses=new Set(["not_checked","pending","confirmed","not_found","unable_to_verify","expired","inactive","suspended","revoked","mismatch","needs_review"]);
         if(!allowedStatuses.has(credentialStatus))return Response.json({ok:false,message:"Choose a valid license or credential result."},{status:400});
         const issueDate=idDocumentDate(data.issue_date)||"";
         const expirationDate=idDocumentDate(data.expiration_date)||"";
@@ -5304,10 +5304,14 @@ if (
         const sourceName=String(data.source_name||"").trim().slice(0,200);
         const sourceUrl=String(data.source_url||"").trim().slice(0,800);
         const evidenceNotes=String(data.evidence_notes||"").trim().slice(0,1600);
+        const genericDirectorySource=/usa\.gov\/state-governments/i.test(sourceUrl)||/^usa\.gov state governments$/i.test(sourceName);
         if(credentialStatus==="confirmed" && !(occupation&&credentialType&&licenseNumber&&issuingState&&issuingBoard&&sourceName&&sourceUrl)){
-          return Response.json({ok:false,message:"Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Confirmed."},{status:400});
+          return Response.json({ok:false,message:"Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Active / verified."},{status:400});
         }
-        if(["not_found","expired","inactive","suspended","revoked","mismatch","needs_review"].includes(credentialStatus) && !evidenceNotes){
+        if(credentialStatus==="confirmed" && genericDirectorySource){
+          return Response.json({ok:false,message:"USA.gov State Governments is a directory, not credential evidence. Open the actual licensing board or registry and save that official source name and direct URL."},{status:400});
+        }
+        if(["not_found","unable_to_verify","expired","inactive","suspended","revoked","mismatch","needs_review"].includes(credentialStatus) && !evidenceNotes){
           return Response.json({ok:false,message:"Add an evidence note for this credential result."},{status:400});
         }
         const actor=accessIdentity(request).email||"authorized-admin";
@@ -5329,10 +5333,16 @@ if (
         `).bind(clientId,occupation,credentialType,licenseNumber,issuingState,issuingBoard,credentialStatus,
                  issueDate,expirationDate,disciplinaryIndicator,sourceName,sourceUrl,evidenceNotes,credentialStatus,actor).run();
         const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
-        if(String(previous?.credential_status||"not_checked")!==credentialStatus){
+        if(credentialStatus!=="not_checked"){
+          const statusChanged=String(previous?.credential_status||"not_checked")!==credentialStatus;
           await logVerificationActivity(env,clientId,audit?.id||null,"credential_verification_updated",
-            credentialStatus==="confirmed"?"License or credential confirmed":"License or credential result updated",
-            "Result: "+credentialStatus+(credentialType?" · Credential: "+credentialType:"")+(issuingBoard?" · Board: "+issuingBoard:""));
+            credentialStatus==="confirmed"?"License or credential verified":statusChanged?"License or credential result updated":"Credential check saved",
+            "Checked by: "+actor+" · Result: "+credentialStatus+
+            (credentialType?" · Credential: "+credentialType:"")+
+            (issuingBoard?" · Board: "+issuingBoard:"")+
+            (sourceName?" · Source: "+sourceName:"")+
+            (sourceUrl?" · Source URL: "+sourceUrl:"")+
+            (evidenceNotes?" · Evidence/reference: "+evidenceNotes:""));
         }
         const saved=await env.DB.prepare(`
           SELECT client_id,occupation,credential_type,license_number,issuing_state,issuing_board,
