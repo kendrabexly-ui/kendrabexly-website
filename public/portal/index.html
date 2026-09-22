@@ -2832,7 +2832,7 @@ async function loadRequests(options = {}) {
                       <label data-persona-field="address_postal_code" style="font-size:12px;font-weight:700;">Postal code<input class="client-persona-postal" value="${escapeHtml(personaDraft.address_postal_code || latest?.address_postal_code || latest?.postal_code || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="address_country_code" style="font-size:12px;font-weight:700;">Country code<input class="client-persona-country" value="${escapeHtml(personaDraft.address_country_code || "US")}" maxlength="2" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"></label>
                       <label data-persona-field="email_address" style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(personaDraft.email_address || client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-phone-line-check" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Check Phone Type</button><span class="client-phone-line-status verification-field-note">Not checked</span></span></label>
                     </div>
                     <div class="client-persona-dob-handoff" style="margin-top:9px;padding:9px 10px;border-radius:8px;background:#f7f2e9;font-size:12px;color:var(--muted);"></div>
                     <div class="client-persona-readiness" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
@@ -2840,7 +2840,7 @@ async function loadRequests(options = {}) {
                       <div class="persona-readiness-list">
                         <div class="persona-readiness-row" data-readiness="required"><span>Required fields complete</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="email"><span>Email valid</span><strong>—</strong></div>
-                        <div class="persona-readiness-row" data-readiness="phone"><span>Phone valid</span><strong>—</strong></div>
+                        <div class="persona-readiness-row" data-readiness="phone"><span>Phone valid / non-VoIP</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="address"><span>Address valid or ID fallback complete</span><strong>—</strong></div>
                         <div class="persona-readiness-row" data-readiness="dob"><span>DOB present</span><strong>—</strong></div>
                       </div>
@@ -3323,7 +3323,15 @@ async function loadRequests(options = {}) {
         }
         const requiredComplete=missing.length===0;
         const emailValid=!email||!fieldErrors.email_address;
-        const phoneValid=!phone||!fieldErrors.phone_number;
+        const phoneFormatValid=!phone||!fieldErrors.phone_number;
+        const checkedPhone=String(section.dataset.phoneLineCheckedNumber||"");
+        const currentPhone=personaPhoneForApi(phone);
+        const phoneLineChecked=Boolean(phone&&checkedPhone&&checkedPhone===currentPhone);
+        const phoneLineAllowed=section.dataset.phoneLineAllowed==="1";
+        const phoneLineVoip=section.dataset.phoneLineVoip==="1";
+        const phoneValid=phoneFormatValid&&(!phone||phoneLineChecked&&phoneLineAllowed);
+        if(phone&&phoneFormatValid&&!phoneLineChecked)warnings.push("Phone line type has not been checked yet.");
+        if(phone&&phoneLineChecked&&phoneLineVoip)fieldErrors.phone_number="VoIP phone number detected. Use a non-VoIP number.";
         const addressValid=Boolean((addressComplete&&!fieldErrors.address_country_code&&!fieldErrors.address_subdivision&&!fieldErrors.address_postal_code)||idFallbackComplete);
         const dobPresent=Boolean(birthdateIso);
         const readiness={requiredComplete,emailValid,phoneValid,addressValid,dobPresent,idFallbackComplete,addressComplete};
@@ -3728,6 +3736,64 @@ async function loadRequests(options = {}) {
         updateVerificationSummary(section);
         if(statusSelect)statusSelect.dispatchEvent(new Event("change"));
       };
+      const applyPhoneLineCheck=(section,check)=>{
+        const status=section.querySelector(".client-phone-line-status");
+        if(!check){
+          section.dataset.phoneLineCheckedNumber="";
+          section.dataset.phoneLineAllowed="0";
+          section.dataset.phoneLineVoip="0";
+          section.dataset.phoneLineType="";
+          if(status){status.textContent="Not checked";status.style.color="var(--muted)";}
+          validatePersonaFields(section,{show:false});
+          return;
+        }
+        const lineType=String(check.line_type||"unknown");
+        const isVoip=Boolean(check.is_voip);
+        const allowed=Boolean(check.allowed!==undefined?check.allowed:(check.valid&&lineType!=="unknown"&&!isVoip));
+        section.dataset.phoneLineCheckedNumber=String(check.phone_e164||"");
+        section.dataset.phoneLineAllowed=allowed?"1":"0";
+        section.dataset.phoneLineVoip=isVoip?"1":"0";
+        section.dataset.phoneLineType=lineType;
+        if(status){
+          const pretty=lineType.replace(/([a-z])([A-Z])/g,"$1 $2").replace(/^./,c=>c.toUpperCase());
+          status.textContent=isVoip?"VoIP detected · "+pretty:allowed?"Non-VoIP · "+pretty:"Inconclusive · "+pretty;
+          status.style.color=isVoip?"#8a2424":allowed?"#2f6b45":"#74520b";
+        }
+        validatePersonaFields(section,{show:false});
+      };
+      const loadPhoneLineCheck=async(section)=>{
+        try{
+          const response=await fetch("/api/admin/clients/phone-line-type?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(response.ok&&result.ok)applyPhoneLineCheck(section,result.check);
+        }catch(_error){}
+      };
+      const runPhoneLineCheck=async(section)=>{
+        const button=section.querySelector(".client-phone-line-check");
+        const status=section.querySelector(".client-phone-line-status");
+        const phone=section.querySelector(".client-persona-phone")?.value||"";
+        if(button){button.disabled=true;button.textContent="Checking…";}
+        if(status){status.textContent="Checking line type…";status.style.color="var(--muted)";}
+        try{
+          const response=await fetch("/api/admin/clients/phone-line-type",{
+            method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},
+            body:JSON.stringify({client_id:Number(section.dataset.clientId),phone_number:phone})
+          });
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to check phone type.");
+          applyPhoneLineCheck(section,result);
+          await loadVerificationActivity(section);
+        }catch(error){
+          section.dataset.phoneLineCheckedNumber="";
+          section.dataset.phoneLineAllowed="0";
+          section.dataset.phoneLineVoip="0";
+          if(status){status.textContent=error.message||"Unable to check phone type.";status.style.color="#8a2424";}
+          validatePersonaFields(section,{show:false});
+        }finally{
+          if(button){button.disabled=false;button.textContent="Check Phone Type";}
+        }
+      };
+
       const loadVerificationAudits = async (section) => {
         const list=section.querySelector(".client-verification-audit-list");
         try{
@@ -4037,6 +4103,7 @@ async function loadRequests(options = {}) {
           section.scrollIntoView({behavior:"smooth",block:"start"});
           loadIdDocument(section, false);
           loadVerificationAudits(section);
+          loadPhoneLineCheck(section);
           loadPersonaStatus(section);
         });
       });
@@ -4047,6 +4114,15 @@ async function loadRequests(options = {}) {
             if(input.classList.contains("client-persona-phone")){
               const cursor=input.selectionStart;
               input.value=formatPhoneWhileTyping(input.value);
+              const currentLookupPhone=personaPhoneForApi(input.value);
+              if(section.dataset.phoneLineCheckedNumber&&section.dataset.phoneLineCheckedNumber!==currentLookupPhone){
+                section.dataset.phoneLineCheckedNumber="";
+                section.dataset.phoneLineAllowed="0";
+                section.dataset.phoneLineVoip="0";
+                section.dataset.phoneLineType="";
+                const phoneStatus=section.querySelector(".client-phone-line-status");
+                if(phoneStatus){phoneStatus.textContent="Phone changed · check again";phoneStatus.style.color="#74520b";}
+              }
               try{input.setSelectionRange(input.value.length,input.value.length);}catch{}
             }
             if(input.classList.contains("client-persona-email"))input.value=sanitizeEmailWhileTyping(input.value);
@@ -4071,9 +4147,14 @@ async function loadRequests(options = {}) {
           event.stopPropagation();
           await testPersonaConnection(section);
         });
+        section.querySelector(".client-phone-line-check")?.addEventListener("click",async(event)=>{
+          event.preventDefault();
+          event.stopPropagation();
+          await runPhoneLineCheck(section);
+        });
         section.addEventListener("toggle",()=>{
           if(section.open){
-            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPersonaStatus(section);loadVerificationActivity(section);
+            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadPersonaStatus(section);loadVerificationActivity(section);
           }else if(section.dataset.draftDirty==="1"){
             if(!window.confirm("Verification fields are still unsaved. Close this section anyway?")){section.open=true;}
           }
