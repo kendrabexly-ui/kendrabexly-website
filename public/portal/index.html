@@ -2887,6 +2887,18 @@ async function loadRequests(options = {}) {
                       <label style="font-size:12px;font-weight:700;">State
                         <input class="client-address-check-state" type="text" maxlength="2" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;">
                       </label>
+                      <label class="client-address-check-county-wrap" hidden style="font-size:12px;font-weight:700;">County <span style="font-weight:500;color:var(--muted);">(for property lookup)</span>
+                        <select class="client-address-check-county" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="">Choose county</option>
+                          <option value="Los Angeles">Los Angeles</option>
+                          <option value="Orange">Orange</option>
+                          <option value="Riverside">Riverside</option>
+                          <option value="San Bernardino">San Bernardino</option>
+                          <option value="San Diego">San Diego</option>
+                          <option value="Sacramento">Sacramento</option>
+                        </select>
+                        <span class="verification-field-note">Choose the county so ClearPath can open the assessor/property search directly instead of the assessor directory.</span>
+                      </label>
                       <label style="font-size:12px;font-weight:700;">ZIP / postal code
                         <input class="client-address-check-postal" type="text" maxlength="20" placeholder="ZIP code" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
                       </label>
@@ -4168,8 +4180,15 @@ async function loadRequests(options = {}) {
         "San Diego":["San Diego Court Index","https://courtindex.sdcourt.ca.gov/CISPublic/","Superior Court of California, County of San Diego","official"],
         "Sacramento":["Sacramento Public Case Access","https://services.saccourt.ca.gov/PublicCaseAccess","Superior Court of California, County of Sacramento","official"]
       };
+      const californiaPropertySearchRoutes={
+        "Los Angeles":["Los Angeles County Assessor Property Search","https://portal.assessor.lacounty.gov/","Los Angeles County Assessor","official"],
+        "Orange":["Orange County Property Information & Parcel Maps","https://www.ocassessor.gov/page/property-information-and-parcel-maps","Orange County Assessor Department","official"],
+        "Riverside":["Riverside County Property Search","https://www.rivcoacr.org/Property-Search","Riverside County Assessor-County Clerk-Recorder","official"],
+        "San Bernardino":["San Bernardino Assessor Property Information","https://arc.sbcounty.gov/property-information/","San Bernardino County Assessor-Recorder-Clerk","official"],
+        "San Diego":["San Diego County Property Information Search","https://www.sdarcc.gov/content/arcc/home/divisions/assessor/property-information.html","San Diego County Assessor/Recorder/County Clerk","official"],
+        "Sacramento":["Sacramento County Assessor Parcel Viewer","https://assessorparcelviewer.saccounty.gov/jsviewer/assessor.html","Sacramento County Assessor","official"]
+      };
       const addressPropertyLookupRoutes={
-        CA:["California County Assessors Directory","https://www.boe.ca.gov/proptaxes/countycontacts.htm","California State Board of Equalization","directory"],
         NV:["Nevada County Assessors","https://tax.nv.gov/LocalGovt/County_Assessors/","Nevada Department of Taxation","directory"],
         AZ:["Arizona County Assessor Directory","https://azdor.gov/property-tax/county-assessors","Arizona Department of Revenue","directory"],
         TX:["Texas County Appraisal District Directory","https://comptroller.texas.gov/taxes/property-tax/county-directory/","Texas Comptroller","directory"],
@@ -4181,14 +4200,23 @@ async function loadRequests(options = {}) {
         if(!wrap)return;
         wrap.innerHTML="";
         const state=String(section.querySelector(".client-address-check-state")?.value||"").trim().toUpperCase();
+        const county=String(section.querySelector(".client-address-check-county")?.value||"").trim();
+        const countyWrap=section.querySelector(".client-address-check-county-wrap");
+        if(countyWrap)countyWrap.hidden=state!=="CA";
+        if(state!=="CA"){
+          const countyInput=section.querySelector(".client-address-check-county");
+          if(countyInput)countyInput.value="";
+        }
         const links=[
           ["USPS ZIP Code Lookup","https://tools.usps.com/zip-code-lookup.htm","USPS","directory"]
         ];
-        const propertyRoute=addressPropertyLookupRoutes[state];
-        if(propertyRoute){
-          links.push([propertyRoute[0],propertyRoute[1],propertyRoute[2],propertyRoute[3]]);
-        }else if(state){
-          links.push(["Find County Assessor / Property Records","https://www.usa.gov/property-records","USA.gov property records","directory"]);
+        if(state==="CA"){
+          const route=californiaPropertySearchRoutes[county];
+          if(route)links.push(route);
+        }else{
+          const propertyRoute=addressPropertyLookupRoutes[state];
+          if(propertyRoute)links.push(propertyRoute);
+          else if(state)links.push(["Find County Assessor / Property Records","https://www.usa.gov/property-records","USA.gov property records","directory"]);
         }
         links.forEach(([label,url,source,kind])=>{
           const a=document.createElement("a");a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=label;
@@ -4196,11 +4224,21 @@ async function loadRequests(options = {}) {
           a.addEventListener("click",()=>{
             if(kind==="directory")return;
             const n=section.querySelector(".client-address-check-source-name"),u=section.querySelector(".client-address-check-source-url");
-            if(n&&!n.value)n.value=source;if(u&&!u.value)u.value=url;
+            if(n&&!n.value)n.value=source;
+            if(u&&!u.value)u.value=url;
+            const method=section.querySelector(".client-address-check-method");
+            if(method&&!method.value)method.value="county_assessor";
           });
           wrap.appendChild(a);
         });
+        if(state==="CA"&&!county){
+          const note=document.createElement("span");
+          note.textContent="Choose a California county to show the direct assessor/property search.";
+          note.style.cssText="display:block;width:100%;font-size:11px;color:var(--muted);";
+          wrap.appendChild(note);
+        }
       };
+
       const syncAddressCheckFromVerification=(section)=>{
         const map=[
           [".client-address-check-line1",".client-persona-address-1"],
@@ -4822,6 +4860,7 @@ async function loadRequests(options = {}) {
         [".client-address-check-state",".client-address-check-line1",".client-address-check-city",".client-address-check-postal"].forEach(sel=>{
           section.querySelector(sel)?.addEventListener("change",()=>renderAddressLookupLinks(section));
         });
+        section.querySelector(".client-address-check-county")?.addEventListener("change",()=>renderAddressLookupLinks(section));
         syncAddressCheckFromVerification(section);
         section.querySelector(".client-public-record-save")?.addEventListener("click",()=>savePublicRecordCheck(section));
         const syncPublicRecordCountyVisibility=()=>{
