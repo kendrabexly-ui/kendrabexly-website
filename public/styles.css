@@ -1150,3 +1150,38 @@ h3 {
   background: rgba(255, 255, 255, 0.58);
   line-height: 1.65;
 }
+
+/* Booking conversion flow */
+.no-payment-callout {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin:18px 0 0;
+  padding:16px 18px;
+  border:1px solid var(--line-dark);
+  background:var(--cream-dark);
+}
+.request-success {
+  padding:clamp(30px,5vw,52px);
+  border:1px solid var(--line);
+  background:var(--paper);
+  text-align:left;
+}
+.request-success h2 { margin:6px 0 18px; font-size:clamp(36px,5vw,54px); }
+.request-success h3 { margin:28px 0 10px; }
+.request-success ol { padding-left:22px; line-height:1.75; }
+.request-success-summary {
+  display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  margin:22px 0; padding:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+}
+.service-request-cta { display:inline-flex; margin-top:24px; }
+.mobile-booking-cta { display:none; }
+@media (max-width: 760px) {
+  body:not(.rendezvous-page) { padding-bottom:74px; }
+  .mobile-booking-cta {
+    display:block; position:fixed; left:14px; right:14px; bottom:14px; z-index:1000;
+    padding:14px 18px; border-radius:999px; background:var(--ink); color:white;
+    text-align:center; text-decoration:none; font-weight:600;
+    box-shadow:0 8px 30px rgba(0,0,0,.18);
+  }
+}
