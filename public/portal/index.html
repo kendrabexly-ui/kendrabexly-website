@@ -4000,6 +4000,8 @@ async function loadRequests(options = {}) {
         section.dataset.hasDocument = documentRecord ? "1" : "0";
         section._idDocumentRecord=documentRecord||null;
         if (!documentRecord) {
+          const idStatusField=section.querySelector(".client-id-verification-status");if(idStatusField)idStatusField.value="pending_review";
+          const idVerifiedField=section.querySelector(".client-id-verified");if(idVerifiedField)idVerifiedField.value="";
           if (preview) { preview.hidden = true; preview.removeAttribute("src"); }
           if (empty) { empty.hidden = false; empty.textContent = "No ID document is stored for this client."; }
           if (meta) { meta.hidden = true; meta.textContent = ""; }
@@ -4010,6 +4012,8 @@ async function loadRequests(options = {}) {
           updateVerificationSummary(section);
           return;
         }
+        const idStatusField=section.querySelector(".client-id-verification-status");if(idStatusField)idStatusField.value=documentRecord.verification_status||"pending_review";
+        const idVerifiedField=section.querySelector(".client-id-verified");if(idVerifiedField)idVerifiedField.value=String(documentRecord.verification_status||"").toLowerCase()==="verified"?"1":"";
         if (preview) {
           preview.onerror=()=>{if(empty){empty.hidden=false;empty.textContent="ID preview requires a fresh authenticated session. Re-authenticate, then reopen Verification.";};preview.hidden=true;};
           preview.onload=()=>{preview.hidden=false;if(empty)empty.hidden=true;};
@@ -4030,7 +4034,9 @@ async function loadRequests(options = {}) {
         if (upload) upload.textContent = "Replace ID";
         if (deleteButton) deleteButton.hidden = false;
         if (uploadedAt) uploadedAt.textContent = documentRecord.created_at ? new Date(documentRecord.created_at+(String(documentRecord.created_at).endsWith("Z")?"":"Z")).toLocaleString() : "Stored";
+        try{syncAutomaticChecklist(section);}catch{}
         updateVerificationSummary(section);
+        try{updateVerificationFlowSummary(section);}catch{}
       };
       const formatVerificationTimestamp=(value)=>{
         if(!value)return "";
