@@ -2841,6 +2841,7 @@ async function loadRequests(options = {}) {
                     <div class="verification-flow-nav" aria-label="Verification navigation">
                       <button type="button" data-verification-jump=".client-verification-overview">Summary</button>
                       <button type="button" data-verification-jump=".client-basic-screening">Basic Screening</button>
+                      <button type="button" data-verification-jump=".client-phone-checks">Phone Check</button>
                       <button type="button" data-verification-jump=".client-id-record">Identity</button>
                       <button type="button" data-verification-jump=".client-employment-verification">Employment</button>
                       <button type="button" data-verification-jump=".client-verification-editor">Final Checklist</button>
@@ -2855,6 +2856,7 @@ async function loadRequests(options = {}) {
                     </div>
                     <div class="verification-progress-track" aria-label="Verification progress">
                       <div class="verification-progress-step" data-progress-step="basic_screening">Basic Screening</div>
+                      <div class="verification-progress-step" data-progress-step="phone">Phone Check</div>
                       <div class="verification-progress-step" data-progress-step="identity">Identity</div>
                       <div class="verification-progress-step" data-progress-step="employment">Employment</div>
                       <div class="verification-progress-step" data-progress-step="manual">Final Checklist</div>
@@ -2918,9 +2920,18 @@ async function loadRequests(options = {}) {
                     </div>
                   </section>
 
+                  <section class="verification-card client-phone-checks is-collapsed">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                      <strong style="font-size:13px;">2. Phone Check</strong>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-phone-check-badge">Phone: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-phone-checks">Expand</button></span>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Check the phone number from the booking request before continuing with identity and employment review.</div>
+                    <label style="display:block;font-size:12px;font-weight:700;margin-top:8px;">Phone number<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-phone-line-check" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Check Phone Type</button><button type="button" class="client-phone-reverse-lookup" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Reverse Phone Name</button><span class="client-phone-line-status verification-field-note">Not checked</span></span><span class="client-phone-reverse-status verification-field-note" style="margin-top:5px;">Reverse lookup: Not checked · U.S. caller-name lookup may incur a Twilio Lookup charge.</span></label>
+                  </section>
+
                   <section class="verification-card client-id-record is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">2. ID Record</strong>
+                      <strong style="font-size:13px;">3. ID Record</strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-id-badge">Identity: Not checked</span><span class="verification-badge">Private record only</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-id-record">Expand</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">The ID image is stored for your private review and records. It is never sent to Persona.</div>
@@ -2962,7 +2973,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <section class="verification-card client-employment-verification is-collapsed" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">3. Employment Verification</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-employment-badge">Employment: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-employment-verification">Expand</button></span></div>
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">4. Employment Verification</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-employment-badge">Employment: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-employment-verification">Expand</button></span></div>
                     <div style="margin-top:9px;">
                       <div style="font-size:11px;color:var(--muted);margin-bottom:9px;">Record only what is needed to confirm employer, role, and industry. Do not enter SSNs, payroll passwords, or bank information.</div>
                       <div class="verification-grid">
@@ -3005,7 +3016,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <section class="verification-card client-verification-editor is-collapsed" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">4. Final Verification Checklist</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">5. Final Verification Checklist</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">Review the saved checks, choose the final decision, and record any private notes. Persona does not automatically approve or decline a client.</div>
                     <div class="verification-grid">
                       <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
@@ -3073,7 +3084,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-credential-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">5. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
+                      <strong style="font-size:13px;">6. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-credential-badge">Credential: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-credential-card">Expand</button><button type="button" class="client-optional-skip" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Credential Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Use an official licensing board or credential registry to confirm a claimed professional license or credential. A public registry result confirms the credential record—not current employment.</div>
@@ -3109,7 +3120,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-address-verification-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">6. Address Verification <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
+                      <strong style="font-size:13px;">7. Address Verification <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-address-verification-badge">Address: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-address-verification-card">Expand</button><button type="button" class="client-optional-skip" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Address Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
@@ -3178,7 +3189,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-public-record-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">7. Public Court &amp; Criminal Record Search <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
+                      <strong style="font-size:13px;">8. Public Court &amp; Criminal Record Search <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Expand</button><button type="button" class="client-optional-skip" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Public Record Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
@@ -3285,16 +3296,11 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-persona-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">8. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
+                      <strong style="font-size:13px;">9. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-persona-badge">Persona: Checking…</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-persona-card">Expand</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
                     <div class="client-persona-simple-summary" style="margin-top:8px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;"><strong>Database:</strong> Not run · <strong>Inquiry:</strong> Not submitted · <strong>Last checked:</strong> —</div>
-                    <div class="client-phone-checks" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
-                      <div style="font-size:12px;font-weight:700;">Phone checks</div>
-                      <div style="font-size:11px;color:var(--muted);margin-top:3px;">Check the booking number here, even when Phone is not required by Persona.</div>
-                      <label style="display:block;font-size:12px;font-weight:700;margin-top:8px;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-phone-line-check" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Check Phone Type</button><button type="button" class="client-phone-reverse-lookup" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Reverse Phone Name</button><span class="client-phone-line-status verification-field-note">Not checked</span></span><span class="client-phone-reverse-status verification-field-note" style="margin-top:5px;">Reverse lookup: Not checked · U.S. caller-name lookup may incur a Twilio Lookup charge.</span></label>
-                    </div>
                     <div class="verification-grid client-id-fallback-fields" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
                       <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="80" placeholder="${escapeHtml(personaDraft.id_details?.id_number_masked || "Enter ID number")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note client-persona-id-number-note">${personaDraft.id_details?.has_id_number ? "Saved securely · "+escapeHtml(personaDraft.id_details.id_number_masked) : "Required only when address is unavailable."}</span><span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-id-number-replace" style="padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:11px;cursor:pointer;">Replace ID Number</button><button type="button" class="client-id-number-delete" ${personaDraft.id_details?.has_id_number ? "" : "hidden"} style="padding:5px 7px;border:1px solid #9f3030;border-radius:7px;background:#fff7f7;color:#8a2424;font:inherit;font-size:11px;cursor:pointer;">Delete Saved ID Number</button></span></label>
                       <label style="font-size:12px;font-weight:700;">Issuing State<input class="client-persona-issuing-state" value="${escapeHtml(personaDraft.id_details?.issuing_state || "")}" autocomplete="off" maxlength="40" placeholder="CA" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"><span class="verification-field-note">Required when address is unavailable.</span></label>
@@ -3353,7 +3359,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-final-review is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">9. Final Review &amp; Decision</strong>
+                      <strong style="font-size:13px;">10. Final Review &amp; Decision</strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-final-review-badge">Pending Review</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-final-review">Expand</button></span>
                     </div>
                     <div class="client-final-review-summary" style="margin-top:8px;font-size:12px;line-height:1.55;color:var(--muted);">Complete or skip the optional checks, then review unresolved items before making the final decision.</div>
@@ -3365,7 +3371,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <details class="verification-card client-audit-history">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">10. Audit History</summary>
+                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">11. Audit History</summary>
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification history…</div>
                     <details style="margin-top:10px;padding-top:9px;border-top:1px solid var(--line);">
                       <summary style="cursor:pointer;font-size:12px;font-weight:700;">Verification Activity Log</summary>
@@ -4969,6 +4975,7 @@ async function loadRequests(options = {}) {
       const updateVerificationProgress=(section,states)=>{
         const map={
           basic_screening:states.basic_screening,
+          phone:states.phone,
           identity:states.identity,
           employment:states.employment,
           manual:states.manual,
@@ -5025,6 +5032,7 @@ async function loadRequests(options = {}) {
         const values={basic_screening:basicScreening,identity,employment,credential,address,public_records:publicRecords,persona,age:age===null?"Not checked":"Age "+age,phone,sex_offender:sexOffender,checklist:checklist+" of 5",warnings:String(warnings.length),decision};
         Object.entries(values).forEach(([key,value])=>{const el=section.querySelector('[data-summary-status="'+key+'"]');if(el)el.textContent=verificationPretty(value);});
         setVerificationBadge(section.querySelector(".client-id-badge"),"Identity",identity);
+        setVerificationBadge(section.querySelector(".client-phone-check-badge"),"Phone",phone);
         setVerificationBadge(section.querySelector(".client-manual-badge"),"Checklist",manual);
         setVerificationBadge(section.querySelector(".client-employment-badge"),"Employment",employment);
         const overallStatus=decision==="verified"?"confirmed":decision==="unable_to_verify"?"unable_to_verify":decision==="declined"?"mismatch":warnings.length?"needs_review":"in_progress";
@@ -5049,6 +5057,7 @@ async function loadRequests(options = {}) {
         const completeState=["verified","unable_to_verify","declined"].includes(decision)?"complete":"not_checked";
         updateVerificationProgress(section,{
           basic_screening:basicScreening,
+          phone,
           identity,
           employment,
           manual,
@@ -5613,13 +5622,11 @@ async function loadRequests(options = {}) {
         const loadVerificationCardData=(target)=>{
           if(!target)return Promise.resolve();
           if(target.matches(".client-employment-verification"))return verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000);
+          if(target.matches(".client-phone-checks"))return verificationLoadOnce("phone",()=>loadPhoneLineCheck(section),30000);
           if(target.matches(".client-credential-card"))return Promise.all([verificationLoadOnce("credential",()=>loadCredentialVerification(section),30000),verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000)]);
           if(target.matches(".client-address-verification-card"))return Promise.all([verificationLoadOnce("address",()=>loadAddressVerification(section),30000),verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000)]);
           if(target.matches(".client-public-record-card"))return Promise.all([verificationLoadOnce("publicRecords",()=>loadPublicRecordCheck(section),30000),verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000)]);
-          if(target.matches(".client-persona-card"))return Promise.all([
-            verificationLoadOnce("persona",()=>loadPersonaStatus(section),15000),
-            verificationLoadOnce("phone",()=>loadPhoneLineCheck(section),30000)
-          ]);
+          if(target.matches(".client-persona-card"))return verificationLoadOnce("persona",()=>loadPersonaStatus(section),15000);
           if(target.matches(".client-audit-history"))return Promise.all([
             verificationLoadOnce("activity",()=>loadVerificationActivity(section),15000),
             verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000),
