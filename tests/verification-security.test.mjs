@@ -339,7 +339,7 @@ test("outcall starts lightweight and defers exact address to screening",()=>{
 test("initial booking form defers deposit method until private continuation",()=>{
   assert.doesNotMatch(requestPage,/name="deposit_payment_method"/);
   assert.doesNotMatch(requestPage,/name="deposit_acknowledgement"/);
-  assert.match(requestPage,/No payment is due when you submit this request/);
+  assert.doesNotMatch(requestPage,/No payment/i);
   assert.match(continuationPage,/name="deposit_payment_method"/);
   assert.match(continuationPage,/data-method="gift-card"/);
   assert.match(continuationPage,/data-method="stripe"/);
@@ -407,11 +407,15 @@ test("deposit confirmation requires client deposit-step completion",()=>{
 });
 
 
-test("public booking copy consistently says screening first and deposit later",()=>{
-  assert.match(requestPage,/private screening link first/);
-  assert.match(requestPage,/deposit is requested only after screening has been reviewed and verified/i);
-  assert.match(requestPage,/Only after screening is reviewed and verified will I request a deposit/);
-  assert.doesNotMatch(requestPage,/screening details and your deposit step/);
+test("initial booking request stays non-transactional",()=>{
+  assert.doesNotMatch(requestPage,/BOOKING SUMMARY/);
+  assert.doesNotMatch(requestPage,/early-price-estimate/);
+  assert.doesNotMatch(requestPage,/No payment/i);
+  assert.doesNotMatch(requestPage,/charged/i);
+  assert.doesNotMatch(requestPage,/deposit/i);
+  assert.doesNotMatch(requestPage,/Estimated total/i);
+  assert.match(requestPage,/private link for the next screening step/);
+  assert.match(requestPage,/After screening is complete, I’ll let you know the next step/);
 });
 
 test("public request details are lighter and optional",()=>{
@@ -428,10 +432,11 @@ test("fixed-duration experiences auto-select their only duration",()=>{
   assert.match(requestPage,/durationSelect\.value = available\[0\]\.value/);
 });
 
-test("booking form shows price and deposit estimate before date selection is complete",()=>{
-  assert.match(requestPage,/id="early-price-estimate"/);
-  assert.match(requestPage,/Estimated deposit after screening \(25%\)/);
-  assert.match(requestPage,/function updatePriceEstimate\(\)/);
+test("initial request does not show price or deposit summaries",()=>{
+  assert.doesNotMatch(requestPage,/id="early-price-estimate"/);
+  assert.doesNotMatch(requestPage,/id="booking-summary"/);
+  assert.doesNotMatch(requestPage,/function updatePriceEstimate\(\)/);
+  assert.doesNotMatch(requestPage,/function updateBookingSummary\(\)/);
 });
 
 test("mobile number requirement explains screening purpose",()=>{
