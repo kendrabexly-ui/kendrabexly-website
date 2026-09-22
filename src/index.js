@@ -5347,6 +5347,18 @@ if (
         if(!useCurrentPersonaFields)fieldSets.reverse();
 
         const submissionProfiles=[];
+        // Persona Support requested that Sandbox inquiry creation be tested first
+        // with the exact Inquiry Template schema keys and no extra fields.
+        // For explicit "Start New Persona Test" requests, try the minimal snake-case
+        // payload first: name_first, name_last, birthdate, address_country_code.
+        if(forceNewPersona){
+          submissionProfiles.push({
+            name:"support_exact_sandbox",
+            fields:pickFields(snakeInquiryFields,[
+              "name_first","name_last","birthdate","address_country_code"
+            ])
+          });
+        }
         for(const set of fieldSets){
           submissionProfiles.push(
             {name:set.style+"_full",fields:set.full},
@@ -5357,11 +5369,11 @@ if (
         const uniqueProfiles=submissionProfiles.filter((profile,index,array)=>
           Object.keys(profile.fields).length&&array.findIndex(other=>JSON.stringify(other.fields)===JSON.stringify(profile.fields))===index
         );
-        // Final Sandbox compatibility attempt keeps only fields defined by the
-        // configured Inquiry Template, including address-country-code.
+        // Final Sandbox compatibility attempt also uses the exact template schema
+        // keys requested by Persona Support (underscores, not kebab-case).
         uniqueProfiles.push({
-          name:"persona_docs_workflow_safe",
-          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code"]),
+          name:"persona_support_exact_no_reference",
+          fields:pickFields(snakeInquiryFields,["name_first","name_last","birthdate","address_country_code"]),
           omitReferenceId:true,
           forceSandboxVersion:true
         });
