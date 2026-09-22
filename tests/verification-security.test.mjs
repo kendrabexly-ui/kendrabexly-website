@@ -350,3 +350,12 @@ test("continuation calculates and persists the selected deposit method",()=>{
   assert.match(route,/Deposit payment method: /);
   assert.match(route,/UPDATE date_requests SET deposit_amount=\?,notes=\?/);
 });
+
+
+test("final public booking section stays lightweight and audited",()=>{
+  assert.match(requestPage,/BEFORE YOU SUBMIT/);
+  assert.match(requestPage,/One last thing\./);
+  assert.doesNotMatch(requestPage,/>\s*SCREENING\s*</);
+  assert.match(worker,/SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-private-v3"/);
+  assert.match(worker,/I understand that private screening is required before final approval and that I’ll receive next-step instructions only if my request moves forward/);
+});

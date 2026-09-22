@@ -217,8 +217,8 @@ async function verifyPersonaWebhookSignature(rawBody,signatureHeader,secret){
   return signatures.some(sig=>timingSafeEqualHex(sig,expected));
 }
 
-const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that private screening is required before final approval. I will receive instructions only if my request moves forward.";
-const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-private-v2";
+const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that private screening is required before final approval and that I’ll receive next-step instructions only if my request moves forward.";
+const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-private-v3";
 
 async function ensureClientVerificationAuditsTable(env) {
   await env.DB.prepare(`
