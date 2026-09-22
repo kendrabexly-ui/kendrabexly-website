@@ -836,6 +836,15 @@
     const submitButton =
       document.getElementById("submit-request");
 
+    submitButton?.addEventListener("click", () => trackFunnel("submit_attempted"));
+    form.addEventListener("invalid", event => {
+      const invalid=event.target;
+      if(invalid?.id==="phone") trackFunnel("validation_phone");
+      else if(invalid?.closest?.("#outcall-address")) trackFunnel("validation_outcall");
+      else if(invalid?.id==="requested-time" || invalid?.id==="requested-date") trackFunnel("validation_availability");
+      else trackFunnel("validation_other");
+    }, true);
+
     const requestedDate = document.getElementById("requested-date");
     const requestedTime = document.getElementById("requested-time");
 
@@ -879,7 +888,6 @@
       async function (event) {
 
         event.preventDefault();
-        trackFunnel("submit_attempted");
 
         if (!form.checkValidity()) {
           const invalid = form.querySelector(":invalid");
