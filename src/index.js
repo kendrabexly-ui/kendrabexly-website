@@ -189,6 +189,9 @@ async function ensureClientVerificationAuditsTable(env) {
     ["review_flag", "INTEGER NOT NULL DEFAULT 0"],
     ["persona_transaction_id", "TEXT NOT NULL DEFAULT ''"],
     ["persona_transaction_status", "TEXT NOT NULL DEFAULT ''"],
+    ["persona_database_status", "TEXT NOT NULL DEFAULT ''"],
+    ["persona_database_verification_id", "TEXT NOT NULL DEFAULT ''"],
+    ["persona_database_checked_at", "TEXT"],
     ["persona_submitted_at", "TEXT"],
     ["persona_updated_at", "TEXT"]
   ];
@@ -242,6 +245,9 @@ function verificationAuditPublicRecord(row) {
     review_flag: Number(row.review_flag || 0) === 1,
     persona_transaction_id: row.persona_transaction_id || "",
     persona_transaction_status: row.persona_transaction_status || "",
+    persona_database_status: row.persona_database_status || "",
+    persona_database_verification_id: row.persona_database_verification_id || "",
+    persona_database_checked_at: row.persona_database_checked_at || "",
     persona_submitted_at: row.persona_submitted_at || "",
     persona_updated_at: row.persona_updated_at || "",
     completed_at: row.completed_at || "",
@@ -5477,6 +5483,9 @@ if (
           UPDATE client_verification_audits
           SET persona_transaction_id=?,
               persona_transaction_status=?,
+              persona_database_status='',
+              persona_database_verification_id='',
+              persona_database_checked_at=NULL,
               persona_submitted_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE COALESCE(persona_submitted_at,CURRENT_TIMESTAMP) END,
               persona_updated_at=CURRENT_TIMESTAMP,
               updated_at=CURRENT_TIMESTAMP
@@ -5759,6 +5768,12 @@ if (
         let workflowState="not_run";
         if(latestDatabase){
           workflowState=terminalStatuses.has(databaseStatus)?"completed":runningStatuses.has(databaseStatus)?"running":"ran";
+        }
+
+        if(latestDatabase){
+          await env.DB.prepare(
+            "UPDATE client_verification_audits SET persona_database_status=?, persona_database_verification_id=?, persona_database_checked_at=CURRENT_TIMESTAMP, persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?"
+          ).bind(databaseStatus||"unknown",String(latestDatabase.id||""),audit.id).run();
         }
 
         const checkList=Array.isArray(attrs.checks)?attrs.checks:[];
