@@ -12,6 +12,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-draft", "edit_verification"],
   ["/api/admin/clients/verification-activity", "edit_verification"],
   ["/api/admin/clients/verification-overview", "edit_verification"],
+  ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/verification-audit", "final_decision"],
   ["/api/admin/clients/persona-status", "run_persona"],
   ["/api/admin/clients/persona-test", "run_persona"],
@@ -30,6 +31,15 @@ function isPersonaDatabasePending(transactionId,inquiryStatus,databaseStatus) {
   if (!transactionId) return false;
   if (String(databaseStatus || "").toLowerCase() === "passed") return false;
   return !["approved","declined","errored","failed"].includes(String(inquiryStatus || "").toLowerCase());
+}
+
+function normalizePhoneForLookup(value) {
+  const raw=String(value||"").trim();
+  const digits=raw.replace(/\D/g,"");
+  if(/^\+[1-9]\d{7,14}$/.test(raw))return raw;
+  if(digits.length===10)return "+1"+digits;
+  if(digits.length===11&&digits.startsWith("1"))return "+"+digits;
+  return "";
 }
 
 const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v4";
@@ -290,6 +300,19 @@ async function ensureVerificationWorkspaceTables(env) {
       transaction_id TEXT NOT NULL DEFAULT '',
       resulting_status TEXT NOT NULL DEFAULT '',
       received_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_phone_line_checks (
+      client_id INTEGER PRIMARY KEY,
+      phone_e164 TEXT NOT NULL DEFAULT '',
+      provider TEXT NOT NULL DEFAULT 'twilio_lookup',
+      valid INTEGER NOT NULL DEFAULT 0,
+      line_type TEXT NOT NULL DEFAULT '',
+      carrier_name TEXT NOT NULL DEFAULT '',
+      is_voip INTEGER NOT NULL DEFAULT 0,
+      checked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
   await env.DB.prepare(`
@@ -5150,6 +5173,100 @@ if (
           return {...health,warning:Boolean(submitted&&Date.now()-submitted>15*60*1000&&success<submitted)};
         })()
       }, {headers:{"Cache-Control":"private, no-store"}});
+    }
+
+    if (url.pathname === "/api/admin/clients/phone-line-type" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId=Number(url.searchParams.get("client_id")||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const row=await env.DB.prepare("SELECT client_id, phone_e164, provider, valid, line_type, carrier_name, is_voip, checked_at FROM client_phone_line_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
+        return Response.json({ok:true,check:row?{
+          client_id:Number(row.client_id),
+          phone_e164:row.phone_e164||"",
+          provider:row.provider||"twilio_lookup",
+          valid:Number(row.valid||0)===1,
+          line_type:row.line_type||"",
+          carrier_name:row.carrier_name||"",
+          is_voip:Number(row.is_voip||0)===1,
+          checked_at:row.checked_at||""
+        }:null},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to load phone line-type check.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/phone-line-type" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const phone=normalizePhoneForLookup(data.phone_number);
+        if(!phone)return Response.json({ok:false,code:"invalid_phone",message:"Enter a valid phone number before checking its line type."},{status:400});
+
+        const apiUser=String(env.TWILIO_API_KEY||env.TWILIO_ACCOUNT_SID||"").trim();
+        const apiSecret=String(env.TWILIO_API_SECRET||env.TWILIO_AUTH_TOKEN||"").trim();
+        if(!apiUser||!apiSecret){
+          return Response.json({
+            ok:false,code:"phone_lookup_not_configured",
+            message:"Phone line-type lookup is not configured.",
+            technical_details:"Add TWILIO_API_KEY and TWILIO_API_SECRET, or TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN, in Cloudflare."
+          },{status:503});
+        }
+
+        const actor=accessIdentity(request).email||"admin";
+        const rate=await enforceVerificationRateLimit(env,"phone_line_type",actor+":"+clientId,20,300);
+        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many phone line-type checks. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+
+        const auth=btoa(apiUser+":"+apiSecret);
+        const lookupResponse=await fetch(
+          "https://lookups.twilio.com/v2/PhoneNumbers/"+encodeURIComponent(phone)+"?Fields=line_type_intelligence",
+          {headers:{Authorization:"Basic "+auth,"Accept":"application/json"}}
+        );
+        const lookup=await lookupResponse.json().catch(()=>({}));
+        if(!lookupResponse.ok){
+          const detail=lookup?.message||lookup?.detail||("Twilio Lookup returned HTTP "+lookupResponse.status+".");
+          return Response.json({ok:false,code:"phone_lookup_failed",message:"Unable to verify the phone line type.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
+        }
+
+        const valid=Boolean(lookup?.valid);
+        const info=lookup?.line_type_intelligence||{};
+        const lineType=String(info?.type||"unknown");
+        const carrierName=String(info?.carrier_name||"");
+        const isVoip=["fixedVoip","nonFixedVoip"].includes(lineType);
+        const conclusive=valid&&lineType&&lineType!=="unknown";
+        await env.DB.prepare(`
+          INSERT INTO client_phone_line_checks(client_id,phone_e164,provider,valid,line_type,carrier_name,is_voip,checked_at,updated_at)
+          VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id) DO UPDATE SET
+            phone_e164=excluded.phone_e164,provider=excluded.provider,valid=excluded.valid,
+            line_type=excluded.line_type,carrier_name=excluded.carrier_name,is_voip=excluded.is_voip,
+            checked_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId,phone,"twilio_lookup",valid?1:0,lineType,carrierName,isVoip?1:0).run();
+
+        const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+        await logVerificationActivity(
+          env,clientId,audit?.id||null,"phone_line_type_checked",
+          isVoip?"VoIP phone detected":conclusive?"Phone line type verified":"Phone line type inconclusive",
+          "Line type: "+lineType+(carrierName?" · Carrier: "+carrierName:"")
+        );
+
+        return Response.json({
+          ok:true,
+          phone_e164:phone,
+          valid,
+          line_type:lineType,
+          carrier_name:carrierName,
+          is_voip:isVoip,
+          conclusive,
+          allowed:conclusive&&!isVoip,
+          checked_at:new Date().toISOString()
+        },{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        console.error("Phone line-type lookup error:",error);
+        return Response.json({ok:false,message:"Unable to verify the phone line type.",technical_details:String(error?.message||error)},{status:500});
+      }
     }
 
     if (url.pathname === "/api/admin/clients/persona-test" && request.method === "POST") {
