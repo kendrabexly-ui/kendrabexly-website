@@ -3756,6 +3756,9 @@ My journal will continue to be a place where I share a little more of that side 
         const phone =
           String(data.phone || "").trim();
 
+        const occupation =
+          String(data.occupation || "").trim().slice(0, 160);
+
         const requestedDate =
           String(data.requested_date || "").trim();
 
@@ -3869,6 +3872,7 @@ My journal will continue to be a place where I share a little more of that side 
           !lastName ||
           !email ||
           !phone ||
+          !occupation ||
           !requestedDate ||
           !requestedTime ||
           !dateType ||
@@ -4011,6 +4015,7 @@ My journal will continue to be a place where I share a little more of that side 
             "Submitted name: " + firstName + " " + lastName,
             "Submitted email: " + email,
             "Submitted phone: " + phone,
+            "Occupation: " + occupation,
             "Requested date: " + requestedDate,
             "Requested time: " + requestedTime,
             dateType ? "Date type: " + dateType : null,
@@ -4134,6 +4139,10 @@ My journal will continue to be a place where I share a little more of that side 
 
           duration
             ? `Duration: ${duration}`
+            : null,
+
+          occupation
+            ? `Occupation: ${occupation}`
             : null,
 
           newsletterOffer

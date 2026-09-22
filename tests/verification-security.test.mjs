@@ -9,6 +9,14 @@ const continuationPage=fs.readFileSync(new URL("../public/complete/index.html",i
 const requestAdmin=fs.readFileSync(new URL("../public/portal/request/index.html",import.meta.url),"utf8");
 const security=fs.readFileSync(new URL("../src/verification-security.js",import.meta.url),"utf8");
 
+test("initial booking request collects occupation for basic screening",()=>{
+  assert.match(requestPage,/label for="occupation"[\s\S]*What is your occupation\? \*/);
+  assert.match(requestPage,/name="occupation"[\s\S]*required/);
+  assert.match(worker,/const occupation =[\s\S]*String\(data\.occupation \|\| ""\)\.trim\(\)\.slice\(0, 160\)/);
+  assert.match(worker,/!occupation \|\|/);
+  assert.match(worker,/`Occupation: \$\{occupation\}`/);
+});
+
 test("address-based verification remains supported",()=>{
   assert.match(worker,/const addressComplete=Boolean\(personaFields\.address_street_1&&personaFields\.address_city&&personaFields\.address_subdivision&&personaFields\.address_postal_code\)/);
 });
