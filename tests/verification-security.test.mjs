@@ -35,7 +35,7 @@ test("booking submission shows the server response instead of hiding it behind a
 
 test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/data-progress-step="basic_screening">Basic Screening/);
-  assert.match(portal,/class="verification-card client-basic-screening"/);
+  assert.match(portal,/class="verification-card client-basic-screening is-collapsed"/);
   assert.match(portal,/>1\. Basic Screening</);
   assert.match(portal,/latestOccupation = requestNoteValue\("Occupation"\)/);
   assert.match(portal,/latestBaseState = requestNoteValue\("Base state"\)/);
@@ -46,6 +46,25 @@ test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/>8\. Final Review &amp; Decision</);
   assert.match(portal,/>9\. Audit History</);
   assert.match(portal,/finalReady=basicScreening==="confirmed"/);
+});
+
+test("verification field cards start collapsed and navigation expands them",()=>{
+  for(const cardClass of [
+    "client-basic-screening",
+    "client-id-record",
+    "client-verification-editor",
+    "client-credential-card",
+    "client-address-verification-card",
+    "client-public-record-card",
+    "client-persona-card",
+    "client-final-review"
+  ]){
+    assert.ok(portal.includes(`class="verification-card ${cardClass} is-collapsed`),`${cardClass} should start collapsed`);
+  }
+  assert.match(portal,/const expandVerificationTarget=\(target\)=>/);
+  assert.match(portal,/const card=target\.matches\("\.verification-card"\)\?target:target\.closest\("\.verification-card"\)/);
+  assert.match(portal,/card\.classList\.remove\("is-collapsed"\)/);
+  assert.match(portal,/expandVerificationTarget\(target\);[\s\S]*loadVerificationCardData\(target\)/);
 });
 
 test("client dashboard renders verification profiles in bounded batches",()=>{
