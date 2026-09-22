@@ -404,6 +404,16 @@ test("continuation calculates and persists the selected deposit method",()=>{
   assert.match(route,/UPDATE date_requests SET deposit_amount=\?,notes=\?/);
 });
 
+test("deposit step optionally collects a separate app-based text number",()=>{
+  assert.match(continuationPage,/label for="continuation-app-text-number">App-based number for text communication/);
+  assert.match(continuationPage,/name="app_text_number" type="tel"/);
+  assert.match(continuationPage,/This does not replace the standard mobile number used for basic screening/);
+  assert.match(worker,/const appTextNumber=String\(data\.app_text_number\|\|""\)\.trim\(\)\.slice\(0,40\)/);
+  assert.match(worker,/Enter a valid app-based text number or leave it blank/);
+  assert.match(worker,/App-based text number: " \+ appTextNumber/);
+  assert.match(worker,/app_text_number:String\(row\.notes\|\|""\)\.match/);
+});
+
 
 test("booking form has no before-you-submit section or acknowledgement",()=>{
   assert.doesNotMatch(requestPage,/BEFORE YOU SUBMIT/);

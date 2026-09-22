@@ -110,6 +110,11 @@
             <option value="crypto" data-method="crypto">Crypto</option>
           </select>
         </div>
+        <div class="field full-width">
+          <label for="continuation-app-text-number">App-based number for text communication</label>
+          <input id="continuation-app-text-number" name="app_text_number" type="tel" inputmode="tel" maxlength="40" placeholder="Optional">
+          <small>You may provide a Google Voice, TextNow, or similar number for text communication after screening. This does not replace the standard mobile number used for basic screening.</small>
+        </div>
         <div class="no-payment-callout">
           <strong id="deposit-total">Deposit total</strong>
           <span id="deposit-base">Base deposit</span>
@@ -243,6 +248,7 @@
       baseDepositAmount = Number(data.base_deposit_amount || data.deposit_amount || 0);
       const paymentSelect = document.getElementById("continuation-payment-method");
       if (data.deposit_payment_method_key) paymentSelect.value = data.deposit_payment_method_key;
+      document.getElementById("continuation-app-text-number").value = data.app_text_number || "";
       updateDepositTotal();
       depositForm.hidden = false;
     }

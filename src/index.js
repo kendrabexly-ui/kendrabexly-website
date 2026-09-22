@@ -4314,7 +4314,8 @@ My journal will continue to be a place where I share a little more of that side 
           base_deposit_amount:baseDepositAmount,
           deposit_processing_fee:depositProcessingFee,
           deposit_payment_method_key:paymentMethodKey,
-          deposit_payment_method:paymentMethodKey==="gift-card"?"Gift Card":paymentMethodKey==="stripe"?"Stripe":paymentMethodKey==="crypto"?"Crypto":""
+          deposit_payment_method:paymentMethodKey==="gift-card"?"Gift Card":paymentMethodKey==="stripe"?"Stripe":paymentMethodKey==="crypto"?"Crypto":"",
+          app_text_number:String(row.notes||"").match(/App-based text number:\s*([^\n]+)/i)?.[1]?.trim()||""
         });
       } catch(error) {
         console.error("Booking continuation load error:",error);
@@ -4397,10 +4398,15 @@ My journal will continue to be a place where I share a little more of that side 
             return Response.json({ok:true,deposit_completed:true,request_id:Number(row.date_request_id),message:"Your deposit selection was already received."});
           }
           const depositPaymentMethod=String(data.deposit_payment_method||"").trim().toLowerCase();
+          const appTextNumber=String(data.app_text_number||"").trim().slice(0,40);
+          const appTextDigits=appTextNumber.replace(/\D/g,"");
           const allowedDepositPaymentMethods=new Set(["gift-card","stripe","crypto"]);
           const depositAck=data.deposit_step_acknowledged==="yes";
           if(!allowedDepositPaymentMethods.has(depositPaymentMethod)||!depositAck) {
             return Response.json({ok:false,message:"Choose a payment method and acknowledge the deposit step."},{status:400});
+          }
+          if(appTextNumber&&(appTextDigits.length<7||appTextDigits.length>15)) {
+            return Response.json({ok:false,message:"Enter a valid app-based text number or leave it blank."},{status:400});
           }
           const baseDepositAmount=Number(row.deposit_amount||0);
           if(baseDepositAmount<=0) return Response.json({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
@@ -4409,7 +4415,9 @@ My journal will continue to be a place where I share a little more of that side 
             : 0;
           const finalDepositAmount=Math.round((baseDepositAmount+depositProcessingFee)*100)/100;
           let requestNotes=String(row.notes||"").replace(/^Deposit payment method:.*$/gmi,"").trim();
+          requestNotes=requestNotes.replace(/^App-based text number:.*$/gmi,"").trim();
           requestNotes += (requestNotes?"\n":"") + "Deposit payment method: " + depositPaymentMethod;
+          if(appTextNumber) requestNotes += "\nApp-based text number: " + appTextNumber;
           await env.DB.prepare("UPDATE date_requests SET deposit_amount=?,notes=? WHERE id=?")
             .bind(finalDepositAmount,requestNotes,row.date_request_id).run();
           await env.DB.prepare(`
