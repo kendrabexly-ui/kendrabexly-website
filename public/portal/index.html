@@ -4088,9 +4088,19 @@ async function loadRequests(options = {}) {
         const add=(label,url,source,kind)=>{if(!links.some(x=>x.url===url))links.push({label,url,source,kind});};
         if(sc==="state_local"||sc==="multiple_sources"){
           const route=stateCourtRoutes[st];
-          if(route)add(route[0]+" — Court Records / Case Search",route[1],route[0],"directory");
-          if(st==="CA")add("California Find My Court","https://courts.ca.gov/find-my-court","Judicial Branch of California","directory");
-          if(st==="NV")add("Nevada Find a Court","https://nvcourts.gov/find_a_court","Nevada Judiciary","directory");
+          if(route)add(route[0]+" — Official Court System",route[1],route[0],"directory");
+          if(st==="CA"){
+            add("California Case Lookup Guide","https://selfhelp.courts.ca.gov/court-basics/look-up-case","Judicial Branch of California","directory");
+            add("California Find My Court","https://courts.ca.gov/find-my-court","Judicial Branch of California","directory");
+          }
+          if(st==="NV"){
+            add("Nevada Find a Court","https://nvcourts.gov/supreme/how_do_i/find_a_court","Nevada Judiciary","directory");
+            add("Nevada Appellate Case Lookup","https://nvcourts.gov/supreme/how_do_i/find_a_case","Nevada Appellate Courts","official");
+          }
+          if(st==="NY"){
+            add("New York Criminal History Record Search","https://www.nycourts.gov/criminal-history-record-search","New York State Unified Court System","official");
+            add("New York WebCrims","https://www.nycourts.gov/courts/9th-judicial-district/webcrims","New York State Unified Court System","official");
+          }
           if(st==="OK")add("OSCN Case Search","https://www.oscn.net/dockets/Search.aspx","Oklahoma State Courts Network","official");
           if(st==="WI")add("Wisconsin Circuit Court Access","https://wcca.wicourts.gov/","Wisconsin Court System","official");
           if(!route)add("Find State & Local Courts","https://www.usa.gov/courts","USA.gov Courts","directory");
@@ -4117,7 +4127,7 @@ async function loadRequests(options = {}) {
         });
         if(note){
           note.textContent=links.some(x=>x.kind==="directory")
-            ?"Each state now routes to its official judiciary/court entry point. Criminal case records may still be maintained by a county, district, or trial court, so follow the state route to the actual record system and record that specific court as the source."
+            ?"The first button is the state's official court-system entry point, not necessarily a searchable database. When a direct public case-search or criminal-history tool is available, ClearPath shows it as a separate button. Otherwise, use the state route to reach the county, district, or trial court that maintains the record."
             :"Search the official source manually and record only the result needed for verification.";
         }
       };
