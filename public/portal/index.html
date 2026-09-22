@@ -1035,7 +1035,7 @@
             <button type="button" data-verification-summary-filter="unable_to_verify" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-unable">—</strong><div style="font-size:12px;margin-top:3px;">Unable to Verify</div></button>
             <button type="button" data-verification-summary-filter="declined" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-declined">—</strong><div style="font-size:12px;margin-top:3px;">Declined</div></button>
             <button type="button" data-verification-summary-filter="persona_pending" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-persona">—</strong><div style="font-size:12px;margin-top:3px;">Persona Pending</div></button>
-            <button type="button" data-verification-summary-filter="no_id" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-no-id">—</strong><div style="font-size:12px;margin-top:3px;">No ID</div></button>
+            <button type="button" data-verification-summary-filter="no_id" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-no-id">—</strong><div style="font-size:12px;margin-top:3px;">Awaiting ID</div></button>
             <button type="button" data-verification-summary-filter="retention_due" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-retention-due">—</strong><div style="font-size:12px;margin-top:3px;">Retention Due</div></button>
           </div>
           <details style="margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
@@ -2166,7 +2166,7 @@ async function loadRequests(options = {}) {
     Object.entries(verificationCountIds).forEach(([key,id])=>{const el=document.getElementById(id);if(el)el.textContent=String(verificationCounts[key]||0);});
     const queueLabels={
       needs_id:"Needs ID",public_record_match:"Public Record Match",address_mismatch:"Address Mismatch",
-      credential_issue:"Credential Issue",persona_error:"Persona Error",needs_more_information:"Needs More Information",
+      credential_issue:"Credential Issue",employment_unable:"Employment Unable to Verify",persona_error:"Persona Error",needs_more_information:"Needs More Information",
       checklist_incomplete:"Checklist Incomplete",persona_pending:"Persona Pending",needs_manual_review:"Needs Manual Review",
       ready_for_final_decision:"Ready for Final Decision"
     };
@@ -2920,7 +2920,7 @@ async function loadRequests(options = {}) {
                     <div class="verification-actions verification-sticky-actions">
                       <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
                       <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
-                      <button type="button" class="client-verification-complete" disabled hidden style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Manual Verification</button>
+                      <button type="button" class="client-verification-complete" disabled hidden tabindex="-1" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Manual Verification</button>
                       <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
                     </div>
                   </section>
@@ -3945,25 +3945,31 @@ async function loadRequests(options = {}) {
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load activity.");
           section._verificationActivity=result.activity||[];
-          const categoryFor=(type)=>{
-            const t=String(type||"");
-            if(t.startsWith("id_"))return "id";
-            if(t.startsWith("persona_"))return "persona";
-            if(t.startsWith("employment_"))return "employment";
-            if(t.startsWith("credential_"))return "credential";
-            if(t.startsWith("address_"))return "address";
-            if(t.startsWith("public_record_"))return "public_records";
-            if(t==="decision_changed")return "decision";
+          const categoryFor=(item)=>{
+            const t=String(item?.event_type||"");
+            const label=String(item?.event_label||"").toLowerCase();
+            if(t.startsWith("id_")||label.includes("identity")||label.includes("id document"))return "id";
+            if(t.startsWith("persona_")||label.includes("persona"))return "persona";
+            if(t.startsWith("employment_")||label.includes("employment"))return "employment";
+            if(t.startsWith("credential_")||label.includes("credential")||label.includes("license"))return "credential";
+            if(t.startsWith("address_")||label.includes("address"))return "address";
+            if(t.startsWith("public_record_")||label.includes("public record")||label.includes("court record")||label.includes("sex offender"))return "public_records";
+            if(t==="decision_changed"||label.includes("decision"))return "decision";
             return "manual";
           };
+          const humanActivityDetails=(details)=>String(details||"")
+            .replace(/Result:\s*([a-z_]+)/gi,(_m,s)=>"Result: "+verificationPretty(s))
+            .replace(/Status:\s*([a-z_]+)/gi,(_m,s)=>"Status: "+verificationPretty(s))
+            .replace(/Scope:\s*([a-z_]+)/gi,(_m,s)=>"Scope: "+verificationPretty(s))
+            .replace(/_/g," ");
           const renderActivity=()=>{
             const active=section.dataset.activityFilter||"all";
-            const items=(section._verificationActivity||[]).filter(item=>active==="all"||categoryFor(item.event_type)===active);
+            const items=(section._verificationActivity||[]).filter(item=>active==="all"||categoryFor(item)===active);
             box.innerHTML=items.length?items.map(item=>`
               <div style="padding:7px 0;border-top:1px solid var(--line);">
                 <strong>${escapeHtml(item.event_label||"Verification activity")}</strong>
                 <div style="margin-top:2px;color:var(--muted);">${escapeHtml(formatVerificationTimestamp(item.created_at)||"—")}</div>
-                ${item.details?`<div style="margin-top:3px;">${escapeHtml(item.details)}</div>`:""}
+                ${item.details?`<div style="margin-top:3px;">${escapeHtml(humanActivityDetails(item.details))}</div>`:""}
               </div>`).join(""):'<div class="empty">No activity in this category.</div>';
           };
           section.querySelectorAll(".verification-activity-filter").forEach(button=>{
@@ -4826,6 +4832,7 @@ async function loadRequests(options = {}) {
           }
           if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section),loadVerificationAudits(section)]);
+          if(card&&section.querySelector(".client-employment-status")?.value==="confirmed")card.classList.add("is-collapsed");
           updateVerificationFlowSummary(section);
           return true;
         }catch(error){
@@ -5479,24 +5486,71 @@ async function loadRequests(options = {}) {
           event.stopPropagation();
           await runReversePhoneLookup(section);
         });
+        const verificationLoadOnce=(key,loader,ttl=30000)=>{
+          section._verificationLoadCache=section._verificationLoadCache||{};
+          const cached=section._verificationLoadCache[key];
+          if(cached?.promise)return cached.promise;
+          if(cached?.at&&Date.now()-cached.at<ttl)return Promise.resolve();
+          const promise=Promise.resolve().then(loader).finally(()=>{section._verificationLoadCache[key]={at:Date.now(),promise:null};});
+          section._verificationLoadCache[key]={at:cached?.at||0,promise};
+          return promise;
+        };
+        const loadVerificationCore=()=>Promise.all([
+          verificationLoadOnce("draft",()=>loadVerificationDraft(section),60000),
+          verificationLoadOnce("id",()=>loadIdDocument(section,false),60000),
+          verificationLoadOnce("audits",()=>loadVerificationAudits(section),30000),
+          verificationLoadOnce("sectionStates",()=>loadVerificationSectionStates(section),30000)
+        ]).then(()=>updateVerificationFlowSummary(section));
+        section._loadVerificationCore=loadVerificationCore;
+        const loadVerificationCardData=(target)=>{
+          if(!target)return Promise.resolve();
+          if(target.matches(".client-credential-card"))return verificationLoadOnce("credential",()=>loadCredentialVerification(section),30000);
+          if(target.matches(".client-address-verification-card"))return verificationLoadOnce("address",()=>loadAddressVerification(section),30000);
+          if(target.matches(".client-public-record-card"))return verificationLoadOnce("publicRecords",()=>loadPublicRecordCheck(section),30000);
+          if(target.matches(".client-persona-card"))return Promise.all([
+            verificationLoadOnce("persona",()=>loadPersonaStatus(section),15000),
+            verificationLoadOnce("phone",()=>loadPhoneLineCheck(section),30000)
+          ]);
+          if(target.matches(".client-audit-history"))return Promise.all([
+            verificationLoadOnce("activity",()=>loadVerificationActivity(section),15000),
+            verificationLoadOnce("checkHistory",()=>loadVerificationCheckHistory(section),15000),
+            verificationLoadOnce("audits",()=>loadVerificationAudits(section),15000)
+          ]);
+          return Promise.resolve();
+        };
         section.addEventListener("toggle",()=>{
           if(section.open){
-            if(section.dataset.verificationLoaded!=="1"){
-              section.dataset.verificationLoaded="1";
-              loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);loadVerificationSectionStates(section);loadVerificationCheckHistory(section);loadPersonaStatus(section);loadVerificationActivity(section);
-            }else{
-              loadVerificationAudits(section);loadVerificationSectionStates(section);loadVerificationCheckHistory(section);loadVerificationActivity(section);
-              updateVerificationFlowSummary(section);
-            }
+            loadVerificationCore();
           }else if(section.dataset.draftDirty==="1"){
             if(!window.confirm("Verification fields are still unsaved. Close this section anyway?")){section.open=true;}
           }
         });
+        if("IntersectionObserver" in window){
+          const observer=new IntersectionObserver(entries=>{
+            entries.forEach(entry=>{
+              if(entry.isIntersecting){
+                loadVerificationCardData(entry.target);
+                observer.unobserve(entry.target);
+              }
+            });
+          },{rootMargin:"180px 0px"});
+          section.querySelectorAll(".client-credential-card,.client-address-verification-card,.client-public-record-card,.client-persona-card").forEach(card=>observer.observe(card));
+        }
 
         section.querySelectorAll("[data-verification-jump]").forEach(button=>button.addEventListener("click",()=>{
           const target=section.querySelector(button.dataset.verificationJump||"");
-          if(target){if(target.tagName==="DETAILS")target.open=true;target.scrollIntoView({behavior:"smooth",block:"start"});}
+          if(target){
+            if(target.tagName==="DETAILS")target.open=true;
+            loadVerificationCardData(target);
+            target.scrollIntoView({behavior:"smooth",block:"start"});
+          }
         }));
+        section.querySelector(".client-verification-back-top")?.addEventListener("click",()=>{
+          section.querySelector(".client-verification-overview")?.scrollIntoView({behavior:"smooth",block:"start"});
+        });
+        section.querySelector(".client-audit-history")?.addEventListener("toggle",event=>{
+          if(event.currentTarget.open)loadVerificationCardData(event.currentTarget);
+        });
         section.querySelector(".client-verification-save-all")?.addEventListener("click",()=>saveAllVerificationProgress(section));
         section.querySelector(".client-employment-save")?.addEventListener("click",()=>saveEmploymentVerification(section));
         section.querySelector(".client-final-review-jump")?.addEventListener("click",()=>{
