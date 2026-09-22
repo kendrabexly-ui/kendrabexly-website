@@ -2854,6 +2854,7 @@ async function loadRequests(options = {}) {
                         <button type="button" class="client-employment-save" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Employment Check</button>
                         <span class="client-employment-save-status" style="font-size:11px;color:var(--muted);"></span>
                       </div>
+                      <div class="client-employment-checked" style="margin-top:6px;font-size:11px;color:var(--muted);">Last checked: Not checked</div>
                     </fieldset>
                     <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
                     <div class="verification-field-note">Birthdate is entered once in Manual Verification. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
@@ -2917,7 +2918,7 @@ async function loadRequests(options = {}) {
                   <section class="verification-card client-credential-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">3. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-credential-badge">Credential: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-credential-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip</button><button type="button" class="client-optional-clear" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear</button></span>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-credential-badge">Credential: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-credential-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Credential Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Use an official licensing board or credential registry to confirm a claimed professional license or credential. A public registry result confirms the credential record—not current employment.</div>
                     <div class="verification-grid" style="margin-top:10px;">
@@ -2953,7 +2954,7 @@ async function loadRequests(options = {}) {
                   <section class="verification-card client-address-verification-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">4. Address Verification <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-address-verification-badge">Address: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-address-verification-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip</button><button type="button" class="client-optional-clear" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear</button></span>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-address-verification-badge">Address: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-address-verification-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Address Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
                       Use this optional step to confirm that a supplied address exists and is consistent with the client's information. Do not treat an address match by itself as proof of identity or residency.
@@ -3022,7 +3023,7 @@ async function loadRequests(options = {}) {
                   <section class="verification-card client-public-record-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">5. Public Court &amp; Criminal Record Search <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear</button></span>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Collapse</button><button type="button" class="client-optional-skip" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Public Record Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
                       Search official public court and government sources only. A name match alone is not enough to confirm identity, and no single public search proves that a person has no criminal history.
@@ -4082,6 +4083,10 @@ async function loadRequests(options = {}) {
         if(employmentWorkEmailInput) employmentWorkEmailInput.value=latest.employment_work_email || "";
         if(employmentWebsiteInput) employmentWebsiteInput.value=latest.employment_employer_website || "";
         if(employmentEvidenceInput) employmentEvidenceInput.value=latest.employment_evidence_reference || "";
+        const employmentChecked=section.querySelector(".client-employment-checked");
+        if(employmentChecked)employmentChecked.textContent=latest.employment_checked_at
+          ?"Last checked: "+formatVerificationTimestamp(latest.employment_checked_at)
+          :"Last checked: Not checked";
         if(reasonInput) reasonInput.value=latest.decision_reason || "";
         if(decisionNotes) decisionNotes.value=latest.decision_notes || "";
         if(birthdate && latest.birthdate && !birthdate.value) birthdate.value=formatBirthdateInput(latest.birthdate);
@@ -4260,6 +4265,7 @@ async function loadRequests(options = {}) {
       };
       const saveCredentialVerification=async(section)=>{
         const button=section.querySelector(".client-credential-save"),status=section.querySelector(".client-credential-save-status");
+        const card=section.querySelector(".client-credential-card");if(card)setCardSaveState(card,"Saving…","var(--muted)");
         if(button)button.disabled=true;if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
         try{
           const payload={client_id:Number(section.dataset.clientId),occupation:section.querySelector(".client-credential-occupation")?.value||"",credential_type:section.querySelector(".client-credential-type")?.value||"",license_number:section.querySelector(".client-credential-number")?.value||"",issuing_state:section.querySelector(".client-credential-state")?.value||"",issuing_board:section.querySelector(".client-credential-board")?.value||"",credential_status:section.querySelector(".client-credential-status")?.value||"not_checked",issue_date:section.querySelector(".client-credential-issue-date")?.value||"",expiration_date:section.querySelector(".client-credential-expiration-date")?.value||"",disciplinary_indicator:section.querySelector(".client-credential-discipline")?.value||"unknown",source_name:section.querySelector(".client-credential-source-name")?.value||"",source_url:section.querySelector(".client-credential-source-url")?.value||"",evidence_notes:section.querySelector(".client-credential-evidence")?.value||""};
@@ -4269,9 +4275,9 @@ async function loadRequests(options = {}) {
           section.dataset.credentialStatus=result.credential?.credential_status||"not_checked";
           await setOptionalSectionState(section,"credential",result.credential?.credential_status==="confirmed"?"confirmed":result.credential?.credential_status==="mismatch"?"mismatch":result.credential?.credential_status==="unable_to_verify"?"unable_to_verify":"in_progress").catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          const card=section.querySelector(".client-credential-card");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
+          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           updateVerificationFlowSummary(section);
-        }catch(error){if(status){status.textContent=error.message||"Unable to save credential verification.";status.style.color="#8a2424";}const card=section.querySelector(".client-credential-card");if(card)setCardSaveState(card,"Save failed","#8a2424");}finally{if(button)button.disabled=false;}
+        }catch(error){if(status){status.textContent=error.message||"Unable to save credential verification.";status.style.color="#8a2424";}if(card)setCardSaveState(card,"Save failed","#8a2424");}finally{if(button)button.disabled=false;}
       };
 
       const stateCourtRoutes={
@@ -4491,6 +4497,7 @@ async function loadRequests(options = {}) {
       };
       const saveAddressVerification=async(section)=>{
         const button=section.querySelector(".client-address-check-save"),status=section.querySelector(".client-address-check-save-status");
+        const card=section.querySelector(".client-address-verification-card");if(card)setCardSaveState(card,"Saving…","var(--muted)");
         if(button)button.disabled=true;if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
         try{
           const payload={
@@ -4515,11 +4522,11 @@ async function loadRequests(options = {}) {
           const addressState=result.address_check?.result_status==="confirmed"?"confirmed":result.address_check?.result_status==="partial_match"?"partial_match":result.address_check?.result_status==="mismatch"?"mismatch":result.address_check?.result_status==="unable_to_verify"?"unable_to_verify":"in_progress";
           await setOptionalSectionState(section,"address",addressState).catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          const card=section.querySelector(".client-address-verification-card");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
+          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           updateVerificationFlowSummary(section);
         }catch(error){
           if(status){status.textContent=error.message||"Unable to save address verification.";status.style.color="#8a2424";}
-          const card=section.querySelector(".client-address-verification-card");if(card)setCardSaveState(card,"Save failed","#8a2424");
+          if(card)setCardSaveState(card,"Save failed","#8a2424");
         }finally{if(button)button.disabled=false;}
       };
 
@@ -4614,6 +4621,7 @@ async function loadRequests(options = {}) {
       };
       const savePublicRecordCheck=async(section)=>{
         const button=section.querySelector(".client-public-record-save"),status=section.querySelector(".client-public-record-save-status");
+        const card=section.querySelector(".client-public-record-card");if(card)setCardSaveState(card,"Saving…","var(--muted)");
         if(button)button.disabled=true;
         if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
         try{
@@ -4638,11 +4646,11 @@ async function loadRequests(options = {}) {
           const publicState=result.check?.record_status==="potential_match"?"potential_match":result.check?.record_status==="confirmed_match"?"needs_review":result.check?.record_status==="unable_to_verify"?"unable_to_verify":result.check?.record_status==="no_public_record_found"?"confirmed":"in_progress";
           await setOptionalSectionState(section,"public_records",publicState).catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
-          const card=section.querySelector(".client-public-record-card");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
+          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           updateVerificationFlowSummary(section);
           return true;
         }catch(error){
-          if(status){status.textContent=error.message||"Unable to save public record check.";status.style.color="#8a2424";} const card=section.querySelector(".client-public-record-card");if(card)setCardSaveState(card,"Save failed","#8a2424"); return false;
+          if(status){status.textContent=error.message||"Unable to save public record check.";status.style.color="#8a2424";} if(card)setCardSaveState(card,"Save failed","#8a2424"); return false;
         }finally{if(button)button.disabled=false;}
       };
 
@@ -4679,9 +4687,17 @@ async function loadRequests(options = {}) {
           public_records:[".client-public-record-badge","Public records"]
         };
         Object.entries(map).forEach(([key,[sel,label]])=>{
-          if(states[key]!=="skipped")return;
+          const cardSelector=key==="credential"?".client-credential-card":key==="address"?".client-address-verification-card":".client-public-record-card";
+          const card=section.querySelector(cardSelector);
+          const skipped=states[key]==="skipped";
           const badge=section.querySelector(sel);
-          if(badge){badge.textContent=label+": Skipped";badge.style.background="#f1f1f1";badge.style.color="#666";}
+          if(skipped&&badge){badge.textContent=label+": Skipped";badge.style.background="#f1f1f1";badge.style.color="#666";}
+          if(card){
+            card.dataset.skipped=skipped?"1":"0";
+            card.querySelectorAll("input,select,textarea").forEach(el=>el.disabled=skipped);
+            const skipButton=card.querySelector(".client-optional-skip");
+            if(skipButton)skipButton.textContent=skipped?"Resume this section":"Skip for this client";
+          }
         });
         updateVerificationFlowSummary(section);
       };
@@ -4737,6 +4753,7 @@ async function loadRequests(options = {}) {
       };
       const saveEmploymentVerification=async(section)=>{
         const button=section.querySelector(".client-employment-save"),status=section.querySelector(".client-employment-save-status");
+        const card=section.querySelector(".client-verification-editor");if(card)setCardSaveState(card,"Saving…","var(--muted)");
         if(button)button.disabled=true;if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
         try{
           const payload={
@@ -4760,13 +4777,17 @@ async function loadRequests(options = {}) {
             const industryCheck=section.querySelector(".client-check-industry");if(industryCheck)industryCheck.checked=true;
           }
           if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
-          const card=section.querySelector(".client-verification-editor");if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
+          const checked=section.querySelector(".client-employment-checked");
+          if(checked)checked.textContent=result.employment?.employment_checked_at
+            ?"Last checked: "+formatVerificationTimestamp(result.employment.employment_checked_at)
+            :"Last checked: Not checked";
+          if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");}
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section),loadVerificationAudits(section)]);
           updateVerificationFlowSummary(section);
           return true;
         }catch(error){
           if(status){status.textContent=error.message||"Unable to save employment verification.";status.style.color="#8a2424";}
-          const card=section.querySelector(".client-verification-editor");if(card)setCardSaveState(card,"Save failed","#8a2424");
+          if(card)setCardSaveState(card,"Save failed","#8a2424");
           return false;
         }finally{if(button)button.disabled=false;}
       };
@@ -4806,7 +4827,10 @@ async function loadRequests(options = {}) {
       const updateVerificationFlowSummary=(section)=>{
         const latest=section._verificationAuditRecords?.[0]||{};
         const states=section._verificationSectionStates||{};
-        const checklist=[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length;
+        const checklistSelectorsLive=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
+        const liveChecklist=checklistSelectorsLive.map(sel=>section.querySelector(sel)?.checked).filter(Boolean).length;
+        const savedChecklist=[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length;
+        const checklist=Math.max(liveChecklist,savedChecklist);
         const identity=section.dataset.hasDocument==="1"?(latest.identity_confirmed?"confirmed":"in_progress"):"not_checked";
         const employmentRaw=section.dataset.employmentStatus||latest.employment_verification_status||section.querySelector(".client-employment-status")?.value||"not_checked";
         const employment=employmentRaw==="pending"?"in_progress":employmentRaw==="unable_to_confirm"?"unable_to_verify":employmentRaw;
@@ -4866,15 +4890,23 @@ async function loadRequests(options = {}) {
       const clearPublicRecordSearchForm=(section)=>clearPublicRecordResultFields(section,{keepJurisdiction:false});
       const saveAllVerificationProgress=async(section)=>{
         const status=section.querySelector(".client-verification-save-all-status");
-        if(status){status.textContent="Saving all changed verification sections…";status.style.color="var(--muted)";}
-        const jobs=[saveVerificationDraft(section,{retry:true}),saveEmploymentVerification(section)];
-        if((section._verificationSectionStates||{}).credential!=="skipped")jobs.push(saveCredentialVerification(section));
-        if((section._verificationSectionStates||{}).address!=="skipped")jobs.push(saveAddressVerification(section));
-        if((section._verificationSectionStates||{}).public_records!=="skipped")jobs.push(savePublicRecordCheck(section));
+        if(status){status.textContent="Saving changed verification sections…";status.style.color="var(--muted)";}
+        const dirty=(sel)=>section.querySelector(sel)?.dataset.dirty==="1";
+        const jobs=[];
+        if(dirty(".client-verification-editor")||dirty(".client-persona-card")||section.dataset.draftDirty==="1")jobs.push(saveVerificationDraft(section,{retry:true}));
+        if(dirty(".client-verification-editor"))jobs.push(saveEmploymentVerification(section));
+        if(dirty(".client-credential-card")&&(section._verificationSectionStates||{}).credential!=="skipped")jobs.push(saveCredentialVerification(section));
+        if(dirty(".client-address-verification-card")&&(section._verificationSectionStates||{}).address!=="skipped")jobs.push(saveAddressVerification(section));
+        if(dirty(".client-public-record-card")&&(section._verificationSectionStates||{}).public_records!=="skipped")jobs.push(savePublicRecordCheck(section));
+        if(!jobs.length){
+          if(status){status.textContent="No unsaved verification changes.";status.style.color="var(--muted)";}
+          return;
+        }
         try{
-          await Promise.all(jobs);
+          const results=await Promise.all(jobs);
+          if(results.some(result=>result===false))throw new Error("One or more verification sections could not be saved.");
           section.querySelectorAll(".verification-card[data-dirty='1']").forEach(card=>card.dataset.dirty="0");
-          if(status){status.textContent="All progress saved just now. Final decision unchanged.";status.style.color="#2f6b45";}
+          if(status){status.textContent="All changed progress saved just now. Final decision unchanged.";status.style.color="#2f6b45";}
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
           updateVerificationFlowSummary(section);
         }catch(error){
@@ -5430,8 +5462,12 @@ async function loadRequests(options = {}) {
         }));
         section.querySelectorAll(".client-optional-skip").forEach(button=>button.addEventListener("click",async()=>{
           const key=button.dataset.sectionKey;
-          if(!window.confirm("Skip this optional verification section for this client?"))return;
-          try{await setOptionalSectionState(section,key,"skipped");updateVerificationFlowSummary(section);}catch(error){window.alert(error.message||"Unable to skip this section.");}
+          const currentlySkipped=(section._verificationSectionStates||{})[key]==="skipped";
+          const message=currentlySkipped
+            ?"Resume this optional verification section for this client?"
+            :"Skip this optional verification section for this client? Skipped optional checks do not count as failures and do not block completion.";
+          if(!window.confirm(message))return;
+          try{await setOptionalSectionState(section,key,currentlySkipped?"not_checked":"skipped");updateVerificationFlowSummary(section);}catch(error){window.alert(error.message||"Unable to update this section.");}
         }));
         section.querySelectorAll(".client-optional-clear").forEach(button=>button.addEventListener("click",async()=>{
           const key=button.dataset.sectionKey;
