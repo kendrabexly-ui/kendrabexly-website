@@ -41,6 +41,7 @@ test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/latestBaseState = requestNoteValue\("Base state"\)/);
   assert.match(portal,/<strong>Base state<\/strong><div>\$\{escapeHtml\(latestBaseState \|\| "Not provided"\)\}<\/div>/);
   assert.match(portal,/client-basic-screening-open-request/);
+  assert.match(portal,/client-basic-screening-open-request"\)\.forEach\(\(button\)=>button\.addEventListener\("click",\(\)=>\{[\s\S]*\/portal\/request\?id=\$\{encodeURIComponent\(requestId\)\}/);
   assert.match(portal,/>2\. ID Record</);
   assert.match(portal,/>3\. Manual Verification</);
   assert.match(portal,/>8\. Final Review &amp; Decision</);

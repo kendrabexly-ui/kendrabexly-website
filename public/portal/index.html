@@ -3460,13 +3460,8 @@ async function loadRequests(options = {}) {
         });
       });
       clientRecords.querySelectorAll(".client-basic-screening-open-request").forEach((button)=>button.addEventListener("click",()=>{
-        window.__switchAdminSection?.("requests");
-        const filter=document.getElementById("request-status-filter");
-        const search=document.getElementById("request-search");
-        if(filter){filter.value="all";filter.dispatchEvent(new Event("change",{bubbles:true}));}
-        if(search){search.value=button.dataset.clientSearch||"";search.dispatchEvent(new Event("input",{bubbles:true}));}
-        const nextUrl=new URL(window.location.href);nextUrl.searchParams.set("section","requests");window.history.replaceState({},"",nextUrl);
-        document.getElementById("requests")?.scrollIntoView({behavior:"smooth",block:"start"});
+        const requestId=Number(button.dataset.requestId||0);
+        if(requestId>0)window.location.href=`/portal/request?id=${encodeURIComponent(requestId)}`;
       }));
       clientRecords.querySelectorAll(".jump-followup-agent").forEach((button)=>button.addEventListener("click",()=>{
         const card=button.closest(".client-record");
