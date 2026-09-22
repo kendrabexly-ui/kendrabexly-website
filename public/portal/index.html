@@ -3356,7 +3356,12 @@ async function loadRequests(options = {}) {
         setReadyRow("address",addressValid,addressComplete?"✓ Address":idFallbackComplete?"✓ ID fallback":"Needs attention");
         setReadyRow("dob",dobPresent,dobPresent?"✓":(required.includes("birthdate")?"Needs attention":"Optional / blank"));
         const readyText=section.querySelector(".client-persona-ready-text");
-        if(readyText){readyText.textContent=allReady?"Ready to submit":"Not ready to submit";readyText.style.color=allReady?"#2f6b45":"#8a2424";}
+        if(readyText){
+          const latestAudit=section._verificationAuditRecords?.[0]||{};
+          const databaseAlreadyPassed=String(latestAudit.persona_database_status||"").toLowerCase()==="passed";
+          readyText.textContent=databaseAlreadyPassed?"External check complete":allReady?"Ready to submit":"Not ready to submit";
+          readyText.style.color=(databaseAlreadyPassed||allReady)?"#2f6b45":"#8a2424";
+        }
         const dobHandoff=section.querySelector(".client-persona-dob-handoff");
         if(dobHandoff){
           dobHandoff.innerHTML="<strong>DOB pulled from Manual Verification</strong><br>"+(birthdate
