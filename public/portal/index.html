@@ -2975,6 +2975,13 @@ async function loadRequests(options = {}) {
                           <option value="multiple_sources">Multiple official sources</option>
                         </select>
                       </label>
+                      <label style="font-size:12px;font-weight:700;">First name
+                        <input class="client-public-record-first-name" type="text" maxlength="120" placeholder="First name" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Last name
+                        <input class="client-public-record-last-name" type="text" maxlength="120" placeholder="Last name" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                        <span class="verification-field-note">Use first and last name as the primary court-search criteria. Date of birth is optional for narrowing common-name results.</span>
+                      </label>
                       <label style="font-size:12px;font-weight:700;">Date of birth <span style="font-weight:500;color:var(--muted);">(optional search aid)</span>
                         <input class="client-public-record-dob" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="MM/DD/YYYY" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
                         <span class="verification-field-note">Use only when the public source supports DOB filtering or when several people share the same name. This reuses the saved Manual Verification DOB and is not stored a second time.</span>
@@ -4173,12 +4180,12 @@ async function loadRequests(options = {}) {
         DC:["District of Columbia Court Case Search","https://portal-dc.tylertech.cloud/Portal/","District of Columbia Courts","official"]
       };
       const californiaCountyRecordRoutes={
-        "Los Angeles":["Los Angeles Criminal Defendant Name Search","https://ww2.lacourt.org/website/FindaCase.aspx","Superior Court of California, County of Los Angeles","official"],
-        "Orange":["Orange County Criminal & Traffic Case Access","https://www.occourts.org/online-services/case-access/criminal-traffic-cases","Superior Court of California, County of Orange","official"],
-        "Riverside":["Riverside Public Case Access","https://epublic-access.riverside.courts.ca.gov/public-portal/","Superior Court of California, County of Riverside","official"],
-        "San Bernardino":["San Bernardino Public Portal","https://cap.sb-court.org/","Superior Court of California, County of San Bernardino","official"],
-        "San Diego":["San Diego Court Index","https://courtindex.sdcourt.ca.gov/CISPublic/","Superior Court of California, County of San Diego","official"],
-        "Sacramento":["Sacramento Public Case Access","https://services.saccourt.ca.gov/PublicCaseAccess","Superior Court of California, County of Sacramento","official"]
+        "Los Angeles":["Los Angeles Criminal Defendant Name Search","https://www.lacourt.org/paos/v2/CriminalIndex","Superior Court of California, County of Los Angeles","official"],
+        "Orange":["Orange County Case Name Search","https://namesearch.occourts.org/","Superior Court of California, County of Orange","official"],
+        "Riverside":["Riverside Criminal / Traffic Name Search","https://epublic-access.riverside.courts.ca.gov/public-portal/","Superior Court of California, County of Riverside","official"],
+        "San Bernardino":["San Bernardino Public Portal — Party Name Search","https://cap.sb-court.org/","Superior Court of California, County of San Bernardino","official"],
+        "San Diego":["San Diego Party Name Search","https://courtindex.sdcourt.ca.gov/CISPublic/namesearch","Superior Court of California, County of San Diego","official"],
+        "Sacramento":["Sacramento Public Case Access — Search by Name","https://services.saccourt.ca.gov/PublicCaseAccess","Superior Court of California, County of Sacramento","official"]
       };
       const californiaPropertySearchRoutes={
         "Los Angeles":["Los Angeles County Assessor Property Search","https://portal.assessor.lacounty.gov/","Los Angeles County Assessor","official"],
@@ -4355,7 +4362,7 @@ async function loadRequests(options = {}) {
         });
         if(note){
           if(state==="CA"&&!county){
-            note.textContent="Choose a California county to open that county Superior Court's criminal/case record search directly.";
+            note.textContent="Choose a California county to open that county Superior Court's defendant/party name search directly. Search by first and last name; use DOB only to narrow duplicate-name results when supported.";
             return;
           }
           note.textContent=links.some(x=>x.kind==="directory")
@@ -4875,6 +4882,17 @@ async function loadRequests(options = {}) {
         section.querySelector(".client-public-record-scope")?.addEventListener("change",()=>renderPublicRecordLookups(section));
         section.querySelector(".client-public-record-county")?.addEventListener("change",()=>renderPublicRecordLookups(section));
         syncPublicRecordCountyVisibility();
+        const syncPublicRecordName=()=>{
+          const first=section.querySelector(".client-public-record-first-name");
+          const last=section.querySelector(".client-public-record-last-name");
+          const sourceFirst=section.querySelector(".client-persona-name-first");
+          const sourceLast=section.querySelector(".client-persona-name-last");
+          if(first&&sourceFirst&&!first.value)first.value=sourceFirst.value||"";
+          if(last&&sourceLast&&!last.value)last.value=sourceLast.value||"";
+        };
+        syncPublicRecordName();
+        section.querySelector(".client-persona-name-first")?.addEventListener("input",syncPublicRecordName);
+        section.querySelector(".client-persona-name-last")?.addEventListener("input",syncPublicRecordName);
         const syncPublicRecordDob=()=>{
           const dob=section.querySelector(".client-public-record-dob");
           const manualDob=section.querySelector(".client-persona-birthdate");
