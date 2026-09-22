@@ -5475,6 +5475,14 @@ if (
       request.method === "GET"
     ) {
       try {
+        // Update the known older wording in unsent screening drafts so the
+        // review screen and the email sent from it use the same concise copy.
+        const oldScreeningCopy="There you can upload your ID, complete the screening details, and select your deposit method. The Details are available in the private page menu.";
+        await env.DB.prepare(`
+          UPDATE email_drafts
+          SET body=replace(body, ?, ?)
+          WHERE email_type='pending_final_approval' AND status='draft' AND instr(body, ?)>0
+        `).bind(oldScreeningCopy,"There, you can provide the additional details needed to complete screening.",oldScreeningCopy).run();
         const result =
           await env.DB
             .prepare(
@@ -5733,7 +5741,7 @@ if (
         }
         const draftId = Number(url.pathname.split("/").slice(-2, -1)[0]);
         const draft = await env.DB.prepare(`
-          SELECT ed.id, ed.subject, ed.body, ed.status, c.email, c.first_name
+          SELECT ed.id, ed.subject, ed.body, ed.status, ed.email_type, c.email, c.first_name
           FROM email_drafts ed
           LEFT JOIN clients c ON c.id = ed.client_id
           WHERE ed.id = ?
@@ -5745,8 +5753,13 @@ if (
         const esc = (value) => String(value || "")
           .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
           .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+        const privateLink=String(draft.body||"").match(/https?:\/\/[^\s]+\/complete\/\?token=[^\s]+/i)?.[0]||"";
+        const escapedBody=esc(draft.body).replace(/\n/g,"<br>");
+        const linkButton=privateLink&&draft.email_type==="pending_final_approval"
+          ? '<a href="'+esc(privateLink)+'" style="display:inline-block;padding:12px 20px;border-radius:9px;background:#29282d;color:#fff;text-decoration:none;font-weight:700;">Complete the Private Form</a>'
+          : "";
         const html = '<div style="font-family:Arial,sans-serif;line-height:1.65;color:#29282d;white-space:normal;">' +
-          esc(draft.body).replace(/\n/g,"<br>") + "</div>";
+          (linkButton?escapedBody.replace(esc(privateLink),linkButton):escapedBody) + "</div>";
         const sendResponse = await fetch("https://api.resend.com/emails", {
           method:"POST",
           headers:{"Authorization":"Bearer " + env.RESEND_API_KEY,"Content-Type":"application/json"},
