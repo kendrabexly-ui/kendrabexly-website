@@ -5324,6 +5324,11 @@ if (
         let personaResponse,personaData={};
         const snakeInquiryFields=Object.fromEntries(Object.entries(personaFields));
         const kebabInquiryFields=Object.fromEntries(Object.entries(personaFields).map(([key,value])=>[key.replaceAll("_","-"),value]));
+        // Persona's workflow-facing standard country field must remain exactly
+        // selected_country_code inside data.attributes.fields, even when other
+        // legacy fields use kebab-case.
+        delete kebabInquiryFields["selected-country-code"];
+        kebabInquiryFields.selected_country_code = personaFields.selected_country_code;
         delete kebabInquiryFields["selected-country-code"];
         kebabInquiryFields.selected_country_code = personaFields.selected_country_code;
         const pickFields=(source,keys)=>Object.fromEntries(keys.filter(key=>source[key]!==undefined&&source[key]!==null&&source[key]!=="").map(key=>[key,source[key]]));
@@ -5344,9 +5349,9 @@ if (
             full:kebabInquiryFields,
             address:pickFields(kebabInquiryFields,[
               "name-first","name-middle","name-last","birthdate",
-              "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code","selected-country-code"
+              "address-street-1","address-street-2","address-city","address-subdivision","address-postal-code","address-country-code","selected_country_code"
             ]),
-            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected-country-code"])
+            core:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected_country_code"])
           }
         ];
         if(!useCurrentPersonaFields)fieldSets.reverse();
@@ -5367,7 +5372,7 @@ if (
         // API version when no explicit PERSONA_API_VERSION is configured.
         uniqueProfiles.push({
           name:"persona_docs_workflow_safe",
-          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected-country-code"]),
+          fields:pickFields(kebabInquiryFields,["name-first","name-last","birthdate","address-country-code","selected_country_code"]),
           omitReferenceId:true,
           forceSandboxVersion:true
         });
