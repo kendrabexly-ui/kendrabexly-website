@@ -3839,12 +3839,62 @@ async function loadRequests(options = {}) {
       const credentialRegistryCatalog=(occupation,state)=>{
         const occ=String(occupation||"").toLowerCase(),st=String(state||"").trim().toUpperCase(),links=[];
         const add=(label,url,source,kind)=>{if(!links.some(x=>x.url===url))links.push({label,url,source,kind});};
+
+        // State-specific general licensing sources.
         if(st==="CA")add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
-        if(/attorney|lawyer|counsel|bar/.test(occ)&&st==="CA")add("State Bar of California","https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch","State Bar of California","license");
         if(st==="NV"&&/esthetic|aesthetic|cosmetolog|hair design|hair braider|nail|electrolog|makeup/.test(occ))add("Nevada Cosmetology License Lookup","https://www.nvcosmo.com/licensee-lookup","Nevada State Board of Cosmetology","license");
-        if(/nurse|nursing|\brn\b|\blvn\b|\blpn\b/.test(occ))add("Nursys QuickConfirm","https://www.nursys.com/LQC/LQCTerms.aspx","Nursys / NCSBN","license");
-        if(/doctor|physician|nurse|nursing|dentist|dental|therap|psych|pharmac|chiropr|optometr|health|medical|surgeon|provider/.test(occ))add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
-        if(/broker|financial advisor|financial adviser|securities|investment adviser|investment advisor/.test(occ))add("FINRA BrokerCheck","https://brokercheck.finra.org/","FINRA BrokerCheck","license");
+
+        // Physicians / doctors.
+        if(/doctor|physician|medical doctor|\bmd\b|\bdo\b|surgeon/.test(occ)){
+          add("FSMB DocInfo Physician Search","https://www.docinfo.org/","Federation of State Medical Boards (FSMB) DocInfo","license");
+          add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
+        }
+
+        // Registered nurses and other licensed nurses.
+        if(/registered nurse|nurse|nursing|\brn\b|\blvn\b|\blpn\b|\baprn\b/.test(occ)){
+          add("Nursys QuickConfirm","https://www.nursys.com/LQC/LQCTerms.aspx","Nursys / NCSBN","license");
+          add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
+        }
+
+        // Attorneys / lawyers.
+        if(/attorney|lawyer|counsel|bar/.test(occ)){
+          if(st==="CA")add("State Bar of California","https://apps.calbar.ca.gov/attorney/LicenseeSearch/QuickSearch","State Bar of California","license");
+          add("ABA Lawyer Licensing by State","https://www.americanbar.org/groups/legal_services/flh-home/flh-lawyer-licensing/","American Bar Association lawyer licensing directory","directory");
+        }
+
+        // State / local law enforcement certification.
+        if(/police|peace officer|sheriff|deputy|state trooper|state police|law enforcement officer|corrections officer/.test(occ)){
+          if(st==="CA")add("California POST Certification","https://post.ca.gov/Certification","California Commission on Peace Officer Standards and Training","verification");
+          add("IADLEST POST Portal","https://www.iadlest.org/post-portal","IADLEST state POST agency directory","directory");
+        }
+
+        // Federal law enforcement employment / credential verification.
+        if(/federal law enforcement|federal agent|fbi|dea|atf|secret service|homeland security|ice agent|cbp officer|us marshal|u\.s\. marshal/.test(occ)){
+          add("Federal Employment Verification Guidance","https://www.opm.gov/agency-services/hr-governance/hr-line-of-business/contact-us/","U.S. Office of Personnel Management","directory");
+        }
+
+        // Military service status.
+        if(/military|army|navy|marine|air force|space force|coast guard|service member|servicemember|active duty/.test(occ)){
+          add("DMDC SCRA Military Status Verification","https://scra.dmdc.osd.mil/scra/","Department of Defense Manpower Data Center (DMDC)","verification");
+        }
+
+        // Real estate agents / brokers.
+        if(/real estate|realtor|realty|real estate agent|real estate broker/.test(occ)){
+          add("ARELLO Real Estate License Search","https://www.arello.com/Search/","ARELLO Licensee Verification Database","supporting");
+          add("Find State Real Estate Regulator","https://www.usa.gov/state-governments","State real estate licensing agency","directory");
+        }
+
+        // Other regulated financial occupations.
+        if(/broker|financial advisor|financial adviser|securities|investment adviser|investment advisor/.test(occ)){
+          add("FINRA BrokerCheck","https://brokercheck.finra.org/","FINRA BrokerCheck","license");
+        }
+
+        // Other healthcare occupations can use NPI only as supporting provider data.
+        if(!/doctor|physician|medical doctor|\bmd\b|\bdo\b|surgeon|registered nurse|nurse|nursing|\brn\b|\blvn\b|\blpn\b|\baprn\b/.test(occ)
+           && /dentist|dental|therap|psych|pharmac|chiropr|optometr|health|medical|provider/.test(occ)){
+          add("NPI Registry","https://npiregistry.cms.hhs.gov/search/","CMS NPPES NPI Registry","supporting");
+        }
+
         if(!links.length&&st==="CA")add("California DCA License Search","https://search.dca.ca.gov/advanced","California Department of Consumer Affairs","state");
         if(!links.length)add("Find State Licensing Agency","https://www.usa.gov/state-governments","USA.gov State Governments","directory");
         return links;
@@ -3857,7 +3907,7 @@ async function loadRequests(options = {}) {
           const a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.label;
           a.style.cssText="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);text-decoration:none;font-size:11px;font-weight:700;";
           a.addEventListener("click",()=>{
-            if(item.kind==="directory")return;
+            if(["directory","supporting"].includes(item.kind))return;
             const n=section.querySelector(".client-credential-source-name"),u=section.querySelector(".client-credential-source-url");
             if(n&&!n.value)n.value=item.source;if(u&&!u.value)u.value=item.url;
           });
@@ -3865,11 +3915,13 @@ async function loadRequests(options = {}) {
         });
         if(note){
           const onlyDirectory=links.length===1&&links[0].kind==="directory";
+          const hasSupporting=links.some(x=>x.kind==="supporting");
+          const hasDirectory=links.some(x=>x.kind==="directory");
           note.textContent=onlyDirectory
-            ?"Use this directory only to locate the correct state licensing board. After opening the actual board or registry, record that board's name and direct registry URL below. The USA.gov directory is not verification evidence."
-            :links.some(x=>x.kind==="supporting")
-              ?"Open the official registry and search the client manually. NPI is supporting provider data and does not by itself prove licensure."
-              :"Open the official registry and search the client manually, then record the actual board or registry result below.";
+            ?"Use this directory only to locate the correct licensing, certification, or employing agency. Record the actual agency/registry used below; a directory page is not verification evidence."
+            :hasSupporting||hasDirectory
+              ?"Open the most specific official verification source available. Directory and supporting-database links help you locate or cross-check records but should not be treated as the final licensing source unless the issuing agency confirms the record."
+              :"Open the official verification source and search the client manually, then record the actual board, registry, agency, or service-status result below.";
         }
       };
       const applyCredentialVerification=(section,record)=>{
