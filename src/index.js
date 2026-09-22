@@ -5590,6 +5590,38 @@ if (
       }
     }
 
+    if (url.pathname === "/api/admin/clients/verification-check-history" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const category=String(data.category||"").trim().toLowerCase();
+        const allowedCategories=new Set(["sex_offender_registry","federal_records","supplemental_public_record"]);
+        if(!allowedCategories.has(category))return Response.json({ok:false,message:"Choose a valid supplemental verification category."},{status:400});
+        const resultStatus=String(data.result_status||"not_checked").trim().toLowerCase();
+        const allowedStatuses=new Set(["not_checked","no_match","potential_match","confirmed_match","unable_to_verify"]);
+        if(!allowedStatuses.has(resultStatus))return Response.json({ok:false,message:"Choose a valid verification result."},{status:400});
+        const sourceName=String(data.source_name||"").trim().slice(0,200);
+        const sourceUrl=String(data.source_url||"").trim().slice(0,800);
+        const reference=String(data.reference||"").trim().slice(0,240);
+        const summary=String(data.summary||"").trim().slice(0,1200);
+        if(resultStatus!=="not_checked" && !(sourceName&&sourceUrl))return Response.json({ok:false,message:"Record the official source used for this check."},{status:400});
+        if(["potential_match","confirmed_match"].includes(resultStatus) && !summary)return Response.json({ok:false,message:"Add an evidence/reference note for a potential or confirmed match."},{status:400});
+        const actor=accessIdentity(request).email||"authorized-admin";
+        if(resultStatus!=="not_checked"){
+          await logVerificationCheckHistory(env,clientId,category,resultStatus,sourceName,sourceUrl,reference,summary,{},actor);
+          const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+          const categoryLabel=category==="sex_offender_registry"?"Sex offender registry":category==="federal_records"?"Federal records":"Supplemental public record";
+          await logVerificationActivity(env,clientId,audit?.id||null,"public_record_"+category+"_updated",
+            categoryLabel+" check saved","Result: "+resultStatus+" · Source: "+sourceName+" · Checked by "+actor);
+        }
+        return Response.json({ok:true,saved:resultStatus!=="not_checked"},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to save supplemental public-record check.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/admin/clients/public-record-check" && request.method === "GET") {
       try {
         await ensureVerificationWorkspaceTables(env);
