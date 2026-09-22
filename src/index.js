@@ -4280,6 +4280,7 @@ My journal will continue to be a place where I share a little more of that side 
         const paymentMethod=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim()||"As arranged";
         return Response.json({
           ok:true,
+          request_id:Number(row.date_request_id),
           client_name:[row.first_name,row.last_name].filter(Boolean).join(" "),
           requested_date:row.requested_date||"",
           requested_time:row.requested_time||"",
@@ -4322,7 +4323,9 @@ My journal will continue to be a place where I share a little more of that side 
           SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP
           WHERE date_request_id=?
         `).bind(row.date_request_id).run();
-        return Response.json({ok:true,message:"Screening details received for final review."});
+        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
+          .bind("continuation_completed","server:continuation",row.date_request_id,"/complete").run();
+        return Response.json({ok:true,request_id:Number(row.date_request_id),message:"Screening details received for final review."});
       } catch(error) {
         console.error("Booking continuation submit error:",error);
         return Response.json({ok:false,message:"Unable to save your screening details."},{status:500});
@@ -4419,7 +4422,12 @@ My journal will continue to be a place where I share a little more of that side 
 
 
         const funnelRows=await env.DB.prepare(`
-          SELECT event_name, COUNT(*) AS count
+          SELECT event_name,
+                 COUNT(DISTINCT CASE
+                   WHEN request_id IS NOT NULL THEN 'request:' || request_id
+                   WHEN session_id <> '' THEN 'session:' || session_id
+                   ELSE 'event:' || id
+                 END) AS count
           FROM booking_funnel_events
           WHERE datetime(created_at) >= datetime('now','-30 days')
           GROUP BY event_name
@@ -4436,8 +4444,11 @@ My journal will continue to be a place where I share a little more of that side 
             availability_checked: funnel.availability_checked || 0,
             booking_summary_viewed: funnel.booking_summary_viewed || 0,
             form_submitted: funnel.form_submitted || 0,
+            moved_forward: funnel.moved_forward || 0,
             continuation_opened: funnel.continuation_opened || 0,
-            continuation_completed: funnel.continuation_completed || 0
+            continuation_completed: funnel.continuation_completed || 0,
+            deposit_confirmed: funnel.deposit_confirmed || 0,
+            final_approved: funnel.final_approved || 0
           },
 
           counts: {
@@ -7214,6 +7225,8 @@ if (
           `)
           .bind(depositAmount, requestId)
           .run();
+        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
+          .bind("moved_forward","server:admin",requestId,"/portal/request").run();
 
         if (bookingRate > 0) {
           const depositDisplay = new Intl.NumberFormat("en-US", {
@@ -7425,6 +7438,9 @@ Kendra`
         await env.DB.prepare(
           "UPDATE date_requests SET deposit_paid = 1, notes = ? WHERE id = ?"
         ).bind(notes, requestId).run();
+        await ensureSiteContentTables(env);
+        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
+          .bind("deposit_confirmed","server:admin",requestId,"/portal/request").run();
 
         return Response.json({
           ok:true,
@@ -7733,6 +7749,9 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           `)
           .bind(requestId)
           .run();
+        await ensureSiteContentTables(env);
+        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
+          .bind("final_approved","server:admin",requestId,"/portal/request").run();
 const approvedRequest = await env.DB
   .prepare(`
     SELECT
