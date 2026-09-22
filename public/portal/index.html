@@ -3869,9 +3869,14 @@ async function loadRequests(options = {}) {
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load activity.");
           section._verificationActivity=result.activity||[];
           const categoryFor=(type)=>{
-            if(String(type).startsWith("id_"))return "id";
-            if(String(type).startsWith("persona_"))return "persona";
-            if(type==="decision_changed")return "decision";
+            const t=String(type||"");
+            if(t.startsWith("id_"))return "id";
+            if(t.startsWith("persona_"))return "persona";
+            if(t.startsWith("employment_"))return "employment";
+            if(t.startsWith("credential_"))return "credential";
+            if(t.startsWith("address_"))return "address";
+            if(t.startsWith("public_record_"))return "public_records";
+            if(t==="decision_changed")return "decision";
             return "manual";
           };
           const renderActivity=()=>{
@@ -4190,7 +4195,12 @@ async function loadRequests(options = {}) {
           const payload={client_id:Number(section.dataset.clientId),occupation:section.querySelector(".client-credential-occupation")?.value||"",credential_type:section.querySelector(".client-credential-type")?.value||"",license_number:section.querySelector(".client-credential-number")?.value||"",issuing_state:section.querySelector(".client-credential-state")?.value||"",issuing_board:section.querySelector(".client-credential-board")?.value||"",credential_status:section.querySelector(".client-credential-status")?.value||"not_checked",issue_date:section.querySelector(".client-credential-issue-date")?.value||"",expiration_date:section.querySelector(".client-credential-expiration-date")?.value||"",disciplinary_indicator:section.querySelector(".client-credential-discipline")?.value||"unknown",source_name:section.querySelector(".client-credential-source-name")?.value||"",source_url:section.querySelector(".client-credential-source-url")?.value||"",evidence_notes:section.querySelector(".client-credential-evidence")?.value||""};
           const response=await fetch("/api/admin/clients/credential-verification",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save credential verification.");
-          applyCredentialVerification(section,result.credential);if(status){status.textContent="Saved";status.style.color="#2f6b45";}await loadVerificationActivity(section);
+          applyCredentialVerification(section,result.credential);if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
+          section.dataset.credentialStatus=result.credential?.credential_status||"not_checked";
+          await setOptionalSectionState(section,"credential",result.credential?.credential_status==="confirmed"?"confirmed":result.credential?.credential_status==="mismatch"?"mismatch":result.credential?.credential_status==="unable_to_verify"?"unable_to_verify":"in_progress").catch(()=>{});
+          await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
+          const card=section.querySelector(".client-credential-card");if(card)card.dataset.dirty="0";
+          updateVerificationFlowSummary(section);
         }catch(error){if(status){status.textContent=error.message||"Unable to save credential verification.";status.style.color="#8a2424";}}finally{if(button)button.disabled=false;}
       };
 
@@ -4390,8 +4400,13 @@ async function loadRequests(options = {}) {
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save address verification.");
           applyAddressVerification(section,result.address_check);
-          if(status){status.textContent="Saved";status.style.color="#2f6b45";}
-          await loadVerificationActivity(section);
+          if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
+          section.dataset.addressStatus=result.address_check?.result_status||"not_checked";
+          const addressState=result.address_check?.result_status==="confirmed"?"confirmed":result.address_check?.result_status==="partial_match"?"partial_match":result.address_check?.result_status==="mismatch"?"mismatch":result.address_check?.result_status==="unable_to_verify"?"unable_to_verify":"in_progress";
+          await setOptionalSectionState(section,"address",addressState).catch(()=>{});
+          await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
+          const card=section.querySelector(".client-address-verification-card");if(card)card.dataset.dirty="0";
+          updateVerificationFlowSummary(section);
         }catch(error){
           if(status){status.textContent=error.message||"Unable to save address verification.";status.style.color="#8a2424";}
         }finally{if(button)button.disabled=false;}
@@ -4506,8 +4521,13 @@ async function loadRequests(options = {}) {
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save public record check.");
           applyPublicRecordCheck(section,result.check);
-          if(status){status.textContent="Saved";status.style.color="#2f6b45";}
-          await loadVerificationActivity(section);
+          if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
+          section.dataset.publicRecordStatus=result.check?.record_status||"not_checked";
+          const publicState=result.check?.record_status==="potential_match"?"potential_match":result.check?.record_status==="confirmed_match"?"needs_review":result.check?.record_status==="unable_to_verify"?"unable_to_verify":result.check?.record_status==="no_public_record_found"?"confirmed":"in_progress";
+          await setOptionalSectionState(section,"public_records",publicState).catch(()=>{});
+          await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
+          const card=section.querySelector(".client-public-record-card");if(card)card.dataset.dirty="0";
+          updateVerificationFlowSummary(section);
         }catch(error){
           if(status){status.textContent=error.message||"Unable to save public record check.";status.style.color="#8a2424";}
         }finally{if(button)button.disabled=false;}
@@ -4692,6 +4712,7 @@ async function loadRequests(options = {}) {
           status.style.color=isVoip?"#8a2424":allowed?"#2f6b45":"#74520b";
         }
         validatePersonaFields(section,{show:false});
+        updateVerificationFlowSummary(section);
       };
       const loadPhoneLineCheck=async(section)=>{
         try{
@@ -4735,6 +4756,8 @@ async function loadRequests(options = {}) {
           setVerificationAuditState(section,result.records||[],result.history||[],result.persona_attempts||[]);
           restoreSafeVerificationLocalDraft(section);
           loadVerificationActivity(section);
+          loadVerificationCheckHistory(section);
+          updateVerificationFlowSummary(section);
         }catch(error){if(list)list.textContent=error.message||"Unable to load verification records.";}
       };
       const applyPersonaRequiredFields=(section,requiredFields,configured,supportedFields=[])=>{
@@ -5037,6 +5060,7 @@ async function loadRequests(options = {}) {
           loadVerificationAudits(section);
           loadPhoneLineCheck(section);
           loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);
+          loadVerificationSectionStates(section);loadVerificationCheckHistory(section);
           loadPersonaStatus(section);
         });
       });
@@ -5087,12 +5111,50 @@ async function loadRequests(options = {}) {
         });
         section.addEventListener("toggle",()=>{
           if(section.open){
-            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);loadPersonaStatus(section);loadVerificationActivity(section);
+            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadAddressVerification(section);loadPublicRecordCheck(section);loadVerificationSectionStates(section);loadVerificationCheckHistory(section);loadPersonaStatus(section);loadVerificationActivity(section);
           }else if(section.dataset.draftDirty==="1"){
             if(!window.confirm("Verification fields are still unsaved. Close this section anyway?")){section.open=true;}
           }
         });
 
+        section.querySelectorAll("[data-verification-jump]").forEach(button=>button.addEventListener("click",()=>{
+          const target=section.querySelector(button.dataset.verificationJump||"");
+          if(target){if(target.tagName==="DETAILS")target.open=true;target.scrollIntoView({behavior:"smooth",block:"start"});}
+        }));
+        section.querySelector(".client-verification-save-all")?.addEventListener("click",()=>saveAllVerificationProgress(section));
+        section.querySelector(".client-employment-save")?.addEventListener("click",()=>saveEmploymentVerification(section));
+        section.querySelector(".client-final-review-jump")?.addEventListener("click",()=>{
+          section.querySelector(".client-verification-editor")?.scrollIntoView({behavior:"smooth",block:"start"});
+          section.querySelector(".client-verification-status")?.focus();
+        });
+        section.querySelectorAll(".verification-card-collapse").forEach(button=>button.addEventListener("click",()=>{
+          const card=section.querySelector(button.dataset.collapseCard||"");if(!card)return;
+          card.classList.toggle("is-collapsed");
+          button.textContent=card.classList.contains("is-collapsed")?"Expand":"Collapse";
+        }));
+        section.querySelectorAll(".client-optional-skip").forEach(button=>button.addEventListener("click",async()=>{
+          const key=button.dataset.sectionKey;
+          if(!window.confirm("Skip this optional verification section for this client?"))return;
+          try{await setOptionalSectionState(section,key,"skipped");updateVerificationFlowSummary(section);}catch(error){window.alert(error.message||"Unable to skip this section.");}
+        }));
+        section.querySelectorAll(".client-optional-clear").forEach(button=>button.addEventListener("click",async()=>{
+          const key=button.dataset.sectionKey;
+          if(!window.confirm("Clear the saved working data for this optional check? Audit history will be retained."))return;
+          try{
+            await setOptionalSectionState(section,key,"not_checked",{clearData:true});
+            if(key==="credential")applyCredentialVerification(section,null);
+            if(key==="address")applyAddressVerification(section,null);
+            if(key==="public_records"){applyPublicRecordCheck(section,null);clearPublicRecordSearchForm(section);}
+            updateVerificationFlowSummary(section);
+          }catch(error){window.alert(error.message||"Unable to clear this check.");}
+        }));
+        section.querySelector(".client-public-record-add-search")?.addEventListener("click",()=>{
+          clearPublicRecordSearchForm(section);
+          const first=section.querySelector(".client-public-record-first-name"),last=section.querySelector(".client-public-record-last-name");
+          if(first)first.value=section.querySelector(".client-persona-name-first")?.value||first.value;
+          if(last)last.value=section.querySelector(".client-persona-name-last")?.value||last.value;
+          section.querySelector(".client-public-record-card")?.scrollIntoView({behavior:"smooth",block:"start"});
+        });
         section.querySelector(".client-credential-save")?.addEventListener("click",()=>saveCredentialVerification(section));
         section.querySelector(".client-address-check-save")?.addEventListener("click",()=>saveAddressVerification(section));
         [".client-address-check-state",".client-address-check-line1",".client-address-check-city",".client-address-check-postal"].forEach(sel=>{
@@ -5179,6 +5241,18 @@ async function loadRequests(options = {}) {
         credentialOccupation?.addEventListener("change",syncSuggestedCredentialType);
         credentialTypeInput?.addEventListener("input",()=>{credentialTypeInput.dataset.suggestedValue="";});
         renderCredentialRegistries(section);
+
+        section.querySelectorAll(".verification-card input,.verification-card select,.verification-card textarea").forEach(input=>{
+          input.addEventListener("input",()=>{
+            const card=input.closest(".verification-card");
+            if(card&&!card.classList.contains("client-verification-overview"))card.dataset.dirty="1";
+          });
+          input.addEventListener("change",()=>{
+            const card=input.closest(".verification-card");
+            if(card&&!card.classList.contains("client-verification-overview"))card.dataset.dirty="1";
+            updateVerificationFlowSummary(section);
+          });
+        });
 
         const updateEmploymentVerificationUi=()=>{
           const employmentStatus=section.querySelector(".client-employment-status")?.value||"not_checked";
