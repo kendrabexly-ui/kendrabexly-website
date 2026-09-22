@@ -42,11 +42,12 @@ test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/<strong>Base state<\/strong><div>\$\{escapeHtml\(latestBaseState \|\| "Not provided"\)\}<\/div>/);
   assert.match(portal,/client-basic-screening-open-request/);
   assert.match(portal,/client-basic-screening-open-request"\)\.forEach\(\(button\)=>button\.addEventListener\("click",\(\)=>\{[\s\S]*\/portal\/request\?id=\$\{encodeURIComponent\(requestId\)\}/);
-  assert.match(portal,/>2\. ID Record</);
-  assert.match(portal,/>3\. Employment Verification</);
-  assert.match(portal,/>4\. Final Verification Checklist</);
-  assert.match(portal,/>9\. Final Review &amp; Decision</);
-  assert.match(portal,/>10\. Audit History</);
+  assert.match(portal,/>2\. Phone Check</);
+  assert.match(portal,/>3\. ID Record</);
+  assert.match(portal,/>4\. Employment Verification</);
+  assert.match(portal,/>5\. Final Verification Checklist</);
+  assert.match(portal,/>10\. Final Review &amp; Decision</);
+  assert.match(portal,/>11\. Audit History</);
   assert.match(portal,/finalReady=basicScreening==="confirmed"/);
 });
 
@@ -68,6 +69,7 @@ test("basic screening tracks approval and private form delivery separately",()=>
 test("verification field cards start collapsed and navigation expands them",()=>{
   for(const cardClass of [
     "client-basic-screening",
+    "client-phone-checks",
     "client-id-record",
     "client-employment-verification",
     "client-verification-editor",
@@ -323,11 +325,16 @@ test("phone line-type verification uses Twilio Lookup Intelligence",()=>{
   assert.match(worker,/nonFixedVoip/);
 });
 
-test("reverse phone lookup remains visible when Persona hides optional fields",()=>{
-  const phone=portal.slice(portal.indexOf('class="client-phone-checks"'),portal.indexOf('class="verification-grid client-id-fallback-fields"'));
+test("reverse phone lookup is the second verification card and remains outside Persona",()=>{
+  const phoneStart=portal.indexOf('class="verification-card client-phone-checks is-collapsed"');
+  const identityStart=portal.indexOf('class="verification-card client-id-record is-collapsed"');
+  const personaStart=portal.indexOf('class="verification-card client-persona-card is-collapsed"');
+  assert.ok(phoneStart>0&&identityStart>phoneStart&&personaStart>identityStart);
+  const phone=portal.slice(phoneStart,identityStart);
   assert.match(phone,/class="client-persona-phone"/);
   assert.match(phone,/class="client-phone-reverse-lookup"/);
   assert.doesNotMatch(phone,/data-persona-field=/);
+  assert.doesNotMatch(portal.slice(personaStart),/class="client-phone-checks"/);
   assert.match(portal,/label\.hidden=Boolean\(configured\)&&confirmedSupported&&!isRequired/);
 });
 
@@ -363,7 +370,7 @@ test("employment verification requires evidence before Confirmed",()=>{
 
 test("portal has structured employment verification workflow",()=>{
   assert.match(portal,/class="verification-card client-employment-verification is-collapsed"/);
-  assert.match(portal,/>3\. Employment Verification</);
+  assert.match(portal,/>4\. Employment Verification</);
   assert.match(portal,/client-verification-employer/);
   assert.match(portal,/client-verification-job-title/);
   assert.match(portal,/client-employment-method/);
@@ -401,9 +408,9 @@ test("confirmed credential requires an official source",()=>{
 });
 
 test("portal has License and Credential Verification after basic screening",()=>{
-  assert.match(portal,/5\. License &amp; Credential Verification/);
-  assert.match(portal,/8\. Persona/);
-  assert.match(portal,/10\. Audit History/);
+  assert.match(portal,/6\. License &amp; Credential Verification/);
+  assert.match(portal,/9\. Persona/);
+  assert.match(portal,/11\. Audit History/);
 });
 
 test("registry routing includes official licensing sources",()=>{
