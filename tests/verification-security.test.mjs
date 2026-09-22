@@ -459,3 +459,12 @@ test("deposit choices show exact method totals after verification",()=>{
   assert.match(continuationPage,/Crypto — /);
   assert.match(continuationPage,/total \("/);
 });
+
+
+test("booking request page is forced through worker with no-cache headers",()=>{
+  const wrangler=fs.readFileSync(new URL("../wrangler.jsonc",import.meta.url),"utf8");
+  assert.match(wrangler,/\/request\*/);
+  assert.match(worker,/url\.pathname === "\/request"/);
+  assert.match(worker,/url\.pathname === "\/request\/"|url\.pathname === "\/request.html"/);
+  assert.match(worker,/Cache-Control", "no-store, no-cache, must-revalidate, max-age=0"/);
+});
