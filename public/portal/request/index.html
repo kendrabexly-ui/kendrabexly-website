@@ -260,7 +260,7 @@
 
         const workflow=document.getElementById("request-workflow");
         const workflowCopy={
-          pending:["1 of 3 · Review Request","Review the request details. If everything looks right, move it forward to create the client's next email draft."],
+          pending:["1 of 3 · Review Request","Review the request details. Choose Proceed to private screening to create the client's private form email draft."],
           pending_final_approval:["2 of 3 · Final Approval","Confirm the deposit and ID screening, then give final approval."],
           screening_pending:["2 of 3 · Final Approval","Complete ID screening and deposit confirmation before final approval."],
           approved:["3 of 3 · Confirmed","This date is confirmed. After the appointment, mark it Successfully Completed."],
@@ -387,11 +387,12 @@
       cursor: pointer;
     "
   >
-    Move Forward
+    Proceed to private screening
   </button>
   <div style="margin-top:10px;font-size:13px;color:#6f675f;">
-    Moving forward creates the client's next email draft. After it is created, review it in <strong>Email Drafts</strong>.
+    Approval creates the client's private form email draft. Review and send it from <strong>Email Drafts</strong>.
   </div>
+  <div id="basic-screening-milestones" style="margin-top:12px;font-size:13px;line-height:1.7;"></div>
   <button type="button" id="open-email-drafts-button" style="display:none;margin-top:10px;background:transparent;border:1px solid #cfc6ba;padding:10px 16px;border-radius:999px;font-family:inherit;cursor:pointer;">
     Review Email Draft
   </button>
@@ -506,6 +507,12 @@ if (viewClientProfileButton) {
 
 const moveForwardButton =
   document.getElementById("move-forward-button");
+const basicScreeningMilestones=document.getElementById("basic-screening-milestones");
+const renderBasicScreeningMilestones=(approved,sent)=>{
+  if(!basicScreeningMilestones)return;
+  basicScreeningMilestones.innerHTML='<div><strong>Approved to proceed:</strong> '+(approved?'Yes':'Awaiting decision')+'</div><div><strong>Private form email sent:</strong> '+(sent?'Sent':'Not sent')+'</div>';
+};
+renderBasicScreeningMilestones(["screening_pending","pending_final_approval","approved","completed"].includes(String(item.status||"").toLowerCase()),Boolean(item.private_screening_email_sent_at));
 
 const screeningStageControls=document.getElementById("screening-stage-controls");
 const requestDepositButton=document.getElementById("request-deposit-button");
@@ -667,8 +674,9 @@ moveForwardButton.addEventListener(
         );
       }
 
-      moveForwardStatus.textContent = "Screening request created. Review the email draft before sending it.";
-      moveForwardButton.textContent = "Moved Forward";
+      moveForwardStatus.textContent = "Approved to proceed. Review and send the private form email draft.";
+      moveForwardButton.textContent = "Proceed to private screening";
+      renderBasicScreeningMilestones(true,false);
       moveForwardButton.style.display = "none";
       finalApprovalControls.style.display = "none";
       if(screeningStageControls) screeningStageControls.style.display = "block";

@@ -2700,7 +2700,7 @@ async function loadRequests(options = {}) {
               ? "pending_review"
               : "needs_more_information";
         const basicScreeningLabel = basicScreeningState === "confirmed"
-          ? "Moved Forward"
+          ? "Approved to proceed"
           : basicScreeningState === "declined"
             ? "Closed"
             : basicScreeningState === "needs_more_information"
@@ -2711,6 +2711,7 @@ async function loadRequests(options = {}) {
           : basicScreeningState === "declined"
             ? "background:#fdeaea;color:#8a2424;"
             : "background:#fff4d8;color:#74520b;";
+        const privateScreeningEmailSent=Boolean(latest?.private_screening_email_sent_at);
         const savedProfile = savedClientProfiles.get(Number(client.client_id)) || {};
         const personaDraft = personaDraftByClient.get(Number(client.client_id)) || {};
         const completedDates=sorted.filter(r=>String(r.status||"").toLowerCase()==="completed");
@@ -2890,10 +2891,14 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-basic-screening is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">1. Basic Screening</strong>
+                      <strong style="font-size:13px;">1. Proceed to private screening</strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-basic-screening-badge" style="${basicScreeningStyle}">Basic screening: ${escapeHtml(basicScreeningLabel)}</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-basic-screening">Expand</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">Review the information submitted with the initial booking request before deciding whether to move the client forward to private screening. No deposit is requested at this stage.</div>
+                    <div class="verification-overview-grid" style="margin-top:10px;">
+                      <div class="verification-overview-item"><strong>Approved to proceed</strong><div>${basicScreeningState === "confirmed" ? "Yes" : basicScreeningState === "declined" ? "No · Request closed" : "Awaiting decision"}</div></div>
+                      <div class="verification-overview-item"><strong>Private form email sent</strong><div>${privateScreeningEmailSent ? "Sent " + escapeHtml(formatVerificationTimestamp(latest.private_screening_email_sent_at)) : "Not sent"}</div></div>
+                    </div>
                     <div class="verification-overview-grid" style="margin-top:10px;">
                       <div class="verification-overview-item"><strong>Name</strong><div>${escapeHtml(name)}</div></div>
                       <div class="verification-overview-item"><strong>Email</strong><div>${escapeHtml(client.email || "Not provided")}</div></div>
@@ -2909,7 +2914,7 @@ async function loadRequests(options = {}) {
                     </div>
                     <div class="verification-actions">
                       <button type="button" class="client-basic-screening-open-request" data-request-id="${latest?.id || ""}" data-client-search="${escapeHtml(client.email || name)}" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;font-weight:700;">Open Request Review</button>
-                      <span style="font-size:11px;color:var(--muted);">Use the request review to move forward or decline. Detailed employment and identity checks remain in the later steps.</span>
+                      <span style="font-size:11px;color:var(--muted);">Choose Proceed to private screening in Request Review, then send the private form email from Email Drafts. Detailed employment and identity checks remain in the later steps.</span>
                     </div>
                   </section>
 
