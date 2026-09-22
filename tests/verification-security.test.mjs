@@ -455,6 +455,18 @@ test("deposit step optionally collects a separate app-based text number",()=>{
   assert.match(worker,/app_text_number:String\(row\.notes\|\|""\)\.match/);
 });
 
+test("private screening asks for and saves the client's birthday",()=>{
+  assert.match(continuationPage,/Birthdays are special, and I love celebrating—when’s yours\? \*/);
+  assert.match(continuationPage,/id="screening-birthdate" name="birthdate" type="date" autocomplete="bday" required/);
+  assert.match(continuationPage,/screening-birthdate"\)\.value = data\.birthdate \|\| ""/);
+  const routeStart=worker.indexOf('url.pathname === "/api/booking/continuation" && request.method === "POST"');
+  const routeEnd=worker.indexOf("// Reject unsupported methods to request API",routeStart);
+  const route=worker.slice(routeStart,routeEnd);
+  assert.match(route,/const birthdate=idDocumentDate\(data\.birthdate\)/);
+  assert.match(route,/SET birthdate=\?,submitted_employer=\?,submitted_job_title=\?,submitted_industry=\?/);
+  assert.match(worker,/birthdate:row\.birthdate\|\|""/);
+});
+
 
 test("booking form has no before-you-submit section or acknowledgement",()=>{
   assert.doesNotMatch(requestPage,/BEFORE YOU SUBMIT/);
