@@ -545,6 +545,13 @@ test("move forward email requests screening only",()=>{
   assert.match(route,/separate deposit request/);
 });
 
+test("private screening and deposit emails link to the unlisted details page",()=>{
+  assert.match(worker,/const detailsUrl=new URL\("\/the-details",request\.url\)\.toString\(\)/);
+  assert.match(worker,/Before you continue, please review The Details/);
+  assert.match(worker,/Please review The Details before completing the deposit step/);
+  assert.match(worker,/\$\{detailsUrl\}/);
+});
+
 test("deposit confirmation requires client deposit-step completion",()=>{
   const start=worker.indexOf('url.pathname === "/api/admin/request/confirm-deposit"');
   const end=worker.indexOf('url.pathname === "/api/admin/request/complete"',start);

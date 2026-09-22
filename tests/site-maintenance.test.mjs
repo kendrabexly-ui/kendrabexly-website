@@ -12,12 +12,26 @@ const between = (text, start, end) => {
 };
 
 test('all inline scripts parse after markup cleanup', () => {
-  for(const path of ['index.html','request.html','complete/index.html','portal/index.html','meet-kendra/index.html','the-muse/index.html','our-time/index.html','etiquette/index.html','pillow-talk/index.html']) {
+  for(const path of ['index.html','request.html','complete/index.html','portal/index.html','meet-kendra/index.html','the-muse/index.html','our-time/index.html','the-details/index.html','etiquette/index.html','pillow-talk/index.html']) {
     const html=read(path);
     assert.ok(!html.includes('>\\n  <'),path);
     for(const [,script] of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(script,{filename:path});
   }
   new vm.Script(read('site-shell.js'));
+});
+
+test('etiquette and FAQ are combined into the unlisted The Details page', () => {
+  const details=read('the-details/index.html');
+  const shell=read('site-shell.js');
+  assert.match(details,/<h1 id="details-title">The Details<\/h1>/);
+  assert.match(details,/ETIQUETTE &amp; POLICIES/);
+  assert.match(details,/FREQUENTLY ASKED QUESTIONS/);
+  assert.match(details,/name="robots" content="noindex,nofollow,noarchive"/);
+  assert.doesNotMatch(shell,/href: "\/etiquette"/);
+  assert.doesNotMatch(shell,/href: "\/pillow-talk"/);
+  assert.doesNotMatch(shell,/href: "\/the-details"/);
+  assert.match(read('etiquette/index.html'),/location\.replace\("\/the-details"\)/);
+  assert.match(read('pillow-talk/index.html'),/location\.replace\("\/the-details"\)/);
 });
 
 test('analytics identifiers survive blocked browser storage', () => {

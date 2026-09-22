@@ -4,8 +4,6 @@
     { key: "meet-kendra", href: "/meet-kendra", label: "Meet Kendra" },
     { key: "the-muse", href: "/the-muse", label: "Gallery" },
     { key: "our-time", href: "/our-time", label: "Our Time" },
-    { key: "etiquette", href: "/etiquette", label: "Etiquette" },
-    { key: "pillow-talk", href: "/pillow-talk", label: "FAQ" },
     { key: "request", href: "/request", label: "Request a Date", button: true }
   ];
 
@@ -47,7 +45,7 @@
       window.addEventListener("resize", () => {
         if (window.innerWidth > 1100) close();
       });
-      if (!document.querySelector(".mobile-booking-cta") && !location.pathname.startsWith("/request") && !location.pathname.startsWith("/complete") && !location.pathname.startsWith("/portal")) {
+      if (!document.querySelector(".mobile-booking-cta") && !location.pathname.startsWith("/request") && !location.pathname.startsWith("/complete") && !location.pathname.startsWith("/portal") && !location.pathname.startsWith("/the-details")) {
         const sticky = document.createElement("a");
         sticky.className = "mobile-booking-cta";
         sticky.href = "/request";

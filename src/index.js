@@ -7340,6 +7340,7 @@ if (
             updated_at=CURRENT_TIMESTAMP
         `).bind(requestId,continuationTokenHash,continuationExpiresAt).run();
         const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
+        const detailsUrl=new URL("/the-details",request.url).toString();
 
         await env.DB
           .prepare(`
@@ -7387,6 +7388,10 @@ Time: ${existingRequest.requested_time}
 Your next step is all in one private page:
 
 ${continuationUrl}
+
+Before you continue, please review The Details, including screening, reservation, and planning information:
+
+${detailsUrl}
 
 There you can provide the additional details I need for private screening.
 
@@ -7466,6 +7471,7 @@ Kendra`
           WHERE date_request_id=?
         `).bind(continuationTokenHash,continuationExpiresAt,requestId).run();
         const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
+        const detailsUrl=new URL("/the-details",request.url).toString();
         const depositDisplay=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(row.deposit_amount||0));
 
         const existingDraft=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='deposit_request' AND status='draft' LIMIT 1").bind(requestId).first();
@@ -7480,6 +7486,10 @@ Time: ${row.requested_time}
 Your base deposit is ${depositDisplay}. Use the private link below to choose your payment method and review the exact total:
 
 ${continuationUrl}
+
+Please review The Details before completing the deposit step:
+
+${detailsUrl}
 
 Gift Card has no processing fee. Stripe and Crypto add a 10% processing fee to the deposit.
 
