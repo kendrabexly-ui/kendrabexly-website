@@ -30,6 +30,15 @@ test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/finalReady=basicScreening==="confirmed"/);
 });
 
+test("client dashboard renders verification profiles in bounded batches",()=>{
+  assert.match(portal,/const baseClientRenderLimit = window\.matchMedia\("\(max-width: 700px\)"\)\.matches \? 5 : 10/);
+  assert.match(portal,/const visibleClients=filtered\.slice\(0,clientRenderLimit\)/);
+  assert.match(portal,/class="client-load-more"/);
+  assert.match(portal,/clientRenderLimit\+=baseClientRenderLimit/);
+  assert.match(portal,/clientSearch\.oninput=/);
+  assert.doesNotMatch(portal,/clientSearch\.addEventListener\("input", renderClients\)/);
+});
+
 test("address-based verification remains supported",()=>{
   assert.match(worker,/const addressComplete=Boolean\(personaFields\.address_street_1&&personaFields\.address_city&&personaFields\.address_subdivision&&personaFields\.address_postal_code\)/);
 });
