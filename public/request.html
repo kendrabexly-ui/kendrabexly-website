@@ -24,7 +24,8 @@
     rel="stylesheet"
   >
 
-  <link rel="stylesheet" href="/styles.css">\n  <script src="/site-shell.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-shell.js"></script>
 </head>
 
 
@@ -550,12 +551,12 @@
 
     const funnelSession = (() => {
       const key = "booking_funnel_session";
-      let value = sessionStorage.getItem(key);
-      if (!value) {
-        value = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
-        sessionStorage.setItem(key, value);
-      }
-      return value;
+      const fallback = () => globalThis.crypto?.randomUUID?.() || String(Date.now()) + Math.random();
+      try {
+        let value = sessionStorage.getItem(key);
+        if (!value) { value = fallback(); sessionStorage.setItem(key, value); }
+        return value;
+      } catch { return fallback(); }
     })();
     function trackFunnel(eventName, requestId) {
       fetch("/api/public/funnel", {

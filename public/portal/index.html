@@ -703,6 +703,7 @@
   .client-persona-technical{margin-top:5px!important}
 }
 </style>
+  <link rel="stylesheet" href="/accessibility.css">
 </head>
 
 <body>
@@ -2884,7 +2885,7 @@ async function loadRequests(options = {}) {
                         <div class="verification-overview-item"><strong>Phone</strong><div data-summary-status="phone">Not checked</div></div>
                         <div class="verification-overview-item"><strong>Sex offender registry</strong><div data-summary-status="sex_offender">Not checked</div></div>
                         <div class="verification-overview-item"><strong>Checklist</strong><div data-summary-status="checklist">0 of 5</div></div>
-                        <div class="verification-overview-item"><strong>Warnings</strong><div data-summary-status="warnings">0</div></div>
+                        <button type="button" class="verification-overview-item verification-warning-link" data-verification-jump=".client-final-review-warnings" aria-label="View verification warnings"><strong>Warnings</strong><span data-summary-status="warnings">0</span><span>View warnings →</span></button>
                         <div class="verification-overview-item"><strong>Final decision</strong><div data-summary-status="decision">Pending Review</div></div>
                       </div>
                       <div class="client-verification-save-all-status" style="margin-top:7px;font-size:11px;color:var(--muted);"></div>
@@ -3363,7 +3364,7 @@ async function loadRequests(options = {}) {
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-final-review-badge">Pending Review</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-final-review">Expand</button></span>
                     </div>
                     <div class="client-final-review-summary" style="margin-top:8px;font-size:12px;line-height:1.55;color:var(--muted);">Complete or skip the optional checks, then review unresolved items before making the final decision.</div>
-                    <div class="client-final-review-warnings" style="margin-top:8px;"></div>
+                    <div class="client-final-review-warnings" tabindex="-1" role="region" aria-label="Verification warnings" style="margin-top:8px;"></div>
                     <div class="verification-actions" style="margin-top:9px;">
                       <button type="button" class="client-final-review-jump" style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Edit Final Checklist</button>
                       <button type="button" class="client-final-review-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Verification</button>
@@ -3914,7 +3915,7 @@ async function loadRequests(options = {}) {
         return draft;
       };
       const setVerificationDraftState=(section,state,message)=>{
-        section.dataset.draftDirty=["dirty","error"].includes(state)?"1":"0";
+        section.dataset.draftDirty=["dirty","saving","error"].includes(state)?"1":"0";
         const indicator=section.querySelector(".client-verification-draft-status");
         const saveNow=section.querySelector(".client-verification-save-draft-now");
         if(indicator){
@@ -3972,7 +3973,20 @@ async function loadRequests(options = {}) {
         return true;
       };
       const saveVerificationDraft=async(section,{retry=true}={})=>{
+        // Serialize saves so an older response cannot overwrite a newer edit.
+        if(section._verificationSavePromise){
+          await section._verificationSavePromise;
+          return saveVerificationDraft(section,{retry});
+        }
+        const pending=performVerificationDraftSave(section,{retry});
+        section._verificationSavePromise=pending;
+        try{return await pending;}
+        finally{if(section._verificationSavePromise===pending)section._verificationSavePromise=null;}
+      };
+      const performVerificationDraftSave=async(section,{retry=true}={})=>{
+        clearTimeout(section._verificationDraftTimer);
         const draft=capturePersonaDraft(section);
+        const snapshot=JSON.stringify(draft);
         const clientId=Number(section.dataset.clientId);
         if(!clientId)return false;
         setVerificationDraftState(section,"saving","Saving verification fields…");
@@ -3997,6 +4011,11 @@ async function loadRequests(options = {}) {
           const result=await response.json();
           if(verificationAuthExpired(response,result,section))throw new Error(result.message||"Re-authentication required.");
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save verification fields.");
+          if(JSON.stringify(capturePersonaDraft(section))!==snapshot){
+            setVerificationDraftState(section,"dirty","Newer changes are still unsaved");
+            scheduleVerificationDraftSave(section);
+            return false;
+          }
           applyVerificationDraft(section,result.draft);
           try{localStorage.removeItem(verificationSafeDraftKey(section));}catch{}
           setVerificationDraftState(section,"saved","Saved");
@@ -4061,7 +4080,7 @@ async function loadRequests(options = {}) {
         try{
           const response=await fetch("/api/admin/clients/verification-draft?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
           const result=await response.json();
-          if(response.ok&&result.ok) applyVerificationDraft(section,result.draft);
+          if(response.ok&&result.ok&&section.dataset.draftDirty!=="1") applyVerificationDraft(section,result.draft);
         }catch{}
       };
       const loadVerificationActivity=async(section)=>{
@@ -5687,7 +5706,9 @@ async function loadRequests(options = {}) {
           if(target){
             expandVerificationTarget(target);
             loadVerificationCardData(target);
-            target.scrollIntoView({behavior:"smooth",block:"start"});
+            target.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+            if(!target.hasAttribute("tabindex"))target.setAttribute("tabindex","-1");
+            target.focus({preventScroll:true});
           }
         }));
         section.querySelector(".client-verification-back-top")?.addEventListener("click",()=>{
