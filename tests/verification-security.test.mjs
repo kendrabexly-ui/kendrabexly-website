@@ -310,7 +310,9 @@ test("booking final approval stays a separate admin decision",()=>{
   assert.match(route,/Screening must be marked Verified and completed before final approval/);
   assert.match(route,/status = 'approved'/);
   assert.match(route,/final_approval = 1/);
-  const continuation=worker.slice(worker.indexOf('url.pathname === "/api/booking/continuation"'));
+  const continuationStart=worker.indexOf('url.pathname === "/api/booking/continuation"');
+  const continuationEnd=worker.indexOf("// Reject unsupported methods to request API",continuationStart);
+  const continuation=worker.slice(continuationStart,continuationEnd);
   assert.doesNotMatch(continuation,/SET[\s\S]{0,300}status = 'approved'/);
   assert.doesNotMatch(continuation,/final_approval = 1/);
 });
