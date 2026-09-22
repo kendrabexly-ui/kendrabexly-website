@@ -5513,7 +5513,7 @@ if (
             (evidenceNotes?" · Evidence/reference: "+evidenceNotes:""));
         }
         if(credentialStatus!=="not_checked"){
-          await logVerificationCheckHistory(env,clientId,"credential",credentialStatus,sourceName,sourceUrl,licenseNumber,
+          await logVerificationCheckHistory(env,clientId,"credential",credentialStatus,sourceName,sourceUrl,"",
             evidenceNotes,{occupation,credential_type:credentialType,issuing_state:issuingState,issuing_board:issuingBoard},actor);
         }
         const saved=await env.DB.prepare(`
