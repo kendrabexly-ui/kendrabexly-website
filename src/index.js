@@ -4278,6 +4278,10 @@ My journal will continue to be a place where I share a little more of that side 
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired. Please contact Kendra for a new link."},{status:410});
         const paymentMethod=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim()||"As arranged";
+        const depositAmount=Number(row.deposit_amount||0);
+        const depositProcessingFee=["stripe","crypto"].includes(paymentMethod)
+          ? Math.round((depositAmount/11)*100)/100
+          : 0;
         return Response.json({
           ok:true,
           request_id:Number(row.date_request_id),
@@ -4285,7 +4289,8 @@ My journal will continue to be a place where I share a little more of that side 
           requested_date:row.requested_date||"",
           requested_time:row.requested_time||"",
           location_name:row.location_name||"",
-          deposit_amount:Number(row.deposit_amount||0),
+          deposit_amount:depositAmount,
+          deposit_processing_fee:depositProcessingFee,
           deposit_payment_method:paymentMethod==="gift-card"?"Gift Card":paymentMethod==="stripe"?"Stripe":paymentMethod==="crypto"?"Crypto":paymentMethod,
           current_employer:row.submitted_employer||"",
           job_title:row.submitted_job_title||"",
@@ -4304,15 +4309,19 @@ My journal will continue to be a place where I share a little more of that side 
         await ensureClientVerificationAuditsTable(env);
         const data=await request.json().catch(()=>({}));
         const token=String(data.token||"").trim();
-        const employer=String(data.current_employer||"").trim().slice(0,160);
-        const jobTitle=String(data.job_title||"").trim().slice(0,160);
-        const industry=String(data.industry||"").trim().slice(0,160);
-        const depositAck=data.deposit_step_acknowledged==="yes";
-        if(!token||!employer||!jobTitle||!industry||!depositAck) return Response.json({ok:false,message:"Complete all screening details and acknowledge the deposit step."},{status:400});
+        if(!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
         const tokenHash=await sha256Hex(token);
         const row=await env.DB.prepare("SELECT date_request_id,expires_at,completed_at FROM booking_continuations WHERE token_hash=? LIMIT 1").bind(tokenHash).first();
         if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
         if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
+        if(row.completed_at) {
+          return Response.json({ok:true,completed:true,request_id:Number(row.date_request_id),message:"This private step is already complete."});
+        }
+        const employer=String(data.current_employer||"").trim().slice(0,160);
+        const jobTitle=String(data.job_title||"").trim().slice(0,160);
+        const industry=String(data.industry||"").trim().slice(0,160);
+        const depositAck=data.deposit_step_acknowledged==="yes";
+        if(!employer||!jobTitle||!industry||!depositAck) return Response.json({ok:false,message:"Complete all screening details and acknowledge the deposit step."},{status:400});
         await env.DB.prepare(`
           UPDATE client_verification_audits
           SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
