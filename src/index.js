@@ -7675,7 +7675,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
 
         const existingRequest = await env.DB
           .prepare(`
-            SELECT id, status, notes, deposit_paid, id_received, final_approval
+            SELECT id, status, notes, deposit_paid, id_received, final_approval, client_id
             FROM date_requests
             WHERE id = ?
           `)
@@ -7712,9 +7712,20 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           );
         }
 
-        if (!existingRequest.id_received && data.id_received !== true) {
+        await ensureClientVerificationAuditsTable(env);
+        const verificationRecord = await env.DB.prepare(`
+          SELECT verification_status, completed_at
+          FROM client_verification_audits
+          WHERE date_request_id = ? AND client_id = ?
+          LIMIT 1
+        `).bind(requestId, existingRequest.client_id).first();
+
+        if (
+          String(verificationRecord?.verification_status || "") !== "verified" ||
+          !verificationRecord?.completed_at
+        ) {
           return Response.json(
-            { ok:false, message:"Screening must be completed before final approval." },
+            { ok:false, message:"Screening must be marked Verified and completed before final approval." },
             { status:400 }
           );
         }
@@ -7742,7 +7753,6 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             UPDATE date_requests
             SET
               status = 'approved',
-              id_received = 1,
               deposit_paid = 1,
               final_approval = 1
             WHERE id = ?
