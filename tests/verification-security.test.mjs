@@ -21,7 +21,7 @@ test("invalid Persona credentials produce a distinct state",()=>{
 });
 
 test("wrong inquiry template is rejected",()=>{
-  assert.match(worker,/PERSONA_INQUIRY_TEMPLATE_ID must begin with itmpl_/);
+  assert.match(worker,/PERSONA_INQUIRY_TEMPLATE_ID must be a Persona Inquiry Template ID beginning with itmpl_/);
   assert.match(worker,/incorrect_inquiry_template/);
   const personaVerifyRoute=worker.slice(worker.indexOf('url.pathname === "/api/admin/clients/persona-verify"'),worker.indexOf('url.pathname === "/api/admin/clients/persona-refresh"'));
   assert.match(personaVerifyRoute,/api\/v1\/inquiries/);
