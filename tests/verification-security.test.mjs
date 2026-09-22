@@ -549,6 +549,19 @@ test("move forward email sends the client to one private screening page",()=>{
   assert.doesNotMatch(route.slice(0,route.indexOf('REQUEST DEPOSIT')),/No deposit is requested at this stage/);
 });
 
+test("private screening email regeneration preserves protected booking information",()=>{
+  assert.match(worker,/Protected regeneration is available for private screening emails/);
+  assert.match(worker,/\[\[GREETING\]\]/);
+  assert.match(worker,/\[\[APPOINTMENT\]\]/);
+  assert.match(worker,/\[\[PRIVATE_LINK\]\]/);
+  assert.match(worker,/\[\[SCREENING_AND_DEPOSIT\]\]/);
+  assert.match(worker,/\[\[SIGNATURE\]\]/);
+  assert.match(worker,/preservesEveryToken/);
+  assert.match(worker,/missing protected booking details and cannot be regenerated safely/);
+  assert.match(portal,/Regenerate Wording/);
+  assert.match(portal,/Protected details were preserved/);
+});
+
 test("older deposit email links to the unlisted details page",()=>{
   assert.match(worker,/const detailsUrl=new URL\("\/the-details\/#token="\+encodeURIComponent\(continuationToken\),request\.url\)\.toString\(\)/);
   assert.match(worker,/Please review The Details before completing the deposit step/);
