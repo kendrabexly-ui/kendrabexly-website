@@ -536,20 +536,21 @@ test("request deposit admin action requires verified screening",()=>{
   assert.match(requestAdmin,/screeningReadyForDeposit/);
 });
 
-test("move forward email requests ID, screening, and deposit selection together",()=>{
+test("move forward email sends the client to one private screening page",()=>{
   const start=worker.indexOf('url.pathname === "/api/admin/request/move-forward"');
   const end=worker.indexOf("// CALCULATE / REPAIR DEPOSIT",start);
   const route=worker.slice(start,end);
   assert.match(route,/SET status = 'screening_pending'/);
   assert.match(route,/combined_step=1/);
-  assert.match(route,/upload your ID, provide the remaining screening details, and choose your deposit method/);
-  assert.match(route,/confirmed the deposit, I’ll send your confirmation email/);
+  assert.match(route,/Your next step is all in one private page/);
+  assert.match(route,/provide the additional details needed to complete screening/);
+  assert.match(route,/confirm your deposit, I’ll send your confirmation email/);
+  assert.doesNotMatch(route,/Please also review The Details before continuing/);
   assert.doesNotMatch(route.slice(0,route.indexOf('REQUEST DEPOSIT')),/No deposit is requested at this stage/);
 });
 
-test("combined and older deposit emails link to the unlisted details page",()=>{
+test("older deposit email links to the unlisted details page",()=>{
   assert.match(worker,/const detailsUrl=new URL\("\/the-details\/#token="\+encodeURIComponent\(continuationToken\),request\.url\)\.toString\(\)/);
-  assert.match(worker,/Please also review The Details before continuing/);
   assert.match(worker,/Please review The Details before completing the deposit step/);
   assert.match(worker,/\$\{detailsUrl\}/);
 });

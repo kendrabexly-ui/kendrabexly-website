@@ -7445,7 +7445,6 @@ if (
             updated_at=CURRENT_TIMESTAMP
         `).bind(requestId,continuationTokenHash,continuationExpiresAt).run();
         const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
-        const detailsUrl=new URL("/the-details/#token="+encodeURIComponent(continuationToken),request.url).toString();
 
         await env.DB
           .prepare(`
@@ -7489,13 +7488,7 @@ Your next step is all in one private page:
 
 ${continuationUrl}
 
-On that page, you can upload your ID, provide the remaining screening details, and choose your deposit method and amount.
-
-Please also review The Details before continuing:
-
-${detailsUrl}
-
-Please do not email your ID. Submitting the page does not automatically confirm that your deposit has been paid or reserve the date. Once I have reviewed your ID and screening and confirmed the deposit, I’ll send your confirmation email.
+There, you can provide the additional details needed to complete screening. Once I finish the review and confirm your deposit, I’ll send your confirmation email.
 
 Kendra`
           ).run();
