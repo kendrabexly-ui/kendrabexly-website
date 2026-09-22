@@ -154,8 +154,7 @@
             >
 
             <small>
-              Please provide a standard mobile number.
-              No app-based or virtual phone numbers.
+              Please use a standard mobile number. Virtual or app-based numbers aren't accepted because your number may be used during private screening.
             </small>
 
           </div>
@@ -315,6 +314,12 @@
 
           </div>
 
+          <div id="early-price-estimate" class="booking-summary full-width" hidden>
+            <div class="eyebrow">ESTIMATED TOTAL</div>
+            <dl id="early-price-details"></dl>
+            <p class="booking-summary-note">No payment is due now. The deposit is requested only after screening has been reviewed and verified.</p>
+          </div>
+
 
           <!-- TIME -->
           <div class="field full-width">
@@ -341,35 +346,20 @@
           </div>
 
 
-          <!-- OUTCALL ADDRESS -->
+          <!-- OUTCALL LOCATION -->
           <fieldset id="outcall-address" class="outcall-address full-width" hidden>
-            <legend>Outcall address</legend>
-            <p>Please provide the complete address for the upscale hotel, luxury residence, or approved private location.</p>
+            <legend>Outcall location</legend>
+            <p>For now, just tell me the hotel, property, or neighborhood and city. The exact address is collected privately during screening if your request moves forward.</p>
 
             <div class="form-grid">
               <div class="field full-width">
-                <label for="outcall-address-line-1">Street address *</label>
-                <input id="outcall-address-line-1" name="outcall_address_line_1" type="text" autocomplete="address-line1" disabled>
-              </div>
-
-              <div class="field full-width">
-                <label for="outcall-address-line-2">Hotel, suite, unit, or room</label>
-                <input id="outcall-address-line-2" name="outcall_address_line_2" type="text" autocomplete="address-line2" disabled>
+                <label for="outcall-address-line-1">Hotel, property, or neighborhood *</label>
+                <input id="outcall-address-line-1" name="outcall_address_line_1" type="text" autocomplete="off" disabled>
               </div>
 
               <div class="field">
                 <label for="outcall-city">City *</label>
                 <input id="outcall-city" name="outcall_city" type="text" autocomplete="address-level2" disabled>
-              </div>
-
-              <div class="field">
-                <label for="outcall-state">State *</label>
-                <input id="outcall-state" name="outcall_state" type="text" autocomplete="address-level1" disabled>
-              </div>
-
-              <div class="field">
-                <label for="outcall-postal-code">ZIP code *</label>
-                <input id="outcall-postal-code" name="outcall_postal_code" type="text" inputmode="numeric" autocomplete="postal-code" disabled>
               </div>
             </div>
           </fieldset>
@@ -379,19 +369,18 @@
           <div class="field full-width">
 
             <label for="request-details">
-              Tell me what you have in mind for our time together. *
+              Anything you'd like me to know about your plans?
             </label>
 
             <textarea
               id="request-details"
               name="request_details"
-              rows="6"
-              required
+              rows="3"
+              placeholder="Optional"
             ></textarea>
 
             <small>
-              Please keep your request respectful and do not use
-              explicit language.
+              Optional. Please keep your message respectful and do not use explicit language.
             </small>
 
           </div>
@@ -407,7 +396,7 @@
         <div class="eyebrow">REVIEW YOUR REQUEST</div>
         <h2 id="booking-summary-title">Your Booking Summary</h2>
         <dl id="booking-summary-details"></dl>
-        <p class="booking-summary-note"><strong>No payment is due when you submit this request.</strong> If your request moves forward, you will receive a private link with screening and deposit instructions. Your date is not reserved until final approval.</p>
+        <p class="booking-summary-note"><strong>No payment is due when you submit this request.</strong> If your request moves forward, you will receive a private screening link first. A deposit is requested only after screening has been reviewed and verified. Your date is not reserved until final approval.</p>
       </section>
 
 
@@ -446,7 +435,7 @@
 
         <!-- NEXT STEP NOTE -->
         <p>
-          <strong>Nothing is charged when you submit this request.</strong> If it moves forward, you’ll receive one private link with screening details, your deposit amount, payment options, and any applicable processing fee.
+          <strong>Nothing is charged when you submit this request.</strong> If it moves forward, you’ll receive a private screening link first. A deposit is requested only after screening has been reviewed and verified.
         </p>
 
 
@@ -534,15 +523,25 @@
       if (selectedOption?.disabled && durationSelect) {
         durationSelect.value = "";
       }
+
+      if (selectedExperience && durationSelect) {
+        const available = durationOptions.filter(option => !option.disabled);
+        if (available.length === 1) {
+          durationSelect.value = available[0].value;
+        }
+      }
     }
 
     dateType?.addEventListener("change", () => {
       syncDurationOptions();
+      trackFunnel("experience_selected");
       loadAvailableTimes();
+      updatePriceEstimate();
       updateBookingSummary();
     });
     durationSelect?.addEventListener("change", () => {
       loadAvailableTimes();
+      updatePriceEstimate();
       updateBookingSummary();
     });
     syncDurationOptions();
@@ -589,6 +588,7 @@
       } catch (error) {
         console.error("Unable to load current rates:", error);
       }
+      updatePriceEstimate();
       updateBookingSummary();
     }
 
@@ -624,6 +624,32 @@
         currency: "USD",
         maximumFractionDigits: 0
       }).format(Number(value) || 0);
+    }
+
+    function updatePriceEstimate() {
+      const panel = document.getElementById("early-price-estimate");
+      const details = document.getElementById("early-price-details");
+      if (!panel || !details) return;
+      const baseRate = selectedRate();
+      if (!dateType?.value || !durationSelect?.value || !baseRate) {
+        panel.hidden = true;
+        details.innerHTML = "";
+        return;
+      }
+      const outcallService = publicRateServices.find(item =>
+        item.add_on || String(item.name || "").toLowerCase() === "outcall"
+      );
+      const configuredOutcallFee = Number(outcallService?.rates?.[0]?.[1]) || 100;
+      const outcallFee = appointmentType?.value === "outcall" ? configuredOutcallFee : 0;
+      const total = baseRate + outcallFee;
+      details.innerHTML = [
+        ["Experience", selectedOptionText(dateType)],
+        ["Duration", selectedOptionText(durationSelect)],
+        ...(outcallFee ? [["Outcall add-on", money(outcallFee)]] : []),
+        ["Estimated total", money(total)],
+        ["Estimated deposit after screening (25%)", money(total * 0.25)]
+      ].map(row => '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>').join("");
+      panel.hidden = false;
     }
 
     function updateBookingSummary() {
@@ -717,6 +743,7 @@
           }).join("");
         requestedTime.disabled = slots.length === 0;
         trackFunnel("availability_checked");
+        if (slots.length) trackFunnel("availability_shown");
         if (status) {
           if (slots.length) {
             status.textContent = slots.length + " available start time" + (slots.length === 1 ? "" : "s") + " found.";
@@ -746,9 +773,7 @@
     const outcallAddress = document.getElementById("outcall-address");
     const outcallRequiredFields = [
       document.getElementById("outcall-address-line-1"),
-      document.getElementById("outcall-city"),
-      document.getElementById("outcall-state"),
-      document.getElementById("outcall-postal-code")
+      document.getElementById("outcall-city")
     ];
     const outcallFields = outcallAddress
       ? Array.from(outcallAddress.querySelectorAll("input"))
@@ -768,6 +793,7 @@
 
     appointmentType?.addEventListener("change", () => {
       syncOutcallAddress();
+      updatePriceEstimate();
       updateBookingSummary();
     });
     syncOutcallAddress();
@@ -783,6 +809,26 @@
         trackFunnel("form_started");
       }
     }, {passive:true});
+
+    const funnelMilestones = new Set();
+    function trackOnce(eventName) {
+      if (funnelMilestones.has(eventName)) return;
+      funnelMilestones.add(eventName);
+      trackFunnel(eventName);
+    }
+    function maybeTrackAboutYou() {
+      const fields = ["first-name","last-name","email","phone"].map(id => document.getElementById(id));
+      if (fields.every(field => field && String(field.value || "").trim() && field.checkValidity())) {
+        trackOnce("about_you_completed");
+      }
+    }
+    ["first-name","last-name","email","phone"].forEach(id => {
+      document.getElementById(id)?.addEventListener("blur", maybeTrackAboutYou);
+    });
+    const requestDetailsField = document.getElementById("request-details");
+    requestDetailsField?.addEventListener("focus", () => trackOnce("details_reached"));
+    const beforeSubmitSection = document.getElementById("screening-acknowledgement");
+    beforeSubmitSection?.addEventListener("focus", () => trackOnce("before_submit_reached"));
 
     const status =
       document.getElementById("form-status");
@@ -833,8 +879,20 @@
       async function (event) {
 
         event.preventDefault();
+        trackFunnel("submit_attempted");
+
+        if (!form.checkValidity()) {
+          const invalid = form.querySelector(":invalid");
+          if (invalid?.id === "phone") trackFunnel("validation_phone");
+          else if (invalid?.closest("#outcall-address")) trackFunnel("validation_outcall");
+          else if (invalid?.id === "requested-time") trackFunnel("validation_availability");
+          else trackFunnel("validation_other");
+          invalid?.reportValidity();
+          return;
+        }
 
         if (!validateMinimumNotice()) {
+          trackFunnel("validation_availability");
           status.textContent = "Please choose a start time at least 2 hours from now.";
           return;
         }
@@ -905,7 +963,7 @@
             '<div class="request-success-summary"><strong>' + (requestedDateText || 'Requested date') + '</strong>' + (timeText ? '<span>' + timeText + '</span>' : '') + '</div>' +
             '<div class="no-payment-callout"><strong>No payment has been charged.</strong><span>Nothing else is required from you right now.</span></div>' +
             '<h3>What happens next</h3>' +
-            '<ol><li>I review your request.</li><li>If I would like to move forward, you will receive one private link for screening details and your deposit step.</li><li>After screening and the deposit are complete, I make the final approval decision.</li></ol>' +
+            '<ol><li>I review your request.</li><li>If I would like to move forward, you will receive a private link to complete screening details.</li><li>Only after screening is reviewed and verified will I request a deposit to secure the date.</li><li>After the deposit is confirmed, I make the final approval decision.</li></ol>' +
             '<p>Please watch <strong>' + emailAddress.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong> for the next step.</p>' +
             '<a class="button" href="/">Return to the website</a>' +
           '</section>';
