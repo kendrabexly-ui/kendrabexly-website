@@ -118,6 +118,30 @@ async function ensureSiteContentTables(env) {
   `).run();
 
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS booking_continuations (
+      date_request_id INTEGER PRIMARY KEY,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      completed_at TEXT,
+      deposit_step_acknowledged INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS booking_funnel_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_name TEXT NOT NULL,
+      session_id TEXT NOT NULL DEFAULT '',
+      request_id INTEGER,
+      path TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_booking_funnel_created ON booking_funnel_events(created_at DESC)").run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_booking_funnel_event ON booking_funnel_events(event_name, created_at DESC)").run();
+
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS calendar_work_hours (
       day_of_week INTEGER PRIMARY KEY CHECK (day_of_week BETWEEN 0 AND 6),
       enabled INTEGER NOT NULL DEFAULT 0,
@@ -136,6 +160,10 @@ async function ensureSiteContentTables(env) {
 
 
 
+async function sha256Hex(value){
+  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(value||"")));
+  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+}
 function timingSafeEqualHex(a,b){
   const x=String(a||"").toLowerCase(),y=String(b||"").toLowerCase();
   if(x.length!==y.length)return false;
@@ -156,8 +184,8 @@ async function verifyPersonaWebhookSignature(rawBody,signatureHeader,secret){
   return signatures.some(sig=>timingSafeEqualHex(sig,expected));
 }
 
-const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that a valid ID is required for screening before final approval.";
-const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-id-v1";
+const SCREENING_ACKNOWLEDGEMENT_WORDING = "I understand that private screening is required before final approval. I will receive instructions only if my request moves forward.";
+const SCREENING_ACKNOWLEDGEMENT_VERSION = "screening-private-v2";
 
 async function ensureClientVerificationAuditsTable(env) {
   await env.DB.prepare(`
@@ -3627,6 +3655,25 @@ My journal will continue to be a place where I share a little more of that side 
       return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
     }
 
+    if (url.pathname === "/api/public/funnel" && request.method === "POST") {
+      try {
+        await ensureSiteContentTables(env);
+        const data=await request.json().catch(()=>({}));
+        const allowed=new Set(["request_page_view","form_started","availability_checked","booking_summary_viewed","form_submitted","continuation_opened","continuation_completed"]);
+        const eventName=String(data.event||"").trim();
+        if(!allowed.has(eventName)) return Response.json({ok:false,message:"Invalid funnel event."},{status:400});
+        const sessionId=String(data.session_id||"").trim().slice(0,160);
+        const requestId=Number(data.request_id||0);
+        const path=String(data.path||"").trim().slice(0,200);
+        await env.DB.prepare("INSERT INTO booking_funnel_events (event_name,session_id,request_id,path) VALUES (?,?,?,?)")
+          .bind(eventName,sessionId,Number.isInteger(requestId)&&requestId>0?requestId:null,path).run();
+        return Response.json({ok:true});
+      } catch(error) {
+        console.error("Booking funnel event error:",error);
+        return Response.json({ok:false},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/public/availability" && request.method === "GET") {
       const date = String(url.searchParams.get("date") || "").trim();
       const duration = siteDurationMinutes(url.searchParams.get("duration") || "1-hour");
@@ -3668,15 +3715,6 @@ My journal will continue to be a place where I share a little more of that side 
 
         const phone =
           String(data.phone || "").trim();
-
-        const preferredContact =
-          String(data.preferred_contact || "").trim();
-
-        const currentEmployer =
-          String(data.current_employer || "").trim().slice(0, 160);
-
-        const jobTitle =
-          String(data.job_title || "").trim().slice(0, 160);
 
         const requestedDate =
           String(data.requested_date || "").trim();
@@ -3805,9 +3843,6 @@ My journal will continue to be a place where I share a little more of that side 
           !lastName ||
           !email ||
           !phone ||
-          !preferredContact ||
-          !currentEmployer ||
-          !jobTitle ||
           !requestedDate ||
           !requestedTime ||
           !dateType ||
@@ -3846,13 +3881,10 @@ My journal will continue to be a place where I share a little more of that side 
         const allowedDateTypes = ["private-introduction", "private-uncovered-introduction", "signature-brief-introduction", "greek-princess-brief-introduction", "signature-girlfriend-experience", "greek-princess-experience"];
         const allowedAppointmentTypes = ["incall", "outcall"];
         const allowedDurations = ["20-minutes", "30-minutes", "1-hour", "1.5-hours", "2-hours", "4-hours"];
-        const allowedContactMethods = ["email", "text"];
-
         if (
           !allowedDateTypes.includes(dateType) ||
           !allowedAppointmentTypes.includes(appointmentType) ||
-          !allowedDurations.includes(duration) ||
-          !allowedContactMethods.includes(preferredContact)
+          !allowedDurations.includes(duration)
         ) {
           return Response.json(
             { ok: false, message: "Please choose valid booking options." },
@@ -3968,7 +4000,6 @@ My journal will continue to be a place where I share a little more of that side 
             "Submitted name: " + firstName + " " + lastName,
             "Submitted email: " + email,
             "Submitted phone: " + phone,
-            "Preferred contact after confirmation: " + preferredContact,
             "Requested date: " + requestedDate,
             "Requested time: " + requestedTime,
             dateType ? "Date type: " + dateType : null,
@@ -4086,18 +4117,6 @@ My journal will continue to be a place where I share a little more of that side 
             ? `Appointment type: ${appointmentType}`
             : null,
 
-          preferredContact
-            ? `Preferred contact after confirmation: ${preferredContact}`
-            : null,
-
-          currentEmployer
-            ? `Current employer: ${currentEmployer}`
-            : null,
-
-          jobTitle
-            ? `Job title: ${jobTitle}`
-            : null,
-
           appointmentType === "outcall" && outcallAddress
             ? `Outcall address: ${outcallAddress}`
             : null,
@@ -4199,8 +4218,8 @@ My journal will continue to be a place where I share a little more of that side 
           screeningAcknowledgement ? 1 : 0,
           SCREENING_ACKNOWLEDGEMENT_WORDING,
           SCREENING_ACKNOWLEDGEMENT_VERSION,
-          currentEmployer,
-          jobTitle,
+          "",
+          "",
           ""
         ).run();
 
@@ -4211,8 +4230,10 @@ My journal will continue to be a place where I share a little more of that side 
 
         return Response.json({
           ok: true,
-          message:
-            "Thank you. Your private request has been received for review."
+          request_id: Number(requestId),
+          first_name: firstName,
+          email,
+          message: "Thank you. Your private request has been received for review."
         });
 
       } catch (error) {
@@ -4232,6 +4253,81 @@ My journal will continue to be a place where I share a little more of that side 
       }
     }
 
+
+    // =========================================================
+    // PRIVATE BOOKING CONTINUATION
+    // =========================================================
+    if (url.pathname === "/api/booking/continuation" && request.method === "GET") {
+      try {
+        await ensureSiteContentTables(env);
+        await ensureClientVerificationAuditsTable(env);
+        const token=String(url.searchParams.get("token")||"").trim();
+        if(!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
+        const tokenHash=await sha256Hex(token);
+        const row=await env.DB.prepare(`
+          SELECT bc.date_request_id,bc.expires_at,bc.completed_at,
+                 dr.requested_date,dr.requested_time,dr.location_name,dr.deposit_amount,dr.notes,
+                 c.first_name,c.last_name,
+                 va.submitted_employer,va.submitted_job_title,va.submitted_industry
+          FROM booking_continuations bc
+          JOIN date_requests dr ON dr.id=bc.date_request_id
+          JOIN clients c ON c.id=dr.client_id
+          LEFT JOIN client_verification_audits va ON va.date_request_id=dr.id
+          WHERE bc.token_hash=? LIMIT 1
+        `).bind(tokenHash).first();
+        if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
+        if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired. Please contact Kendra for a new link."},{status:410});
+        const paymentMethod=String(row.notes||"").match(/Deposit payment method:\\s*([^\\n]+)/i)?.[1]?.trim()||"As arranged";
+        return Response.json({
+          ok:true,
+          client_name:[row.first_name,row.last_name].filter(Boolean).join(" "),
+          requested_date:row.requested_date||"",
+          requested_time:row.requested_time||"",
+          location_name:row.location_name||"",
+          deposit_amount:Number(row.deposit_amount||0),
+          deposit_payment_method:paymentMethod==="gift-card"?"Gift Card":paymentMethod==="stripe"?"Stripe":paymentMethod==="crypto"?"Crypto":paymentMethod,
+          current_employer:row.submitted_employer||"",
+          job_title:row.submitted_job_title||"",
+          industry:row.submitted_industry||"",
+          completed:Boolean(row.completed_at)
+        });
+      } catch(error) {
+        console.error("Booking continuation load error:",error);
+        return Response.json({ok:false,message:"Unable to load this private request."},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/booking/continuation" && request.method === "POST") {
+      try {
+        await ensureSiteContentTables(env);
+        await ensureClientVerificationAuditsTable(env);
+        const data=await request.json().catch(()=>({}));
+        const token=String(data.token||"").trim();
+        const employer=String(data.current_employer||"").trim().slice(0,160);
+        const jobTitle=String(data.job_title||"").trim().slice(0,160);
+        const industry=String(data.industry||"").trim().slice(0,160);
+        const depositAck=data.deposit_step_acknowledged==="yes";
+        if(!token||!employer||!jobTitle||!industry||!depositAck) return Response.json({ok:false,message:"Complete all screening details and acknowledge the deposit step."},{status:400});
+        const tokenHash=await sha256Hex(token);
+        const row=await env.DB.prepare("SELECT date_request_id,expires_at,completed_at FROM booking_continuations WHERE token_hash=? LIMIT 1").bind(tokenHash).first();
+        if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
+        if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
+        await env.DB.prepare(`
+          UPDATE client_verification_audits
+          SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
+          WHERE date_request_id=?
+        `).bind(employer,jobTitle,industry,row.date_request_id).run();
+        await env.DB.prepare(`
+          UPDATE booking_continuations
+          SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP
+          WHERE date_request_id=?
+        `).bind(row.date_request_id).run();
+        return Response.json({ok:true,message:"Screening details received for final review."});
+      } catch(error) {
+        console.error("Booking continuation submit error:",error);
+        return Response.json({ok:false,message:"Unable to save your screening details."},{status:500});
+      }
+    }
 
     // Reject unsupported methods to request API
 
@@ -4260,6 +4356,7 @@ My journal will continue to be a place where I share a little more of that side 
       request.method === "GET"
     ) {
       try {
+        await ensureSiteContentTables(env);
         const [
           pendingRequests,
           clients,
@@ -4321,8 +4418,27 @@ My journal will continue to be a place where I share a little more of that side 
         ]);
 
 
+        const funnelRows=await env.DB.prepare(`
+          SELECT event_name, COUNT(*) AS count
+          FROM booking_funnel_events
+          WHERE datetime(created_at) >= datetime('now','-30 days')
+          GROUP BY event_name
+        `).all();
+        const funnel=Object.fromEntries((funnelRows.results||[]).map(row=>[row.event_name,Number(row.count||0)]));
+
         return Response.json({
           ok: true,
+
+          funnel: {
+            period_days: 30,
+            request_page_view: funnel.request_page_view || 0,
+            form_started: funnel.form_started || 0,
+            availability_checked: funnel.availability_checked || 0,
+            booking_summary_viewed: funnel.booking_summary_viewed || 0,
+            form_submitted: funnel.form_submitted || 0,
+            continuation_opened: funnel.continuation_opened || 0,
+            continuation_completed: funnel.continuation_completed || 0
+          },
 
           counts: {
             pending_requests:
@@ -7073,6 +7189,22 @@ if (
         const depositProcessingFee = Math.round(baseDepositAmount * depositProcessingRate * 100) / 100;
         const depositAmount = Math.round((baseDepositAmount + depositProcessingFee) * 100) / 100;
 
+        await ensureSiteContentTables(env);
+        const continuationToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
+        const continuationTokenHash=await sha256Hex(continuationToken);
+        const continuationExpiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
+        await env.DB.prepare(`
+          INSERT INTO booking_continuations (date_request_id,token_hash,expires_at,completed_at,deposit_step_acknowledged,updated_at)
+          VALUES (?,?,?,NULL,0,CURRENT_TIMESTAMP)
+          ON CONFLICT(date_request_id) DO UPDATE SET
+            token_hash=excluded.token_hash,
+            expires_at=excluded.expires_at,
+            completed_at=NULL,
+            deposit_step_acknowledged=0,
+            updated_at=CURRENT_TIMESTAMP
+        `).bind(requestId,continuationTokenHash,continuationExpiresAt).run();
+        const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
+
         await env.DB
           .prepare(`
             UPDATE date_requests
@@ -7111,22 +7243,20 @@ I'd love to move forward with your request.
 Date: ${existingRequest.requested_date}
 Time: ${existingRequest.requested_time}
 
-To complete final approval, please reply directly to this email with your ID attached and complete your ${depositDisplay} deposit.
+Your next step is all in one private page:
 
-In your reply, please also tell me the industry you currently work in.
+${continuationUrl}
+
+There you can provide your employment and industry details, review your ${depositDisplay} deposit amount, and confirm the deposit step.
 
 You selected: ${depositPaymentMethod === "gift-card" ? "Gift Card" : depositPaymentMethod === "stripe" ? "Stripe" : "Crypto"}.
 ${depositProcessingFee > 0 ? `Your deposit request includes the 10% payment processing fee (${new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(depositProcessingFee)}).` : "No processing fee is added for Gift Card deposits."}
 
-${depositPaymentMethod === "crypto"
-  ? "Crypto payment instructions: Please use the crypto payment information provided with this email and reply with your ID attached."
-  : depositPaymentMethod === "stripe"
-    ? "Stripe payment instructions: Please use the Stripe payment request provided with this email and reply with your ID attached."
-    : "Gift Card payment instructions: Please follow the gift card payment instructions provided with this email and reply with your ID attached."}
+You are not required to upload or email an ID through this page. Any additional screening needed for final approval will be handled privately.
 
-Please complete both the deposit and ID screening no later than 4 hours before our scheduled date and time.
+Please complete the screening details and deposit step no later than 4 hours before our scheduled date and time.
 
-Once I have both your ID and deposit, I'll personally review everything and confirm our date.
+Once everything is complete, I'll personally review the request and send final confirmation if approved.
 
 Kendra`
           ).run();
@@ -7568,7 +7698,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
 
         if (!existingRequest.id_received && data.id_received !== true) {
           return Response.json(
-            { ok:false, message:"ID screening must be completed before final approval." },
+            { ok:false, message:"Screening must be completed before final approval." },
             { status:400 }
           );
         }
