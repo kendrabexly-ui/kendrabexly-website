@@ -4129,7 +4129,9 @@ async function loadRequests(options = {}) {
         const wrap=section.querySelector(".client-credential-registry-links"),note=section.querySelector(".client-credential-registry-note");
         if(!wrap)return;wrap.innerHTML="";
         links.forEach(item=>{
-          const a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.label;
+          const a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";
+          const sourceRank=item.kind==="license"||item.kind==="verification"?"Primary official verification":item.kind==="state"?"State registry":item.kind==="supporting"?"Supporting lookup":"Directory";
+          a.textContent=sourceRank+" · "+item.label;
           a.style.cssText="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);text-decoration:none;font-size:11px;font-weight:700;";
           a.addEventListener("click",()=>{
             if(["directory","supporting"].includes(item.kind))return;
@@ -4172,7 +4174,11 @@ async function loadRequests(options = {}) {
             ?"Last checked: "+formatVerificationTimestamp(record.checked_at)+(record.checked_by?" · "+record.checked_by:"")+(source?" · Source: "+source:"")+" · Result: "+pretty
             :"Last checked: Not checked";
         }
+        const reopen=section.querySelector(".client-credential-reopen");
+        if(reopen){reopen.hidden=!record.source_url;if(record.source_url)reopen.href=record.source_url;}
+        section.dataset.credentialStatus=raw;
         renderCredentialRegistries(section);
+        updateVerificationFlowSummary(section);
       };
       const loadCredentialVerification=async(section)=>{
         try{const response=await fetch("/api/admin/clients/credential-verification?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});const result=await response.json();if(response.ok&&result.ok)applyCredentialVerification(section,result.credential);}catch(_error){}
@@ -4350,7 +4356,11 @@ async function loadRequests(options = {}) {
         if(checked)checked.textContent=record.checked_at
           ?"Last checked: "+formatVerificationTimestamp(record.checked_at)+(record.checked_by?" · "+record.checked_by:"")+(record.source_name?" · Source: "+record.source_name:"")
           :"Last checked: Not checked";
+        const reopen=section.querySelector(".client-address-reopen");
+        if(reopen){reopen.hidden=!record.source_url;if(record.source_url)reopen.href=record.source_url;}
+        section.dataset.addressStatus=raw;
         renderAddressLookupLinks(section);
+        updateVerificationFlowSummary(section);
       };
       const loadAddressVerification=async(section)=>{
         try{
@@ -4462,7 +4472,11 @@ async function loadRequests(options = {}) {
         if(checked)checked.textContent=record.checked_at
           ?"Last checked: "+formatVerificationTimestamp(record.checked_at)+(record.checked_by?" · "+record.checked_by:"")+(record.source_name?" · Source: "+record.source_name:"")
           :"Last checked: Not checked";
+        const reopen=section.querySelector(".client-public-record-reopen");
+        if(reopen){reopen.hidden=!record.source_url;if(record.source_url)reopen.href=record.source_url;}
+        section.dataset.publicRecordStatus=raw;
         renderPublicRecordLookups(section);
+        updateVerificationFlowSummary(section);
       };
       const loadPublicRecordCheck=async(section)=>{
         try{
@@ -4497,6 +4511,161 @@ async function loadRequests(options = {}) {
         }catch(error){
           if(status){status.textContent=error.message||"Unable to save public record check.";status.style.color="#8a2424";}
         }finally{if(button)button.disabled=false;}
+      };
+
+      const verificationPretty=(value)=>{
+        const labels={
+          not_checked:"Not checked",pending:"In progress",confirmed:"Confirmed",partial_match:"Partial match",
+          potential_match:"Potential match",confirmed_match:"Confirmed match",mismatch:"Mismatch",
+          unable_to_confirm:"Unable to verify",unable_to_verify:"Unable to verify",not_found:"No record located",
+          no_public_record_found:"No public record located in searched source",skipped:"Skipped",
+          needs_review:"Needs review",verified:"Verified",pending_review:"Pending Review",
+          needs_more_information:"Needs More Information",declined:"Declined",passed:"Passed",
+          errored:"Error",failed:"Failed"
+        };
+        return labels[String(value||"").toLowerCase()]||String(value||"").replaceAll("_"," ").replace(/^./,c=>c.toUpperCase())||"Not checked";
+      };
+      const setOptionalSectionState=async(section,key,state,{clearData=false}={})=>{
+        const response=await fetch("/api/admin/clients/verification-section-state",{
+          method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},
+          body:JSON.stringify({client_id:Number(section.dataset.clientId),section_key:key,section_state:state,clear_data:clearData})
+        });
+        const result=await response.json();
+        if(!response.ok||!result.ok)throw new Error(result.message||"Unable to update section status.");
+        section._verificationSectionStates=section._verificationSectionStates||{};
+        section._verificationSectionStates[key]=state;
+        applyVerificationSectionStates(section);
+        await loadVerificationActivity(section);
+        return result;
+      };
+      const applyVerificationSectionStates=(section)=>{
+        const states=section._verificationSectionStates||{};
+        const map={
+          credential:[".client-credential-badge","Credential"],
+          address:[".client-address-verification-badge","Address"],
+          public_records:[".client-public-record-badge","Public records"]
+        };
+        Object.entries(map).forEach(([key,[sel,label]])=>{
+          if(states[key]!=="skipped")return;
+          const badge=section.querySelector(sel);
+          if(badge){badge.textContent=label+": Skipped";badge.style.background="#f1f1f1";badge.style.color="#666";}
+        });
+        updateVerificationFlowSummary(section);
+      };
+      const loadVerificationSectionStates=async(section)=>{
+        try{
+          const response=await fetch("/api/admin/clients/verification-section-state?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(response.ok&&result.ok){
+            section._verificationSectionStates={};
+            (result.states||[]).forEach(item=>section._verificationSectionStates[item.section_key]=item.section_state);
+            applyVerificationSectionStates(section);
+          }
+        }catch(_error){}
+      };
+      const loadVerificationCheckHistory=async(section)=>{
+        const box=section.querySelector(".client-verification-check-history");if(!box)return;
+        try{
+          const response=await fetch("/api/admin/clients/verification-check-history?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load check history.");
+          const labels={credential:"License / Credential",address:"Address",public_records:"Public Records",employment:"Employment"};
+          box.innerHTML=(result.history||[]).length?(result.history||[]).map(item=>`
+            <div class="verification-check-history-item">
+              <strong>${escapeHtml(labels[item.category]||verificationPretty(item.category))} · ${escapeHtml(verificationPretty(item.result_status))}</strong>
+              <div style="margin-top:2px;color:var(--muted);">${escapeHtml(formatVerificationTimestamp(item.checked_at)||"—")}${item.checked_by?" · "+escapeHtml(item.checked_by):""}</div>
+              ${item.source_name?'<div style="margin-top:2px;">Source: '+escapeHtml(item.source_name)+'</div>':""}
+              ${item.reference?'<div style="margin-top:2px;">Reference: '+escapeHtml(item.reference)+'</div>':""}
+              ${item.summary?'<div style="margin-top:2px;">'+escapeHtml(item.summary)+'</div>':""}
+              ${item.source_url?'<a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(item.source_url)+'">Open source</a>':""}
+            </div>`).join(""):'<div class="empty">No saved check history yet.</div>';
+        }catch(error){box.textContent=error.message||"Unable to load check history.";}
+      };
+      const saveEmploymentVerification=async(section)=>{
+        const button=section.querySelector(".client-employment-save"),status=section.querySelector(".client-employment-save-status");
+        if(button)button.disabled=true;if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
+        try{
+          const payload={
+            client_id:Number(section.dataset.clientId),
+            submitted_employer:section.querySelector(".client-verification-employer")?.value||"",
+            submitted_job_title:section.querySelector(".client-verification-job-title")?.value||"",
+            submitted_industry:section.querySelector(".client-verification-industry")?.value||"",
+            employment_verification_status:section.querySelector(".client-employment-status")?.value||"not_checked",
+            employment_verification_method:section.querySelector(".client-employment-method")?.value||"",
+            employment_work_email:section.querySelector(".client-employment-work-email")?.value||"",
+            employment_employer_website:section.querySelector(".client-employment-website")?.value||"",
+            employment_evidence_reference:section.querySelector(".client-employment-evidence")?.value||""
+          };
+          const response=await fetch("/api/admin/clients/employment-verification",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save employment verification.");
+          section.dataset.employmentStatus=result.employment?.employment_verification_status||payload.employment_verification_status;
+          if(result.employment?.employer_confirmed){
+            const employerCheck=section.querySelector(".client-check-employer");if(employerCheck)employerCheck.checked=true;
+            const titleCheck=section.querySelector(".client-check-job-title");if(titleCheck)titleCheck.checked=true;
+            const industryCheck=section.querySelector(".client-check-industry");if(industryCheck)industryCheck.checked=true;
+          }
+          if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
+          const card=section.querySelector(".client-verification-editor");if(card)card.dataset.dirty="0";
+          await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section),loadVerificationAudits(section)]);
+          updateVerificationFlowSummary(section);
+          return true;
+        }catch(error){
+          if(status){status.textContent=error.message||"Unable to save employment verification.";status.style.color="#8a2424";}
+          return false;
+        }finally{if(button)button.disabled=false;}
+      };
+      const updateVerificationFlowSummary=(section)=>{
+        const latest=section._verificationAuditRecords?.[0]||{};
+        const states=section._verificationSectionStates||{};
+        const identity=section.dataset.hasDocument==="1"?(latest.identity_confirmed?"Confirmed":"ID on file"):"Not checked";
+        const employment=section.dataset.employmentStatus||latest.employment_verification_status||section.querySelector(".client-employment-status")?.value||"not_checked";
+        const credential=states.credential==="skipped"?"skipped":section.dataset.credentialStatus||section.querySelector(".client-credential-status")?.value||"not_checked";
+        const address=states.address==="skipped"?"skipped":section.dataset.addressStatus||section.querySelector(".client-address-check-result")?.value||"not_checked";
+        const publicRecords=states.public_records==="skipped"?"skipped":section.dataset.publicRecordStatus||section.querySelector(".client-public-record-status")?.value||"not_checked";
+        const persona=latest.persona_database_status||latest.persona_transaction_status||"not_checked";
+        const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
+        const phone=section.dataset.phoneLineCheckedNumber?(section.dataset.phoneLineAllowed==="1"?"Confirmed":section.dataset.phoneLineVoip==="1"?"Needs review":"Unable to verify"):"Not checked";
+        const decision=section.querySelector(".client-verification-status")?.value||latest.verification_status||"pending_review";
+        const values={identity,employment,credential,address,public_records:publicRecords,persona,age:age===null?"Not checked":"Age "+age,phone,decision};
+        Object.entries(values).forEach(([key,value])=>{const el=section.querySelector('[data-summary-status="'+key+'"]');if(el)el.textContent=verificationPretty(value);});
+        const overall=section.querySelector(".client-verification-overall");if(overall)overall.textContent=verificationPretty(decision);
+        const finalBadge=section.querySelector(".client-final-review-badge");if(finalBadge)finalBadge.textContent=verificationPretty(decision);
+        const warnings=[];
+        if(section.dataset.hasDocument!=="1")warnings.push("ID document has not been uploaded.");
+        if(String(employment)!=="confirmed")warnings.push("Employment is not confirmed.");
+        if(String(publicRecords)==="potential_match")warnings.push("Public-record search contains a potential identity match.");
+        if(String(publicRecords)==="confirmed_match")warnings.push("A confirmed public-record match is recorded.");
+        if(String(address)==="mismatch")warnings.push("Address verification shows a mismatch.");
+        if(["expired","inactive","suspended","revoked","mismatch","unable_to_verify"].includes(String(credential)))warnings.push("Credential check needs review.");
+        if(["errored","failed"].includes(String(persona).toLowerCase()))warnings.push("Persona/database verification returned an error.");
+        const warningBox=section.querySelector(".client-final-review-warnings");
+        if(warningBox)warningBox.innerHTML=warnings.length?warnings.map(x=>'<div class="verification-warning">'+escapeHtml(x)+'</div>').join(""):'<div style="font-size:12px;color:#2f6b45;">No unresolved warnings from completed checks. Optional skipped checks do not block completion.</div>';
+        const reviewSummary=section.querySelector(".client-final-review-summary");
+        if(reviewSummary)reviewSummary.textContent="Final decision remains manual. Automated and optional checks provide evidence only and never approve or decline the client automatically.";
+      };
+      const clearPublicRecordSearchForm=(section)=>{
+        [".client-public-record-state",".client-public-record-county",".client-public-record-source-name",".client-public-record-source-url",".client-public-record-case-reference",".client-public-record-disposition",".client-public-record-evidence"].forEach(sel=>{const el=section.querySelector(sel);if(el)el.value="";});
+        const status=section.querySelector(".client-public-record-status");if(status)status.value="not_checked";
+        const scope=section.querySelector(".client-public-record-scope");if(scope)scope.value="state_local";
+        renderPublicRecordLookups(section);
+      };
+      const saveAllVerificationProgress=async(section)=>{
+        const status=section.querySelector(".client-verification-save-all-status");
+        if(status){status.textContent="Saving all changed verification sections…";status.style.color="var(--muted)";}
+        const jobs=[saveVerificationDraft(section,{retry:true}),saveEmploymentVerification(section)];
+        if((section._verificationSectionStates||{}).credential!=="skipped")jobs.push(saveCredentialVerification(section));
+        if((section._verificationSectionStates||{}).address!=="skipped")jobs.push(saveAddressVerification(section));
+        if((section._verificationSectionStates||{}).public_records!=="skipped")jobs.push(savePublicRecordCheck(section));
+        try{
+          await Promise.all(jobs);
+          section.querySelectorAll(".verification-card[data-dirty='1']").forEach(card=>card.dataset.dirty="0");
+          if(status){status.textContent="All progress saved just now. Final decision unchanged.";status.style.color="#2f6b45";}
+          await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
+          updateVerificationFlowSummary(section);
+        }catch(error){
+          if(status){status.textContent=error.message||"Some verification sections could not be saved.";status.style.color="#8a2424";}
+        }
       };
 
       const applyPhoneLineCheck=(section,check)=>{
