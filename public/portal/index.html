@@ -3146,7 +3146,7 @@ async function loadRequests(options = {}) {
                       <label data-persona-field="address_postal_code" style="font-size:12px;font-weight:700;">Postal code<input class="client-persona-postal" value="${escapeHtml(personaDraft.address_postal_code || latest?.address_postal_code || latest?.postal_code || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label data-persona-field="address_country_code" style="font-size:12px;font-weight:700;">Country code<input class="client-persona-country" value="${escapeHtml(personaDraft.address_country_code || "US")}" maxlength="2" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;text-transform:uppercase;"></label>
                       <label data-persona-field="email_address" style="font-size:12px;font-weight:700;">Email<input class="client-persona-email" type="email" value="${escapeHtml(personaDraft.email_address || client.email || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-phone-line-check" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Check Phone Type</button><span class="client-phone-line-status verification-field-note">Not checked</span></span></label>
+                      <label data-persona-field="phone_number" style="font-size:12px;font-weight:700;">Phone<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-phone-line-check" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Check Phone Type</button><button type="button" class="client-phone-reverse-lookup" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Reverse Phone Name</button><span class="client-phone-line-status verification-field-note">Not checked</span></span><span class="client-phone-reverse-status verification-field-note" style="margin-top:5px;">Reverse lookup: Not checked · U.S. caller-name lookup may incur a Twilio Lookup charge.</span></label>
                     </div>
                     <div class="client-persona-dob-handoff" style="margin-top:9px;padding:9px 10px;border-radius:8px;background:#f7f2e9;font-size:12px;color:var(--muted);"></div>
                     <div class="client-persona-readiness" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
@@ -4815,6 +4815,20 @@ async function loadRequests(options = {}) {
           status.textContent=isVoip?"VoIP detected · "+pretty:allowed?"Non-VoIP · "+pretty:"Inconclusive · "+pretty;
           status.style.color=isVoip?"#8a2424":allowed?"#2f6b45":"#74520b";
         }
+        const reverseStatus=section.querySelector(".client-phone-reverse-status");
+        if(reverseStatus){
+          const callerName=String(check.caller_name||"").trim();
+          const callerType=String(check.caller_type||"").trim();
+          if(check.caller_name_checked_at){
+            reverseStatus.textContent=callerName
+              ?"Reverse lookup: "+callerName+(callerType?" · "+callerType:"")+" · "+formatVerificationTimestamp(check.caller_name_checked_at)
+              :"Reverse lookup: No caller name returned · "+formatVerificationTimestamp(check.caller_name_checked_at);
+            reverseStatus.style.color=callerName?"#2f6b45":"#74520b";
+          }else{
+            reverseStatus.textContent="Reverse lookup: Not checked · U.S. caller-name lookup may incur a Twilio Lookup charge.";
+            reverseStatus.style.color="var(--muted)";
+          }
+        }
         validatePersonaFields(section,{show:false});
         updateVerificationFlowSummary(section);
       };
@@ -4848,6 +4862,34 @@ async function loadRequests(options = {}) {
           validatePersonaFields(section,{show:false});
         }finally{
           if(button){button.disabled=false;button.textContent="Check Phone Type";}
+        }
+      };
+
+      const runReversePhoneLookup=async(section)=>{
+        const button=section.querySelector(".client-phone-reverse-lookup");
+        const status=section.querySelector(".client-phone-reverse-status");
+        const phone=section.querySelector(".client-persona-phone")?.value||"";
+        if(!window.confirm("Run a reverse caller-name lookup for this phone number? Twilio Caller Name is a paid Lookup data package and may return no name."))return;
+        if(button){button.disabled=true;button.textContent="Searching…";}
+        if(status){status.textContent="Reverse lookup: Searching caller-name records…";status.style.color="var(--muted)";}
+        try{
+          const response=await fetch("/api/admin/clients/phone-reverse-lookup",{
+            method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},
+            body:JSON.stringify({client_id:Number(section.dataset.clientId),phone_number:phone})
+          });
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to complete reverse phone lookup.");
+          if(status){
+            status.textContent=result.name_found
+              ?"Reverse lookup: "+result.caller_name+(result.caller_type?" · "+result.caller_type:"")+" · "+formatVerificationTimestamp(result.checked_at)
+              :"Reverse lookup: No caller name returned · "+formatVerificationTimestamp(result.checked_at);
+            status.style.color=result.name_found?"#2f6b45":"#74520b";
+          }
+          await Promise.all([loadPhoneLineCheck(section),loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
+        }catch(error){
+          if(status){status.textContent=error.message||"Unable to complete reverse phone lookup.";status.style.color="#8a2424";}
+        }finally{
+          if(button){button.disabled=false;button.textContent="Reverse Phone Name";}
         }
       };
 
@@ -5183,6 +5225,8 @@ async function loadRequests(options = {}) {
                 section.dataset.phoneLineType="";
                 const phoneStatus=section.querySelector(".client-phone-line-status");
                 if(phoneStatus){phoneStatus.textContent="Phone changed · check again";phoneStatus.style.color="#74520b";}
+                const reverseStatus=section.querySelector(".client-phone-reverse-status");
+                if(reverseStatus){reverseStatus.textContent="Reverse lookup: Phone changed · search again";reverseStatus.style.color="#74520b";}
               }
               try{input.setSelectionRange(input.value.length,input.value.length);}catch{}
             }
@@ -5212,6 +5256,11 @@ async function loadRequests(options = {}) {
           event.preventDefault();
           event.stopPropagation();
           await runPhoneLineCheck(section);
+        });
+        section.querySelector(".client-phone-reverse-lookup")?.addEventListener("click",async(event)=>{
+          event.preventDefault();
+          event.stopPropagation();
+          await runReversePhoneLookup(section);
         });
         section.addEventListener("toggle",()=>{
           if(section.open){
