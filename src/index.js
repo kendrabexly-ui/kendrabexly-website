@@ -14,6 +14,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-overview", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/credential-verification", "edit_verification"],
+  ["/api/admin/clients/public-record-check", "edit_verification"],
   ["/api/admin/clients/verification-audit", "final_decision"],
   ["/api/admin/clients/persona-status", "run_persona"],
   ["/api/admin/clients/persona-test", "run_persona"],
@@ -355,6 +356,22 @@ async function ensureVerificationWorkspaceTables(env) {
     )
   `).run();
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS client_public_record_checks (
+      client_id INTEGER PRIMARY KEY,
+      jurisdiction_state TEXT NOT NULL DEFAULT '',
+      search_scope TEXT NOT NULL DEFAULT 'state_local',
+      record_status TEXT NOT NULL DEFAULT 'not_checked',
+      source_name TEXT NOT NULL DEFAULT '',
+      source_url TEXT NOT NULL DEFAULT '',
+      case_reference TEXT NOT NULL DEFAULT '',
+      disposition_summary TEXT NOT NULL DEFAULT '',
+      evidence_reference TEXT NOT NULL DEFAULT '',
+      checked_at TEXT,
+      checked_by TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS client_verification_activity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER NOT NULL,
@@ -441,6 +458,7 @@ async function clearSensitiveVerificationData(env, clientId) {
   await ensureVerificationWorkspaceTables(env);
   await env.DB.prepare("DELETE FROM client_verification_sensitive_fields WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("DELETE FROM client_credential_verifications WHERE client_id=?").bind(clientId).run();
+  await env.DB.prepare("DELETE FROM client_public_record_checks WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare("UPDATE client_verification_drafts SET birthdate='', persona_fields_json='{}', updated_at=CURRENT_TIMESTAMP WHERE client_id=?").bind(clientId).run();
   await env.DB.prepare(`
     UPDATE client_verification_audits
@@ -5354,6 +5372,93 @@ if (
       } catch(error) {
         console.error("Credential verification save error:",error);
         return Response.json({ok:false,message:"Unable to save license and credential verification.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/public-record-check" && request.method === "GET") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const clientId=Number(url.searchParams.get("client_id")||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const row=await env.DB.prepare(`
+          SELECT client_id,jurisdiction_state,search_scope,record_status,source_name,source_url,
+                 case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
+          FROM client_public_record_checks WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ok:true,check:row?{
+          client_id:Number(row.client_id),jurisdiction_state:row.jurisdiction_state||"",
+          search_scope:row.search_scope||"state_local",record_status:row.record_status||"not_checked",
+          source_name:row.source_name||"",source_url:row.source_url||"",case_reference:row.case_reference||"",
+          disposition_summary:row.disposition_summary||"",evidence_reference:row.evidence_reference||"",
+          checked_at:row.checked_at||"",checked_by:row.checked_by||"",updated_at:row.updated_at||""
+        }:null},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        return Response.json({ok:false,message:"Unable to load public court record check.",technical_details:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/admin/clients/public-record-check" && request.method === "POST") {
+      try {
+        await ensureVerificationWorkspaceTables(env);
+        const data=await request.json().catch(()=>({}));
+        const clientId=Number(data.client_id||0);
+        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        const jurisdictionState=normalizeVerificationState(data.jurisdiction_state||"").slice(0,40);
+        const searchScope=String(data.search_scope||"state_local").trim().toLowerCase();
+        if(!["state_local","federal","sex_offender_registry","multiple_sources"].includes(searchScope)){
+          return Response.json({ok:false,message:"Choose a valid public-record search scope."},{status:400});
+        }
+        const recordStatus=String(data.record_status||"not_checked").trim().toLowerCase();
+        if(!["not_checked","no_public_record_found","potential_match","confirmed_match","unable_to_verify"].includes(recordStatus)){
+          return Response.json({ok:false,message:"Choose a valid public-record result."},{status:400});
+        }
+        const sourceName=String(data.source_name||"").trim().slice(0,200);
+        const sourceUrl=String(data.source_url||"").trim().slice(0,800);
+        const caseReference=String(data.case_reference||"").trim().slice(0,240);
+        const dispositionSummary=String(data.disposition_summary||"").trim().slice(0,600);
+        const evidenceReference=String(data.evidence_reference||"").trim().slice(0,1200);
+        if(recordStatus!=="not_checked" && !(sourceName&&sourceUrl)){
+          return Response.json({ok:false,message:"Record the official court, registry, or agency source used for this check."},{status:400});
+        }
+        if(recordStatus==="potential_match" && !evidenceReference){
+          return Response.json({ok:false,message:"Add an evidence/reference note explaining why this is only a potential match."},{status:400});
+        }
+        if(recordStatus==="confirmed_match" && !(caseReference&&evidenceReference)){
+          return Response.json({ok:false,message:"A confirmed match requires a case/reference number and identity corroboration in the evidence/reference field."},{status:400});
+        }
+        const actor=accessIdentity(request).email||"authorized-admin";
+        await env.DB.prepare(`
+          INSERT INTO client_public_record_checks
+            (client_id,jurisdiction_state,search_scope,record_status,source_name,source_url,case_reference,
+             disposition_summary,evidence_reference,checked_at,checked_by,updated_at)
+          VALUES(?,?,?,?,?,?,?,?,?,CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(client_id) DO UPDATE SET
+            jurisdiction_state=excluded.jurisdiction_state,search_scope=excluded.search_scope,
+            record_status=excluded.record_status,source_name=excluded.source_name,source_url=excluded.source_url,
+            case_reference=excluded.case_reference,disposition_summary=excluded.disposition_summary,
+            evidence_reference=excluded.evidence_reference,
+            checked_at=CASE WHEN excluded.record_status='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,
+            checked_by=excluded.checked_by,updated_at=CURRENT_TIMESTAMP
+        `).bind(clientId,jurisdictionState,searchScope,recordStatus,sourceName,sourceUrl,caseReference,
+                 dispositionSummary,evidenceReference,recordStatus,actor).run();
+        const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
+        if(recordStatus!=="not_checked"){
+          await logVerificationActivity(env,clientId,audit?.id||null,"public_record_check_updated",
+            recordStatus==="confirmed_match"?"Public court record match recorded":"Public court record check saved",
+            "Checked by: "+actor+" · Scope: "+searchScope+" · Result: "+recordStatus+
+            (jurisdictionState?" · State: "+jurisdictionState:"")+
+            (sourceName?" · Source: "+sourceName:"")+
+            (caseReference?" · Reference: "+caseReference:""));
+        }
+        const saved=await env.DB.prepare(`
+          SELECT client_id,jurisdiction_state,search_scope,record_status,source_name,source_url,
+                 case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
+          FROM client_public_record_checks WHERE client_id=? LIMIT 1
+        `).bind(clientId).first();
+        return Response.json({ok:true,check:saved},{headers:{"Cache-Control":"private, no-store"}});
+      } catch(error) {
+        console.error("Public record check save error:",error);
+        return Response.json({ok:false,message:"Unable to save public court record check.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
