@@ -326,9 +326,13 @@ test("booking availability keeps duration-aware lookup and minimum notice",()=>{
   assert.match(worker,/Please choose a start time at least 2 hours from the time you submit your request/);
 });
 
-test("outcall still requires complete location details",()=>{
-  assert.match(worker,/appointmentType === "outcall" &&\s*\(!outcallAddressLine1 \|\| !outcallCity \|\| !outcallState \|\| !outcallPostalCode\)/);
-  assert.match(worker,/Please complete the outcall address/);
+test("outcall starts lightweight and defers exact address to screening",()=>{
+  assert.match(worker,/appointmentType === "outcall" &&\s*\(!outcallAddressLine1 \|\| !outcallCity\)/);
+  assert.match(worker,/Please provide the outcall hotel, property, or neighborhood and city/);
+  assert.match(requestPage,/Hotel, property, or neighborhood/);
+  assert.doesNotMatch(requestPage,/id="outcall-state"/);
+  assert.match(continuationPage,/id="screening-outcall-address"/);
+  assert.match(worker,/Complete the exact outcall address before submitting screening/);
 });
 
 
@@ -337,9 +341,9 @@ test("initial booking form defers deposit method until private continuation",()=
   assert.doesNotMatch(requestPage,/name="deposit_acknowledgement"/);
   assert.match(requestPage,/No payment is due when you submit this request/);
   assert.match(continuationPage,/name="deposit_payment_method"/);
-  assert.match(continuationPage,/Gift Card/);
-  assert.match(continuationPage,/Stripe \(10% processing fee\)/);
-  assert.match(continuationPage,/Crypto \(10% processing fee\)/);
+  assert.match(continuationPage,/data-method="gift-card"/);
+  assert.match(continuationPage,/data-method="stripe"/);
+  assert.match(continuationPage,/data-method="crypto"/);
 });
 
 test("continuation calculates and persists the selected deposit method",()=>{
@@ -400,4 +404,53 @@ test("deposit confirmation requires client deposit-step completion",()=>{
   const route=worker.slice(start,end);
   assert.match(route,/deposit_step_acknowledged/);
   assert.match(route,/client must complete the deposit selection step before payment can be confirmed/);
+});
+
+
+test("public booking copy consistently says screening first and deposit later",()=>{
+  assert.match(requestPage,/private screening link first/);
+  assert.match(requestPage,/deposit is requested only after screening has been reviewed and verified/i);
+  assert.match(requestPage,/Only after screening is reviewed and verified will I request a deposit/);
+  assert.doesNotMatch(requestPage,/screening details and your deposit step/);
+});
+
+test("public request details are lighter and optional",()=>{
+  assert.match(requestPage,/Anything you'd like me to know about your plans\?/);
+  assert.match(requestPage,/rows="3"/);
+  assert.doesNotMatch(requestPage,/name="request_details"[\s\S]{0,120}required/);
+  const requestRoute=worker.slice(worker.indexOf('// PRIVATE REQUEST FORM'),worker.indexOf('// PRIVATE BOOKING CONTINUATION'));
+  assert.doesNotMatch(requestRoute,/!duration \|\|\s*!requestDetails/);
+});
+
+test("fixed-duration experiences auto-select their only duration",()=>{
+  assert.match(requestPage,/const available = durationOptions\.filter\(option => !option\.disabled\)/);
+  assert.match(requestPage,/if \(available\.length === 1\)/);
+  assert.match(requestPage,/durationSelect\.value = available\[0\]\.value/);
+});
+
+test("booking form shows price and deposit estimate before date selection is complete",()=>{
+  assert.match(requestPage,/id="early-price-estimate"/);
+  assert.match(requestPage,/Estimated deposit after screening \(25%\)/);
+  assert.match(requestPage,/function updatePriceEstimate\(\)/);
+});
+
+test("mobile number requirement explains screening purpose",()=>{
+  assert.match(requestPage,/Virtual or app-based numbers aren't accepted because your number may be used during private screening/);
+});
+
+test("section-level booking funnel events are privacy-safe and dashboard-visible",()=>{
+  for(const event of ["about_you_completed","experience_selected","availability_shown","details_reached","before_submit_reached","submit_attempted","validation_phone","validation_outcall","validation_availability","validation_other"]){
+    assert.match(requestPage,new RegExp(event));
+    assert.match(worker,new RegExp(event));
+  }
+  assert.match(portal,/Initial-form diagnostics/);
+  assert.match(portal,/No field values are stored in funnel analytics/);
+});
+
+test("deposit choices show exact method totals after verification",()=>{
+  assert.match(continuationPage,/function updatePaymentMethodLabels\(\)/);
+  assert.match(continuationPage,/Gift Card — /);
+  assert.match(continuationPage,/Stripe — /);
+  assert.match(continuationPage,/Crypto — /);
+  assert.match(continuationPage,/total \("/);
 });

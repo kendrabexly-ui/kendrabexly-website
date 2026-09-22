@@ -857,7 +857,8 @@
             <div class="stat"><div class="stat-label">Deposit Confirmed</div><div class="stat-number" id="funnel-deposit-confirmed">—</div></div>
             <div class="stat"><div class="stat-label">Final Approved</div><div class="stat-number" id="funnel-final-approved">—</div></div>
           </div>
-          <div id="booking-funnel-conversion" style="padding:0 22px 20px;color:var(--muted);font-size:13px;"></div>
+          <div id="booking-funnel-conversion" style="padding:0 22px 12px;color:var(--muted);font-size:13px;"></div>
+          <div id="booking-funnel-form-diagnostics" style="padding:0 22px 20px;color:var(--muted);font-size:13px;line-height:1.6;"></div>
         </div>
 
         <div class="panel">
@@ -1981,6 +1982,28 @@
             "Screening complete → deposit confirmed: "+pct(deposits,completed)+"% · "+
             "Deposit confirmed → final approved: "+pct(approved,deposits)+"%. "+
             "Repeat activity is de-duplicated by booking request or browser session.";
+        }
+        const formDiagnostics=document.getElementById("booking-funnel-form-diagnostics");
+        if(formDiagnostics){
+          const about=Number(funnel.about_you_completed||0);
+          const experience=Number(funnel.experience_selected||0);
+          const availability=Number(funnel.availability_shown||0);
+          const details=Number(funnel.details_reached||0);
+          const beforeSubmit=Number(funnel.before_submit_reached||0);
+          const attempts=Number(funnel.submit_attempted||0);
+          const validationTotal=
+            Number(funnel.validation_phone||0)+Number(funnel.validation_outcall||0)+
+            Number(funnel.validation_availability||0)+Number(funnel.validation_other||0);
+          formDiagnostics.innerHTML=
+            "<strong>Initial-form diagnostics:</strong> "+
+            "About You complete "+about+" · Experience selected "+experience+
+            " · Availability shown "+availability+" · Details reached "+details+
+            " · Before Submit reached "+beforeSubmit+" · Submit attempts "+attempts+
+            " · Sessions with validation friction "+validationTotal+
+            ".<br><span>Validation: phone "+Number(funnel.validation_phone||0)+
+            " · outcall "+Number(funnel.validation_outcall||0)+
+            " · availability "+Number(funnel.validation_availability||0)+
+            " · other "+Number(funnel.validation_other||0)+". No field values are stored in funnel analytics.</span>";
         }
 
         const recent = document.getElementById("recent-requests");

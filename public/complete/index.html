@@ -49,6 +49,33 @@
             <input id="screening-industry" name="industry" type="text" maxlength="160" required>
           </div>
         </div>
+
+        <fieldset id="screening-outcall-address" class="outcall-address" hidden>
+          <legend>Exact outcall address</legend>
+          <p>This is collected privately only because you selected Outcall. It is required before screening can be reviewed.</p>
+          <div class="form-grid">
+            <div class="field full-width">
+              <label for="screening-outcall-address-line-1">Street address *</label>
+              <input id="screening-outcall-address-line-1" name="outcall_address_line_1" type="text" autocomplete="address-line1" disabled>
+            </div>
+            <div class="field full-width">
+              <label for="screening-outcall-address-line-2">Hotel, suite, unit, or room</label>
+              <input id="screening-outcall-address-line-2" name="outcall_address_line_2" type="text" autocomplete="address-line2" disabled>
+            </div>
+            <div class="field">
+              <label for="screening-outcall-city">City *</label>
+              <input id="screening-outcall-city" name="outcall_city" type="text" autocomplete="address-level2" disabled>
+            </div>
+            <div class="field">
+              <label for="screening-outcall-state">State *</label>
+              <input id="screening-outcall-state" name="outcall_state" type="text" autocomplete="address-level1" disabled>
+            </div>
+            <div class="field">
+              <label for="screening-outcall-postal-code">ZIP code *</label>
+              <input id="screening-outcall-postal-code" name="outcall_postal_code" type="text" inputmode="numeric" autocomplete="postal-code" disabled>
+            </div>
+          </div>
+        </fieldset>
       </section>
       <section class="form-section">
         <button type="submit" class="button" id="submit-screening">Submit Screening Details</button>
@@ -73,9 +100,9 @@
           <label for="continuation-payment-method">Payment method *</label>
           <select id="continuation-payment-method" name="deposit_payment_method" required>
             <option value="">Choose a payment method</option>
-            <option value="gift-card">Gift Card</option>
-            <option value="stripe">Stripe (10% processing fee)</option>
-            <option value="crypto">Crypto (10% processing fee)</option>
+            <option value="gift-card" data-method="gift-card">Gift Card</option>
+            <option value="stripe" data-method="stripe">Stripe</option>
+            <option value="crypto" data-method="crypto">Crypto</option>
           </select>
         </div>
         <div class="no-payment-callout">
@@ -134,7 +161,21 @@
       summaryCard.hidden = false;
     }
 
+    function updatePaymentMethodLabels() {
+      const select = document.getElementById("continuation-payment-method");
+      if (!select || !baseDepositAmount) return;
+      const fee = Math.round(baseDepositAmount * 0.10 * 100) / 100;
+      const feeTotal = Math.round((baseDepositAmount + fee) * 100) / 100;
+      const gift = select.querySelector('option[data-method="gift-card"]');
+      const stripe = select.querySelector('option[data-method="stripe"]');
+      const crypto = select.querySelector('option[data-method="crypto"]');
+      if (gift) gift.textContent = "Gift Card — " + money(baseDepositAmount);
+      if (stripe) stripe.textContent = "Stripe — " + money(feeTotal) + " total (" + money(fee) + " fee)";
+      if (crypto) crypto.textContent = "Crypto — " + money(feeTotal) + " total (" + money(fee) + " fee)";
+    }
+
     function updateDepositTotal() {
+      updatePaymentMethodLabels();
       const method = document.getElementById("continuation-payment-method")?.value || "";
       const fee = ["stripe","crypto"].includes(method) ? Math.round(baseDepositAmount * 0.10 * 100) / 100 : 0;
       const total = Math.round((baseDepositAmount + fee) * 100) / 100;
@@ -142,7 +183,7 @@
       document.getElementById("deposit-total").textContent = method ? "Deposit total: " + money(total) : "Choose a payment method to see your final deposit total";
       const feeLine = document.getElementById("deposit-fee");
       if (fee > 0) {
-        feeLine.textContent = "Processing fee (10% of deposit): " + money(fee);
+        feeLine.textContent = "Processing fee: " + money(fee);
         feeLine.hidden = false;
       } else {
         feeLine.hidden = true;
@@ -169,6 +210,16 @@
         document.getElementById("screening-employer").value = data.current_employer || "";
         document.getElementById("screening-title").value = data.job_title || "";
         document.getElementById("screening-industry").value = data.industry || "";
+        const outcallFieldset = document.getElementById("screening-outcall-address");
+        const outcallInputs = outcallFieldset ? Array.from(outcallFieldset.querySelectorAll("input")) : [];
+        if (data.requires_outcall_address && outcallFieldset) {
+          outcallFieldset.hidden = false;
+          outcallInputs.forEach(input => { input.disabled = false; });
+          ["screening-outcall-address-line-1","screening-outcall-city","screening-outcall-state","screening-outcall-postal-code"].forEach(id => {
+            const input=document.getElementById(id);
+            if(input) input.required=true;
+          });
+        }
         screeningForm.hidden = false;
         return;
       }
