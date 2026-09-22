@@ -146,7 +146,6 @@
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.message || "Unable to submit.");
         requestId = Number(data.request_id || requestId || 0) || requestId;
-        track("continuation_completed");
         form.hidden = true;
         complete.hidden = false;
       } catch(error) {
