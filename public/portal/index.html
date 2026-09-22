@@ -2866,9 +2866,71 @@ async function loadRequests(options = {}) {
                     <div class="client-credential-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div>
                   </section>
 
+                  <section class="verification-card client-public-record-card">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                      <strong style="font-size:13px;">4. Public Court &amp; Criminal Record Search</strong>
+                      <span class="verification-badge client-public-record-badge">Public records: Not checked</span>
+                    </div>
+                    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
+                      Search official public court and government sources only. A name match alone is not enough to confirm identity, and no single public search proves that a person has no criminal history.
+                    </div>
+                    <div class="verification-grid" style="margin-top:10px;">
+                      <label style="font-size:12px;font-weight:700;">Jurisdiction / state
+                        <select class="client-public-record-state" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose state</option><option value="AL">Alabama</option><option value="AK">Alaska</option><option value="AZ">Arizona</option><option value="AR">Arkansas</option><option value="CA">California</option><option value="CO">Colorado</option><option value="CT">Connecticut</option><option value="DE">Delaware</option><option value="DC">District of Columbia</option><option value="FL">Florida</option><option value="GA">Georgia</option><option value="HI">Hawaii</option><option value="ID">Idaho</option><option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option><option value="KY">Kentucky</option><option value="LA">Louisiana</option><option value="ME">Maine</option><option value="MD">Maryland</option><option value="MA">Massachusetts</option><option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MS">Mississippi</option><option value="MO">Missouri</option><option value="MT">Montana</option><option value="NE">Nebraska</option><option value="NV">Nevada</option><option value="NH">New Hampshire</option><option value="NJ">New Jersey</option><option value="NM">New Mexico</option><option value="NY">New York</option><option value="NC">North Carolina</option><option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="OK">Oklahoma</option><option value="OR">Oregon</option><option value="PA">Pennsylvania</option><option value="RI">Rhode Island</option><option value="SC">South Carolina</option><option value="SD">South Dakota</option><option value="TN">Tennessee</option><option value="TX">Texas</option><option value="UT">Utah</option><option value="VT">Vermont</option><option value="VA">Virginia</option><option value="WA">Washington</option><option value="WV">West Virginia</option><option value="WI">Wisconsin</option><option value="WY">Wyoming</option></select>
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Search scope
+                        <select class="client-public-record-scope" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="state_local">State / local court records</option>
+                          <option value="federal">Federal court records</option>
+                          <option value="sex_offender_registry">Sex offender registry</option>
+                          <option value="multiple_sources">Multiple official sources</option>
+                        </select>
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Search result
+                        <select class="client-public-record-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="not_checked">Not checked</option>
+                          <option value="no_public_record_found">No public record located in searched source</option>
+                          <option value="potential_match">Potential match — identity not confirmed</option>
+                          <option value="confirmed_match">Confirmed record match</option>
+                          <option value="unable_to_verify">Unable to verify</option>
+                        </select>
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Official source name
+                        <input class="client-public-record-source-name" type="text" maxlength="200" placeholder="Court, registry, or government agency" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Official source URL
+                        <input class="client-public-record-source-url" type="url" maxlength="800" placeholder="https://..." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                      <label style="font-size:12px;font-weight:700;">Case / record reference <span style="font-weight:500;color:var(--muted);">(if applicable)</span>
+                        <input class="client-public-record-case-reference" type="text" maxlength="240" placeholder="Case number or public record reference" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                      </label>
+                    </div>
+                    <div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
+                      <strong style="font-size:12px;">Official public-record lookups</strong>
+                      <div class="client-public-record-lookup-note" style="margin-top:4px;font-size:11px;color:var(--muted);">
+                        Choose a state and search scope. Use the most specific court or government source available.
+                      </div>
+                      <div class="client-public-record-links" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;"></div>
+                    </div>
+                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Disposition / status summary <span style="font-weight:500;color:var(--muted);">(optional)</span>
+                      <textarea class="client-public-record-disposition" rows="2" maxlength="600" placeholder="Briefly record the public case status or disposition. Do not copy unnecessary sensitive details." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                    </label>
+                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Evidence / identity reference
+                      <textarea class="client-public-record-evidence" rows="2" maxlength="1200" placeholder="Record how the public record was matched or why it remains a potential match. Do not use a name-only match as confirmation." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                    </label>
+                    <div style="margin-top:8px;padding:9px 10px;border-radius:8px;background:#fff8e6;font-size:11px;color:#74520b;line-height:1.5;">
+                      <strong>Important:</strong> “No public record located” means only that nothing was found in the source(s) you searched. It is not a nationwide criminal-history clearance. Potential matches must be corroborated before being recorded as confirmed.
+                    </div>
+                    <div class="verification-actions" style="margin-top:9px;">
+                      <button type="button" class="client-public-record-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Public Record Check</button>
+                      <span class="client-public-record-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
+                    </div>
+                    <div class="client-public-record-checked" style="margin-top:7px;font-size:11px;color:var(--muted);">Last checked: Not checked</div>
+                  </section>
+
                   <section class="verification-card client-persona-card">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">4. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
+                      <strong style="font-size:13px;">5. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
                       <span class="verification-badge client-persona-badge">Persona: Checking…</span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
@@ -3964,6 +4026,103 @@ async function loadRequests(options = {}) {
         }catch(error){if(status){status.textContent=error.message||"Unable to save credential verification.";status.style.color="#8a2424";}}finally{if(button)button.disabled=false;}
       };
 
+      const publicRecordLookupCatalog=(state,scope)=>{
+        const st=String(state||"").trim().toUpperCase(),sc=String(scope||"state_local"),links=[];
+        const add=(label,url,source,kind)=>{if(!links.some(x=>x.url===url))links.push({label,url,source,kind});};
+        if(sc==="state_local"||sc==="multiple_sources"){
+          if(st==="CA")add("California Find My Court","https://courts.ca.gov/find-my-court","Judicial Branch of California","directory");
+          else if(st==="NV")add("Nevada Find a Court","https://nvcourts.gov/find_a_court","Nevada Judiciary","directory");
+          else add("Find State & Local Courts","https://www.usa.gov/courts","USAGov Courts","directory");
+        }
+        if(sc==="federal"||sc==="multiple_sources")add("PACER Federal Case Search","https://pacer.uscourts.gov/find-case","PACER — U.S. Courts","official");
+        if(sc==="sex_offender_registry"||sc==="multiple_sources")add("National Sex Offender Public Website","https://www.nsopw.gov/","U.S. Department of Justice NSOPW","official");
+        return links;
+      };
+      const renderPublicRecordLookups=(section)=>{
+        const wrap=section.querySelector(".client-public-record-links"),note=section.querySelector(".client-public-record-lookup-note");
+        if(!wrap)return;
+        const links=publicRecordLookupCatalog(section.querySelector(".client-public-record-state")?.value,section.querySelector(".client-public-record-scope")?.value);
+        wrap.innerHTML="";
+        links.forEach(item=>{
+          const a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.label;
+          a.style.cssText="padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);text-decoration:none;font-size:11px;font-weight:700;";
+          a.addEventListener("click",()=>{
+            if(item.kind==="directory")return;
+            const n=section.querySelector(".client-public-record-source-name"),u=section.querySelector(".client-public-record-source-url");
+            if(n&&!n.value)n.value=item.source;
+            if(u&&!u.value)u.value=item.url;
+          });
+          wrap.appendChild(a);
+        });
+        if(note){
+          note.textContent=links.some(x=>x.kind==="directory")
+            ?"State and local criminal case records are often kept by the specific county or trial court. Use the court directory to reach the actual court record system, then record that court as the source."
+            :"Search the official source manually and record only the result needed for verification.";
+        }
+      };
+      const applyPublicRecordCheck=(section,record)=>{
+        const set=(sel,val)=>{const el=section.querySelector(sel);if(el)el.value=val||"";};
+        if(!record){
+          set(".client-public-record-status","not_checked");set(".client-public-record-scope","state_local");
+          const c=section.querySelector(".client-public-record-checked");if(c)c.textContent="Last checked: Not checked";
+          renderPublicRecordLookups(section);return;
+        }
+        set(".client-public-record-state",record.jurisdiction_state);
+        set(".client-public-record-scope",record.search_scope||"state_local");
+        set(".client-public-record-status",record.record_status||"not_checked");
+        set(".client-public-record-source-name",record.source_name);
+        set(".client-public-record-source-url",record.source_url);
+        set(".client-public-record-case-reference",record.case_reference);
+        set(".client-public-record-disposition",record.disposition_summary);
+        set(".client-public-record-evidence",record.evidence_reference);
+        const raw=String(record.record_status||"not_checked");
+        const labels={not_checked:"Not checked",no_public_record_found:"No public record located",potential_match:"Potential match",confirmed_match:"Confirmed record match",unable_to_verify:"Unable to verify"};
+        const badge=section.querySelector(".client-public-record-badge");
+        if(badge){
+          badge.textContent="Public records: "+(labels[raw]||raw);
+          badge.style.background=raw==="confirmed_match"?"#fdeaea":raw==="no_public_record_found"?"#e8f6ec":"#fff4d8";
+          badge.style.color=raw==="confirmed_match"?"#8a2424":raw==="no_public_record_found"?"#22613b":"#74520b";
+        }
+        const checked=section.querySelector(".client-public-record-checked");
+        if(checked)checked.textContent=record.checked_at
+          ?"Last checked: "+formatVerificationTimestamp(record.checked_at)+(record.checked_by?" · "+record.checked_by:"")+(record.source_name?" · Source: "+record.source_name:"")
+          :"Last checked: Not checked";
+        renderPublicRecordLookups(section);
+      };
+      const loadPublicRecordCheck=async(section)=>{
+        try{
+          const response=await fetch("/api/admin/clients/public-record-check?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
+          const result=await response.json();
+          if(response.ok&&result.ok)applyPublicRecordCheck(section,result.check);
+        }catch(_error){}
+      };
+      const savePublicRecordCheck=async(section)=>{
+        const button=section.querySelector(".client-public-record-save"),status=section.querySelector(".client-public-record-save-status");
+        if(button)button.disabled=true;
+        if(status){status.textContent="Saving…";status.style.color="var(--muted)";}
+        try{
+          const payload={
+            client_id:Number(section.dataset.clientId),
+            jurisdiction_state:section.querySelector(".client-public-record-state")?.value||"",
+            search_scope:section.querySelector(".client-public-record-scope")?.value||"state_local",
+            record_status:section.querySelector(".client-public-record-status")?.value||"not_checked",
+            source_name:section.querySelector(".client-public-record-source-name")?.value||"",
+            source_url:section.querySelector(".client-public-record-source-url")?.value||"",
+            case_reference:section.querySelector(".client-public-record-case-reference")?.value||"",
+            disposition_summary:section.querySelector(".client-public-record-disposition")?.value||"",
+            evidence_reference:section.querySelector(".client-public-record-evidence")?.value||""
+          };
+          const response=await fetch("/api/admin/clients/public-record-check",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save public record check.");
+          applyPublicRecordCheck(section,result.check);
+          if(status){status.textContent="Saved";status.style.color="#2f6b45";}
+          await loadVerificationActivity(section);
+        }catch(error){
+          if(status){status.textContent=error.message||"Unable to save public record check.";status.style.color="#8a2424";}
+        }finally{if(button)button.disabled=false;}
+      };
+
       const applyPhoneLineCheck=(section,check)=>{
         const status=section.querySelector(".client-phone-line-status");
         if(!check){
@@ -4332,7 +4491,7 @@ async function loadRequests(options = {}) {
           loadIdDocument(section, false);
           loadVerificationAudits(section);
           loadPhoneLineCheck(section);
-          loadCredentialVerification(section);
+          loadCredentialVerification(section);loadPublicRecordCheck(section);
           loadPersonaStatus(section);
         });
       });
@@ -4383,13 +4542,18 @@ async function loadRequests(options = {}) {
         });
         section.addEventListener("toggle",()=>{
           if(section.open){
-            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadPersonaStatus(section);loadVerificationActivity(section);
+            loadVerificationDraft(section);loadIdDocument(section,false);loadVerificationAudits(section);loadPhoneLineCheck(section);loadCredentialVerification(section);loadPublicRecordCheck(section);loadPersonaStatus(section);loadVerificationActivity(section);
           }else if(section.dataset.draftDirty==="1"){
             if(!window.confirm("Verification fields are still unsaved. Close this section anyway?")){section.open=true;}
           }
         });
 
         section.querySelector(".client-credential-save")?.addEventListener("click",()=>saveCredentialVerification(section));
+        section.querySelector(".client-public-record-save")?.addEventListener("click",()=>savePublicRecordCheck(section));
+        [".client-public-record-state",".client-public-record-scope"].forEach(sel=>{
+          section.querySelector(sel)?.addEventListener("change",()=>renderPublicRecordLookups(section));
+        });
+        renderPublicRecordLookups(section);
         [".client-credential-occupation",".client-credential-state"].forEach(sel=>{
           section.querySelector(sel)?.addEventListener("input",()=>renderCredentialRegistries(section));
           section.querySelector(sel)?.addEventListener("change",()=>renderCredentialRegistries(section));
