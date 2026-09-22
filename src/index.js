@@ -167,6 +167,12 @@ async function ensureClientVerificationAuditsTable(env) {
       submitted_employer TEXT NOT NULL DEFAULT '',
       submitted_job_title TEXT NOT NULL DEFAULT '',
       submitted_industry TEXT NOT NULL DEFAULT '',
+      employment_verification_status TEXT NOT NULL DEFAULT 'not_checked',
+      employment_verification_method TEXT NOT NULL DEFAULT '',
+      employment_work_email TEXT NOT NULL DEFAULT '',
+      employment_employer_website TEXT NOT NULL DEFAULT '',
+      employment_evidence_reference TEXT NOT NULL DEFAULT '',
+      employment_checked_at TEXT,
       identity_confirmed INTEGER NOT NULL DEFAULT 0,
       employer_confirmed INTEGER NOT NULL DEFAULT 0,
       job_title_confirmed INTEGER NOT NULL DEFAULT 0,
@@ -193,6 +199,12 @@ async function ensureClientVerificationAuditsTable(env) {
     ["submitted_employer", "TEXT NOT NULL DEFAULT ''"],
     ["submitted_job_title", "TEXT NOT NULL DEFAULT ''"],
     ["submitted_industry", "TEXT NOT NULL DEFAULT ''"],
+    ["employment_verification_status", "TEXT NOT NULL DEFAULT 'not_checked'"],
+    ["employment_verification_method", "TEXT NOT NULL DEFAULT ''"],
+    ["employment_work_email", "TEXT NOT NULL DEFAULT ''"],
+    ["employment_employer_website", "TEXT NOT NULL DEFAULT ''"],
+    ["employment_evidence_reference", "TEXT NOT NULL DEFAULT ''"],
+    ["employment_checked_at", "TEXT"],
     ["identity_confirmed", "INTEGER NOT NULL DEFAULT 0"],
     ["employer_confirmed", "INTEGER NOT NULL DEFAULT 0"],
     ["job_title_confirmed", "INTEGER NOT NULL DEFAULT 0"],
@@ -249,6 +261,12 @@ function verificationAuditPublicRecord(row) {
     submitted_employer: row.submitted_employer || "",
     submitted_job_title: row.submitted_job_title || "",
     submitted_industry: row.submitted_industry || "",
+    employment_verification_status: row.employment_verification_status || "not_checked",
+    employment_verification_method: row.employment_verification_method || "",
+    employment_work_email: row.employment_work_email || "",
+    employment_employer_website: row.employment_employer_website || "",
+    employment_evidence_reference: row.employment_evidence_reference || "",
+    employment_checked_at: row.employment_checked_at || "",
     identity_confirmed: Number(row.identity_confirmed || 0) === 1,
     employer_confirmed: Number(row.employer_confirmed || 0) === 1,
     job_title_confirmed: Number(row.job_title_confirmed || 0) === 1,
@@ -405,6 +423,8 @@ async function clearSensitiveVerificationData(env, clientId) {
   await env.DB.prepare(`
     UPDATE client_verification_audits
     SET submitted_employer='',submitted_job_title='',submitted_industry='',
+        employment_verification_status='not_checked',employment_verification_method='',
+        employment_work_email='',employment_employer_website='',employment_evidence_reference='',employment_checked_at=NULL,
         evidence_notes='',decision_notes='',birthdate='',updated_at=CURRENT_TIMESTAMP
     WHERE client_id=?
   `).bind(clientId).run();
@@ -1333,7 +1353,9 @@ export default {
           id, client_id, date_request_id, accepted, authorization_wording,
           authorization_version, accepted_at, verification_status,
           verification_method, submitted_employer, submitted_job_title,
-          submitted_industry, identity_confirmed, employer_confirmed,
+          submitted_industry, employment_verification_status, employment_verification_method,
+          employment_work_email, employment_employer_website, employment_evidence_reference, employment_checked_at,
+          identity_confirmed, employer_confirmed,
           job_title_confirmed, industry_confirmed, contact_confirmed,
           evidence_notes, decision_reason, decision_notes, birthdate, completed_by, review_flag,
           persona_transaction_id, persona_transaction_status, persona_database_status, persona_database_verification_id, persona_database_checked_at, persona_submitted_at, persona_updated_at, completed_at, updated_at
@@ -1407,6 +1429,9 @@ export default {
         const previous = await env.DB.prepare(`
           SELECT id, client_id, verification_status, decision_reason, decision_notes,
                  verification_method, completed_at, completed_by, review_flag, updated_at,
+                 submitted_employer, submitted_job_title, submitted_industry,
+                 employment_verification_status, employment_verification_method, employment_work_email,
+                 employment_employer_website, employment_evidence_reference, employment_checked_at,
                  identity_confirmed, employer_confirmed, job_title_confirmed, industry_confirmed, contact_confirmed
           FROM client_verification_audits
           WHERE id=? AND client_id=? LIMIT 1
@@ -1431,7 +1456,27 @@ export default {
         }
 
         const verificationMethod = String(data.verification_method || "").trim().slice(0, 240);
+        const submittedEmployer = String(data.submitted_employer || "").trim().slice(0, 200);
+        const submittedJobTitle = String(data.submitted_job_title || "").trim().slice(0, 160);
         const submittedIndustry = String(data.submitted_industry || "").trim().slice(0, 160);
+        const employmentStatus = String(data.employment_verification_status || "not_checked").trim().toLowerCase();
+        const allowedEmploymentStatuses = new Set(["not_checked","pending","confirmed","unable_to_confirm","mismatch"]);
+        if(!allowedEmploymentStatuses.has(employmentStatus)){
+          return Response.json({ok:false,message:"Choose a valid employment verification status."},{status:400});
+        }
+        const employmentMethod = String(data.employment_verification_method || "").trim().slice(0, 160);
+        const employmentWorkEmail = String(data.employment_work_email || "").trim().toLowerCase().slice(0, 254);
+        const employmentEmployerWebsite = String(data.employment_employer_website || "").trim().slice(0, 500);
+        const employmentEvidenceReference = String(data.employment_evidence_reference || "").trim().slice(0, 1200);
+        if(employmentWorkEmail && !verificationEmailValid(employmentWorkEmail)){
+          return Response.json({ok:false,message:"Enter a valid work email address or leave it blank."},{status:400});
+        }
+        if(employmentStatus==="confirmed" && !(submittedEmployer && submittedJobTitle && submittedIndustry && employmentMethod && employmentEvidenceReference)){
+          return Response.json({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
+        }
+        if(["unable_to_confirm","mismatch"].includes(employmentStatus) && !employmentEvidenceReference){
+          return Response.json({ok:false,message:"Add an evidence/reference note for an employment result that could not be confirmed or did not match."},{status:400});
+        }
         const identityConfirmed = data.identity_confirmed ? 1 : 0;
         const employerConfirmed = data.employer_confirmed ? 1 : 0;
         const jobTitleConfirmed = data.job_title_confirmed ? 1 : 0;
@@ -1444,6 +1489,9 @@ export default {
         const age = verificationAgeOnDate(birthdate);
 
         if (verificationStatus === "verified") {
+          if (employmentStatus!=="confirmed") {
+            return Response.json({ok:false,message:"Employment verification must be Confirmed before marking this client Verified."},{status:400});
+          }
           if (!(identityConfirmed && employerConfirmed && jobTitleConfirmed && industryConfirmed && contactConfirmed)) {
             return Response.json({
               ok:false,
@@ -1496,7 +1544,10 @@ export default {
         const completedBy = isOpenStatus ? "" : adminIdentity;
         const update = await env.DB.prepare(`
           UPDATE client_verification_audits
-          SET verification_status = ?, verification_method = ?, submitted_industry = ?,
+          SET verification_status = ?, verification_method = ?, submitted_employer = ?, submitted_job_title = ?, submitted_industry = ?,
+              employment_verification_status = ?, employment_verification_method = ?, employment_work_email = ?,
+              employment_employer_website = ?, employment_evidence_reference = ?,
+              employment_checked_at = CASE WHEN ?='not_checked' THEN NULL WHEN employment_verification_status<>? OR employment_checked_at IS NULL THEN CURRENT_TIMESTAMP ELSE employment_checked_at END,
               identity_confirmed = ?, employer_confirmed = ?, job_title_confirmed = ?,
               industry_confirmed = ?, contact_confirmed = ?, evidence_notes = ?,
               decision_reason = ?, decision_notes = ?, birthdate = ?,
@@ -1510,7 +1561,10 @@ export default {
               updated_at = CURRENT_TIMESTAMP
           WHERE id = ? AND client_id = ?
         `).bind(
-          verificationStatus, verificationMethod, submittedIndustry,
+          verificationStatus, verificationMethod, submittedEmployer, submittedJobTitle, submittedIndustry,
+          employmentStatus, employmentMethod, employmentWorkEmail,
+          employmentEmployerWebsite, employmentEvidenceReference,
+          employmentStatus, employmentStatus,
           identityConfirmed, employerConfirmed, jobTitleConfirmed,
           industryConfirmed, contactConfirmed, evidenceNotes,
           decisionReason, decisionNotes, birthdate,
@@ -1521,6 +1575,13 @@ export default {
         ).run();
         if (!Number(update.meta?.changes || 0)) {
           return Response.json({ ok: false, message: "Verification record not found." }, { status: 404 });
+        }
+        if(String(previous.employment_verification_status||"not_checked")!==employmentStatus){
+          await logVerificationActivity(
+            env,clientId,auditId,"employment_verification_updated",
+            employmentStatus==="confirmed"?"Employment confirmed":employmentStatus==="mismatch"?"Employment mismatch":employmentStatus==="unable_to_confirm"?"Employment unable to confirm":"Employment verification updated",
+            "Method: "+(employmentMethod||"not recorded")+(submittedEmployer?" · Employer: "+submittedEmployer:"")
+          );
         }
         if(previous.completed_at && decisionChanged){
           await logVerificationActivity(env,clientId,auditId,"decision_changed",

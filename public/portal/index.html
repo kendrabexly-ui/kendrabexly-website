@@ -2738,9 +2738,39 @@ async function loadRequests(options = {}) {
                     <div class="verification-grid">
                       <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
                       <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="needs_more_information">Needs More Information</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
-                      <label style="font-size:12px;font-weight:700;">Industry received by email<input class="client-verification-industry" type="text" maxlength="160" placeholder="Enter the client's reply" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona, employment…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
+                    <fieldset class="client-employment-verification" style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
+                      <legend style="padding:0 5px;font-size:12px;font-weight:700;">Employment verification</legend>
+                      <div style="font-size:11px;color:var(--muted);margin-bottom:9px;">Record only what is needed to confirm employer, role, and industry. Do not enter SSNs, payroll passwords, or bank information.</div>
+                      <div class="verification-grid">
+                        <label style="font-size:12px;font-weight:700;">Employer / company<input class="client-verification-employer" type="text" maxlength="200" placeholder="Employer name" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Job title<input class="client-verification-job-title" type="text" maxlength="160" placeholder="Job title" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Industry<input class="client-verification-industry" type="text" maxlength="160" placeholder="Industry received from client" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Work email <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-work-email" type="email" maxlength="254" placeholder="name@company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Employer website <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-website" type="url" maxlength="500" placeholder="https://company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                        <label style="font-size:12px;font-weight:700;">Employment verification method<select class="client-employment-method" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="">Choose method</option>
+                          <option value="work_email">Work email/domain</option>
+                          <option value="employer_website">Employer website/directory</option>
+                          <option value="public_professional_profile">Public professional profile</option>
+                          <option value="employer_phone">Employer phone/contact</option>
+                          <option value="employment_document">Employment document</option>
+                          <option value="third_party">Third-party verification service</option>
+                          <option value="other">Other</option>
+                        </select></label>
+                        <label style="font-size:12px;font-weight:700;">Employment result<select class="client-employment-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="not_checked">Not checked</option>
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="unable_to_confirm">Unable to confirm</option>
+                          <option value="mismatch">Information mismatch</option>
+                        </select></label>
+                      </div>
+                      <label style="display:block;margin-top:9px;font-size:12px;font-weight:700;">Employment evidence / reference<textarea class="client-employment-evidence" rows="2" maxlength="1200" placeholder="Company directory URL, HR confirmation, work-email domain, document reference, or other source. Do not store unnecessary sensitive data." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                      <div class="client-employment-domain-status" style="margin-top:7px;font-size:11px;color:var(--muted);"></div>
+                      <div class="client-employment-status-note" style="margin-top:5px;font-size:11px;color:var(--muted);">Employment has not been checked.</div>
+                    </fieldset>
                     <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
                     <div class="verification-field-note">Birthdate is entered once in Manual Verification. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
                     <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
@@ -3440,7 +3470,14 @@ async function loadRequests(options = {}) {
           const data={
             verification_status:section.querySelector(".client-verification-status")?.value||"pending_review",
             verification_method:section.querySelector(".client-verification-method")?.value||"",
+            submitted_employer:section.querySelector(".client-verification-employer")?.value||"",
+            submitted_job_title:section.querySelector(".client-verification-job-title")?.value||"",
             submitted_industry:section.querySelector(".client-verification-industry")?.value||"",
+            employment_verification_status:section.querySelector(".client-employment-status")?.value||"not_checked",
+            employment_verification_method:section.querySelector(".client-employment-method")?.value||"",
+            employment_work_email:section.querySelector(".client-employment-work-email")?.value||"",
+            employment_employer_website:section.querySelector(".client-employment-website")?.value||"",
+            employment_evidence_reference:section.querySelector(".client-employment-evidence")?.value||"",
             decision_reason:section.querySelector(".client-verification-reason")?.value||"",
             checklist:[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"].map(sel=>Boolean(section.querySelector(sel)?.checked))
           };
@@ -3454,7 +3491,14 @@ async function loadRequests(options = {}) {
           const set=(sel,val)=>{const el=section.querySelector(sel);if(el&&val!==undefined)el.value=val;};
           set(".client-verification-status",data.verification_status);
           set(".client-verification-method",data.verification_method);
+          set(".client-verification-employer",data.submitted_employer);
+          set(".client-verification-job-title",data.submitted_job_title);
           set(".client-verification-industry",data.submitted_industry);
+          set(".client-employment-status",data.employment_verification_status);
+          set(".client-employment-method",data.employment_verification_method);
+          set(".client-employment-work-email",data.employment_work_email);
+          set(".client-employment-website",data.employment_employer_website);
+          set(".client-employment-evidence",data.employment_evidence_reference);
           set(".client-verification-reason",data.decision_reason);
           [".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"].forEach((sel,i)=>{const el=section.querySelector(sel);if(el&&Array.isArray(data.checklist))el.checked=Boolean(data.checklist[i]);});
           localStorage.removeItem(verificationSafeDraftKey(section));
@@ -3680,14 +3724,28 @@ async function loadRequests(options = {}) {
         section.dataset.verificationAuditId = String(latest.id);
         if (editor) editor.hidden = false;
         const statusSelect=section.querySelector(".client-verification-status");
+        const employerInput=section.querySelector(".client-verification-employer");
+        const jobTitleInput=section.querySelector(".client-verification-job-title");
         const industryInput=section.querySelector(".client-verification-industry");
         const methodInput=section.querySelector(".client-verification-method");
+        const employmentStatusInput=section.querySelector(".client-employment-status");
+        const employmentMethodInput=section.querySelector(".client-employment-method");
+        const employmentWorkEmailInput=section.querySelector(".client-employment-work-email");
+        const employmentWebsiteInput=section.querySelector(".client-employment-website");
+        const employmentEvidenceInput=section.querySelector(".client-employment-evidence");
         const reasonInput=section.querySelector(".client-verification-reason");
         const decisionNotes=section.querySelector(".client-verification-decision-notes");
         const birthdate=section.querySelector(".client-persona-birthdate");
         if(statusSelect) statusSelect.value=latest.verification_status || "pending_review";
+        if(employerInput) employerInput.value=latest.submitted_employer || "";
+        if(jobTitleInput) jobTitleInput.value=latest.submitted_job_title || "";
         if(industryInput) industryInput.value=latest.submitted_industry || "";
         if(methodInput) methodInput.value=latest.verification_method || "";
+        if(employmentStatusInput) employmentStatusInput.value=latest.employment_verification_status || "not_checked";
+        if(employmentMethodInput) employmentMethodInput.value=latest.employment_verification_method || "";
+        if(employmentWorkEmailInput) employmentWorkEmailInput.value=latest.employment_work_email || "";
+        if(employmentWebsiteInput) employmentWebsiteInput.value=latest.employment_employer_website || "";
+        if(employmentEvidenceInput) employmentEvidenceInput.value=latest.employment_evidence_reference || "";
         if(reasonInput) reasonInput.value=latest.decision_reason || "";
         if(decisionNotes) decisionNotes.value=latest.decision_notes || "";
         if(birthdate && latest.birthdate && !birthdate.value) birthdate.value=formatBirthdateInput(latest.birthdate);
@@ -4165,6 +4223,50 @@ async function loadRequests(options = {}) {
           }
         });
 
+        const updateEmploymentVerificationUi=()=>{
+          const employmentStatus=section.querySelector(".client-employment-status")?.value||"not_checked";
+          const method=section.querySelector(".client-employment-method")?.value||"";
+          const employer=section.querySelector(".client-verification-employer")?.value.trim()||"";
+          const title=section.querySelector(".client-verification-job-title")?.value.trim()||"";
+          const industry=section.querySelector(".client-verification-industry")?.value.trim()||"";
+          const workEmail=section.querySelector(".client-employment-work-email")?.value.trim().toLowerCase()||"";
+          const website=section.querySelector(".client-employment-website")?.value.trim()||"";
+          const evidence=section.querySelector(".client-employment-evidence")?.value.trim()||"";
+          const note=section.querySelector(".client-employment-status-note");
+          const domainNote=section.querySelector(".client-employment-domain-status");
+          let emailDomain="",websiteDomain="";
+          if(workEmail.includes("@"))emailDomain=workEmail.split("@").pop().toLowerCase();
+          try{websiteDomain=website?new URL(/^https?:\/\//i.test(website)?website:"https://"+website).hostname.replace(/^www\./,"").toLowerCase():"";}catch{}
+          if(domainNote){
+            if(emailDomain&&websiteDomain){
+              const match=emailDomain===websiteDomain||emailDomain.endsWith("."+websiteDomain)||websiteDomain.endsWith("."+emailDomain);
+              domainNote.textContent=match?"✓ Work-email domain matches employer website domain.":"⚠ Work-email domain does not match the employer website domain.";
+              domainNote.style.color=match?"#2f6b45":"#74520b";
+            }else{
+              domainNote.textContent=workEmail||website?"Add both work email and employer website to compare domains.":"";
+              domainNote.style.color="var(--muted)";
+            }
+          }
+          const confirmedReady=Boolean(employer&&title&&industry&&method&&evidence);
+          if(note){
+            const labels={not_checked:"Employment has not been checked.",pending:"Employment verification is pending.",confirmed:"Employment confirmed.",unable_to_confirm:"Employment could not be confirmed.",mismatch:"Employment information mismatch."};
+            note.textContent=labels[employmentStatus]||"";
+            note.style.color=employmentStatus==="confirmed"?"#2f6b45":["unable_to_confirm","mismatch"].includes(employmentStatus)?"#8a2424":"var(--muted)";
+          }
+          if(employmentStatus==="confirmed"&&confirmedReady){
+            const employerCheck=section.querySelector(".client-check-employer");
+            const titleCheck=section.querySelector(".client-check-job-title");
+            const industryCheck=section.querySelector(".client-check-industry");
+            if(employerCheck)employerCheck.checked=true;
+            if(titleCheck)titleCheck.checked=true;
+            if(industryCheck)industryCheck.checked=true;
+          }
+          if(employmentStatus==="confirmed"&&!confirmedReady&&note){
+            note.textContent="Confirmed requires employer, job title, industry, method, and evidence/reference.";
+            note.style.color="#8a2424";
+          }
+        };
+
         const auditStatus=section.querySelector(".client-verification-status");
         const reasonWrap=section.querySelector(".client-verification-reason-wrap");
         const reasonInput=section.querySelector(".client-verification-reason");
@@ -4173,8 +4275,10 @@ async function loadRequests(options = {}) {
         const declinedActionWrap=section.querySelector(".client-declined-action-wrap");
         const completeButton=section.querySelector(".client-verification-complete");
         const checklistSelectors=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
-        [".client-verification-status",".client-verification-method",".client-verification-industry",".client-verification-reason",...checklistSelectors].forEach(sel=>section.querySelector(sel)?.addEventListener("change",()=>saveSafeVerificationLocalDraft(section)));
+        [".client-verification-status",".client-verification-method",".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-status",".client-employment-method",".client-employment-work-email",".client-employment-website",".client-employment-evidence",".client-verification-reason",...checklistSelectors].forEach(sel=>section.querySelector(sel)?.addEventListener("change",()=>{updateEmploymentVerificationUi();saveSafeVerificationLocalDraft(section);}));
         const checklistLabels={"client-check-identity":"Identity matches ID","client-check-employer":"Employer confirmed","client-check-job-title":"Job title confirmed","client-check-industry":"Industry confirmed","client-check-contact":"Contact information confirmed"};
+        [".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-work-email",".client-employment-website",".client-employment-evidence"].forEach(sel=>section.querySelector(sel)?.addEventListener("input",updateEmploymentVerificationUi));
+        updateEmploymentVerificationUi();
 
         const updateCompletionControls=()=>{
           const missing=checklistSelectors.filter(selector=>!section.querySelector(selector)?.checked).map(selector=>checklistLabels[selector.slice(1)]);
@@ -4191,7 +4295,7 @@ async function loadRequests(options = {}) {
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
           const isFinal=["verified","unable_to_verify","declined"].includes(decision);
           let ready=isFinal;
-          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge;
+          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&section.querySelector(".client-employment-status")?.value==="confirmed";
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
@@ -4249,7 +4353,15 @@ async function loadRequests(options = {}) {
           const completedChanged=Boolean(latestBeforeSave.completed_at)&&(
             decision!==String(latestBeforeSave.verification_status||"") ||
             (reasonInput?.value||"")!==String(latestBeforeSave.decision_reason||"") ||
-            (decisionNotes?.value||"")!==String(latestBeforeSave.decision_notes||"")
+            (decisionNotes?.value||"")!==String(latestBeforeSave.decision_notes||"") ||
+            (section.querySelector(".client-verification-employer")?.value||"")!==String(latestBeforeSave.submitted_employer||"") ||
+            (section.querySelector(".client-verification-job-title")?.value||"")!==String(latestBeforeSave.submitted_job_title||"") ||
+            (section.querySelector(".client-verification-industry")?.value||"")!==String(latestBeforeSave.submitted_industry||"") ||
+            (section.querySelector(".client-employment-status")?.value||"not_checked")!==String(latestBeforeSave.employment_verification_status||"not_checked") ||
+            (section.querySelector(".client-employment-method")?.value||"")!==String(latestBeforeSave.employment_verification_method||"") ||
+            (section.querySelector(".client-employment-work-email")?.value||"")!==String(latestBeforeSave.employment_work_email||"") ||
+            (section.querySelector(".client-employment-website")?.value||"")!==String(latestBeforeSave.employment_employer_website||"") ||
+            (section.querySelector(".client-employment-evidence")?.value||"")!==String(latestBeforeSave.employment_evidence_reference||"")
           );
           if(completedChanged){
             decisionChangeReason=window.prompt("This verification was already completed. Enter the reason for changing the completed decision:")||"";
@@ -4261,7 +4373,14 @@ async function loadRequests(options = {}) {
             const action=declinedAction?.value||"leave";
             const response=await fetch("/api/admin/clients/verification-audit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
               audit_id:auditId,client_id:Number(section.dataset.clientId),verification_status:decision,
+              submitted_employer:section.querySelector(".client-verification-employer")?.value||"",
+              submitted_job_title:section.querySelector(".client-verification-job-title")?.value||"",
               submitted_industry:section.querySelector(".client-verification-industry")?.value||"",
+              employment_verification_status:section.querySelector(".client-employment-status")?.value||"not_checked",
+              employment_verification_method:section.querySelector(".client-employment-method")?.value||"",
+              employment_work_email:section.querySelector(".client-employment-work-email")?.value||"",
+              employment_employer_website:section.querySelector(".client-employment-website")?.value||"",
+              employment_evidence_reference:section.querySelector(".client-employment-evidence")?.value||"",
               verification_method:section.querySelector(".client-verification-method")?.value||"",
               identity_confirmed:section.querySelector(".client-check-identity")?.checked||false,
               employer_confirmed:section.querySelector(".client-check-employer")?.checked||false,

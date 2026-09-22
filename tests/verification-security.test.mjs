@@ -232,3 +232,38 @@ test("changing the phone invalidates the previous line-type result",()=>{
 test("Persona readiness does not say Not ready after Database US already passed",()=>{
   assert.match(portal,/databaseAlreadyPassed\?"External check complete":allReady\?"Ready to submit":"Not ready to submit"/);
 });
+
+
+test("employment verification fields are persisted on the audit record",()=>{
+  assert.match(worker,/employment_verification_status TEXT NOT NULL DEFAULT 'not_checked'/);
+  assert.match(worker,/employment_verification_method TEXT NOT NULL DEFAULT ''/);
+  assert.match(worker,/employment_work_email TEXT NOT NULL DEFAULT ''/);
+  assert.match(worker,/employment_employer_website TEXT NOT NULL DEFAULT ''/);
+  assert.match(worker,/employment_evidence_reference TEXT NOT NULL DEFAULT ''/);
+});
+
+test("employment verification requires evidence before Confirmed",()=>{
+  assert.match(worker,/Employer, job title, industry, verification method, and evidence\/reference are required before employment can be marked Confirmed/);
+  assert.match(worker,/Employment verification must be Confirmed before marking this client Verified/);
+});
+
+test("portal has structured employment verification workflow",()=>{
+  assert.match(portal,/Employment verification<\/legend>/);
+  assert.match(portal,/client-verification-employer/);
+  assert.match(portal,/client-verification-job-title/);
+  assert.match(portal,/client-employment-method/);
+  assert.match(portal,/client-employment-status/);
+  assert.match(portal,/client-employment-evidence/);
+});
+
+test("confirmed employment can satisfy employer role and industry checklist",()=>{
+  assert.match(portal,/employmentStatus==="confirmed"&&confirmedReady/);
+  assert.match(portal,/client-check-employer/);
+  assert.match(portal,/client-check-job-title/);
+  assert.match(portal,/client-check-industry/);
+});
+
+test("work email and employer website domains can be compared without deciding verification",()=>{
+  assert.match(portal,/Work-email domain matches employer website domain/);
+  assert.match(portal,/Work-email domain does not match the employer website domain/);
+});
