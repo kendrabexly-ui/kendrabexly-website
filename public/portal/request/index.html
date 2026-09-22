@@ -395,6 +395,20 @@
   <button type="button" id="open-email-drafts-button" style="display:none;margin-top:10px;background:transparent;border:1px solid #cfc6ba;padding:10px 16px;border-radius:999px;font-family:inherit;cursor:pointer;">
     Review Email Draft
   </button>
+  <div id="screening-stage-controls" style="display:none;margin-top:24px;padding:20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:14px;">
+    <div class="label">SCREENING</div>
+    <div id="screening-stage-summary" style="margin:7px 0 14px;font-size:13px;color:#6f675f;line-height:1.5;">
+      ${item.screening_submitted_at
+        ? (String(item.verification_status||"")==="verified" && item.verification_completed_at
+          ? "✓ Screening details received and verification is complete. You can now request the deposit."
+          : "Screening details received. Complete verification before requesting a deposit.")
+        : "Waiting for the client to submit screening details."}
+    </div>
+    <button type="button" id="request-deposit-button" style="background:#25252d;color:white;border:none;padding:12px 20px;border-radius:999px;font-family:inherit;cursor:pointer;">
+      Request Deposit
+    </button>
+    <div id="request-deposit-status" style="margin-top:10px;font-size:13px;color:#6f675f;"></div>
+  </div>
 <div
   id="final-approval-controls"
   style="display: none; margin-top: 24px;padding:20px;border:1px solid #ded7cd;background:#fffdf9;border-radius:14px;"
@@ -493,9 +507,25 @@ if (viewClientProfileButton) {
 const moveForwardButton =
   document.getElementById("move-forward-button");
 
-if (["pending_final_approval", "screening_pending"].includes(item.status)) {
- moveForwardButton.style.display = "none";
-finalApprovalControls.style.display = "block";
+const screeningStageControls=document.getElementById("screening-stage-controls");
+const requestDepositButton=document.getElementById("request-deposit-button");
+const requestDepositStatus=document.getElementById("request-deposit-status");
+const screeningReadyForDeposit=Boolean(item.screening_submitted_at && String(item.verification_status||"")==="verified" && item.verification_completed_at);
+
+if (item.status === "screening_pending") {
+  moveForwardButton.style.display = "none";
+  screeningStageControls.style.display = "block";
+  finalApprovalControls.style.display = "none";
+  if(requestDepositButton){
+    requestDepositButton.disabled=!screeningReadyForDeposit;
+    requestDepositButton.style.opacity=screeningReadyForDeposit?"1":".5";
+    requestDepositButton.style.cursor=screeningReadyForDeposit?"pointer":"not-allowed";
+  }
+}
+if (item.status === "pending_final_approval") {
+  moveForwardButton.style.display = "none";
+  screeningStageControls.style.display = "none";
+  finalApprovalControls.style.display = "block";
 }
 
 const reschedulePanel=document.getElementById("reschedule-panel");
@@ -531,6 +561,7 @@ const inactiveRequest=["canceled","declined","no_call_no_show","blacklisted_subm
 if(inactiveRequest){
   moveForwardButton.style.display="none";
   finalApprovalControls.style.display="none";
+  if(screeningStageControls) screeningStageControls.style.display="none";
   openEmailDraftsButton.style.display="none";
 }
 if(String(item.status||"").toLowerCase()==="completed"){
@@ -583,6 +614,28 @@ openEmailDraftsButton.addEventListener("click", () => {
   window.location.href = "/portal?section=emails&request_id=" + encodeURIComponent(id);
 });
 
+requestDepositButton?.addEventListener("click",async()=>{
+  if(!screeningReadyForDeposit) return;
+  requestDepositButton.disabled=true;
+  requestDepositStatus.textContent="Creating deposit request...";
+  try{
+    const response=await fetch("/api/admin/request/request-deposit",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({id:Number(id)})
+    });
+    const result=await response.json();
+    if(!response.ok||!result.ok) throw new Error(result.message||"Unable to request deposit.");
+    requestDepositStatus.textContent=result.message||"Deposit request draft created.";
+    requestDepositButton.textContent="Deposit Requested";
+    openEmailDraftsButton.style.display="inline-block";
+    setTimeout(()=>window.location.reload(),350);
+  }catch(error){
+    requestDepositStatus.textContent=error.message||"Unable to request deposit.";
+    requestDepositButton.disabled=false;
+  }
+});
+
 moveForwardButton.addEventListener(
   "click",
   async function () {
@@ -614,23 +667,17 @@ moveForwardButton.addEventListener(
         );
       }
 
-      moveForwardStatus.textContent =
-        result.deposit_amount > 0
-          ? "Request moved forward. Expected 25% deposit: $" + Number(result.deposit_amount).toFixed(2)
-          : "Request moved forward. Deposit amount could not be calculated from the selected duration.";
-
-      const depositCheckLabel = document.getElementById("deposit-check-label");
-      if (depositCheckLabel) {
-        depositCheckLabel.textContent = Number(result.deposit_amount || 0) > 0
-          ? "Expected: $" + Number(result.deposit_amount).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2})
-          : "Amount not calculated";
-      }
-      moveForwardButton.textContent =
-        "Moved Forward";
+      moveForwardStatus.textContent = "Screening request created. Review the email draft before sending it.";
+      moveForwardButton.textContent = "Moved Forward";
       moveForwardButton.style.display = "none";
-      finalApprovalControls.style.display = "block";
+      finalApprovalControls.style.display = "none";
+      if(screeningStageControls) screeningStageControls.style.display = "block";
+      if(requestDepositButton){
+        requestDepositButton.disabled=true;
+        requestDepositButton.style.opacity=".5";
+        requestDepositButton.style.cursor="not-allowed";
+      }
       openEmailDraftsButton.style.display = "inline-block";
-      moveForwardStatus.textContent += " Email draft is ready for review.";
 
     } catch (error) {
       console.error(
