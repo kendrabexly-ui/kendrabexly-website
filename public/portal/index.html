@@ -2886,6 +2886,10 @@ async function loadRequests(options = {}) {
                           <option value="multiple_sources">Multiple official sources</option>
                         </select>
                       </label>
+                      <label style="font-size:12px;font-weight:700;">Date of birth <span style="font-weight:500;color:var(--muted);">(optional search aid)</span>
+                        <input class="client-public-record-dob" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="MM/DD/YYYY" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
+                        <span class="verification-field-note">Use only when the public source supports DOB filtering or when several people share the same name. This reuses the saved Manual Verification DOB and is not stored a second time.</span>
+                      </label>
                       <label style="font-size:12px;font-weight:700;">Search result
                         <select class="client-public-record-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
                           <option value="not_checked">Not checked</option>
@@ -2989,7 +2993,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <details class="verification-card client-audit-history">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">5. Audit History</summary>
+                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">6. Audit History</summary>
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification history…</div>
                     <details style="margin-top:10px;padding-top:9px;border-top:1px solid var(--line);">
                       <summary style="cursor:pointer;font-size:12px;font-weight:700;">Verification Activity Log</summary>
@@ -4026,13 +4030,70 @@ async function loadRequests(options = {}) {
         }catch(error){if(status){status.textContent=error.message||"Unable to save credential verification.";status.style.color="#8a2424";}}finally{if(button)button.disabled=false;}
       };
 
+      const stateCourtRoutes={
+        AL:["Alabama Judicial System","https://judicial.alabama.gov/"],
+        AK:["Alaska Court System","https://courts.alaska.gov/"],
+        AZ:["Arizona Judicial Branch","https://www.azcourts.gov/"],
+        AR:["Arkansas Judiciary","https://arcourts.gov/"],
+        CA:["Judicial Branch of California","https://courts.ca.gov/"],
+        CO:["Colorado Judicial Branch","https://www.coloradojudicial.gov/"],
+        CT:["Connecticut Judicial Branch","https://jud.ct.gov/"],
+        DE:["Delaware Courts","https://courts.delaware.gov/"],
+        FL:["Florida Courts","https://www.flcourts.gov/"],
+        GA:["Georgia Courts","https://georgiacourts.gov/"],
+        HI:["Hawaii State Judiciary","https://www.courts.state.hi.us/"],
+        ID:["Idaho Judicial Branch","https://isc.idaho.gov/"],
+        IL:["Illinois Courts","https://www.illinoiscourts.gov/"],
+        IN:["Indiana Judicial Branch","https://www.in.gov/courts/"],
+        IA:["Iowa Judicial Branch","https://www.iowacourts.gov/"],
+        KS:["Kansas Judicial Branch","https://www.kscourts.org/"],
+        KY:["Kentucky Court of Justice","https://www.kycourts.gov/"],
+        LA:["Louisiana Supreme Court","https://www.lasc.org/"],
+        ME:["Maine Judicial Branch","https://www.courts.maine.gov/"],
+        MD:["Maryland Courts","https://www.mdcourts.gov/"],
+        MA:["Massachusetts Court System","https://www.mass.gov/orgs/massachusetts-court-system"],
+        MI:["Michigan Courts","https://www.courts.michigan.gov/"],
+        MN:["Minnesota Judicial Branch","https://www.mncourts.gov/"],
+        MS:["Mississippi Judiciary","https://courts.ms.gov/"],
+        MO:["Missouri Courts","https://www.courts.mo.gov/"],
+        MT:["Montana Judicial Branch","https://courts.mt.gov/"],
+        NE:["Nebraska Judicial Branch","https://supremecourt.nebraska.gov/"],
+        NV:["Nevada Judiciary","https://nvcourts.gov/"],
+        NH:["New Hampshire Judicial Branch","https://www.courts.nh.gov/"],
+        NJ:["New Jersey Courts","https://www.njcourts.gov/"],
+        NM:["New Mexico Courts","https://www.nmcourts.gov/"],
+        NY:["New York State Unified Court System","https://ww2.nycourts.gov/"],
+        NC:["North Carolina Judicial Branch","https://www.nccourts.gov/"],
+        ND:["North Dakota Courts","https://www.ndcourts.gov/"],
+        OH:["Supreme Court of Ohio","https://www.supremecourt.ohio.gov/"],
+        OK:["Oklahoma State Courts Network","https://www.oscn.net/"],
+        OR:["Oregon Judicial Department","https://www.courts.oregon.gov/"],
+        PA:["Unified Judicial System of Pennsylvania","https://www.pacourts.us/"],
+        RI:["Rhode Island Judiciary","https://www.courts.ri.gov/"],
+        SC:["South Carolina Judicial Branch","https://www.sccourts.org/"],
+        SD:["South Dakota Unified Judicial System","https://ujs.sd.gov/"],
+        TN:["Tennessee Administrative Office of the Courts","https://www.tncourts.gov/"],
+        TX:["Texas Judicial Branch","https://www.txcourts.gov/"],
+        UT:["Utah State Courts","https://www.utcourts.gov/"],
+        VT:["Vermont Judiciary","https://www.vermontjudiciary.org/"],
+        VA:["Virginia Judicial System","https://www.vacourts.gov/"],
+        WA:["Washington Courts","https://www.courts.wa.gov/"],
+        WV:["West Virginia Judiciary","https://www.courtswv.gov/"],
+        WI:["Wisconsin Court System","https://www.wicourts.gov/"],
+        WY:["Wyoming Judicial Branch","https://www.courts.state.wy.us/"],
+        DC:["District of Columbia Courts","https://www.dccourts.gov/"]
+      };
       const publicRecordLookupCatalog=(state,scope)=>{
         const st=String(state||"").trim().toUpperCase(),sc=String(scope||"state_local"),links=[];
         const add=(label,url,source,kind)=>{if(!links.some(x=>x.url===url))links.push({label,url,source,kind});};
         if(sc==="state_local"||sc==="multiple_sources"){
+          const route=stateCourtRoutes[st];
+          if(route)add(route[0]+" — Court Records / Case Search",route[1],route[0],"directory");
           if(st==="CA")add("California Find My Court","https://courts.ca.gov/find-my-court","Judicial Branch of California","directory");
-          else if(st==="NV")add("Nevada Find a Court","https://nvcourts.gov/find_a_court","Nevada Judiciary","directory");
-          else add("Find State & Local Courts","https://www.usa.gov/courts","USAGov Courts","directory");
+          if(st==="NV")add("Nevada Find a Court","https://nvcourts.gov/find_a_court","Nevada Judiciary","directory");
+          if(st==="OK")add("OSCN Case Search","https://www.oscn.net/dockets/Search.aspx","Oklahoma State Courts Network","official");
+          if(st==="WI")add("Wisconsin Circuit Court Access","https://wcca.wicourts.gov/","Wisconsin Court System","official");
+          if(!route)add("Find State & Local Courts","https://www.usa.gov/courts","USA.gov Courts","directory");
         }
         if(sc==="federal"||sc==="multiple_sources")add("PACER Federal Case Search","https://pacer.uscourts.gov/find-case","PACER — U.S. Courts","official");
         if(sc==="sex_offender_registry"||sc==="multiple_sources")add("National Sex Offender Public Website","https://www.nsopw.gov/","U.S. Department of Justice NSOPW","official");
@@ -4056,7 +4117,7 @@ async function loadRequests(options = {}) {
         });
         if(note){
           note.textContent=links.some(x=>x.kind==="directory")
-            ?"State and local criminal case records are often kept by the specific county or trial court. Use the court directory to reach the actual court record system, then record that court as the source."
+            ?"Each state now routes to its official judiciary/court entry point. Criminal case records may still be maintained by a county, district, or trial court, so follow the state route to the actual record system and record that specific court as the source."
             :"Search the official source manually and record only the result needed for verification.";
         }
       };
@@ -4552,6 +4613,20 @@ async function loadRequests(options = {}) {
         section.querySelector(".client-public-record-save")?.addEventListener("click",()=>savePublicRecordCheck(section));
         [".client-public-record-state",".client-public-record-scope"].forEach(sel=>{
           section.querySelector(sel)?.addEventListener("change",()=>renderPublicRecordLookups(section));
+        });
+        const syncPublicRecordDob=()=>{
+          const dob=section.querySelector(".client-public-record-dob");
+          const manualDob=section.querySelector(".client-persona-birthdate");
+          if(dob&&manualDob&&document.activeElement!==dob)dob.value=manualDob.value||"";
+        };
+        syncPublicRecordDob();
+        section.querySelector(".client-persona-birthdate")?.addEventListener("input",syncPublicRecordDob);
+        section.querySelector(".client-persona-birthdate")?.addEventListener("change",syncPublicRecordDob);
+        section.querySelector(".client-public-record-dob")?.addEventListener("blur",event=>{
+          const manualDob=section.querySelector(".client-persona-birthdate");
+          if(manualDob&&event.target.value&&event.target.value!==manualDob.value){
+            event.target.value=manualDob.value||"";
+          }
         });
         renderPublicRecordLookups(section);
         [".client-credential-occupation",".client-credential-state"].forEach(sel=>{
