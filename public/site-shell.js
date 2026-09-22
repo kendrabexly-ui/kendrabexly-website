@@ -6,7 +6,7 @@
     { key: "our-time", href: "/our-time", label: "Our Time" },
     { key: "etiquette", href: "/etiquette", label: "Etiquette" },
     { key: "pillow-talk", href: "/pillow-talk", label: "Pillow Talk" },
-    { key: "request", href: "/request", label: "The Rendezvous", button: true }
+    { key: "request", href: "/request", label: "Request a Date", button: true }
   ];
 
   class SiteHeader extends HTMLElement {
@@ -47,6 +47,13 @@
       window.addEventListener("resize", () => {
         if (window.innerWidth > 1100) close();
       });
+      if (!document.querySelector(".mobile-booking-cta") && !location.pathname.startsWith("/request") && !location.pathname.startsWith("/complete") && !location.pathname.startsWith("/portal")) {
+        const sticky = document.createElement("a");
+        sticky.className = "mobile-booking-cta";
+        sticky.href = "/request";
+        sticky.textContent = "Request a Date";
+        document.body.appendChild(sticky);
+      }
     }
   }
 

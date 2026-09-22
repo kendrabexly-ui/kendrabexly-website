@@ -840,6 +840,23 @@
 
         </div>
 
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Booking Funnel · Last 30 Days</div>
+              <div class="panel-subtitle">See where visitors move forward or leave the booking process.</div>
+            </div>
+          </div>
+          <div id="booking-funnel-stats" style="padding:18px 22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+            <div class="stat"><div class="stat-label">Request Page Views</div><div class="stat-number" id="funnel-views">—</div></div>
+            <div class="stat"><div class="stat-label">Form Starts</div><div class="stat-number" id="funnel-starts">—</div></div>
+            <div class="stat"><div class="stat-label">Requests Submitted</div><div class="stat-number" id="funnel-submitted">—</div></div>
+            <div class="stat"><div class="stat-label">Private Link Opens</div><div class="stat-number" id="funnel-continuation-opened">—</div></div>
+            <div class="stat"><div class="stat-label">Screening Step Complete</div><div class="stat-number" id="funnel-continuation-completed">—</div></div>
+          </div>
+          <div id="booking-funnel-conversion" style="padding:0 22px 20px;color:var(--muted);font-size:13px;"></div>
+        </div>
+
         <div class="panel">
 
           <div class="panel-header">
@@ -1931,6 +1948,21 @@
 
         document.getElementById("payment-count").textContent =
           data.counts.recorded_payments ?? 0;
+
+        const funnel = data.funnel || {};
+        const setFunnel = (id, value) => { const el=document.getElementById(id); if(el) el.textContent=Number(value||0).toLocaleString(); };
+        setFunnel("funnel-views", funnel.request_page_view);
+        setFunnel("funnel-starts", funnel.form_started);
+        setFunnel("funnel-submitted", funnel.form_submitted);
+        setFunnel("funnel-continuation-opened", funnel.continuation_opened);
+        setFunnel("funnel-continuation-completed", funnel.continuation_completed);
+        const funnelNote=document.getElementById("booking-funnel-conversion");
+        if(funnelNote){
+          const views=Number(funnel.request_page_view||0), starts=Number(funnel.form_started||0), submitted=Number(funnel.form_submitted||0);
+          const startRate=views?Math.round(starts/views*100):0;
+          const submitRate=starts?Math.round(submitted/starts*100):0;
+          funnelNote.textContent="Page → form start: "+startRate+"% · Form start → submitted request: "+submitRate+"%. Counts are event-based and intended for directional conversion tracking.";
+        }
 
         const recent = document.getElementById("recent-requests");
         if (recent) {

@@ -160,48 +160,6 @@
 
           </div>
 
-          <!-- CURRENT EMPLOYMENT -->
-          <div class="field">
-            <label for="current-employer">Current employer *</label>
-            <input id="current-employer" name="current_employer" type="text" autocomplete="organization" maxlength="160" required>
-          </div>
-
-          <div class="field">
-            <label for="job-title">Job title *</label>
-            <input id="job-title" name="job_title" type="text" autocomplete="organization-title" maxlength="160" required>
-          </div>
-
-          <!-- PREFERRED CONTACT -->
-          <div class="field full-width contact-preference-field">
-
-            <label for="preferred-contact">
-              Preferred method of contact *
-            </label>
-
-            <select
-              id="preferred-contact"
-              name="preferred_contact"
-              required
-            >
-              <option value="" selected disabled>
-                Select one
-              </option>
-
-              <option value="email">
-                Email
-              </option>
-
-              <option value="text">
-                Text
-              </option>
-            </select>
-
-            <small>
-              All booking communication will be sent via email. Communication after a confirmed appointment can be moved to text.
-            </small>
-
-          </div>
-
         </div>
 
       </div>
@@ -449,7 +407,7 @@
         <div class="eyebrow">REVIEW YOUR REQUEST</div>
         <h2 id="booking-summary-title">Your Booking Summary</h2>
         <dl id="booking-summary-details"></dl>
-        <p class="booking-summary-note">Your date is not reserved until your request is approved and the required 25% deposit is received.</p>
+        <p class="booking-summary-note"><strong>No payment is due when you submit this request.</strong> If your request moves forward, you will receive a private link with screening and deposit instructions. Your date is not reserved until final approval.</p>
       </section>
 
 
@@ -478,8 +436,7 @@
             >
 
             <span>
-              I understand that a valid ID is required for screening
-              before final approval.
+              I understand that private screening is required before final approval. I will receive instructions only if my request moves forward.
             </span>
 
           </label>
@@ -495,22 +452,20 @@
             <option value="stripe">Stripe (10% processing fee)</option>
             <option value="crypto">Crypto (10% processing fee)</option>
           </select>
-          <small>The deposit is 25% of the date total. Stripe and Crypto include a 10% processing fee on the deposit. If your request moves forward, your payment instructions and ID request will be included together in the next email.</small>
+          <small><strong>No payment is due now.</strong> The deposit is 25% of the date total. Stripe and Crypto include a 10% processing fee on the deposit. If your request moves forward, you will receive one private link to complete screening details and review your deposit instructions.</small>
         </div>
 
         <div class="field full-width">
           <label class="checkbox-label">
             <input type="checkbox" id="deposit-acknowledgement" name="deposit_acknowledgement" value="yes" required>
-            <span>I understand that my date is not confirmed until the required deposit and screening are completed.</span>
+            <span>I understand that no payment is due when I submit this request, and that my date is not confirmed until screening, the required deposit, and final approval are complete.</span>
           </label>
         </div>
 
 
         <!-- PRIVACY NOTE -->
         <p>
-          If your request moves forward, instructions for completing
-          screening and submitting the required information will be
-          provided privately.
+          Nothing is charged when you submit this form. If your request moves forward, you will receive one private link to complete your screening details and deposit step.
         </p>
 
 
@@ -548,6 +503,7 @@
   <script>
     const offerParams = new URLSearchParams(window.location.search);
     const newsletterOffer = offerParams.get("newsletter_offer");
+    const requestedExperience = offerParams.get("experience");
     if (newsletterOffer && /^\d+$/.test(newsletterOffer)) {
       const offerInput = document.getElementById("newsletter-offer");
       const offerBanner = document.getElementById("newsletter-special-banner");
@@ -609,6 +565,35 @@
       updateBookingSummary();
     });
     syncDurationOptions();
+
+    const funnelSession = (() => {
+      const key = "booking_funnel_session";
+      let value = sessionStorage.getItem(key);
+      if (!value) {
+        value = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+        sessionStorage.setItem(key, value);
+      }
+      return value;
+    })();
+    function trackFunnel(eventName, requestId) {
+      fetch("/api/public/funnel", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        keepalive: true,
+        body: JSON.stringify({
+          event: eventName,
+          session_id: funnelSession,
+          request_id: requestId || null,
+          path: location.pathname
+        })
+      }).catch(() => {});
+    }
+    trackFunnel("request_page_view");
+
+    if (requestedExperience && dateType && Array.from(dateType.options).some(option => option.value === requestedExperience)) {
+      dateType.value = requestedExperience;
+      syncDurationOptions();
+    }
 
 
     let publicRateServices = [];
@@ -694,6 +679,10 @@
       details.innerHTML = rows.map(row =>
         '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>'
       ).join("");
+      if (!summary.dataset.tracked) {
+        summary.dataset.tracked = "true";
+        trackFunnel("booking_summary_viewed");
+      }
     }
 
     document.getElementById("deposit-payment-method")?.addEventListener("change", updateBookingSummary);
@@ -750,6 +739,7 @@
             return '<option value="' + time + '">' + display + '</option>';
           }).join("");
         requestedTime.disabled = slots.length === 0;
+        trackFunnel("availability_checked");
         if (status) {
           if (slots.length) {
             status.textContent = slots.length + " available start time" + (slots.length === 1 ? "" : "s") + " found.";
@@ -808,6 +798,14 @@
 
     const form =
       document.getElementById("request-form");
+
+    let formStarted = false;
+    form.addEventListener("input", () => {
+      if (!formStarted) {
+        formStarted = true;
+        trackFunnel("form_started");
+      }
+    }, {passive:true});
 
     const status =
       document.getElementById("form-status");
@@ -916,15 +914,24 @@
           }
 
 
-          status.textContent =
-            "Thank you. Your private request has been received and is pending review.";
-
-
-          form.reset();
-          syncDurationOptions();
-          syncOutcallAddress();
-          loadAvailableTimes();
-          updateBookingSummary();
+          trackFunnel("form_submitted", result.request_id);
+          const firstName = String(data.first_name || "").trim();
+          const emailAddress = String(data.email || "").trim();
+          const requestedDateText = data.requested_date
+            ? new Date(data.requested_date + "T12:00:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})
+            : "";
+          const timeText = selectedOptionText(requestedTime);
+          form.innerHTML = '<section class="request-success" aria-labelledby="request-success-title">' +
+            '<div class="eyebrow">REQUEST RECEIVED</div>' +
+            '<h2 id="request-success-title">Your request is in 💋</h2>' +
+            '<p>Thank you' + (firstName ? ', <strong>' + firstName.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong>' : '') + '. I received your private request and will review it personally.</p>' +
+            '<div class="request-success-summary"><strong>' + (requestedDateText || 'Requested date') + '</strong>' + (timeText ? '<span>' + timeText + '</span>' : '') + '</div>' +
+            '<div class="no-payment-callout"><strong>No payment has been charged.</strong><span>Nothing else is required from you right now.</span></div>' +
+            '<h3>What happens next</h3>' +
+            '<ol><li>I review your request.</li><li>If I would like to move forward, you will receive one private link for screening details and your deposit step.</li><li>After screening and the deposit are complete, I make the final approval decision.</li></ol>' +
+            '<p>Please watch <strong>' + emailAddress.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong> for the next step.</p>' +
+            '<a class="button" href="/">Return to the website</a>' +
+          '</section>';
 
 
         } catch (error) {

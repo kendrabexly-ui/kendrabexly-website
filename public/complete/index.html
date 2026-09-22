@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Complete the private screening and deposit steps for your booking request.">
+  <title>Complete Your Request | Kendra Bexly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-shell.js"></script>
+</head>
+<body class="rendezvous-page">
+  <site-header></site-header>
+  <main class="request-page">
+    <section class="request-intro">
+      <div class="eyebrow">PRIVATE NEXT STEP</div>
+      <h1>Complete Your Request</h1>
+      <p>This private page is tied only to the request link sent to you.</p>
+    </section>
+
+    <section id="continuation-loading" class="form-section">
+      <p>Loading your private request…</p>
+    </section>
+
+    <form id="continuation-form" hidden>
+      <section class="booking-summary">
+        <div class="eyebrow">YOUR REQUEST</div>
+        <h2>Request Summary</h2>
+        <dl id="continuation-summary"></dl>
+      </section>
+
+      <section class="form-section">
+        <div class="eyebrow">SCREENING DETAILS</div>
+        <h2>A few final details.</h2>
+        <p>These details are used only for private screening and final review. <strong>You are not required to upload an ID on this page.</strong></p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="screening-employer">Current employer *</label>
+            <input id="screening-employer" name="current_employer" type="text" autocomplete="organization" maxlength="160" required>
+          </div>
+          <div class="field">
+            <label for="screening-title">Job title *</label>
+            <input id="screening-title" name="job_title" type="text" autocomplete="organization-title" maxlength="160" required>
+          </div>
+          <div class="field full-width">
+            <label for="screening-industry">Industry *</label>
+            <input id="screening-industry" name="industry" type="text" maxlength="160" required>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="eyebrow">DEPOSIT</div>
+        <h2>Secure the date.</h2>
+        <div class="no-payment-callout">
+          <strong id="deposit-total">Deposit total</strong>
+          <span id="deposit-method">Payment method</span>
+        </div>
+        <p id="deposit-instructions">Use the payment instructions provided with your private invitation. This page does not automatically mark a payment as received; Kendra will confirm it after review.</p>
+        <label class="checkbox-label">
+          <input type="checkbox" name="deposit_step_acknowledged" value="yes" required>
+          <span>I have reviewed the deposit amount and payment instructions and understand that final approval happens only after the deposit and screening are confirmed.</span>
+        </label>
+      </section>
+
+      <section class="form-section">
+        <button type="submit" class="button" id="complete-request">Submit for Final Review</button>
+        <small id="continuation-status" role="status" aria-live="polite"></small>
+      </section>
+    </form>
+
+    <section id="continuation-complete" class="request-success" hidden>
+      <div class="eyebrow">STEP COMPLETE</div>
+      <h2>You're all set for review.</h2>
+      <p>Your screening details were received. If your deposit has also been completed, there is nothing else you need to submit here.</p>
+      <p>Kendra will personally review the request and send final confirmation if approved.</p>
+      <a class="button" href="/">Return to the website</a>
+    </section>
+  </main>
+  <site-footer></site-footer>
+  <script>
+    const token = new URLSearchParams(location.search).get("token") || "";
+    const loading = document.getElementById("continuation-loading");
+    const form = document.getElementById("continuation-form");
+    const complete = document.getElementById("continuation-complete");
+    const status = document.getElementById("continuation-status");
+    const money = value => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(value)||0);
+    const escapeHtml = value => String(value||"").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]));
+    async function track(eventName) {
+      fetch("/api/public/funnel",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({event:eventName,session_id:"continuation:"+token.slice(0,12),path:location.pathname})}).catch(()=>{});
+    }
+    async function load() {
+      if (!token) {
+        loading.innerHTML = "<p>This private link is incomplete. Please use the complete link from your email.</p>";
+        return;
+      }
+      const response = await fetch("/api/booking/continuation?token="+encodeURIComponent(token),{cache:"no-store"});
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        loading.innerHTML = "<p>"+escapeHtml(data.message || "This private link is unavailable or has expired.")+"</p>";
+        return;
+      }
+      track("continuation_opened");
+      const rows = [
+        ["Name", data.client_name],
+        ["Date", data.requested_date],
+        ["Time", data.requested_time],
+        ["Location", data.location_name],
+        ["Deposit", money(data.deposit_amount)]
+      ];
+      document.getElementById("continuation-summary").innerHTML = rows.map(row => "<div><dt>"+escapeHtml(row[0])+"</dt><dd>"+escapeHtml(row[1])+"</dd></div>").join("");
+      document.getElementById("deposit-total").textContent = "Deposit total: " + money(data.deposit_amount);
+      document.getElementById("deposit-method").textContent = "Selected payment method: " + (data.deposit_payment_method || "As arranged");
+      document.getElementById("screening-employer").value = data.current_employer || "";
+      document.getElementById("screening-title").value = data.job_title || "";
+      document.getElementById("screening-industry").value = data.industry || "";
+      loading.hidden = true;
+      if (data.completed) {
+        complete.hidden = false;
+      } else {
+        form.hidden = false;
+      }
+    }
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      status.textContent = "Submitting…";
+      const button = document.getElementById("complete-request");
+      button.disabled = true;
+      try {
+        const body = Object.fromEntries(new FormData(form).entries());
+        body.token = token;
+        const response = await fetch("/api/booking/continuation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Unable to submit.");
+        track("continuation_completed");
+        form.hidden = true;
+        complete.hidden = false;
+      } catch(error) {
+        status.textContent = error.message || "Unable to submit. Please try again.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+    load();
+  </script>
+</body>
+</html>

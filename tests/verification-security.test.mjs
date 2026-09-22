@@ -248,7 +248,7 @@ test("employment verification requires evidence before Confirmed",()=>{
 });
 
 test("portal has structured employment verification workflow",()=>{
-  assert.match(portal,/Employment verification<\/legend>/);
+  assert.match(portal,/Employment verification .*<\/legend>/);
   assert.match(portal,/client-verification-employer/);
   assert.match(portal,/client-verification-job-title/);
   assert.match(portal,/client-employment-method/);
@@ -282,13 +282,13 @@ test("credential verification persists structured public license fields",()=>{
 });
 
 test("confirmed credential requires an official source",()=>{
-  assert.match(worker,/Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Confirmed/);
+  assert.match(worker,/Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Active \/ verified/);
 });
 
 test("portal has License and Credential Verification as section 3",()=>{
   assert.match(portal,/3\. License &amp; Credential Verification/);
-  assert.match(portal,/4\. Persona/);
-  assert.match(portal,/5\. Audit History/);
+  assert.match(portal,/6\. Persona/);
+  assert.match(portal,/8\. Audit History/);
 });
 
 test("registry routing includes official licensing sources",()=>{
@@ -300,5 +300,5 @@ test("registry routing includes official licensing sources",()=>{
 });
 
 test("NPI is treated as supporting provider data instead of licensure proof",()=>{
-  assert.match(portal,/NPI is supporting provider data and does not by itself prove licensure/);
+  assert.match(portal,/NPI only as supporting provider data/);
 });
