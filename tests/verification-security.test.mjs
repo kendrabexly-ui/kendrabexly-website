@@ -26,6 +26,13 @@ test("initial booking request collects a validated base state for basic screenin
   assert.match(worker,/`Base state: \$\{baseState\}`/);
 });
 
+test("booking submission shows the server response instead of hiding it behind a generic error",()=>{
+  assert.match(requestPage,/const responseText = await response\.text\(\)/);
+  assert.match(requestPage,/result = responseText \? JSON\.parse\(responseText\) : \{\}/);
+  assert.match(requestPage,/status\.textContent =[\s\S]*error\?\.message \|\|/);
+  assert.match(requestPage,/no longer available\|choose another opening/);
+});
+
 test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/data-progress-step="basic_screening">Basic Screening/);
   assert.match(portal,/class="verification-card client-basic-screening"/);

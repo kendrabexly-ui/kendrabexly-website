@@ -814,8 +814,16 @@
             );
 
 
-          const result =
-            await response.json();
+          const responseText = await response.text();
+          let result = {};
+
+          try {
+            result = responseText ? JSON.parse(responseText) : {};
+          } catch (parseError) {
+            throw new Error(
+              "The request service returned an unexpected response. Please wait a moment and try again."
+            );
+          }
 
 
           if (
@@ -860,7 +868,12 @@
 
 
           status.textContent =
+            error?.message ||
             "Your request could not be submitted. Please try again.";
+
+          if (/no longer available|choose another opening/i.test(String(error?.message || ""))) {
+            loadAvailableTimes();
+          }
 
 
         } finally {
