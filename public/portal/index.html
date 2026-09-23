@@ -7771,7 +7771,7 @@ function escapeHtml(value) {
         return '<article data-gallery-card="'+slot+'" style="padding:18px;border:1px solid var(--line);border-radius:12px;background:white;">'+
           '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);">PHOTO SLOT '+String(slot).padStart(2,"0")+'</div>'+
           '<div style="height:220px;margin-top:10px;border:1px solid var(--line);border-radius:9px;background:var(--cream);overflow:hidden;display:grid;place-items:center;">'+
-            (src?'<img src="'+src+'" alt="" style="width:100%;height:100%;object-fit:cover;">':'<span style="color:var(--muted);font-size:13px;">No photo uploaded</span>')+
+            (src?'<img src="'+src+'" alt="" style="width:100%;height:100%;object-fit:contain;">':'<span style="color:var(--muted);font-size:13px;">No photo uploaded</span>')+
           '</div>'+
           '<label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ALT TEXT<input data-gallery-alt="'+slot+'" value="'+escapeHtml(item?.alt_text||"")+'" placeholder="Describe the photograph" style="display:block;width:100%;margin-top:5px;border:1px solid var(--line);border-radius:8px;padding:9px;"></label>'+
           '<label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">IMAGE<input data-gallery-file="'+slot+'" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font-size:12px;"></label>'+
