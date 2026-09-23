@@ -603,6 +603,8 @@ async function ensureVerificationWorkspaceTables(env) {
   `).run();
   const publicRecordColumns = await env.DB.prepare("PRAGMA table_info(client_public_record_checks)").all();
   const publicRecordNames = new Set((publicRecordColumns.results || []).map(row => String(row.name || "")));
+  if (!publicRecordNames.has("public_records_reviewed")) await env.DB.prepare("ALTER TABLE client_public_record_checks ADD COLUMN public_records_reviewed INTEGER NOT NULL DEFAULT 0").run();
+  if (!publicRecordNames.has("criminal_records_reviewed")) await env.DB.prepare("ALTER TABLE client_public_record_checks ADD COLUMN criminal_records_reviewed INTEGER NOT NULL DEFAULT 0").run();
   if (!publicRecordNames.has("jurisdiction_county")) {
     await env.DB.prepare("ALTER TABLE client_public_record_checks ADD COLUMN jurisdiction_county TEXT NOT NULL DEFAULT ''").run();
   }
@@ -1857,6 +1859,11 @@ export default {
         const age = verificationAgeOnDate(birthdate);
 
         if (verificationStatus === "verified") {
+          await ensureVerificationWorkspaceTables(env);
+          const requiredRecords=await env.DB.prepare("SELECT record_status,checked_at,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
+          if(!requiredRecords?.checked_at || requiredRecords.record_status==="not_checked" || !requiredRecords.source_name || !requiredRecords.source_url || !requiredRecords.public_records_reviewed || !requiredRecords.criminal_records_reviewed){
+            return Response.json({ok:false,message:"Complete and save both the public-record and criminal-court searches with their official source before marking this client Verified."},{status:400});
+          }
           if (!(identityConfirmed && contactConfirmed)) {
             return Response.json({
               ok:false,
@@ -6220,6 +6227,8 @@ if (
         }
         const sourceName=String(data.source_name||"").trim().slice(0,200);
         const sourceUrl=String(data.source_url||"").trim().slice(0,800);
+        const publicRecordsReviewed=data.public_records_reviewed===true?1:0;
+        const criminalRecordsReviewed=data.criminal_records_reviewed===true?1:0;
         const evidenceNotes=String(data.evidence_notes||"").trim().slice(0,1600);
         const genericDirectorySource=/usa\.gov\/state-governments/i.test(sourceUrl)||/^usa\.gov state governments$/i.test(sourceName);
         if(credentialStatus==="confirmed" && !(occupation&&credentialType&&licenseNumber&&issuingState&&issuingBoard&&sourceName&&sourceUrl)){
@@ -6377,14 +6386,14 @@ if (
         const clientId=Number(url.searchParams.get("client_id")||0);
         if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
         const row=await env.DB.prepare(`
-          SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,
+          SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed,
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
           FROM client_public_record_checks WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
         return Response.json({ok:true,check:row?{
           client_id:Number(row.client_id),jurisdiction_state:row.jurisdiction_state||"",
           jurisdiction_county:row.jurisdiction_county||"",search_scope:row.search_scope||"state_local",record_status:row.record_status||"not_checked",
-          source_name:row.source_name||"",source_url:row.source_url||"",case_reference:row.case_reference||"",
+          source_name:row.source_name||"",source_url:row.source_url||"",public_records_reviewed:Boolean(row.public_records_reviewed),criminal_records_reviewed:Boolean(row.criminal_records_reviewed),case_reference:row.case_reference||"",
           disposition_summary:row.disposition_summary||"",evidence_reference:row.evidence_reference||"",
           checked_at:row.checked_at||"",checked_by:row.checked_by||"",updated_at:row.updated_at||""
         }:null},{headers:{"Cache-Control":"private, no-store"}});
@@ -6426,17 +6435,18 @@ if (
         const actor=accessIdentity(request).email||"authorized-admin";
         await env.DB.prepare(`
           INSERT INTO client_public_record_checks
-            (client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,case_reference,
+            (client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed,case_reference,
              disposition_summary,evidence_reference,checked_at,checked_by,updated_at)
-          VALUES(?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,?,CURRENT_TIMESTAMP)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,?,CURRENT_TIMESTAMP)
           ON CONFLICT(client_id) DO UPDATE SET
             jurisdiction_state=excluded.jurisdiction_state,jurisdiction_county=excluded.jurisdiction_county,search_scope=excluded.search_scope,
             record_status=excluded.record_status,source_name=excluded.source_name,source_url=excluded.source_url,
+            public_records_reviewed=excluded.public_records_reviewed,criminal_records_reviewed=excluded.criminal_records_reviewed,
             case_reference=excluded.case_reference,disposition_summary=excluded.disposition_summary,
             evidence_reference=excluded.evidence_reference,
             checked_at=CASE WHEN excluded.record_status='not_checked' THEN NULL ELSE CURRENT_TIMESTAMP END,
             checked_by=excluded.checked_by,updated_at=CURRENT_TIMESTAMP
-        `).bind(clientId,jurisdictionState,jurisdictionCounty,searchScope,recordStatus,sourceName,sourceUrl,caseReference,
+        `).bind(clientId,jurisdictionState,jurisdictionCounty,searchScope,recordStatus,sourceName,sourceUrl,publicRecordsReviewed,criminalRecordsReviewed,caseReference,
                  dispositionSummary,evidenceReference,recordStatus,actor).run();
         const audit=await env.DB.prepare("SELECT id FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
         if(recordStatus!=="not_checked"){
@@ -6456,7 +6466,7 @@ if (
             },actor);
         }
         const saved=await env.DB.prepare(`
-          SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,
+          SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed,
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
           FROM client_public_record_checks WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
@@ -8377,6 +8387,11 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             { ok:false, message:"Screening must be marked Verified and completed before final approval." },
             { status:400 }
           );
+        }
+        await ensureVerificationWorkspaceTables(env);
+        const finalRecordChecks=await env.DB.prepare("SELECT checked_at,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();
+        if(!finalRecordChecks?.checked_at || finalRecordChecks.record_status==="not_checked" || !finalRecordChecks.source_name || !finalRecordChecks.source_url || !finalRecordChecks.public_records_reviewed || !finalRecordChecks.criminal_records_reviewed){
+          return Response.json({ok:false,message:"Save both the public-record and criminal-court searches before final approval."},{status:400});
         }
 
         if (hasNewsletterSpecial && data.newsletter_special_approved !== true) {
