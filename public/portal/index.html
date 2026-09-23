@@ -1737,7 +1737,7 @@
           <div style="padding:16px 24px;">
             <label for="x-bank-input" style="display:block;font-weight:600;margin-bottom:8px;">Add posts, one per line</label>
             <textarea id="x-bank-input" placeholder="Paste your posts here…" style="width:100%;min-height:110px;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box;"></textarea>
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;"><button id="x-bank-import" type="button">Add to Bank</button><span id="x-bank-message" role="status" style="font-size:13px;color:var(--muted);">Turn on “Use in Generate My Day” for evergreen posts. Date specific posts stay in the bank for manual review.</span></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;"><button id="x-bank-import" type="button">Add to Bank</button><span id="x-bank-message" role="status" style="font-size:13px;color:var(--muted);">Timeless posts can appear in Generate My Day. Check the switches below before using posts about past events or specific places.</span></div>
             <div id="x-bank-items" style="margin-top:15px;max-height:400px;overflow:auto;"></div>
           </div>
         </div>
@@ -7296,9 +7296,10 @@ function escapeHtml(value) {
         document.querySelector('[data-section="x-agent"]')?.addEventListener("click",loadXTweetBank);
         document.getElementById("x-bank-import")?.addEventListener("click",async()=>{
           const input=document.getElementById("x-bank-input"),message=document.getElementById("x-bank-message"),button=document.getElementById("x-bank-import");
-          const items=input.value.split(/\n/).map(s=>s.replace(/^\s*[-•]\s*/,"").trim()).filter(Boolean).map(content=>({content,auto_pick:false}));
+          const timeOrPlace=/\b(today|tonight|yesterday|tomorrow|this week|this weekend|this year|this month|last night|last week|next week|monday|friday|saturday|sunday|christmas|valentine|birthday|2025|june|nyc|new york|sf|san francisco|kendrick|jazmine|cashapp)\b|@/i;
+          const items=input.value.split(/\n/).map(s=>s.replace(/^\s*[-•]\s*/,"").trim()).filter(Boolean).map(content=>({content,auto_pick:!timeOrPlace.test(content)}));
           if(!items.length)return;
-          button.disabled=true;try{const r=await fetch("/api/admin/x/tweet-bank",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Import failed.");message.textContent=d.added+" added; "+d.skipped+" skipped (duplicates or over 280 characters). Select evergreen posts below for automatic suggestions.";input.value="";await loadXTweetBank();}catch(err){message.textContent=err.message;}finally{button.disabled=false;}
+          button.disabled=true;try{const r=await fetch("/api/admin/x/tweet-bank",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Import failed.");message.textContent=d.added+" added; "+d.skipped+" skipped (duplicates or over 280 characters). Posts with date or place references are set to manual review.";input.value="";await loadXTweetBank();}catch(err){message.textContent=err.message;}finally{button.disabled=false;}
         });
 
         document.getElementById("x-generate-day")?.addEventListener("click",async e=>{
