@@ -8665,7 +8665,17 @@ function escapeHtml(value) {
         intensity: Number(intensity?.value || 3),
         cta: document.getElementById("ad-copy-cta")?.value.trim() || "Book now"
       });
+      const lengthSelect = document.getElementById("ad-copy-length");
+      const toneSelect = document.getElementById("ad-copy-tone");
+      const syncAdCopySelections = () => {
+        if (status && lengthSelect && toneSelect) {
+          status.textContent = "Length: " + lengthSelect.value + " · Tone: " + toneSelect.value;
+        }
+      };
       if (intensity) intensity.oninput = () => { if (intensityValue) intensityValue.textContent = intensity.value + "/5"; };
+      [lengthSelect, toneSelect].forEach(select => {
+        if (select) select.addEventListener("change", syncAdCopySelections);
+      });
       if (previewButton) previewButton.onclick = () => {
         const d=collect();
         if (!d.product) { if(status) status.textContent="Describe what you are advertising first."; return; }
