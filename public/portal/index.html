@@ -568,7 +568,8 @@
     body[data-admin-section="photo-editor"] main.main > #photo-editor,
     body[data-admin-section="newsletter"] main.main > #newsletter,
     body[data-admin-section="x-agent"] main.main > #x-agent,
-    body[data-admin-section="marketing-retention"] main.main > #marketing-retention { display:block !important; }
+    body[data-admin-section="marketing-retention"] main.main > #marketing-retention,
+    body[data-admin-section="ad-copy-agent"] main.main > #ad-copy-agent { display:block !important; }
     body[data-admin-section="newsletter"] #x-agent,
     body[data-admin-section="newsletter"] #x-agent-boundary { display:none !important; }
 
@@ -796,6 +797,7 @@
         <button type="button" data-section="newsletter">Newsletter</button>
         <button type="button" data-section="x-agent">X Agent</button>
         <button type="button" data-section="marketing-retention">Marketing &amp; Retention</button>
+        <button type="button" data-section="ad-copy-agent">Ad Copy Agent</button>
       </nav>
 
       <a class="back-site" href="/">
@@ -8601,6 +8603,40 @@ function escapeHtml(value) {
     });
 
 
+    function initAdCopyAgent() {
+      const generate = document.getElementById("ad-copy-generate");
+      const clear = document.getElementById("ad-copy-clear");
+      const intensity = document.getElementById("ad-copy-intensity");
+      const intensityValue = document.getElementById("ad-copy-intensity-value");
+      const results = document.getElementById("ad-copy-results");
+      const status = document.getElementById("ad-copy-status");
+      if (!generate || generate.dataset.bound === "1") return;
+      generate.dataset.bound = "1";
+      if (intensity) intensity.oninput = () => { if (intensityValue) intensityValue.textContent = intensity.value + "/5"; };
+      if (clear) clear.onclick = () => {
+        ["ad-copy-product","ad-copy-audience","ad-copy-offer","ad-copy-cta"].forEach(id => { const el=document.getElementById(id); if(el) el.value = id==="ad-copy-cta" ? "Book now" : ""; });
+        if(results) results.innerHTML = ""; if(status) status.textContent = "";
+      };
+      generate.onclick = async () => {
+        const product = document.getElementById("ad-copy-product")?.value.trim();
+        if (!product) { if(status) status.textContent = "Describe what you are advertising first."; return; }
+        generate.disabled = true; generate.textContent = "Writing...";
+        if(status) status.textContent = "Creating three variations...";
+        try {
+          const r = await fetch("/api/admin/ad-copy/generate", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+            product, audience:document.getElementById("ad-copy-audience")?.value.trim(), offer:document.getElementById("ad-copy-offer")?.value.trim(),
+            platform:document.getElementById("ad-copy-platform")?.value, tone:document.getElementById("ad-copy-tone")?.value,
+            intensity:Number(intensity?.value||3), cta:document.getElementById("ad-copy-cta")?.value.trim()
+          })});
+          const d=await r.json(); if(!r.ok||!d.ok) throw new Error(d.message||"Unable to generate copy.");
+          results.innerHTML=(d.variants||[]).map((v,i)=>'<div style="border:1px solid var(--line);border-radius:10px;padding:15px;background:white;"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;"><strong>'+escapeHtml(v.label||("Variation "+(i+1)))+'</strong><button type="button" data-copy-ad="'+i+'" style="border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:white;cursor:pointer;">Copy</button></div><div data-ad-copy-text style="margin-top:10px;white-space:pre-wrap;line-height:1.55;">'+escapeHtml(v.copy||"")+'</div></div>').join("");
+          results.querySelectorAll("[data-copy-ad]").forEach((b,i)=>b.onclick=async()=>{try{await navigator.clipboard.writeText(d.variants[i].copy||"");b.textContent="Copied";setTimeout(()=>b.textContent="Copy",1200);}catch{b.textContent="Select & copy";}});
+          if(status) status.textContent = d.fallback ? "Drafted with the built-in copy engine. Connect an AI model to enable richer generations." : "Copy generated. Edit before publishing.";
+        } catch(e) { if(status) status.textContent=e.message||"Unable to generate copy."; }
+        finally { generate.disabled=false; generate.textContent="Generate 3 Variations"; }
+      };
+    }
+
     const adminSectionLoadState = new Map();
     const loadAdminSectionData = async (sectionName, force = false) => {
       if (!force && adminSectionLoadState.get(sectionName) === "loaded") return;
@@ -8640,6 +8676,8 @@ function escapeHtml(value) {
             typeof loadXLibrary === "function" ? loadXLibrary() : Promise.resolve()
           ];
           await Promise.all(retentionLoaders);
+        } else if (sectionName === "ad-copy-agent") {
+          initAdCopyAgent();
         }
         adminSectionLoadState.set(sectionName, "loaded");
       } catch (error) {
