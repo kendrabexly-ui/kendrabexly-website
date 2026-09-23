@@ -2933,11 +2933,11 @@ async function loadRequests(options = {}) {
                       <div class="verification-progress-step" data-progress-step="basic_screening">Basic Screening</div>
                       <div class="verification-progress-step" data-progress-step="phone">Phone Check</div>
                       <div class="verification-progress-step" data-progress-step="identity">Identity</div>
-                      <div class="verification-progress-step" data-progress-step="manual">Final Verification</div>
                       <div class="verification-progress-step" data-progress-step="credential">Credentials</div>
                       <div class="verification-progress-step" data-progress-step="address">Address</div>
                       <div class="verification-progress-step" data-progress-step="public_records">Public Records</div>
                       <div class="verification-progress-step" data-progress-step="persona">Persona</div>
+                      <div class="verification-progress-step" data-progress-step="manual">Final Verification</div>
                       <div class="verification-progress-step" data-progress-step="complete">Complete</div>
                     </div>
                     <section class="verification-card client-verification-overview">
@@ -3008,7 +3008,7 @@ async function loadRequests(options = {}) {
                     </div>
                     <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">The ID image is stored for your private review and records. It is never sent to Persona.</div>
                     <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Checking for a saved ID document…</div>
-                    <img class="client-id-preview" alt="Private client ID preview" hidden style="display:block;width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
+                    <img class="client-id-preview" alt="Private client ID preview" hidden style="width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
                     <div class="client-id-meta" hidden style="margin-top:8px;padding:9px 10px;border-radius:8px;background:#f8f6f2;font-size:12px;color:var(--muted);line-height:1.55;"></div>
                     <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ID image<input class="client-id-file" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font:inherit;"></label>
                     <div style="margin-top:5px;font-size:11px;color:var(--muted);">JPG, PNG, or WebP. Maximum 10 MB.</div>
@@ -3023,23 +3023,6 @@ async function loadRequests(options = {}) {
                       <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
                       <span style="flex:1;"></span>
                       <button type="button" class="client-id-delete" hidden aria-label="Permanently delete this client's private ID image" style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:#fff7f7;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete ID</button>
-                    </div>
-                    <div class="client-data-retention" style="margin-top:12px;padding:11px;border:1px solid var(--line);border-radius:9px;background:#faf8f4;">
-                      <strong style="font-size:12px;">Data retention</strong>
-                      <div style="margin-top:5px;font-size:11px;color:var(--muted);">Automatic deletion stays off until you choose an explicit policy and deletion date.</div>
-                      <div class="verification-grid" style="margin-top:8px;">
-                        <label style="font-size:11px;font-weight:700;">ID image policy<select class="client-id-retention-policy" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">No automatic policy</option><option value="delete_on_date">Delete on scheduled date</option><option value="manual_review">Manual review only</option></select></label>
-                        <label style="font-size:11px;font-weight:700;">ID deletion date<input class="client-id-delete-at" type="date" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:11px;font-weight:700;align-self:end;"><input class="client-id-auto-delete" type="checkbox"> Automatically delete ID image</label>
-                        <div style="align-self:end;"><button type="button" class="client-id-retention-save" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;cursor:pointer;">Save ID Retention</button></div>
-                      </div>
-                      <div class="verification-grid" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
-                        <label style="font-size:11px;font-weight:700;">Sensitive-data policy<select class="client-sensitive-retention-policy" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">No automatic policy</option><option value="delete_on_date">Delete on scheduled date</option><option value="manual_review">Manual review only</option></select></label>
-                        <label style="font-size:11px;font-weight:700;">Sensitive-data deletion date<input class="client-sensitive-delete-at" type="date" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:11px;font-weight:700;align-self:end;"><input class="client-sensitive-auto-delete" type="checkbox"> Automatically delete sensitive verification data</label>
-                        <div style="align-self:end;display:flex;gap:6px;flex-wrap:wrap;"><button type="button" class="client-sensitive-retention-save" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;cursor:pointer;">Save Sensitive Retention</button><button type="button" class="client-sensitive-delete-now" style="padding:8px 10px;border:1px solid #9f3030;border-radius:8px;background:#fff7f7;color:#8a2424;font:inherit;cursor:pointer;">Delete Sensitive Data Now</button></div>
-                      </div>
-                      <div class="client-retention-summary" style="margin-top:8px;font-size:11px;color:var(--muted);">Retention settings not loaded.</div>
                     </div>
                     <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
                   </section>
@@ -3182,7 +3165,7 @@ async function loadRequests(options = {}) {
                       </label>
                       <label style="font-size:12px;font-weight:700;">Date of birth <span style="font-weight:500;color:var(--muted);">(optional search aid)</span>
                         <input class="client-public-record-dob" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="MM/DD/YYYY" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;">
-                        <span class="verification-field-note">Use only when the public source supports DOB filtering or when several people share the same name. This reuses the saved Final Verification Checklist DOB and is not stored a second time.</span>
+                        <span class="verification-field-note">Use only when the public source supports DOB filtering or when several people share the same name. This reuses the birthdate saved in Final Verification and is not stored a second time.</span>
                       </label>
                       <label style="font-size:12px;font-weight:700;">Search result
                         <select class="client-public-record-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
@@ -3315,7 +3298,7 @@ async function loadRequests(options = {}) {
                       </div>
                       <div class="client-persona-webhook-health" style="margin-top:7px;font-size:11px;color:var(--muted);">Webhook health: checking…</div>
                     </details>
-                    <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — the Final Verification Checklist remains available.</div>
+                    <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — Final Verification remains available.</div>
                     <div class="client-persona-workflow-result" hidden role="status" aria-live="polite" style="margin-top:9px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;line-height:1.55;"></div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
                   </section>
@@ -3329,7 +3312,7 @@ async function loadRequests(options = {}) {
                       <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona, and other approved checks…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
                     <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
-                    <div class="verification-field-note">Birthdate is entered once in the Final Verification Checklist. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
+                    <div class="verification-field-note">Birthdate is entered once in the Final Verification. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
                     <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
                       <legend style="padding:0 5px;font-size:12px;font-weight:700;">Required checklist</legend>
                       <div style="display:grid;gap:8px;font-size:12px;">
@@ -3381,7 +3364,7 @@ async function loadRequests(options = {}) {
                     <div class="verification-actions verification-sticky-actions">
                       <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
                       <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
-                      <button type="button" class="client-verification-complete" disabled hidden tabindex="-1" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification Checklist</button>
+                      <button type="button" class="client-verification-complete" disabled hidden tabindex="-1" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification</button>
                       <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
                     </div>
                   </section>
@@ -3872,9 +3855,9 @@ async function loadRequests(options = {}) {
         }
         const dobHandoff=section.querySelector(".client-persona-dob-handoff");
         if(dobHandoff){
-          dobHandoff.innerHTML="<strong>DOB pulled from Final Verification Checklist</strong><br>"+(birthdate
+          dobHandoff.innerHTML="<strong>DOB pulled from Final Verification</strong><br>"+(birthdate
             ?"Saved DOB is present and will be used automatically if Persona requires it."
-            :'<button type="button" class="persona-dob-jump" style="border:0;background:transparent;padding:0;color:#8a2424;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">DOB is missing — go to Final Verification Checklist</button>');
+            :'<button type="button" class="persona-dob-jump" style="border:0;background:transparent;padding:0;color:#8a2424;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">DOB is missing — go to Final Verification</button>');
           dobHandoff.querySelector(".persona-dob-jump")?.addEventListener("click",()=>{
             jumpToPersonaField(section,".client-persona-birthdate");
           });
@@ -4194,7 +4177,7 @@ async function loadRequests(options = {}) {
         const idStatusField=section.querySelector(".client-id-verification-status");if(idStatusField)idStatusField.value=documentRecord.verification_status||"pending_review";
         const idVerifiedField=section.querySelector(".client-id-verified");if(idVerifiedField)idVerifiedField.value=String(documentRecord.verification_status||"").toLowerCase()==="verified"?"1":"";
         if (preview) {
-          preview.onerror=()=>{if(empty){empty.hidden=false;empty.textContent="ID preview requires a fresh authenticated session. Re-authenticate, then reopen Verification.";};preview.hidden=true;};
+          preview.onerror=()=>{if(empty){empty.hidden=false;empty.textContent="The private ID image could not be displayed. Refresh the page and try again.";};preview.hidden=true;};
           preview.onload=()=>{preview.hidden=false;if(empty)empty.hidden=true;};
           preview.src="/api/admin/clients/id-document/image?client_id="+encodeURIComponent(clientId)+"&v="+encodeURIComponent(documentRecord.updated_at || Date.now());
         }
@@ -4207,7 +4190,7 @@ async function loadRequests(options = {}) {
             " · <strong>Size:</strong> "+escapeHtml(formatIdBytes(documentRecord.file_size))+
             "<br><strong>Uploaded:</strong> "+escapeHtml(uploaded)+
             " · <strong>Received:</strong> "+escapeHtml(documentRecord.received_at||"—")+
-            "<br><strong>Retention reminder:</strong> "+escapeHtml(documentRecord.retention_reminder_at||"Not set");
+            "";
         }
         if (received) received.value = documentRecord.received_at || "";
         if (upload) upload.textContent = "Replace ID";
@@ -5560,21 +5543,6 @@ async function loadRequests(options = {}) {
         }
       };
 
-      const loadVerificationRetention=async(section)=>{
-        const summary=section.querySelector(".client-retention-summary");
-        try{
-          const response=await fetch("/api/admin/clients/id-document/retention?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
-          const result=await response.json();
-          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load retention settings.");
-          const r=result.retention||{};
-          const set=(sel,val)=>{const el=section.querySelector(sel);if(el)el.value=val||"";};
-          set(".client-id-retention-policy",r.id_policy);set(".client-id-delete-at",r.id_delete_at);
-          set(".client-sensitive-retention-policy",r.sensitive_policy);set(".client-sensitive-delete-at",r.sensitive_delete_at);
-          const ia=section.querySelector(".client-id-auto-delete");if(ia)ia.checked=Boolean(Number(r.id_auto_delete||0));
-          const sa=section.querySelector(".client-sensitive-auto-delete");if(sa)sa.checked=Boolean(Number(r.sensitive_auto_delete||0));
-          if(summary)summary.textContent="ID deletion: "+(r.id_delete_at||"Not scheduled")+" · Sensitive-data deletion: "+(r.sensitive_delete_at||"Not scheduled")+(r.updated_by?" · Last changed by "+r.updated_by:"");
-        }catch(error){if(summary)summary.textContent=error.message||"Unable to load retention settings.";}
-      };
       const loadIdDocument = async (section, force) => {
         if (!section || (section.dataset.loaded === "1" && !force)) return;
         const status = section.querySelector(".client-id-status");
@@ -5584,7 +5552,6 @@ async function loadRequests(options = {}) {
           const result = await response.json();
           if (!response.ok || !result.ok) throw new Error(result.message || "Unable to load ID document.");
           setIdDocumentState(section, result.document || null);
-          await loadVerificationRetention(section);
           section.dataset.loaded = "1";
           if (status) status.textContent = "";
         } catch (error) {
@@ -6123,35 +6090,6 @@ async function loadRequests(options = {}) {
           }catch(error){if(status)status.textContent=error.message||"Unable to upload ID document.";}finally{button.disabled=false;}
         });
 
-        const saveRetention=async(target,button)=>{
-          const status=section.querySelector(".client-id-status");
-          const policy=section.querySelector(target==="id"?".client-id-retention-policy":".client-sensitive-retention-policy")?.value||"";
-          const scheduled=section.querySelector(target==="id"?".client-id-delete-at":".client-sensitive-delete-at")?.value||"";
-          const auto=Boolean(section.querySelector(target==="id"?".client-id-auto-delete":".client-sensitive-auto-delete")?.checked);
-          button.disabled=true;if(status)status.textContent="Saving retention policy…";
-          try{
-            const response=await fetch("/api/admin/clients/id-document/retention",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId),target,policy,scheduled_delete_at:scheduled,auto_delete:auto})});
-            const result=await response.json();
-            if(verificationAuthExpired(response,result,section))throw new Error(result.message||"Re-authentication required.");
-            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save retention policy.");
-            await loadVerificationRetention(section);await loadVerificationActivity(section);
-            if(status)status.textContent="Retention policy saved.";
-          }catch(error){if(status)status.textContent=error.message||"Unable to save retention policy.";}finally{button.disabled=false;}
-        };
-        section.querySelector(".client-id-retention-save")?.addEventListener("click",event=>saveRetention("id",event.currentTarget));
-        section.querySelector(".client-sensitive-retention-save")?.addEventListener("click",event=>saveRetention("sensitive",event.currentTarget));
-        section.querySelector(".client-sensitive-delete-now")?.addEventListener("click",async(event)=>{
-          if(window.prompt("Delete the stored sensitive verification data now? Non-sensitive audit history will remain. Type DELETE to continue.")!=="DELETE")return;
-          const button=event.currentTarget,status=section.querySelector(".client-id-status");button.disabled=true;
-          try{
-            const response=await fetch("/api/admin/clients/verification-sensitive",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(section.dataset.clientId)})});
-            const result=await response.json();
-            if(verificationAuthExpired(response,result,section))throw new Error(result.message||"Re-authentication required.");
-            if(!response.ok||!result.ok)throw new Error(result.message||"Unable to delete sensitive verification data.");
-            await loadVerificationDraft(section);await loadVerificationAudits(section);await loadVerificationActivity(section);await loadVerificationRetention(section);
-            if(status)status.textContent="Sensitive verification data deleted. Non-sensitive audit history was retained.";
-          }catch(error){if(status)status.textContent=error.message||"Unable to delete sensitive verification data.";}finally{button.disabled=false;}
-        });
         section.querySelector(".client-id-number-replace")?.addEventListener("click",()=>{
           if(section.dataset.hasSavedIdNumber==="1"&&!window.confirm("Replace the saved ID number? The old full value will not be shown again."))return;
           const input=section.querySelector(".client-persona-id-number");if(input){input.value="";input.placeholder="Enter replacement ID number";input.focus();}
