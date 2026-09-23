@@ -414,6 +414,11 @@ h3 {
   gap: 18px;
 }
 
+.muse-gallery[hidden],
+.muse-gallery > .photo-slot[hidden] {
+  display: none;
+}
+
 .gallery-card {
   display: flex;
   min-height: 420px;

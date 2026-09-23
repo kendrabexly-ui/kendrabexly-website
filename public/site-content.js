@@ -58,13 +58,15 @@
         const number = Number(slot.dataset.photoSlot);
         const item = images.get(number);
         if (!item) return;
-        slot.innerHTML = "";
         const image = document.createElement("img");
-        image.src = "/api/public/gallery/image?slot=" + number + "&v=" + encodeURIComponent(item.updated_at || "");
         image.alt = item.alt_text || "Kendra Bexly gallery photograph";
-        image.loading = "lazy";
+        // Hidden slots still need their image request to start before being revealed.
+        image.loading = "eager";
         image.decoding = "async";
+        image.onload = () => { slot.hidden = false; gallery.hidden = false; };
+        image.onerror = () => { slot.hidden = true; };
         slot.appendChild(image);
+        image.src = "/api/public/gallery/image?slot=" + number + "&v=" + encodeURIComponent(item.updated_at || "");
       });
     } catch (error) {
       console.error("Public gallery failed to load:", error);

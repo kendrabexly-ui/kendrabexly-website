@@ -24,6 +24,9 @@ test('Muse adds seven slots while preserving the existing six', () => {
   const muse=read('the-muse/index.html');
   const slots=[...muse.matchAll(/data-photo-slot="(\d+)"/g)].map(match=>Number(match[1]));
   assert.deepEqual(slots,Array.from({length:13},(_,i)=>i+1));
+  assert.equal((muse.match(/data-photo-slot="\d+" hidden>/g)||[]).length,13);
+  assert.doesNotMatch(muse,/photo-placeholder/);
+  assert.match(muse,/data-public-gallery[^>]*hidden>/);
   assert.match(portal,/Array\.from\(\{length:13\}/);
   assert.match(portal,/<option value="13">Slot 13<\/option>/);
   const worker=fs.readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
