@@ -2924,7 +2924,7 @@ async function loadRequests(options = {}) {
                       <button type="button" data-verification-jump=".client-address-verification-card">Address</button>
                       <button type="button" data-verification-jump=".client-public-record-card">Public Records</button>
                       <button type="button" data-verification-jump=".client-persona-card">Persona</button>
-                      <button type="button" data-verification-jump=".client-final-review">Final Review</button>
+                      <button type="button" data-verification-jump=".client-verification-editor">Final Verification</button>
                       <button type="button" data-verification-jump=".client-audit-history">Audit</button>
                       <button type="button" class="client-verification-back-top">Back to top</button>
                       <button type="button" class="client-verification-save-all" style="margin-left:auto;font-weight:700;">Save All Progress</button>
@@ -2933,12 +2933,11 @@ async function loadRequests(options = {}) {
                       <div class="verification-progress-step" data-progress-step="basic_screening">Basic Screening</div>
                       <div class="verification-progress-step" data-progress-step="phone">Phone Check</div>
                       <div class="verification-progress-step" data-progress-step="identity">Identity</div>
-                      <div class="verification-progress-step" data-progress-step="manual">Final Checklist</div>
+                      <div class="verification-progress-step" data-progress-step="manual">Final Verification</div>
                       <div class="verification-progress-step" data-progress-step="credential">Credentials</div>
                       <div class="verification-progress-step" data-progress-step="address">Address</div>
                       <div class="verification-progress-step" data-progress-step="public_records">Public Records</div>
                       <div class="verification-progress-step" data-progress-step="persona">Persona</div>
-                      <div class="verification-progress-step" data-progress-step="final_review">Final Review</div>
                       <div class="verification-progress-step" data-progress-step="complete">Complete</div>
                     </div>
                     <section class="verification-card client-verification-overview">
@@ -3047,12 +3046,12 @@ async function loadRequests(options = {}) {
 
 
                   <section class="verification-card client-verification-editor is-collapsed" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">5. Final Verification Checklist</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">10. Final Verification &amp; Decision</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">Review the saved checks, choose the final decision, and record any private notes. Persona does not automatically approve or decline a client.</div>
                     <div class="verification-grid">
                       <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
                       <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="needs_more_information">Needs More Information</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
-                      <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona, employment…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona, and other approved checks…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                     </div>
                     <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
                     <div class="verification-field-note">Birthdate is entered once in the Final Verification Checklist. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
@@ -3096,6 +3095,9 @@ async function loadRequests(options = {}) {
                       </label>
                     </div>
                     <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                    <div class="client-final-review-summary" style="margin-top:12px;font-size:12px;line-height:1.55;color:var(--muted);">Review the completed checks below. When everything is approved, completing this final step will prepare the date confirmation email as a draft in Email Drafts.</div>
+                    <div class="client-final-review-warnings" tabindex="-1" role="region" aria-label="Verification warnings" style="margin-top:8px;"></div>
+                    <div class="verification-actions" style="margin-top:10px;"><button type="button" class="client-final-review-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification</button></div>
                     <div class="client-verification-completed-display" style="margin-top:9px;font-size:12px;color:var(--muted);">Completion: Not completed</div>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                       <div class="verification-save-indicator client-verification-draft-status" role="status" aria-live="polite"></div>
@@ -3382,19 +3384,6 @@ async function loadRequests(options = {}) {
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — the Final Verification Checklist remains available.</div>
                     <div class="client-persona-workflow-result" hidden role="status" aria-live="polite" style="margin-top:9px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;line-height:1.55;"></div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
-                  </section>
-
-                  <section class="verification-card client-final-review is-collapsed">
-                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">10. Final Review &amp; Decision</strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-final-review-badge">Pending Review</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-final-review">Expand</button></span>
-                    </div>
-                    <div class="client-final-review-summary" style="margin-top:8px;font-size:12px;line-height:1.55;color:var(--muted);">Complete or skip the optional checks, then review unresolved items before making the final decision.</div>
-                    <div class="client-final-review-warnings" tabindex="-1" role="region" aria-label="Verification warnings" style="margin-top:8px;"></div>
-                    <div class="verification-actions" style="margin-top:9px;">
-                      <button type="button" class="client-final-review-jump" style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Edit Final Checklist</button>
-                      <button type="button" class="client-final-review-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Verification</button>
-                    </div>
                   </section>
 
                   <details class="verification-card client-audit-history">
@@ -5102,10 +5091,10 @@ async function loadRequests(options = {}) {
           ' · <strong>Address:</strong> '+escapeHtml(verificationPretty(address))+
           ' · <strong>Public records:</strong> '+escapeHtml(verificationPretty(publicRecords))+
           ' · <strong>Persona:</strong> '+escapeHtml(verificationPretty(persona))+
-          ' · <strong>Checklist:</strong> '+escapeHtml(checklist+" of 5")+
+          ' · <strong>Checklist:</strong> '+escapeHtml(checklist+" of 2")+
           ' · <strong>Final decision:</strong> '+escapeHtml(verificationPretty(decision))+
           '<div style="margin-top:6px;">Final decision remains manual. Automated and optional checks provide evidence only and never approve or decline the client automatically.</div>';
-        const finalReady=basicScreening==="confirmed"&&checklist===5&&age!==null&&age>=verificationMinimumAge&&employment==="confirmed";
+        const finalReady=basicScreening==="confirmed"&&checklist===2&&age!==null&&age>=verificationMinimumAge;
         const completeState=["verified","unable_to_verify","declined"].includes(decision)?"complete":"not_checked";
         updateVerificationProgress(section,{
           basic_screening:basicScreening,
@@ -5963,7 +5952,7 @@ async function loadRequests(options = {}) {
         const declinedAction=section.querySelector(".client-declined-action");
         const declinedActionWrap=section.querySelector(".client-declined-action-wrap");
         const completeButton=section.querySelector(".client-verification-complete");
-        const checklistSelectors=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
+        const checklistSelectors=[".client-check-identity",".client-check-contact"];
         [".client-verification-status",".client-verification-method",".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-status",".client-employment-method",".client-employment-work-email",".client-employment-website",".client-employment-evidence",".client-verification-reason",...checklistSelectors].forEach(sel=>section.querySelector(sel)?.addEventListener("change",()=>{updateEmploymentVerificationUi();saveSafeVerificationLocalDraft(section);}));
         const checklistLabels={"client-check-identity":"Identity matches ID","client-check-contact":"Contact information confirmed"};
         [".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-work-email",".client-employment-website",".client-employment-source-name",".client-employment-source-url",".client-employment-evidence"].forEach(sel=>section.querySelector(sel)?.addEventListener("input",updateEmploymentVerificationUi));
