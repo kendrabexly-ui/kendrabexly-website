@@ -192,17 +192,6 @@ async function ensureSiteContentTables(env) {
     )
   `).run();
   await env.DB.prepare(`
-    CREATE TABLE IF NOT EXISTS site_page_photos (
-      page TEXT NOT NULL,
-      slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 2),
-      mime_type TEXT NOT NULL,
-      image_base64 TEXT NOT NULL,
-      alt_text TEXT NOT NULL DEFAULT '',
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (page, slot)
-    )
-  `).run();
-  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS calendar_availability (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       available_date TEXT NOT NULL,
@@ -267,6 +256,20 @@ async function ensureSiteContentTables(env) {
       env.DB.prepare("INSERT INTO calendar_work_hours (day_of_week, enabled, start_time, end_time) VALUES (?, 0, '10:00', '22:00')").bind(day)
     ));
   }
+}
+
+async function ensurePagePhotosTable(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS site_page_photos (
+      page TEXT NOT NULL,
+      slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 2),
+      mime_type TEXT NOT NULL,
+      image_base64 TEXT NOT NULL,
+      alt_text TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (page, slot)
+    )
+  `).run();
 }
 
 
@@ -3794,7 +3797,7 @@ My journal will continue to be a place where I share a little more of that side 
     }
 
     if (url.pathname === "/api/public/page-photos" && request.method === "GET") {
-      await ensureSiteContentTables(env);
+      await ensurePagePhotosTable(env);
       const page = url.searchParams.get("page") || "";
       if (!["invitation", "meet-kendra", "our-time", "the-details"].includes(page)) {
         return Response.json({ ok: false, message: "Unknown page." }, { status: 400 });
@@ -3804,7 +3807,7 @@ My journal will continue to be a place where I share a little more of that side 
     }
 
     if (url.pathname === "/api/admin/page-photos") {
-      await ensureSiteContentTables(env);
+      await ensurePagePhotosTable(env);
       const pages = ["invitation", "meet-kendra", "our-time", "the-details"];
       if (request.method === "GET") {
         const result = await env.DB.prepare("SELECT page, slot, mime_type, image_base64, alt_text FROM site_page_photos ORDER BY page, slot").all();
