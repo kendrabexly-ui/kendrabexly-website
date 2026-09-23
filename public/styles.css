@@ -1188,7 +1188,11 @@ h3 {
 
 /* Optional photos managed from the dashboard. Empty positions do not occupy space. */
 .page-photo-row:not(:has(.page-photo:not([hidden]))) { display: none; }
-.page-photo-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; max-width: 1040px; margin: 36px auto; padding: 0 24px; }
-.page-photo { margin: 0; min-width: 0; overflow: hidden; border-radius: 14px; }
+.page-photo-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; max-width: 1088px; margin: 36px auto; padding: 0 24px; }
+.page-photo { flex: 1 1 320px; max-width: 520px; margin: 0; min-width: 0; overflow: hidden; border-radius: 14px; }
 .page-photo[hidden] { display: none; }
-.page-photo img { display: block; width: 100%; height: auto; max-height: 700px; object-fit: contain; }
+.page-photo img { display: block; width: 100%; height: auto; object-fit: contain; }
+@media (max-width: 700px) {
+  .page-photo-row { margin: 24px auto; padding: 0 20px; }
+  .page-photo { flex-basis: 100%; }
+}
