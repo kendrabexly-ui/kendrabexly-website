@@ -563,7 +563,7 @@
     body[data-admin-section="blacklist"] main.main > #blacklist,
     body[data-admin-section="emails"] main.main > #emails,
     body[data-admin-section="rates-services"] main.main > #rates-services,
-    body[data-admin-section="gallery"] main.main > #gallery,
+    body[data-admin-section="gallery"] main.main > #gallery,\n    body[data-admin-section="photo-controls"] main.main > #photo-controls,
     body[data-admin-section="photo-editor"] main.main > #photo-editor,
     body[data-admin-section="newsletter"] main.main > #newsletter,
     body[data-admin-section="x-agent"] main.main > #x-agent,
@@ -789,7 +789,7 @@
         <button type="button" data-section="blacklist">Blacklist</button>
         <button type="button" data-section="emails">Email Drafts</button>
         <button type="button" data-section="rates-services">Rates & Services</button>
-        <button type="button" data-section="gallery">Gallery</button>
+        <button type="button" data-section="gallery">Gallery</button>\n        <button type="button" data-section="photo-controls">Photo Controls</button>
         <button type="button" data-section="photo-editor">Photo Editor</button>
         <button type="button" data-section="newsletter">Newsletter</button>
         <button type="button" data-section="x-agent">X Agent</button>
@@ -885,7 +885,26 @@
 
       </section>
 
-      <!-- CALENDAR & DATE MANAGEMENT -->
+      <section id="photo-controls" class="section">
+        <div class="section-heading">
+          <h2>Photo Controls</h2>
+          <p>Adjust the displayed size and transparency of photos across every public page and gallery slot.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div><div class="panel-title">Site-wide photo appearance</div><div class="panel-subtitle">These controls change how the selected photo is rendered on the website without replacing the original image.</div></div></div>
+          <div class="panel-body">
+            <label class="field"><span>Photo target</span><select id="photo-controls-target"></select></label>
+            <div class="photo-controls-grid">
+              <label class="photo-control-field"><span>Width <output id="photo-control-width-value">100%</output></span><input id="photo-control-width" type="range" min="10" max="200" step="1" value="100"></label>
+              <label class="photo-control-field"><span>Height <output id="photo-control-height-value">100%</output></span><input id="photo-control-height" type="range" min="10" max="200" step="1" value="100"></label>
+              <label class="photo-control-field"><span>Opacity / transparency <output id="photo-control-opacity-value">100%</output></span><input id="photo-control-opacity" type="range" min="0" max="100" step="1" value="100"></label>
+            </div>
+            <div class="photo-controls-actions"><button id="photo-controls-save" class="button" type="button">Save Controls</button><button id="photo-controls-reset" class="button secondary" type="button">Reset to 100%</button></div>
+            <p id="photo-controls-status" class="photo-controls-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+\n      <!-- CALENDAR & DATE MANAGEMENT -->
 
       <section id="calendar" class="section">
 
@@ -6994,7 +7013,7 @@ function escapeHtml(value) {
                 const w = window.open("", "_blank");
                 if (w) {
                   w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}.offer-button{display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff!important;text-decoration:none;border-radius:6px;font:14px Arial,sans-serif}.offer-note{margin:12px 0 0!important;font:12px Arial,sans-serif!important;color:#77736f}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1>${newsletterImage ? `<img src="${newsletterImage}" alt="" style="display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin:0 0 24px;">` : ""}<p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p><a class="offer-button" href="/request?newsletter_offer=${encodeURIComponent(id)}">💋 Book My Subscriber Special</a><p class="offer-note">Book through this button so your subscriber special is automatically attached to your request.</p></div></main>
-</body></html>`);
+<script src="/portal/photo-controls.js"></script>\n</body></html>`);
                   w.document.close();
                 }
                 return;
