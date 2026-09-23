@@ -2697,6 +2697,49 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/admin/x/tweet-bank") {
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_tweet_bank (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL UNIQUE,
+        auto_pick INTEGER NOT NULL DEFAULT 0,
+        last_used_at TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`).run();
+      if (request.method === "GET") {
+        const rows = await env.DB.prepare("SELECT id,content,auto_pick,last_used_at,created_at FROM x_tweet_bank ORDER BY id DESC LIMIT 500").all();
+        return Response.json({ok:true,items:rows.results||[]});
+      }
+      if (request.method === "POST") {
+        const body = await request.json().catch(()=>({}));
+        const entries = Array.isArray(body.items) ? body.items : [];
+        if (!entries.length || entries.length > 200) return Response.json({ok:false,message:"Import 1–200 posts at a time."},{status:400});
+        let added=0, skipped=0;
+        for (const entry of entries) {
+          const content=String(entry?.content||"").trim();
+          if (!content || content.length > 280) {skipped++;continue;}
+          const result=await env.DB.prepare("INSERT OR IGNORE INTO x_tweet_bank(content,auto_pick) VALUES(?,?)").bind(content,entry.auto_pick===true?1:0).run();
+          if (result.meta?.changes) added++; else skipped++;
+        }
+        return Response.json({ok:true,added,skipped});
+      }
+    }
+    if (/^\/api\/admin\/x\/tweet-bank\/\d+$/.test(url.pathname)) {
+      const id=Number(url.pathname.split("/").pop());
+      if (request.method==="PATCH") {
+        const body=await request.json().catch(()=>({}));
+        if (body.action==="used") {
+          await env.DB.prepare("UPDATE x_tweet_bank SET last_used_at=CURRENT_TIMESTAMP WHERE id=?").bind(id).run();
+        } else if (typeof body.auto_pick==="boolean") {
+          await env.DB.prepare("UPDATE x_tweet_bank SET auto_pick=? WHERE id=?").bind(body.auto_pick?1:0,id).run();
+        } else return Response.json({ok:false,message:"Invalid bank update."},{status:400});
+        return Response.json({ok:true});
+      }
+      if (request.method==="DELETE") {
+        await env.DB.prepare("DELETE FROM x_tweet_bank WHERE id=?").bind(id).run();
+        return Response.json({ok:true});
+      }
+    }
+
     if (url.pathname === "/api/admin/x/library") {
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_content_library (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,content TEXT NOT NULL,content_style TEXT,image_base64 TEXT,mime_type TEXT,file_name TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`).run();
       if(request.method==="GET"){try{await env.DB.prepare("ALTER TABLE x_content_library ADD COLUMN last_used_at TEXT").run();}catch(e){}try{await env.DB.prepare("ALTER TABLE x_content_library ADD COLUMN archived_at TEXT").run();}catch(e){}const q=await env.DB.prepare("SELECT id,title,content,content_style,CASE WHEN image_base64 IS NULL THEN 0 ELSE 1 END AS has_image,mime_type,file_name,created_at,updated_at,last_used_at,archived_at FROM x_content_library ORDER BY id DESC LIMIT 100").all();return Response.json({ok:true,items:q.results||[]});}
