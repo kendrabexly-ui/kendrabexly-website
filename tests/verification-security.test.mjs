@@ -17,6 +17,18 @@ test("private ID preview remains permission protected without fresh-login requir
   assert.match(portal,/class="client-id-preview" alt="Private client ID preview" hidden style="width:/);
 });
 
+test("verified decision requires saved public and criminal court searches",()=>{
+  assert.match(worker,/ALTER TABLE client_public_record_checks ADD COLUMN public_records_reviewed/);
+  assert.match(worker,/ALTER TABLE client_public_record_checks ADD COLUMN criminal_records_reviewed/);
+  assert.match(worker,/if \(verificationStatus === "verified"\) \{\s*await ensureVerificationWorkspaceTables\(env\)/);
+  assert.match(worker,/!requiredRecords\.public_records_reviewed \|\| !requiredRecords\.criminal_records_reviewed/);
+  assert.match(worker,/!finalRecordChecks\.public_records_reviewed \|\| !finalRecordChecks\.criminal_records_reviewed/);
+  assert.match(portal,/class="client-public-records-reviewed" type="checkbox"/);
+  assert.match(portal,/class="client-criminal-records-reviewed" type="checkbox"/);
+  assert.match(portal,/class="client-phone-save"/);
+  assert.doesNotMatch(portal,/class="client-optional-skip" data-section-key="public_records"/);
+});
+
 test("initial booking request collects occupation for basic screening",()=>{
   assert.match(requestPage,/label for="occupation"[\s\S]*What is your occupation\? \*/);
   assert.match(requestPage,/name="occupation"[\s\S]*required/);
