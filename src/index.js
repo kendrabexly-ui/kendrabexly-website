@@ -258,6 +258,31 @@ async function ensureSiteContentTables(env) {
   }
 }
 
+async function ensurePhotoStyleTable(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS site_photo_styles (
+      target_type TEXT NOT NULL,
+      target_key TEXT NOT NULL,
+      width_percent REAL NOT NULL DEFAULT 100,
+      height_percent REAL NOT NULL DEFAULT 100,
+      opacity REAL NOT NULL DEFAULT 1,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (target_type, target_key)
+    )
+  `).run();
+}
+function normalizePhotoStyle(data) {
+  const width = Math.max(10, Math.min(200, Number(data.width_percent ?? 100)));
+  const height = Math.max(10, Math.min(200, Number(data.height_percent ?? 100)));
+  const opacity = Math.max(0, Math.min(1, Number(data.opacity ?? 1)));
+  if (![width,height,opacity].every(Number.isFinite)) return null;
+  return {
+    width_percent: Math.round(width * 10) / 10,
+    height_percent: Math.round(height * 10) / 10,
+    opacity: Math.round(opacity * 100) / 100
+  };
+}
+
 async function ensurePagePhotosTable(env) {
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS site_page_photos (
@@ -3804,6 +3829,42 @@ My journal will continue to be a place where I share a little more of that side 
         return Response.json({ ok: true, services });
       }
       return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+    }
+
+    if (url.pathname === "/api/public/photo-styles" && request.method === "GET") {
+      await ensurePhotoStyleTable(env);
+      const result = await env.DB.prepare("SELECT target_type, target_key, width_percent, height_percent, opacity FROM site_photo_styles ORDER BY target_type, target_key").all();
+      return Response.json({ ok: true, styles: result.results || [] });
+    }
+
+    if (url.pathname === "/api/admin/photo-styles") {
+      await ensurePhotoStyleTable(env);
+      if (request.method === "GET") {
+        const result = await env.DB.prepare("SELECT target_type, target_key, width_percent, height_percent, opacity FROM site_photo_styles ORDER BY target_type, target_key").all();
+        return Response.json({ ok: true, styles: result.results || [] });
+      }
+      if (request.method !== "POST") return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+      const data = await request.json().catch(() => ({}));
+      const targetType = String(data.target_type || "").trim();
+      const targetKey = String(data.target_key || "").trim();
+      const allowedTypes = new Set(["page", "gallery"]);
+      const allowedPages = new Set(["invitation","meet-kendra","our-time","the-details"]);
+      const gallerySlot = Number(targetKey);
+      if (!allowedTypes.has(targetType) || !targetKey || (targetType === "page" && !allowedPages.has(targetKey)) || (targetType === "gallery" && (!Number.isInteger(gallerySlot) || gallerySlot < 1 || gallerySlot > 13))) {
+        return Response.json({ ok: false, message: "Choose a valid photo target." }, { status: 400 });
+      }
+      const style = normalizePhotoStyle(data);
+      if (!style) return Response.json({ ok: false, message: "Enter valid photo control values." }, { status: 400 });
+      await env.DB.prepare(`
+        INSERT INTO site_photo_styles (target_type, target_key, width_percent, height_percent, opacity, updated_at)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(target_type, target_key) DO UPDATE SET
+          width_percent=excluded.width_percent,
+          height_percent=excluded.height_percent,
+          opacity=excluded.opacity,
+          updated_at=CURRENT_TIMESTAMP
+      `).bind(targetType,targetKey,style.width_percent,style.height_percent,style.opacity).run();
+      return Response.json({ ok: true, style: { target_type: targetType, target_key: targetKey, ...style } });
     }
 
     if (url.pathname === "/api/public/page-photos" && request.method === "GET") {
