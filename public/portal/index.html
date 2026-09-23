@@ -1959,6 +1959,40 @@
               </div><!-- /x-agent-boundary -->
       </section>
 
+
+      <section id="ad-copy-agent" class="section">
+        <div class="section-heading">
+          <h2>Ad Copy Agent</h2>
+          <p>Create ad copy with controls for platform, tone, tone intensity, audience, offer, and call to action.</p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Ad Copy Controls</div>
+              <div class="panel-subtitle">Enter the details you want the copywriter to use, then generate three variations.</div>
+            </div>
+          </div>
+          <div style="padding:22px;display:grid;gap:16px;">
+            <label class="field"><span>What are you advertising?</span><textarea id="ad-copy-product" rows="3" placeholder="Describe the service, product, event, or offer"></textarea></label>
+            <label class="field"><span>Audience</span><textarea id="ad-copy-audience" rows="2" placeholder="Who is this for?"></textarea></label>
+            <label class="field"><span>Offer / key detail</span><textarea id="ad-copy-offer" rows="2" placeholder="Optional promotion, feature, price, benefit, or key detail"></textarea></label>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;">
+              <label class="field"><span>Platform</span><select id="ad-copy-platform"><option>Instagram</option><option>Facebook</option><option>X</option><option>Email</option><option>Website</option><option>Google Ad</option></select></label>
+              <label class="field"><span>Tone</span><select id="ad-copy-tone"><option>Elegant</option><option>Luxury</option><option>Warm</option><option>Playful</option><option>Confident</option><option>Bold</option><option>Minimal</option><option>Flirty</option><option>Professional</option></select></label>
+            </div>
+            <label class="field"><span>Tone intensity <output id="ad-copy-intensity-value">3/5</output></span><input id="ad-copy-intensity" type="range" min="1" max="5" step="1" value="3"></label>
+            <label class="field"><span>Call to action</span><input id="ad-copy-cta" value="Book now" placeholder="Book now"></label>
+            <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;">
+              <button id="ad-copy-generate" type="button" style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:pointer;">Generate 3 Variations</button>
+              <button id="ad-copy-regenerate" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Regenerate</button>
+              <button id="ad-copy-clear" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Clear</button>
+              <span id="ad-copy-status" style="color:var(--muted);font-size:13px;"></span>
+            </div>
+            <div id="ad-copy-results" style="display:grid;gap:12px;"></div>
+          </div>
+        </div>
+      </section>
     </main>
 
   </div>
