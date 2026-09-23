@@ -8605,6 +8605,7 @@ function escapeHtml(value) {
 
     function initAdCopyAgent() {
       const generate = document.getElementById("ad-copy-generate");
+      const regenerate = document.getElementById("ad-copy-regenerate");
       const clear = document.getElementById("ad-copy-clear");
       const intensity = document.getElementById("ad-copy-intensity");
       const intensityValue = document.getElementById("ad-copy-intensity-value");
@@ -8612,6 +8613,7 @@ function escapeHtml(value) {
       const status = document.getElementById("ad-copy-status");
       if (!generate || generate.dataset.bound === "1") return;
       generate.dataset.bound = "1";
+      if (regenerate) regenerate.onclick = () => generate.click();
       if (intensity) intensity.oninput = () => { if (intensityValue) intensityValue.textContent = intensity.value + "/5"; };
       if (clear) clear.onclick = () => {
         ["ad-copy-product","ad-copy-audience","ad-copy-offer","ad-copy-cta"].forEach(id => { const el=document.getElementById(id); if(el) el.value = id==="ad-copy-cta" ? "Book now" : ""; });
