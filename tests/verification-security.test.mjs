@@ -10,6 +10,13 @@ const continuationPage=fs.readFileSync(new URL("../public/complete/index.html",i
 const requestAdmin=fs.readFileSync(new URL("../public/portal/request/index.html",import.meta.url),"utf8");
 const security=fs.readFileSync(new URL("../src/verification-security.js",import.meta.url),"utf8");
 
+test("private ID preview remains permission protected without fresh-login requirement",()=>{
+  assert.match(worker,/\["\/api\/admin\/clients\/id-document\/image", "view_id_images"\]/);
+  assert.match(worker,/const fresh=method==="DELETE"/);
+  assert.doesNotMatch(portal,/class="client-data-retention"/);
+  assert.match(portal,/class="client-id-preview" alt="Private client ID preview" hidden style="width:/);
+});
+
 test("initial booking request collects occupation for basic screening",()=>{
   assert.match(requestPage,/label for="occupation"[\s\S]*What is your occupation\? \*/);
   assert.match(requestPage,/name="occupation"[\s\S]*required/);
