@@ -2807,7 +2807,7 @@ export default {
         const intensity = Math.max(1, Math.min(5, Number(data.intensity || 3)));
         const cta = String(data.cta || "Book now").trim().slice(0, 160);
         if (!product) return Response.json({ ok:false, message:"Add what you are advertising." }, { status:400 });
-        const prompt = "Write 3 distinct advertising copy variations for a premium personal brand.\nProduct/service: "+product+"\nAudience: "+(audience||"Adults interested in a premium, discreet experience.")+"\nOffer: "+(offer||"No special offer.")+"\nPlatform: "+platform+"\nTone: "+tone+"\nTone intensity: "+intensity+"/5\nCTA: "+cta+"\nRules: polished, concise, confident, non-explicit, no unsupported claims, no guaranteed outcomes, and no spammy urgency. Return JSON only: {\\"variants\\":[{\\"label\\":\\"Short\\",\\"copy\\":\\"...\\"},{\\"label\\":\\"Balanced\\",\\"copy\\":\\"...\\"},{\\"label\\":\\"Bold\\",\\"copy\\":\\"...\\"}]}";
+        const prompt = "Write 3 distinct advertising copy variations. Product/service: "+product+". Audience: "+(audience||"Adults interested in a premium experience.")+". Offer: "+(offer||"None.")+". Platform: "+platform+". Tone: "+tone+". Tone intensity: "+intensity+"/5. CTA: "+cta+". Return JSON with a variants array containing label and copy fields.";
         if (env.AI && typeof env.AI.run === "function") {
           const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", { messages:[{role:"system",content:"You are an advertising copywriter. Return valid JSON only."},{role:"user",content:prompt}] });
           const raw = result?.response || result?.result || "";
