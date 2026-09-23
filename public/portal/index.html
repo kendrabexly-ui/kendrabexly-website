@@ -1094,7 +1094,6 @@
               <button type="button" data-queue-filter="public_record_match" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Public Record Match <span data-queue-count="public_record_match">0</span></button>
               <button type="button" data-queue-filter="address_mismatch" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Address Mismatch <span data-queue-count="address_mismatch">0</span></button>
               <button type="button" data-queue-filter="credential_issue" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Credential Issue <span data-queue-count="credential_issue">0</span></button>
-              <button type="button" data-queue-filter="employment_unable" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Employment Unable to Verify <span data-queue-count="employment_unable">0</span></button>
               <button type="button" data-queue-filter="persona_error" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Persona Error <span data-queue-count="persona_error">0</span></button>
               <button type="button" data-queue-filter="needs_more_information" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Needs More Information <span data-queue-count="needs_more_information">0</span></button>
               <button type="button" data-queue-filter="checklist_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Checklist Incomplete <span data-queue-count="checklist_incomplete">0</span></button>
@@ -1141,7 +1140,6 @@
                 <option value="public_record_match">Potential / Confirmed Public Record Match</option>
                 <option value="address_mismatch">Address Mismatch</option>
                 <option value="credential_issue">Credential Issue</option>
-                <option value="employment_unable">Employment Unable to Verify</option>
                 <option value="no_id">Awaiting ID</option>
                 <option value="retention_due">Retention Due</option>
               </select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="client-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
@@ -2321,7 +2319,7 @@ async function loadRequests(options = {}) {
     Object.entries(verificationCountIds).forEach(([key,id])=>{const el=document.getElementById(id);if(el)el.textContent=String(verificationCounts[key]||0);});
     const queueLabels={
       needs_id:"Needs ID",public_record_match:"Public Record Match",address_mismatch:"Address Mismatch",
-      credential_issue:"Credential Issue",employment_unable:"Employment Unable to Verify",persona_error:"Persona Error",needs_more_information:"Needs More Information",
+      credential_issue:"Credential Issue",persona_error:"Persona Error",needs_more_information:"Needs More Information",
       checklist_incomplete:"Checklist Incomplete",persona_pending:"Persona Pending",needs_manual_review:"Needs Manual Review",
       ready_for_final_decision:"Ready for Final Decision"
     };
@@ -2338,7 +2336,7 @@ async function loadRequests(options = {}) {
       const flaggedOnly=document.getElementById("verification-queue-flagged")?.checked;
       if(flaggedOnly)items=items.filter(item=>item.review_flag);
       const sortMode=document.getElementById("verification-queue-sort")?.value||"urgent";
-      const queuePriority={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,employment_unable:4,persona_error:5,needs_more_information:6,checklist_incomplete:7,persona_pending:8,needs_manual_review:9,ready_for_final_decision:10};
+      const queuePriority={needs_id:0,public_record_match:1,address_mismatch:2,credential_issue:3,persona_error:4,needs_more_information:6,checklist_incomplete:7,persona_pending:8,needs_manual_review:9,ready_for_final_decision:10};
       const createdTime=item=>new Date(item.booking_request_created_at||0).getTime()||0;
       items.sort((a,b)=>{
         if(sortMode==="oldest")return createdTime(a)-createdTime(b);
@@ -2921,7 +2919,6 @@ async function loadRequests(options = {}) {
                       <button type="button" data-verification-jump=".client-basic-screening">Basic Screening</button>
                       <button type="button" data-verification-jump=".client-phone-checks">Phone Check</button>
                       <button type="button" data-verification-jump=".client-id-record">Identity</button>
-                      <button type="button" data-verification-jump=".client-employment-verification">Employment</button>
                       <button type="button" data-verification-jump=".client-verification-editor">Final Checklist</button>
                       <button type="button" data-verification-jump=".client-credential-card">Credentials</button>
                       <button type="button" data-verification-jump=".client-address-verification-card">Address</button>
@@ -2936,7 +2933,6 @@ async function loadRequests(options = {}) {
                       <div class="verification-progress-step" data-progress-step="basic_screening">Basic Screening</div>
                       <div class="verification-progress-step" data-progress-step="phone">Phone Check</div>
                       <div class="verification-progress-step" data-progress-step="identity">Identity</div>
-                      <div class="verification-progress-step" data-progress-step="employment">Employment</div>
                       <div class="verification-progress-step" data-progress-step="manual">Final Checklist</div>
                       <div class="verification-progress-step" data-progress-step="credential">Credentials</div>
                       <div class="verification-progress-step" data-progress-step="address">Address</div>
@@ -3050,48 +3046,6 @@ async function loadRequests(options = {}) {
                     <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
                   </section>
 
-                  <section class="verification-card client-employment-verification is-collapsed" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">4. Employment Verification</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-employment-badge">Employment: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-employment-verification">Expand</button></span></div>
-                    <div style="margin-top:9px;">
-                      <div style="font-size:11px;color:var(--muted);margin-bottom:9px;">Record only what is needed to confirm employer, role, and industry. Do not enter SSNs, payroll passwords, or bank information.</div>
-                      <div class="verification-grid">
-                        <label style="font-size:12px;font-weight:700;">Employer / company<input class="client-verification-employer" type="text" maxlength="200" placeholder="Employer name" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Job title<input class="client-verification-job-title" type="text" maxlength="160" placeholder="Job title" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Industry<input class="client-verification-industry" type="text" maxlength="160" placeholder="Industry received from client" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note">Uses the client-provided industry when one is already saved; edit only if it needs correction.</span></label>
-                        <label style="font-size:12px;font-weight:700;">Work email <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-work-email" type="email" maxlength="254" placeholder="name@company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Employer website <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-website" type="url" maxlength="500" placeholder="https://company.com" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Official source name <span style="font-weight:500;color:var(--muted);">(when external source used)</span><input class="client-employment-source-name" type="text" maxlength="200" placeholder="Employer directory, HR, official registry..." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Official source URL <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-source-url" type="url" maxlength="800" placeholder="https://..." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                        <label style="font-size:12px;font-weight:700;">Employment verification method<select class="client-employment-method" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-                          <option value="">Choose method</option>
-                          <option value="work_email">Work email/domain</option>
-                          <option value="employer_website">Employer website/directory</option>
-                          <option value="public_professional_profile">Public professional profile</option>
-                          <option value="employer_phone">Employer phone/contact</option>
-                          <option value="employment_document">Employment document</option>
-                          <option value="third_party">Third-party verification service</option>
-                          <option value="other">Other</option>
-                        </select></label>
-                        <label style="font-size:12px;font-weight:700;">Employment result<select class="client-employment-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-                          <option value="not_checked">Not checked</option>
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="unable_to_confirm">Unable to verify</option>
-                          <option value="mismatch">Mismatch</option>
-                        </select></label>
-                      </div>
-                      <label style="display:block;margin-top:9px;font-size:12px;font-weight:700;">Employment evidence / reference<textarea class="client-employment-evidence" rows="2" maxlength="1200" placeholder="Company directory URL, HR confirmation, work-email domain, document reference, or other source. Do not store unnecessary sensitive data." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
-                      <div class="client-employment-domain-status" style="margin-top:7px;font-size:11px;color:var(--muted);"></div>
-                      <div class="client-employment-status-note" style="margin-top:5px;font-size:11px;color:var(--muted);">Employment has not been checked.</div>
-                      <div class="verification-actions" style="margin-top:8px;">
-                        <button type="button" class="client-employment-save" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Employment Check</button>
-                        <span class="client-employment-save-status" style="font-size:11px;color:var(--muted);"></span>
-                      </div>
-                      <div class="client-employment-checked" style="margin-top:6px;font-size:11px;color:var(--muted);">Last checked: Not checked</div>
-                      <a class="verification-source-reopen client-employment-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a>
-                      <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Previous Employment Checks</summary><div class="client-employment-history" style="margin-top:6px;color:var(--muted);font-size:11px;">No previous checks loaded.</div></details>
-                    </div>
-                  </section>
 
                   <section class="verification-card client-verification-editor is-collapsed" hidden>
                     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">5. Final Verification Checklist</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
@@ -5763,7 +5717,7 @@ async function loadRequests(options = {}) {
               }
             });
           },{rootMargin:"180px 0px"});
-          section.querySelectorAll(".client-employment-verification,.client-credential-card,.client-address-verification-card,.client-public-record-card,.client-persona-card").forEach(card=>observer.observe(card));
+          section.querySelectorAll(".client-credential-card,.client-address-verification-card,.client-public-record-card,.client-persona-card").forEach(card=>observer.observe(card));
         }
 
         const expandVerificationTarget=(target)=>{
