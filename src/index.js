@@ -125,7 +125,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
 function verificationRouteAccess(pathname, method) {
   const match=VERIFICATION_ROUTE_PERMISSIONS.find(([path])=>pathname===path || pathname.startsWith(path+"/"));
   if(!match)return null;
-  const fresh=(pathname==="/api/admin/clients/id-document/image"&&method==="GET") || method==="DELETE";
+  const fresh=method==="DELETE";
   return {permission:match[1],fresh};
 }
 
