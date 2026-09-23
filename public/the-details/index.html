@@ -26,6 +26,8 @@
       <p class="lede">Everything you need to know before our time together, gathered privately in one place.</p>
     </section>
 
+    <div class="page-photo-row" data-page-photos="the-details" aria-label="Photos from this page"><figure class="page-photo" data-page-photo-slot="1" hidden></figure><figure class="page-photo" data-page-photo-slot="2" hidden></figure></div>
+
     <section class="policy-list" aria-labelledby="etiquette-heading">
       <div class="eyebrow">ETIQUETTE &amp; POLICIES</div>
       <h2 id="etiquette-heading">A thoughtful beginning</h2>
@@ -101,6 +103,7 @@
   </main>
 
   <site-footer></site-footer>
+  <script src="/page-photos.js"></script>
   <script src="/newsletter.js"></script>
   <script>
     const privateToken = new URLSearchParams(location.hash.slice(1)).get("token") || "";

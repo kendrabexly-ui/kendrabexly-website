@@ -192,6 +192,17 @@ async function ensureSiteContentTables(env) {
     )
   `).run();
   await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS site_page_photos (
+      page TEXT NOT NULL,
+      slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 2),
+      mime_type TEXT NOT NULL,
+      image_base64 TEXT NOT NULL,
+      alt_text TEXT NOT NULL DEFAULT '',
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (page, slot)
+    )
+  `).run();
+  await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS calendar_availability (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       available_date TEXT NOT NULL,
@@ -3780,6 +3791,47 @@ My journal will continue to be a place where I share a little more of that side 
         return Response.json({ ok: true, services });
       }
       return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+    }
+
+    if (url.pathname === "/api/public/page-photos" && request.method === "GET") {
+      await ensureSiteContentTables(env);
+      const page = url.searchParams.get("page") || "";
+      if (!["invitation", "meet-kendra", "our-time", "the-details"].includes(page)) {
+        return Response.json({ ok: false, message: "Unknown page." }, { status: 400 });
+      }
+      const result = await env.DB.prepare("SELECT slot, mime_type, image_base64, alt_text FROM site_page_photos WHERE page = ? ORDER BY slot").bind(page).all();
+      return Response.json({ ok: true, images: result.results || [] });
+    }
+
+    if (url.pathname === "/api/admin/page-photos") {
+      await ensureSiteContentTables(env);
+      const pages = ["invitation", "meet-kendra", "our-time", "the-details"];
+      if (request.method === "GET") {
+        const result = await env.DB.prepare("SELECT page, slot, mime_type, image_base64, alt_text FROM site_page_photos ORDER BY page, slot").all();
+        return Response.json({ ok: true, images: result.results || [] });
+      }
+      if (!["POST", "DELETE"].includes(request.method)) return Response.json({ ok: false }, { status: 405 });
+      const data = await request.json().catch(() => ({}));
+      const page = String(data.page || "");
+      const slot = Number(data.slot);
+      if (!pages.includes(page) || !Number.isInteger(slot) || slot < 1 || slot > 2) {
+        return Response.json({ ok: false, message: "Choose a valid page and photo position." }, { status: 400 });
+      }
+      if (request.method === "DELETE") {
+        await env.DB.prepare("DELETE FROM site_page_photos WHERE page = ? AND slot = ?").bind(page, slot).run();
+        return Response.json({ ok: true });
+      }
+      const mimeType = String(data.mime_type || "").toLowerCase();
+      const imageBase64 = String(data.image_base64 || "").replace(/^data:[^;]+;base64,/, "");
+      const altText = String(data.alt_text || "").trim().slice(0, 180);
+      if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType) || !/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64) || imageBase64.length > 3000000) {
+        return Response.json({ ok: false, message: "Upload a JPG, PNG, or WebP image under the size limit." }, { status: 400 });
+      }
+      await env.DB.prepare(`INSERT INTO site_page_photos (page, slot, mime_type, image_base64, alt_text, updated_at)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(page, slot) DO UPDATE SET
+        mime_type=excluded.mime_type, image_base64=excluded.image_base64, alt_text=excluded.alt_text, updated_at=CURRENT_TIMESTAMP`)
+        .bind(page, slot, mimeType, imageBase64, altText).run();
+      return Response.json({ ok: true, image: { page, slot, mime_type: mimeType, image_base64: imageBase64, alt_text: altText } });
     }
 
     if (url.pathname === "/api/public/gallery" && request.method === "GET") {

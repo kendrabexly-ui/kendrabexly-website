@@ -1180,3 +1180,10 @@ h3 {
     box-shadow:0 8px 30px rgba(0,0,0,.18);
   }
 }
+
+/* Optional photos managed from the dashboard. Empty positions do not occupy space. */
+.page-photo-row:not(:has(.page-photo:not([hidden]))) { display: none; }
+.page-photo-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; max-width: 1040px; margin: 36px auto; padding: 0 24px; }
+.page-photo { margin: 0; min-width: 0; overflow: hidden; border-radius: 14px; }
+.page-photo[hidden] { display: none; }
+.page-photo img { display: block; width: 100%; height: auto; max-height: 700px; object-fit: contain; }
