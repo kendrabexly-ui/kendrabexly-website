@@ -1244,6 +1244,11 @@ body { background: var(--cream); -webkit-font-smoothing: antialiased; }
 .rate-service-heading h2 { letter-spacing: -.02em; }
 .rate-list dd { white-space: nowrap; }
 .gallery-card { border-radius: 10px; border-color: rgba(121, 91, 73, .18); background: #e7ddd3; }
+.muse-gallery.gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 26px; }
+.muse-gallery .gallery-card,
+.muse-gallery .gallery-card.tall,
+.muse-gallery .gallery-card.wide { min-height: 0; aspect-ratio: 3 / 4; grid-column: auto; grid-row: auto; padding: 0; }
+.muse-gallery .photo-slot img { object-fit: contain; background: #eee6de; }
 .page-photo { border-radius: 12px; box-shadow: 0 16px 38px rgba(55, 39, 29, .11); }
 #request-form input, #request-form select, #request-form textarea,
 .footer-subscribe-row input { border-radius: 9px; }
@@ -1256,6 +1261,8 @@ body { background: var(--cream); -webkit-font-smoothing: antialiased; }
   .nav nav .button { box-shadow: none; }
 }
 @media (max-width: 700px) {
+  .muse-gallery.gallery-grid { grid-template-columns: 1fr; padding: 16px; }
+  .muse-gallery .gallery-card { width: min(100%, 480px); margin-inline: auto; }
   .page-hero h1, .invitation-page .hero h1 { font-size: clamp(42px, 11vw, 62px); }
   :is(.invitation-section, .meet-story, .meet-details, .meet-favorites, .policy-list, .faq-list) { border-radius: 12px; }
   .rate-service { padding: 28px 24px; }
