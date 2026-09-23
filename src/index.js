@@ -2808,7 +2808,8 @@ export default {
         const cta = String(data.cta || "Book now").trim().slice(0, 160);
         if (!product) return Response.json({ ok:false, message:"Add what you are advertising." }, { status:400 });
 
-        const lengthGuide = length.toLowerCase() === "short" ? "Keep each variation to 8-18 words." : length.toLowerCase() === "long" ? "Keep each variation to 45-80 words." : "Keep each variation to 20-40 words.";\n        const prompt = "Write 3 non-explicit advertising copy variations. Never describe sexual acts, nudity, explicit body parts, sexual services, or graphic sexual content. Product/service: "+product+". Audience: "+(audience||"Adults interested in a premium experience.")+". Offer: "+(offer||"None.")+". Required length: "+length+". "+lengthGuide+" Required tone: "+tone+". Match the requested tone clearly. Tone intensity: "+intensity+"/5. CTA: "+cta+". Return valid JSON with a variants array containing label and copy fields only.";
+        const lengthGuide = length.toLowerCase() === "short" ? "Keep each variation to 8-18 words." : length.toLowerCase() === "long" ? "Keep each variation to 45-80 words." : "Keep each variation to 20-40 words.";
+        const prompt = "Write 3 non-explicit advertising copy variations. Never describe sexual acts, nudity, explicit body parts, sexual services, or graphic sexual content. Product/service: "+product+". Audience: "+(audience||"Adults interested in a premium experience.")+". Offer: "+(offer||"None.")+". Required length: "+length+". "+lengthGuide+" Required tone: "+tone+". Match the requested tone clearly. Tone intensity: "+intensity+"/5. CTA: "+cta+". Return valid JSON with a variants array containing label and copy fields only.";
 
         if (env.AI && typeof env.AI.run === "function") {
           try {
