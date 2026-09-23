@@ -46,14 +46,14 @@
     const gallery = document.querySelector("[data-public-gallery]");
     if (!gallery) return;
     try {
-      const response = await fetch("/api/public/gallery", {
+      const [response, stylesResponse] = await Promise.all([\n        fetch("/api/public/gallery", {
         headers: { "Accept": "application/json" }
       });
       const data = await response.json();
       if (!response.ok || !data.ok || !Array.isArray(data.images)) {
         throw new Error(data.message || "Unable to load gallery.");
       }
-      const images = new Map(data.images.map(item => [Number(item.slot), item]));
+      const images = new Map(data.images.map(item => [Number(item.slot), item]));\n      const styles = new Map((stylesData.ok && Array.isArray(stylesData.styles) ? stylesData.styles : []).map(item => [item.target_type + ":" + item.target_key, item]));
       gallery.querySelectorAll("[data-photo-slot]").forEach(slot => {
         const number = Number(slot.dataset.photoSlot);
         const item = images.get(number);
