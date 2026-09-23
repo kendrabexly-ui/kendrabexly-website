@@ -260,7 +260,7 @@
 
         const workflow=document.getElementById("request-workflow");
         const workflowCopy={
-          pending:["1 of 3 · Review Request","Review the request details. Choose Proceed to private screening to create one email for ID, screening, and deposit selection."],
+          pending:["1 of 3 · Review Request","Review the request and check the external blacklist before inviting the client to the private screening page."],
           pending_final_approval:["2 of 3 · Final Approval","Confirm the deposit and ID screening, then give final approval."],
           screening_pending:["2 of 3 · Final Approval","Complete ID screening and deposit confirmation before final approval."],
           approved:["3 of 3 · Confirmed","This date is confirmed. After the appointment, mark it Successfully Completed."],
@@ -371,6 +371,17 @@
             <div class="value">
               ${displayValue(item.notes)}
             </div>
+          </div>
+          <div id="external-blacklist-check" style="margin:28px 32px 0;padding:18px;border:1px solid #ded7cd;background:#fffdf9;border-radius:14px;">
+            <div class="label">EXTERNAL BLACKLIST CHECK</div>
+            <p style="margin:7px 0 12px;font-size:14px;line-height:1.5;">Search the separate blacklist website using the client's details above. Record your result here before requesting ID and deposit. This portal does not search that website.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <select id="external-blacklist-result" aria-label="External blacklist result" style="padding:10px 12px;border:1px solid #cfc6ba;border-radius:8px;background:white;font:inherit;">
+                <option value="">Choose a result</option><option value="clear">No match</option><option value="possible_match">Possible match — hold request</option>
+              </select>
+              <button type="button" id="save-external-blacklist" style="padding:10px 16px;border:0;border-radius:999px;background:#25252d;color:white;font:inherit;cursor:pointer;">Save Check</button>
+            </div>
+            <div id="external-blacklist-status" role="status" style="margin-top:10px;font-size:13px;color:#6f675f;"></div>
           </div>
           <div style="margin-top: 32px;">
   <button
@@ -507,6 +518,32 @@ if (viewClientProfileButton) {
 
 const moveForwardButton =
   document.getElementById("move-forward-button");
+const externalResult=document.getElementById("external-blacklist-result");
+const externalStatus=document.getElementById("external-blacklist-status");
+const saveExternalCheck=document.getElementById("save-external-blacklist");
+const checkedAt=item.external_blacklist_checked_at;
+externalResult.value=item.external_blacklist_result||"";
+const updateExternalCheck=()=>{
+  const clear=item.external_blacklist_result==="clear";
+  moveForwardButton.disabled=!clear;
+  moveForwardButton.style.opacity=clear?"1":".5";
+  moveForwardButton.style.cursor=clear?"pointer":"not-allowed";
+  externalStatus.textContent=item.external_blacklist_result==="possible_match"?"Possible match: request on hold. Review the match before changing this result.":clear?"No match saved"+(item.external_blacklist_checked_at?" · "+new Date(item.external_blacklist_checked_at.replace(" ","T")+"Z").toLocaleString():"")+". You may proceed.":"Check the separate website, then save your result to continue.";
+};
+updateExternalCheck();
+saveExternalCheck.addEventListener("click",async()=>{
+  if(!externalResult.value){externalStatus.textContent="Choose a result before saving.";return;}
+  saveExternalCheck.disabled=true;externalStatus.textContent="Saving check...";
+  try{
+    const response=await fetch("/api/admin/request/blacklist-check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(id),result:externalResult.value})});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save the check.");
+    item.external_blacklist_result=result.result;
+    item.external_blacklist_checked_at=new Date().toISOString();
+    updateExternalCheck();
+  }catch(error){externalStatus.textContent=error.message||"Unable to save the check.";}
+  finally{saveExternalCheck.disabled=false;}
+});
 const basicScreeningMilestones=document.getElementById("basic-screening-milestones");
 const renderBasicScreeningMilestones=(approved,sent)=>{
   if(!basicScreeningMilestones)return;
@@ -571,6 +608,10 @@ if(inactiveRequest){
   finalApprovalControls.style.display="none";
   if(screeningStageControls) screeningStageControls.style.display="none";
   openEmailDraftsButton.style.display="none";
+}
+if(!["pending","screening_pending"].includes(item.status)||item.private_screening_email_sent_at){
+  const checkPanel=document.getElementById("external-blacklist-check");
+  if(checkPanel)checkPanel.style.display="none";
 }
 if(String(item.status||"").toLowerCase()==="completed"){
   const completedControls=document.getElementById("completed-date-controls");
@@ -695,8 +736,7 @@ moveForwardButton.addEventListener(
         error
       );
 
-      moveForwardStatus.textContent =
-        "Unable to move request forward.";
+      moveForwardStatus.textContent = error.message || "Unable to move request forward.";
 
       moveForwardButton.disabled = false;
     }
