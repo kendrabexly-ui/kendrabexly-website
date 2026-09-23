@@ -2808,7 +2808,7 @@ export default {
         const cta = String(data.cta || "Book now").trim().slice(0, 160);
         if (!product) return Response.json({ ok:false, message:"Add what you are advertising." }, { status:400 });
 
-        const prompt = "Write 3 non-explicit advertising copy variations. Never describe sexual acts, nudity, explicit body parts, sexual services, or graphic sexual content. Product/service: "+product+". Audience: "+(audience||"Adults interested in a premium experience.")+". Offer: "+(offer||"None.")+". Length: "+length+". Tone: "+tone+". Tone intensity: "+intensity+"/5. CTA: "+cta+". Return valid JSON with a variants array containing label and copy fields only.";
+        const lengthGuide = length.toLowerCase() === "short" ? "Keep each variation to 8-18 words." : length.toLowerCase() === "long" ? "Keep each variation to 45-80 words." : "Keep each variation to 20-40 words.";\n        const prompt = "Write 3 non-explicit advertising copy variations. Never describe sexual acts, nudity, explicit body parts, sexual services, or graphic sexual content. Product/service: "+product+". Audience: "+(audience||"Adults interested in a premium experience.")+". Offer: "+(offer||"None.")+". Required length: "+length+". "+lengthGuide+" Required tone: "+tone+". Match the requested tone clearly. Tone intensity: "+intensity+"/5. CTA: "+cta+". Return valid JSON with a variants array containing label and copy fields only.";
 
         if (env.AI && typeof env.AI.run === "function") {
           try {
@@ -2830,35 +2830,35 @@ export default {
         }
 
         const lowTone = tone.toLowerCase();
-        const lead = lowTone.includes("cheeky")
-          ? "A little attitude, a little charm, and impossible to ignore."
-          : lowTone.includes("playful")
-          ? "A little more fun, a little more memorable."
-          : lowTone.includes("luxury") || lowTone.includes("elegant")
-          ? "Refined, intentional, and made for those who appreciate the details."
-          : lowTone.includes("bold")
-          ? "Make your next move with confidence."
-          : lowTone.includes("flirty")
-          ? "A little tempting, a lot worth saying yes to."
-          : lowTone.includes("confident")
-          ? "Confidence, personality, and an experience worth remembering."
-          : "Discover an experience designed around you.";
-
+        const leads = {
+          elegant: "Refined, intentional, and made for those who appreciate the details.",
+          luxury: "A polished experience with thoughtful details and a premium feel.",
+          warm: "Welcoming, personal, and designed to leave a genuinely good impression.",
+          playful: "A little more fun, a little more memorable.",
+          cheeky: "A little attitude, a little charm, and impossible to ignore.",
+          confident: "Confidence, personality, and an experience worth remembering.",
+          bold: "Make your next move with confidence.",
+          minimal: "Simple, polished, and made to stand out.",
+          flirty: "A little tempting, a lot worth saying yes to.",
+          professional: "Clear, polished, and thoughtfully presented."
+        };
+        const lead = leads[lowTone] || "Discover an experience designed around you.";
         const safeAudience = audience ? " Designed for " + audience + "." : "";
         const detail = offer ? " " + offer + "." : "";
         const action = cta ? " " + cta + "." : "";
-
-        const shortCopy = product + ". " + lead + action;
-        const balancedCopy = lead + " " + product + "." + safeAudience + detail + action;
-        const boldCopy = "Make it memorable. " + product + "." + detail + safeAudience + " " + lead + action;
+        const base = product + ".";
+        const shortCopy = base + " " + lead + action;
+        const mediumCopy = lead + " " + base + safeAudience + detail + action;
+        const longCopy = lead + " " + base + safeAudience + detail + " Thoughtfully presented from first impression to final detail." + action;
+        const selectedCopy = lowTone && length.toLowerCase() === "short" ? shortCopy : length.toLowerCase() === "long" ? longCopy : mediumCopy;
 
         return Response.json({
           ok:true,
           fallback:true,
           variants:[
-            {label:"Short",copy:shortCopy},
-            {label:"Balanced",copy:balancedCopy},
-            {label:"Bold",copy:boldCopy}
+            {label:length + " — Variation 1",copy:selectedCopy},
+            {label:length + " — Variation 2",copy:length.toLowerCase() === "short" ? product + ". " + lead + " " + cta + "." : length.toLowerCase() === "long" ? "Make it memorable. " + base + safeAudience + " " + lead + detail + " " + cta + ".": mediumCopy + " " + lead + action},
+            {label:length + " — Variation 3",copy:length.toLowerCase() === "short" ? lead + " " + product + ". " + cta + "." : longCopy}
           ]
         });
       } catch (error) {
