@@ -2999,6 +2999,7 @@ async function loadRequests(options = {}) {
                     </div>
                     <div style="font-size:11px;color:var(--muted);margin-top:6px;">Check the phone number from the booking request before continuing with identity and employment review.</div>
                     <label style="display:block;font-size:12px;font-weight:700;margin-top:8px;">Phone number<input class="client-persona-phone" type="tel" value="${escapeHtml(personaDraft.phone_number || client.phone || "")}" autocomplete="off" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-phone-line-check" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Check Phone Type</button><button type="button" class="client-phone-reverse-lookup" style="padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:11px;font-weight:700;">Reverse Phone Name</button><span class="client-phone-line-status verification-field-note">Not checked</span></span><span class="client-phone-reverse-status verification-field-note" style="margin-top:5px;">Reverse lookup: Not checked · U.S. caller-name lookup may incur a Twilio Lookup charge.</span></label>
+                    <div class="verification-actions"><button type="button" class="client-phone-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Phone</button><span class="client-phone-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span></div>
                   </section>
 
                   <section class="verification-card client-id-record is-collapsed">
@@ -3135,12 +3136,13 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-public-record-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">8. Public Court &amp; Criminal Record Search <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Expand</button><button type="button" class="client-optional-skip" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Public Record Check</button></span>
+                      <strong style="font-size:13px;">8. Public &amp; Criminal Court Record Search <span style="font-weight:500;color:var(--muted);">· Required before Verified</span></strong>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Expand</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Public Record Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
                       Search official public court and government sources only. A name match alone is not enough to confirm identity, and no single public search proves that a person has no criminal history.
                     </div>
+                    <div style="display:grid;gap:6px;margin-top:9px;font-size:12px;"><label><input class="client-public-records-reviewed" type="checkbox"> I searched public records in the source recorded below.</label><label><input class="client-criminal-records-reviewed" type="checkbox"> I searched criminal court records in the source recorded below.</label></div>
                     <div class="verification-grid" style="margin-top:10px;">
                       <label style="font-size:12px;font-weight:700;">Jurisdiction / state
                         <select class="client-public-record-state" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose state</option><option value="AL">Alabama</option><option value="AK">Alaska</option><option value="AZ">Arizona</option><option value="AR">Arkansas</option><option value="CA">California</option><option value="CO">Colorado</option><option value="CT">Connecticut</option><option value="DE">Delaware</option><option value="DC">District of Columbia</option><option value="FL">Florida</option><option value="GA">Georgia</option><option value="HI">Hawaii</option><option value="ID">Idaho</option><option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option><option value="KY">Kentucky</option><option value="LA">Louisiana</option><option value="ME">Maine</option><option value="MD">Maryland</option><option value="MA">Massachusetts</option><option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MS">Mississippi</option><option value="MO">Missouri</option><option value="MT">Montana</option><option value="NE">Nebraska</option><option value="NV">Nevada</option><option value="NH">New Hampshire</option><option value="NJ">New Jersey</option><option value="NM">New Mexico</option><option value="NY">New York</option><option value="NC">North Carolina</option><option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="OK">Oklahoma</option><option value="OR">Oregon</option><option value="PA">Pennsylvania</option><option value="RI">Rhode Island</option><option value="SC">South Carolina</option><option value="SD">South Dakota</option><option value="TN">Tennessee</option><option value="TX">Texas</option><option value="UT">Utah</option><option value="VT">Vermont</option><option value="VA">Virginia</option><option value="WA">Washington</option><option value="WV">West Virginia</option><option value="WI">Wisconsin</option><option value="WY">Wyoming</option></select>
@@ -4751,7 +4753,10 @@ async function loadRequests(options = {}) {
       const applyPublicRecordCheck=(section,record)=>{
         const set=(sel,val)=>{const el=section.querySelector(sel);if(el)el.value=val||"";};
         if(!record){
+          section.dataset.publicRecordsReviewed="0";section.dataset.criminalRecordsReviewed="0";
           set(".client-public-record-status","not_checked");set(".client-public-record-scope","state_local");
+          section.querySelector(".client-public-records-reviewed").checked=false;
+          section.querySelector(".client-criminal-records-reviewed").checked=false;
           const c=section.querySelector(".client-public-record-checked");if(c)c.textContent="Last checked: Not checked";
           renderPublicRecordLookups(section);return;
         }
@@ -4763,6 +4768,10 @@ async function loadRequests(options = {}) {
         if(countyWrap)countyWrap.hidden=!(verificationCountyOptions[record.jurisdiction_state||""]?.length);
         set(".client-public-record-scope",record.search_scope||"state_local");
         set(".client-public-record-status",record.record_status||"not_checked");
+        section.dataset.publicRecordsReviewed=record.checked_at&&record.record_status!=="not_checked"&&record.public_records_reviewed?"1":"0";
+        section.dataset.criminalRecordsReviewed=record.checked_at&&record.record_status!=="not_checked"&&record.criminal_records_reviewed?"1":"0";
+        section.querySelector(".client-public-records-reviewed").checked=Boolean(record.public_records_reviewed);
+        section.querySelector(".client-criminal-records-reviewed").checked=Boolean(record.criminal_records_reviewed);
         set(".client-public-record-source-name",record.source_name);
         set(".client-public-record-source-url",record.source_url);
         set(".client-public-record-case-reference",record.case_reference);
@@ -4805,6 +4814,8 @@ async function loadRequests(options = {}) {
             jurisdiction_county:section.querySelector(".client-public-record-county")?.value||"",
             search_scope:section.querySelector(".client-public-record-scope")?.value||"state_local",
             record_status:section.querySelector(".client-public-record-status")?.value||"not_checked",
+            public_records_reviewed:Boolean(section.querySelector(".client-public-records-reviewed")?.checked),
+            criminal_records_reviewed:Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked),
             source_name:section.querySelector(".client-public-record-source-name")?.value||"",
             source_url:section.querySelector(".client-public-record-source-url")?.value||"",
             case_reference:section.querySelector(".client-public-record-case-reference")?.value||"",
@@ -4815,6 +4826,7 @@ async function loadRequests(options = {}) {
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save public record check.");
           applyPublicRecordCheck(section,result.check);
+          section.dispatchEvent(new Event("verification-record-check-saved"));
           if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
           section.dataset.publicRecordStatus=result.check?.record_status||"not_checked";
           const publicState=result.check?.record_status==="potential_match"?"potential_match":result.check?.record_status==="confirmed_match"?"needs_review":result.check?.record_status==="unable_to_verify"?"unable_to_verify":result.check?.record_status==="no_public_record_found"?"confirmed":"in_progress";
@@ -4864,7 +4876,7 @@ async function loadRequests(options = {}) {
         Object.entries(map).forEach(([key,[sel,label]])=>{
           const cardSelector=key==="credential"?".client-credential-card":key==="address"?".client-address-verification-card":".client-public-record-card";
           const card=section.querySelector(cardSelector);
-          const skipped=states[key]==="skipped";
+          const skipped=key!=="public_records"&&states[key]==="skipped";
           const badge=section.querySelector(sel);
           if(skipped&&badge){badge.textContent=label+": Skipped";badge.style.background="#f1f1f1";badge.style.color="#666";}
           if(card){
@@ -5038,7 +5050,7 @@ async function loadRequests(options = {}) {
         const manual=latest.verification_status==="needs_more_information"?"needs_review":checklist===5?"confirmed":checklist>0||section.querySelector(".client-persona-birthdate")?.value?"in_progress":"not_checked";
         const credential=states.credential==="skipped"?"skipped":section.dataset.credentialStatus||section.querySelector(".client-credential-status")?.value||"not_checked";
         const address=states.address==="skipped"?"skipped":section.dataset.addressStatus||section.querySelector(".client-address-check-result")?.value||"not_checked";
-        const publicRecords=states.public_records==="skipped"?"skipped":section.dataset.publicRecordStatus||section.querySelector(".client-public-record-status")?.value||"not_checked";
+        const publicRecords=section.dataset.publicRecordStatus||section.querySelector(".client-public-record-status")?.value||"not_checked";
         const personaRaw=latest.persona_database_status||latest.persona_transaction_status||"not_checked";
         const persona=["passed","approved"].includes(String(personaRaw).toLowerCase())?"confirmed":personaRaw;
         const sexOffender=section.dataset.sexOffenderStatus||"not_checked";
@@ -5048,6 +5060,7 @@ async function loadRequests(options = {}) {
         const warnings=[];
         if(section.dataset.hasDocument!=="1")warnings.push("ID document has not been uploaded.");
         if(String(publicRecords)==="potential_match")warnings.push("Public-record search contains a potential identity match.");
+        if(section.dataset.publicRecordsReviewed!=="1"||section.dataset.criminalRecordsReviewed!=="1")warnings.push("Both public-record and criminal-court searches must be saved before verification.");
         if(String(publicRecords)==="confirmed_match")warnings.push("A confirmed public-record match is recorded.");
         if(["potential_match","confirmed_match"].includes(String(sexOffender)))warnings.push("Sex offender registry result requires review.");
         if(String(address)==="mismatch")warnings.push("Address verification shows a mismatch.");
@@ -5064,7 +5077,7 @@ async function loadRequests(options = {}) {
         setVerificationBadge(section.querySelector(".client-verification-overall"),"Workflow",overallStatus);
         const finalBadge=section.querySelector(".client-final-review-badge");if(finalBadge)finalBadge.textContent=verificationPretty(decision);
         const warningBox=section.querySelector(".client-final-review-warnings");
-        if(warningBox)warningBox.innerHTML=warnings.length?warnings.map(x=>'<div class="verification-warning">'+escapeHtml(x)+'</div>').join(""):'<div style="font-size:12px;color:#2f6b45;">No unresolved warnings from completed checks. Optional skipped checks do not block completion.</div>';
+        if(warningBox)warningBox.innerHTML=warnings.length?warnings.map(x=>'<div class="verification-warning">'+escapeHtml(x)+'</div>').join(""):'<div style="font-size:12px;color:#2f6b45;">No unresolved warnings from completed checks.</div>';
         const reviewSummary=section.querySelector(".client-final-review-summary");
         if(reviewSummary)reviewSummary.innerHTML=
           '<strong>Basic screening:</strong> '+escapeHtml(verificationPretty(basicScreening))+
@@ -5077,7 +5090,7 @@ async function loadRequests(options = {}) {
           ' · <strong>Checklist:</strong> '+escapeHtml(checklist+" of 2")+
           ' · <strong>Final decision:</strong> '+escapeHtml(verificationPretty(decision))+
           '<div style="margin-top:6px;">Final decision remains manual. Automated and optional checks provide evidence only and never approve or decline the client automatically.</div>';
-        const finalReady=basicScreening==="confirmed"&&checklist===2&&age!==null&&age>=verificationMinimumAge;
+        const finalReady=basicScreening==="confirmed"&&checklist===2&&age!==null&&age>=verificationMinimumAge&&section.dataset.publicRecordsReviewed==="1"&&section.dataset.criminalRecordsReviewed==="1";
         const completeState=["verified","unable_to_verify","declined"].includes(decision)?"complete":"not_checked";
         updateVerificationProgress(section,{
           basic_screening:basicScreening,
@@ -5611,6 +5624,13 @@ async function loadRequests(options = {}) {
           event.stopPropagation();
           await runPhoneLineCheck(section);
         });
+        section.querySelector(".client-phone-save")?.addEventListener("click",async(event)=>{
+          const button=event.currentTarget,status=section.querySelector(".client-phone-save-status");
+          button.disabled=true;if(status)status.textContent="Saving phone number…";
+          try{const saved=await saveVerificationDraft(section,{retry:true});if(status)status.textContent=saved?"Phone number saved.":"A newer change is still saving.";}
+          catch(error){if(status)status.textContent=error.message||"Unable to save phone number.";}
+          finally{button.disabled=false;}
+        });
         section.querySelector(".client-phone-reverse-lookup")?.addEventListener("click",async(event)=>{
           event.preventDefault();
           event.stopPropagation();
@@ -5940,7 +5960,7 @@ async function loadRequests(options = {}) {
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
           const isFinal=["verified","unable_to_verify","declined"].includes(decision);
           let ready=isFinal;
-          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&section.querySelector(".client-employment-status")?.value==="confirmed";
+          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&section.querySelector(".client-employment-status")?.value==="confirmed"&&section.dataset.publicRecordsReviewed==="1"&&section.dataset.criminalRecordsReviewed==="1";
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
@@ -5949,6 +5969,8 @@ async function loadRequests(options = {}) {
           updateVerificationSummary(section);
           updateVerificationFlowSummary(section);
         };
+        section.addEventListener("verification-record-check-saved",updateCompletionControls);
+
 
         checklistSelectors.forEach(selector=>section.querySelector(selector)?.addEventListener("change",updateCompletionControls));
         auditStatus?.addEventListener("change",()=>{
