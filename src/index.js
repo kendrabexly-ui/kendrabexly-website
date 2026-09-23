@@ -2832,6 +2832,8 @@ export default {
           return subject + lead + " " + product + "." + detail + suffix;
         };
         return Response.json({ok:true,fallback:true,variants:[{label:"Short",copy:makeCopy("Short")},{label:"Balanced",copy:makeCopy("Medium")},{label:"Bold",copy:product+". "+lead+detail+suffix}]});
+      } catch (error) {
+        console.error("Ad copy generation error:", error);
         return Response.json({ok:false,message:"Unable to generate ad copy right now."},{status:500});
       }
     }
