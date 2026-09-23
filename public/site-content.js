@@ -57,10 +57,10 @@
       gallery.querySelectorAll("[data-photo-slot]").forEach(slot => {
         const number = Number(slot.dataset.photoSlot);
         const item = images.get(number);
-        if (!item?.image_base64 || !item?.mime_type) return;
+        if (!item) return;
         slot.innerHTML = "";
         const image = document.createElement("img");
-        image.src = "data:" + item.mime_type + ";base64," + item.image_base64;
+        image.src = "/api/public/gallery/image?slot=" + number + "&v=" + encodeURIComponent(item.updated_at || "");
         image.alt = item.alt_text || "Kendra Bexly gallery photograph";
         image.loading = "lazy";
         image.decoding = "async";

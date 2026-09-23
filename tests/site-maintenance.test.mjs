@@ -20,6 +20,17 @@ test('all inline scripts parse after markup cleanup', () => {
   new vm.Script(read('site-shell.js'));
 });
 
+test('Muse adds seven slots while preserving the existing six', () => {
+  const muse=read('the-muse/index.html');
+  const slots=[...muse.matchAll(/data-photo-slot="(\d+)"/g)].map(match=>Number(match[1]));
+  assert.deepEqual(slots,Array.from({length:13},(_,i)=>i+1));
+  assert.match(portal,/Array\.from\(\{length:13\}/);
+  assert.match(portal,/<option value="13">Slot 13<\/option>/);
+  const worker=fs.readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
+  assert.match(worker,/CREATE TABLE IF NOT EXISTS site_gallery_extra/);
+  assert.match(worker,/site_gallery UNION ALL SELECT slot, alt_text, updated_at FROM site_gallery_extra/);
+});
+
 test('etiquette and FAQ are combined into the unlisted The Details page', () => {
   const details=read('the-details/index.html');
   const shell=read('site-shell.js');

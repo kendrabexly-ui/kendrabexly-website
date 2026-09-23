@@ -272,6 +272,16 @@ async function ensurePagePhotosTable(env) {
   `).run();
 }
 
+async function ensureGalleryExtraTable(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS site_gallery_extra (
+    slot INTEGER PRIMARY KEY CHECK (slot BETWEEN 7 AND 13),
+    mime_type TEXT NOT NULL,
+    image_base64 TEXT NOT NULL,
+    alt_text TEXT NOT NULL DEFAULT '',
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+}
+
 
 
 async function recordBookingFunnelEvent(env,eventName,{sessionId="",requestId=null,path=""}={}) {
@@ -3837,29 +3847,40 @@ My journal will continue to be a place where I share a little more of that side 
       return Response.json({ ok: true, image: { page, slot, mime_type: mimeType, image_base64: imageBase64, alt_text: altText } });
     }
 
+    if (url.pathname === "/api/public/gallery/image" && request.method === "GET") {
+      const slot = Number(url.searchParams.get("slot"));
+      if (!Number.isInteger(slot) || slot < 1 || slot > 13) return new Response("Not found", { status: 404 });
+      if (slot > 6) await ensureGalleryExtraTable(env);
+      else await ensureSiteContentTables(env);
+      const row = await env.DB.prepare("SELECT mime_type, image_base64 FROM " + (slot > 6 ? "site_gallery_extra" : "site_gallery") + " WHERE slot = ?").bind(slot).first();
+      if (!row || !["image/jpeg", "image/png", "image/webp"].includes(row.mime_type)) return new Response("Not found", { status: 404 });
+      return new Response(Uint8Array.from(atob(row.image_base64), character => character.charCodeAt(0)), {
+        headers: { "Content-Type": row.mime_type, "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" }
+      });
+    }
+
     if (url.pathname === "/api/public/gallery" && request.method === "GET") {
       await ensureSiteContentTables(env);
-      const result = await env.DB.prepare(
-        "SELECT slot, mime_type, image_base64, alt_text, updated_at FROM site_gallery ORDER BY slot"
-      ).all();
+      await ensureGalleryExtraTable(env);
+      const result = await env.DB.prepare("SELECT slot, alt_text, updated_at FROM site_gallery UNION ALL SELECT slot, alt_text, updated_at FROM site_gallery_extra ORDER BY slot").all();
       return Response.json({ ok: true, images: result.results || [] });
     }
 
     if (url.pathname === "/api/admin/gallery") {
       await ensureSiteContentTables(env);
+      await ensureGalleryExtraTable(env);
       if (request.method === "GET") {
-        const result = await env.DB.prepare(
-          "SELECT slot, mime_type, image_base64, alt_text, updated_at FROM site_gallery ORDER BY slot"
-        ).all();
+        const result = await env.DB.prepare("SELECT slot, alt_text, updated_at FROM site_gallery UNION ALL SELECT slot, alt_text, updated_at FROM site_gallery_extra ORDER BY slot").all();
         return Response.json({ ok: true, images: result.results || [] });
       }
       const data = await request.json().catch(() => ({}));
       const slot = Number(data.slot);
-      if (!Number.isInteger(slot) || slot < 1 || slot > 6) {
+      if (!Number.isInteger(slot) || slot < 1 || slot > 13) {
         return Response.json({ ok: false, message: "Choose a valid gallery slot." }, { status: 400 });
       }
+      const galleryTable = slot > 6 ? "site_gallery_extra" : "site_gallery";
       if (request.method === "DELETE") {
-        await env.DB.prepare("DELETE FROM site_gallery WHERE slot = ?").bind(slot).run();
+        await env.DB.prepare("DELETE FROM " + galleryTable + " WHERE slot = ?").bind(slot).run();
         return Response.json({ ok: true });
       }
       if (request.method === "POST") {
@@ -3870,7 +3891,7 @@ My journal will continue to be a place where I share a little more of that side 
           return Response.json({ ok: false, message: "Upload a JPG, PNG, or WebP image under the gallery size limit." }, { status: 400 });
         }
         await env.DB.prepare(`
-          INSERT INTO site_gallery (slot, mime_type, image_base64, alt_text, updated_at)
+          INSERT INTO ${galleryTable} (slot, mime_type, image_base64, alt_text, updated_at)
           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
           ON CONFLICT(slot) DO UPDATE SET
             mime_type = excluded.mime_type,
@@ -3878,7 +3899,7 @@ My journal will continue to be a place where I share a little more of that side 
             alt_text = excluded.alt_text,
             updated_at = CURRENT_TIMESTAMP
         `).bind(slot, mimeType, imageBase64, altText).run();
-        return Response.json({ ok: true, image: { slot, mime_type: mimeType, image_base64: imageBase64, alt_text: altText } });
+        return Response.json({ ok: true, image: { slot, mime_type: mimeType, alt_text: altText, updated_at: new Date().toISOString() } });
       }
       return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
     }
