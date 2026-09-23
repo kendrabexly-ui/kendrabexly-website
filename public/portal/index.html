@@ -3045,72 +3045,6 @@ async function loadRequests(options = {}) {
                   </section>
 
 
-                  <section class="verification-card client-verification-editor is-collapsed" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">10. Final Verification &amp; Decision</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
-                    <div style="margin-top:5px;font-size:12px;color:var(--muted);">Review the saved checks, choose the final decision, and record any private notes. Persona does not automatically approve or decline a client.</div>
-                    <div class="verification-grid">
-                      <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
-                      <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="needs_more_information">Needs More Information</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
-                      <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona, and other approved checks…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                    </div>
-                    <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
-                    <div class="verification-field-note">Birthdate is entered once in the Final Verification Checklist. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
-                    <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
-                      <legend style="padding:0 5px;font-size:12px;font-weight:700;">Required checklist</legend>
-                      <div style="display:grid;gap:8px;font-size:12px;">
-                        <label><input class="client-check-identity" type="checkbox"> Identity matches ID</label>
-                        <label><input class="client-check-contact" type="checkbox"> Contact information confirmed</label>
-                      </div>
-                    </fieldset>
-                    <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Checklist 0 of 2 complete.</div>
-                    <div class="client-verification-reason-wrap" hidden style="margin-top:10px;">
-                      <div class="client-nmi-quick-reasons" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px;">
-                        <button type="button" data-nmi-reason="missing_id" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Missing ID</button>
-                        <button type="button" data-nmi-reason="contact_information_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Contact incomplete</button>
-                        <button type="button" data-nmi-reason="address_mismatch" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Address mismatch</button>
-                        <button type="button" data-nmi-reason="other" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Other</button>
-                      </div>
-                      <label style="display:block;font-size:12px;font-weight:700;">Decision reason
-                        <select class="client-verification-reason" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-                          <option value="">Choose a reason</option>
-                          <option value="missing_id">Missing ID</option>
-                          <option value="employer_information_incomplete">Employer information incomplete</option>
-                          <option value="contact_information_incomplete">Contact information incomplete</option>
-                          <option value="address_mismatch">Address mismatch</option>
-                          <option value="information_mismatch">Information mismatch</option>
-                          <option value="employer_not_confirmed">Employer not confirmed</option>
-                          <option value="contact_not_confirmed">Contact information not confirmed</option>
-                          <option value="insufficient_information">Insufficient information</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </label>
-                      <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Private decision note<textarea class="client-verification-decision-notes" rows="2" maxlength="1200" placeholder="Private internal note. This is never sent to the client." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
-                      <label class="client-declined-action-wrap" hidden style="display:block;margin-top:10px;font-size:12px;font-weight:700;">After declining
-                        <select class="client-declined-action" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
-                          <option value="leave">Leave profile unchanged</option>
-                          <option value="flag">Flag for review</option>
-                          <option value="blacklist">Add to blacklist</option>
-                        </select>
-                        <span style="display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--muted);">Declining never blacklists a client automatically.</span>
-                      </label>
-                    </div>
-                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
-                    <div class="client-final-review-summary" style="margin-top:12px;font-size:12px;line-height:1.55;color:var(--muted);">Review the completed checks below. When everything is approved, completing this final step will prepare the date confirmation email as a draft in Email Drafts.</div>
-                    <div class="client-final-review-warnings" tabindex="-1" role="region" aria-label="Verification warnings" style="margin-top:8px;"></div>
-                    <div class="verification-actions" style="margin-top:10px;"><button type="button" class="client-final-review-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification</button></div>
-                    <div class="client-verification-completed-display" style="margin-top:9px;font-size:12px;color:var(--muted);">Completion: Not completed</div>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                      <div class="verification-save-indicator client-verification-draft-status" role="status" aria-live="polite"></div>
-                      <button type="button" class="client-verification-save-draft-now" hidden style="padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:11px;cursor:pointer;">Save Now</button>
-                    </div>
-                    <div class="verification-actions verification-sticky-actions">
-                      <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
-                      <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
-                      <button type="button" class="client-verification-complete" disabled hidden tabindex="-1" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification Checklist</button>
-                      <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
-                    </div>
-                  </section>
-
                   <section class="verification-card client-credential-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">6. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
@@ -3384,6 +3318,72 @@ async function loadRequests(options = {}) {
                     <div class="client-persona-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);">Persona connection pending — the Final Verification Checklist remains available.</div>
                     <div class="client-persona-workflow-result" hidden role="status" aria-live="polite" style="margin-top:9px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;line-height:1.55;"></div>
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
+                  </section>
+
+                  <section class="verification-card client-verification-editor is-collapsed" hidden>
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">10. Final Verification &amp; Decision</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
+                    <div style="margin-top:5px;font-size:12px;color:var(--muted);">Review the saved checks, choose the final decision, and record any private notes. Persona does not automatically approve or decline a client.</div>
+                    <div class="verification-grid">
+                      <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
+                      <label style="font-size:12px;font-weight:700;">Final decision<select class="client-verification-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="pending_review">Pending Review</option><option value="needs_more_information">Needs More Information</option><option value="verified">Verified</option><option value="unable_to_verify">Unable to Verify</option><option value="declined">Declined</option></select></label>
+                      <label style="font-size:12px;font-weight:700;">Verification method<input class="client-verification-method" type="text" maxlength="240" placeholder="ID, public records, Persona, and other approved checks…" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                    </div>
+                    <div class="client-persona-age-status" style="display:none;margin-top:10px;padding:11px 12px;border-radius:8px;font-size:12px;font-weight:700;"></div>
+                    <div class="verification-field-note">Birthdate is entered once in the Final Verification Checklist. If Persona requires it, the saved birthdate is used automatically—there is no separate Persona birthdate field.</div>
+                    <fieldset style="margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:8px;">
+                      <legend style="padding:0 5px;font-size:12px;font-weight:700;">Required checklist</legend>
+                      <div style="display:grid;gap:8px;font-size:12px;">
+                        <label><input class="client-check-identity" type="checkbox"> Identity matches ID</label>
+                        <label><input class="client-check-contact" type="checkbox"> Contact information confirmed</label>
+                      </div>
+                    </fieldset>
+                    <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Checklist 0 of 2 complete.</div>
+                    <div class="client-verification-reason-wrap" hidden style="margin-top:10px;">
+                      <div class="client-nmi-quick-reasons" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px;">
+                        <button type="button" data-nmi-reason="missing_id" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Missing ID</button>
+                        <button type="button" data-nmi-reason="contact_information_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Contact incomplete</button>
+                        <button type="button" data-nmi-reason="address_mismatch" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Address mismatch</button>
+                        <button type="button" data-nmi-reason="other" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Other</button>
+                      </div>
+                      <label style="display:block;font-size:12px;font-weight:700;">Decision reason
+                        <select class="client-verification-reason" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="">Choose a reason</option>
+                          <option value="missing_id">Missing ID</option>
+                          <option value="employer_information_incomplete">Employer information incomplete</option>
+                          <option value="contact_information_incomplete">Contact information incomplete</option>
+                          <option value="address_mismatch">Address mismatch</option>
+                          <option value="information_mismatch">Information mismatch</option>
+                          <option value="employer_not_confirmed">Employer not confirmed</option>
+                          <option value="contact_not_confirmed">Contact information not confirmed</option>
+                          <option value="insufficient_information">Insufficient information</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </label>
+                      <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Private decision note<textarea class="client-verification-decision-notes" rows="2" maxlength="1200" placeholder="Private internal note. This is never sent to the client." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                      <label class="client-declined-action-wrap" hidden style="display:block;margin-top:10px;font-size:12px;font-weight:700;">After declining
+                        <select class="client-declined-action" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;">
+                          <option value="leave">Leave profile unchanged</option>
+                          <option value="flag">Flag for review</option>
+                          <option value="blacklist">Add to blacklist</option>
+                        </select>
+                        <span style="display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--muted);">Declining never blacklists a client automatically.</span>
+                      </label>
+                    </div>
+                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                    <div class="client-final-review-summary" style="margin-top:12px;font-size:12px;line-height:1.55;color:var(--muted);">Review the completed checks below. When everything is approved, completing this final step will prepare the date confirmation email as a draft in Email Drafts.</div>
+                    <div class="client-final-review-warnings" tabindex="-1" role="region" aria-label="Verification warnings" style="margin-top:8px;"></div>
+                    <div class="verification-actions" style="margin-top:10px;"><button type="button" class="client-final-review-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification</button></div>
+                    <div class="client-verification-completed-display" style="margin-top:9px;font-size:12px;color:var(--muted);">Completion: Not completed</div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                      <div class="verification-save-indicator client-verification-draft-status" role="status" aria-live="polite"></div>
+                      <button type="button" class="client-verification-save-draft-now" hidden style="padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:11px;cursor:pointer;">Save Now</button>
+                    </div>
+                    <div class="verification-actions verification-sticky-actions">
+                      <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
+                      <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
+                      <button type="button" class="client-verification-complete" disabled hidden tabindex="-1" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification Checklist</button>
+                      <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
+                    </div>
                   </section>
 
                   <details class="verification-card client-audit-history">
