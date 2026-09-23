@@ -2949,7 +2949,6 @@ async function loadRequests(options = {}) {
                       <div class="verification-overview-grid">
                         <div class="verification-overview-item"><strong>Basic screening</strong><div data-summary-status="basic_screening">${escapeHtml(basicScreeningLabel)}</div></div>
                         <div class="verification-overview-item"><strong>Identity</strong><div data-summary-status="identity">Not checked</div></div>
-                        <div class="verification-overview-item"><strong>Employment</strong><div data-summary-status="employment">Not checked</div></div>
                         <div class="verification-overview-item"><strong>Credential</strong><div data-summary-status="credential">Not checked</div></div>
                         <div class="verification-overview-item"><strong>Address</strong><div data-summary-status="address">Not checked</div></div>
                         <div class="verification-overview-item"><strong>Public records</strong><div data-summary-status="public_records">Not checked</div></div>
@@ -3061,17 +3060,13 @@ async function loadRequests(options = {}) {
                       <legend style="padding:0 5px;font-size:12px;font-weight:700;">Required checklist</legend>
                       <div style="display:grid;gap:8px;font-size:12px;">
                         <label><input class="client-check-identity" type="checkbox"> Identity matches ID</label>
-                        <label><input class="client-check-employer" type="checkbox"> Employer confirmed</label>
-                        <label><input class="client-check-job-title" type="checkbox"> Job title confirmed</label>
-                        <label><input class="client-check-industry" type="checkbox"> Industry confirmed</label>
                         <label><input class="client-check-contact" type="checkbox"> Contact information confirmed</label>
                       </div>
                     </fieldset>
-                    <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Checklist 0 of 5 complete.</div>
+                    <div class="client-verification-checklist-status" style="margin-top:9px;font-size:12px;color:var(--muted);">Checklist 0 of 2 complete.</div>
                     <div class="client-verification-reason-wrap" hidden style="margin-top:10px;">
                       <div class="client-nmi-quick-reasons" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px;">
                         <button type="button" data-nmi-reason="missing_id" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Missing ID</button>
-                        <button type="button" data-nmi-reason="employer_information_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Employer incomplete</button>
                         <button type="button" data-nmi-reason="contact_information_incomplete" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Contact incomplete</button>
                         <button type="button" data-nmi-reason="address_mismatch" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Address mismatch</button>
                         <button type="button" data-nmi-reason="other" class="verification-badge" style="border:1px solid var(--line);cursor:pointer;">Other</button>
@@ -3412,7 +3407,6 @@ async function loadRequests(options = {}) {
                         <button type="button" class="verification-badge verification-activity-filter" data-activity-filter="id" aria-pressed="false" style="border:1px solid var(--line);cursor:pointer;">ID</button>
                         <button type="button" class="verification-badge verification-activity-filter" data-activity-filter="manual" aria-pressed="false" style="border:1px solid var(--line);cursor:pointer;">Final Checklist</button>
                         <button type="button" class="verification-badge verification-activity-filter" data-activity-filter="persona" aria-pressed="false" style="border:1px solid var(--line);cursor:pointer;">Persona</button>
-                        <button type="button" class="verification-badge verification-activity-filter" data-activity-filter="employment" aria-pressed="false" style="border:1px solid var(--line);cursor:pointer;">Employment</button>
                         <button type="button" class="verification-badge verification-activity-filter" data-activity-filter="credential" aria-pressed="false" style="border:1px solid var(--line);cursor:pointer;">License/Credential</button>
                         <button type="button" class="verification-badge verification-activity-filter" data-activity-filter="address" aria-pressed="false" style="border:1px solid var(--line);cursor:pointer;">Address</button>
                         <button type="button" class="verification-badge verification-activity-filter" data-activity-filter="public_records" aria-pressed="false" style="border:1px solid var(--line);cursor:pointer;">Public Records</button>
@@ -4927,7 +4921,7 @@ async function loadRequests(options = {}) {
           const response=await fetch("/api/admin/clients/verification-check-history?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
           const result=await response.json();
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to load check history.");
-          const labels={credential:"License / Credential",address:"Address",public_records:"Public Records",employment:"Employment",sex_offender_registry:"DOJ Sex Offender Registry",federal_records:"Federal Records",supplemental_public_record:"Supplemental Public Record"};
+          const labels={credential:"License / Credential",address:"Address",public_records:"Public Records",sex_offender_registry:"DOJ Sex Offender Registry",federal_records:"Federal Records",supplemental_public_record:"Supplemental Public Record"};
           const history=result.history||[];
           const sexLatest=history.find(item=>item.category==="sex_offender_registry");
           section.dataset.sexOffenderStatus=sexLatest?.result_status||"not_checked";
@@ -5061,9 +5055,9 @@ async function loadRequests(options = {}) {
       const updateVerificationFlowSummary=(section)=>{
         const latest=section._verificationAuditRecords?.[0]||{};
         const states=section._verificationSectionStates||{};
-        const checklistSelectorsLive=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
+        const checklistSelectorsLive=[".client-check-identity",".client-check-contact"];
         const liveChecklist=checklistSelectorsLive.map(sel=>section.querySelector(sel)?.checked).filter(Boolean).length;
-        const savedChecklist=[latest.identity_confirmed,latest.employer_confirmed,latest.job_title_confirmed,latest.industry_confirmed,latest.contact_confirmed].filter(Boolean).length;
+        const savedChecklist=[latest.identity_confirmed,latest.contact_confirmed].filter(Boolean).length;
         const checklist=Math.max(liveChecklist,savedChecklist);
         const basicScreening=section.dataset.basicScreeningState||"pending_review";
         const identity=section.dataset.hasDocument==="1"?(latest.identity_confirmed?"confirmed":"in_progress"):"not_checked";
@@ -5081,7 +5075,6 @@ async function loadRequests(options = {}) {
         const decision=section.querySelector(".client-verification-status")?.value||latest.verification_status||"pending_review";
         const warnings=[];
         if(section.dataset.hasDocument!=="1")warnings.push("ID document has not been uploaded.");
-        if(String(employment)!=="confirmed")warnings.push("Employment is not confirmed.");
         if(String(publicRecords)==="potential_match")warnings.push("Public-record search contains a potential identity match.");
         if(String(publicRecords)==="confirmed_match")warnings.push("A confirmed public-record match is recorded.");
         if(["potential_match","confirmed_match"].includes(String(sexOffender)))warnings.push("Sex offender registry result requires review.");
@@ -5095,7 +5088,6 @@ async function loadRequests(options = {}) {
         setVerificationBadge(section.querySelector(".client-id-badge"),"Identity",identity);
         setVerificationBadge(section.querySelector(".client-phone-check-badge"),"Phone",phone);
         setVerificationBadge(section.querySelector(".client-manual-badge"),"Checklist",manual);
-        setVerificationBadge(section.querySelector(".client-employment-badge"),"Employment",employment);
         const overallStatus=decision==="verified"?"confirmed":decision==="unable_to_verify"?"unable_to_verify":decision==="declined"?"mismatch":warnings.length?"needs_review":"in_progress";
         setVerificationBadge(section.querySelector(".client-verification-overall"),"Workflow",overallStatus);
         const finalBadge=section.querySelector(".client-final-review-badge");if(finalBadge)finalBadge.textContent=verificationPretty(decision);
@@ -5106,7 +5098,6 @@ async function loadRequests(options = {}) {
           '<strong>Basic screening:</strong> '+escapeHtml(verificationPretty(basicScreening))+
           ' · <strong>Identity:</strong> '+escapeHtml(verificationPretty(identity))+
           ' · <strong>Age:</strong> '+escapeHtml(age===null?"Not checked":String(age))+
-          ' · <strong>Employment:</strong> '+escapeHtml(verificationPretty(employment))+
           ' · <strong>Credential:</strong> '+escapeHtml(verificationPretty(credential))+
           ' · <strong>Address:</strong> '+escapeHtml(verificationPretty(address))+
           ' · <strong>Public records:</strong> '+escapeHtml(verificationPretty(publicRecords))+
@@ -5146,7 +5137,6 @@ async function loadRequests(options = {}) {
         const dirty=(sel)=>section.querySelector(sel)?.dataset.dirty==="1";
         const jobs=[];
         if(dirty(".client-verification-editor")||dirty(".client-employment-verification")||dirty(".client-persona-card")||section.dataset.draftDirty==="1")jobs.push(saveVerificationDraft(section,{retry:true}));
-        if(dirty(".client-employment-verification"))jobs.push(saveEmploymentVerification(section));
         if(dirty(".client-credential-card")&&(section._verificationSectionStates||{}).credential!=="skipped")jobs.push(saveCredentialVerification(section));
         if(dirty(".client-address-verification-card")&&(section._verificationSectionStates||{}).address!=="skipped")jobs.push(saveAddressVerification(section));
         if(dirty(".client-public-record-card")&&(section._verificationSectionStates||{}).public_records!=="skipped")jobs.push(savePublicRecordCheck(section));
@@ -5749,7 +5739,6 @@ async function loadRequests(options = {}) {
           if(event.currentTarget.open)loadVerificationCardData(event.currentTarget);
         });
         section.querySelector(".client-verification-save-all")?.addEventListener("click",()=>saveAllVerificationProgress(section));
-        section.querySelector(".client-employment-save")?.addEventListener("click",()=>saveEmploymentVerification(section));
         section.querySelector(".client-final-review-jump")?.addEventListener("click",()=>{
           const editor=section.querySelector(".client-verification-editor");
           expandVerificationTarget(editor);
@@ -5976,7 +5965,7 @@ async function loadRequests(options = {}) {
         const completeButton=section.querySelector(".client-verification-complete");
         const checklistSelectors=[".client-check-identity",".client-check-employer",".client-check-job-title",".client-check-industry",".client-check-contact"];
         [".client-verification-status",".client-verification-method",".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-status",".client-employment-method",".client-employment-work-email",".client-employment-website",".client-employment-evidence",".client-verification-reason",...checklistSelectors].forEach(sel=>section.querySelector(sel)?.addEventListener("change",()=>{updateEmploymentVerificationUi();saveSafeVerificationLocalDraft(section);}));
-        const checklistLabels={"client-check-identity":"Identity matches ID","client-check-employer":"Employer confirmed","client-check-job-title":"Job title confirmed","client-check-industry":"Industry confirmed","client-check-contact":"Contact information confirmed"};
+        const checklistLabels={"client-check-identity":"Identity matches ID","client-check-contact":"Contact information confirmed"};
         [".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-work-email",".client-employment-website",".client-employment-source-name",".client-employment-source-url",".client-employment-evidence"].forEach(sel=>section.querySelector(sel)?.addEventListener("input",updateEmploymentVerificationUi));
         updateEmploymentVerificationUi();
 
@@ -5984,7 +5973,7 @@ async function loadRequests(options = {}) {
           const missing=checklistSelectors.filter(selector=>!section.querySelector(selector)?.checked).map(selector=>checklistLabels[selector.slice(1)]);
           const note=section.querySelector(".client-verification-checklist-status");
           if(note){
-            note.textContent=missing.length?(5-missing.length)+" of 5 complete · Missing: "+missing.join(", "):"5 of 5 complete · All required checks confirmed.";
+            note.textContent=missing.length?(2-missing.length)+" of 2 complete · Missing: "+missing.join(", "):"2 of 2 complete · All required checks confirmed.";
             note.style.color=missing.length?"var(--muted)":"#2f6b45";
           }
           const decision=auditStatus?.value||"pending_review";
