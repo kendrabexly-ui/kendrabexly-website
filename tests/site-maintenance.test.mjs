@@ -14,10 +14,19 @@ const between = (text, start, end) => {
 test('all inline scripts parse after markup cleanup', () => {
   for(const path of ['index.html','request.html','complete/index.html','portal/index.html','meet-kendra/index.html','the-muse/index.html','our-time/index.html','the-details/index.html','etiquette/index.html','pillow-talk/index.html']) {
     const html=read(path);
+    assert.match(html,/<\/body>\s*<\/html>\s*$/i,path+' must be complete');
+    assert.equal((html.match(/<script\b/g)||[]).length,(html.match(/<\/script>/g)||[]).length,path+' must close every script');
     assert.ok(!html.includes('>\\n  <'),path);
     for(const [,script] of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(script,{filename:path});
   }
   new vm.Script(read('site-shell.js'));
+});
+
+test('public and portal styles load without interrupting dashboard startup', () => {
+  assert.match(portal,/href="\/portal\/polish\.css"/);
+  assert.match(portal,/window\.__loadAdminSectionData = loadAdminSectionData/);
+  assert.match(read('portal/polish.css'),/\.sidebar \.nav button\.active/);
+  assert.match(read('styles.css'),/Refined public visual system/);
 });
 
 test('Muse adds seven slots while preserving the existing six', () => {

@@ -1,0 +1,95 @@
+/* Portal visual system. The existing section and mobile navigation rules stay intact. */
+:root {
+  --cream: #f5f2ed;
+  --cream-dark: #ece6df;
+  --ink: #29231f;
+  --muted: #655d57;
+  --line: #ded5cb;
+  --white: #fffefa;
+  --green: #3f6752;
+  --red: #8b4b48;
+  --portal-accent: #b99a7d;
+}
+
+body { background: var(--cream); -webkit-font-smoothing: antialiased; }
+.admin-layout { grid-template-columns: 264px minmax(0, 1fr); }
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 38px 20px 24px;
+  background: #29231f;
+  color: #f9f5ef;
+  scrollbar-width: thin;
+}
+.sidebar .brand { margin: 0 8px 5px; font-size: 27px; letter-spacing: -.025em; }
+.sidebar .admin-label { margin: 0 8px 36px; color: #c5b4a5; opacity: 1; letter-spacing: .18em; }
+.sidebar .nav { gap: 4px; }
+.sidebar .nav button {
+  min-height: 43px;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #d6ccc3;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.sidebar .nav button:hover { background: rgba(255,255,255,.095); color: white; }
+.sidebar .nav button.active,
+.sidebar .nav button[aria-selected="true"] { border-color: #d2baa2; background: #e9d9c9; color: #29231f; font-weight: 700; }
+.sidebar .back-site { padding: 18px 12px 4px; border-top: 1px solid rgba(255,255,255,.14); color: #e7d9ca; }
+.sidebar .back-site:hover { color: white; }
+.main { width: 100%; max-width: 1620px; min-width: 0; margin: 0 auto; padding: 44px clamp(28px, 4vw, 64px) 80px; }
+.topbar { align-items: center; margin-bottom: 36px; padding-bottom: 26px; border-bottom: 1px solid var(--line); }
+.topbar h1 { font-size: clamp(32px, 3.2vw, 43px); line-height: 1.12; letter-spacing: -.025em; }
+.topbar .eyebrow, .section-heading .eyebrow { color: #795b49; letter-spacing: .18em; }
+.topbar .secure { border-color: #d7c9bb; background: #fffaf4; color: #51443a; font-size: 12px; font-weight: 600; }
+.stats { gap: 14px; }
+.stat, .panel, .photo-editor-card {
+  border-color: #e0d8ce;
+  border-radius: 14px;
+  background: var(--white);
+  box-shadow: 0 12px 34px rgba(55, 39, 29, .045);
+}
+.stat { padding: 23px 25px; }
+.stat-label { color: #685e56; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.stat-number { font-family: "DM Sans", sans-serif; font-size: clamp(27px, 3vw, 36px); font-weight: 600; letter-spacing: -.04em; }
+.panel-header { padding: 20px 24px; background: #fffcf8; }
+.panel-title { font-size: 21px; letter-spacing: -.015em; }
+.panel-subtitle { color: #625951; line-height: 1.5; }
+.section-heading { margin-bottom: 24px; }
+.section-heading h2 { font-size: clamp(27px, 2.6vw, 34px); letter-spacing: -.02em; line-height: 1.2; }
+.section-heading p { max-width: 72ch; line-height: 1.55; }
+.main :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]) { accent-color: #795b49; }
+.main :is(input, select, textarea):focus-visible,
+.main button:focus-visible,
+.sidebar .nav button:focus-visible { outline: 3px solid #ad8068; outline-offset: 2px; }
+.main :is(button, select, summary) { touch-action: manipulation; }
+.main :is(button, input, select, textarea) { font-family: "DM Sans", sans-serif; }
+.main table th { color: #665d55; font-weight: 700; letter-spacing: .075em; background: #faf6f0; }
+.main table td { line-height: 1.5; }
+.main table tr:hover td { background: #fdfaf5; }
+.empty { color: #655d57; }
+.status { background: #efe7df; color: #473a32; }
+.photo-editor-card h3 { letter-spacing: -.015em; }
+@media (max-width: 900px) {
+  .sidebar { box-shadow: 0 8px 22px rgba(41,35,31,.13); }
+  .sidebar .nav button.active,
+  .sidebar .nav button[aria-selected="true"] { background: #e9d9c9 !important; color: #29231f !important; }
+  .main { padding-top: 26px; }
+  .topbar { padding-bottom: 20px; }
+}
+@media (max-width: 520px) {
+  .topbar h1 { font-size: 32px; }
+  .topbar { margin-bottom: 24px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stat { padding: 16px; }
+  .stat-number { font-size: 28px; }
+  .panel-header { padding: 18px; }
+  .section-heading h2 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .nav button { transition: none; }
+}
