@@ -2802,24 +2802,36 @@ export default {
         const product = String(data.product || "").trim().slice(0, 1000);
         const audience = String(data.audience || "").trim().slice(0, 800);
         const offer = String(data.offer || "").trim().slice(0, 1000);
-        const platform = String(data.platform || "Instagram").trim().slice(0, 80);
+        const length = String(data.length || "Medium").trim().slice(0, 40);
         const tone = String(data.tone || "Elegant").trim().slice(0, 80);
         const intensity = Math.max(1, Math.min(5, Number(data.intensity || 3)));
         const cta = String(data.cta || "Book now").trim().slice(0, 160);
         if (!product) return Response.json({ ok:false, message:"Add what you are advertising." }, { status:400 });
-        const prompt = "Write 3 distinct advertising copy variations. Product/service: "+product+". Audience: "+(audience||"Adults interested in a premium experience.")+". Offer: "+(offer||"None.")+". Platform: "+platform+". Tone: "+tone+". Tone intensity: "+intensity+"/5. CTA: "+cta+". Return JSON with a variants array containing label and copy fields.";
+        const prompt = "Write 3 distinct advertising copy variations. Product/service: "+product+". Audience: "+(audience||"Adults interested in a premium experience.")+". Offer: "+(offer||"None.")+". Length: "+length+". Tone: "+tone+". Tone intensity: "+intensity+"/5. CTA: "+cta+". Return valid JSON with a variants array containing label and copy fields only.";
         if (env.AI && typeof env.AI.run === "function") {
-          const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", { messages:[{role:"system",content:"You are an advertising copywriter. Return valid JSON only."},{role:"user",content:prompt}] });
-          const raw = result?.response || result?.result || "";
-          const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/^```json\s*|\s*```$/g,"").trim()) : raw;
-          if (parsed?.variants?.length) return Response.json({ok:true, variants:parsed.variants.slice(0,3)});
+          try {
+            const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", { messages:[{role:"system",content:"You are an advertising copywriter. Return valid JSON only."},{role:"user",content:prompt}] });
+            const raw = result?.response || result?.result || "";
+            if (raw) {
+              const cleaned = typeof raw === "string" ? raw.replace(/^\s*\`\`\`(?:json)?\s*/i,"").replace(/\s*\`\`\`\s*$/,"").trim() : raw;
+              const parsed = typeof cleaned === "string" ? JSON.parse(cleaned) : cleaned;
+              if (parsed?.variants?.length) return Response.json({ok:true, variants:parsed.variants.slice(0,3)});
+            }
+          } catch (aiError) {
+            console.error("Ad copy AI generation failed; using fallback:", aiError);
+          }
         }
         const lowTone = tone.toLowerCase();
-        const lead = lowTone.includes("playful") ? "A little more fun, a little more memorable." : lowTone.includes("luxury") || lowTone.includes("elegant") ? "Refined, intentional, and made for those who appreciate the details." : lowTone.includes("bold") ? "Make your next choice with confidence." : "Discover an experience designed around you.";
+        const lead = lowTone.includes("cheeky") ? "A little attitude, a little charm, and impossible to ignore." : lowTone.includes("playful") ? "A little more fun, a little more memorable." : lowTone.includes("luxury") || lowTone.includes("elegant") ? "Refined, intentional, and made for those who appreciate the details." : lowTone.includes("bold") ? "Make your next choice with confidence." : lowTone.includes("flirty") ? "A little tempting, a lot worth saying yes to." : "Discover an experience designed around you.";
         const suffix = cta ? " " + cta + "." : "";
-        return Response.json({ok:true,fallback:true,variants:[{label:"Short",copy:lead+(offer?" "+offer+".":"")+suffix},{label:"Balanced",copy:(audience?audience+" — ":"")+lead+" "+product+(offer?" "+offer+".":".")+suffix},{label:"Bold",copy:product+". "+lead+(offer?" "+offer+".":"")+suffix}]});
-      } catch (error) {
-        console.error("Ad copy generation error:", error);
+        const detail = offer ? " " + offer + "." : "";
+        const subject = audience ? audience + " — " : "";
+        const makeCopy = (size) => {
+          if (size === "Short") return product + ". " + lead + suffix;
+          if (size === "Long") return lead + " " + product + "." + detail + (audience ? " Created for " + audience + "." : "") + suffix;
+          return subject + lead + " " + product + "." + detail + suffix;
+        };
+        return Response.json({ok:true,fallback:true,variants:[{label:"Short",copy:makeCopy("Short")},{label:"Balanced",copy:makeCopy("Medium")},{label:"Bold",copy:product+". "+lead+detail+suffix}]});
         return Response.json({ok:false,message:"Unable to generate ad copy right now."},{status:500});
       }
     }
