@@ -1857,13 +1857,10 @@ export default {
         const age = verificationAgeOnDate(birthdate);
 
         if (verificationStatus === "verified") {
-          if (employmentStatus!=="confirmed") {
-            return Response.json({ok:false,message:"Employment verification must be Confirmed before marking this client Verified."},{status:400});
-          }
-          if (!(identityConfirmed && employerConfirmed && jobTitleConfirmed && industryConfirmed && contactConfirmed)) {
+          if (!(identityConfirmed && contactConfirmed)) {
             return Response.json({
               ok:false,
-              message:"All five manual verification checklist items must be confirmed before marking this client Verified."
+              message:"Identity and contact confirmation must be completed before marking this client Verified."
             }, {status:400});
           }
           if (age === null) {
