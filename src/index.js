@@ -2811,7 +2811,7 @@ export default {
         if (env.AI && typeof env.AI.run === "function") {
           const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", { messages:[{role:"system",content:"You are an advertising copywriter. Return valid JSON only."},{role:"user",content:prompt}] });
           const raw = result?.response || result?.result || "";
-          const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/^```json\\s*|\\s*```$/g,"").trim()) : raw;
+          const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/^```json\s*|\s*```$/g,"").trim()) : raw;
           if (parsed?.variants?.length) return Response.json({ok:true, variants:parsed.variants.slice(0,3)});
         }
         const lowTone = tone.toLowerCase();
