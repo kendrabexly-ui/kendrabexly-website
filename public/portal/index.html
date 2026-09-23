@@ -8655,6 +8655,7 @@ function escapeHtml(value) {
       const status = document.getElementById("ad-copy-status");
       if (!generate || generate.dataset.bound === "1") return;
       generate.dataset.bound = "1";
+      const escapeAdCopyHtml = (value) => String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\'/g,"&#39;");
       const collect = () => ({
         product: document.getElementById("ad-copy-product")?.value.trim(),
         audience: document.getElementById("ad-copy-audience")?.value.trim(),
@@ -8692,7 +8693,7 @@ function escapeHtml(value) {
         try {
           const r=await fetch("/api/admin/ad-copy/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
           const data=await r.json(); if(!r.ok||!data.ok) throw new Error(data.message||"Unable to generate copy.");
-          results.innerHTML=(data.variants||[]).map((v,i)=>'<div style="border:1px solid var(--line);border-radius:10px;padding:17px;background:white;"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;"><strong>'+escapeHtml(v.label||("Variation "+(i+1)))+'</strong><button type="button" data-copy-ad="'+i+'" style="border:1px solid var(--line);border-radius:7px;padding:8px 11px;background:white;cursor:pointer;">Copy</button></div><div style="margin-top:12px;white-space:pre-wrap;line-height:1.6;">'+escapeHtml(v.copy||"")+'</div></div>').join("");
+          results.innerHTML=(data.variants||[]).map((v,i)=>'<div style="border:1px solid var(--line);border-radius:10px;padding:17px;background:white;"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;"><strong>'+escapeAdCopyHtml(v.label||("Variation "+(i+1)))+'</strong><button type="button" data-copy-ad="'+i+'" style="border:1px solid var(--line);border-radius:7px;padding:8px 11px;background:white;cursor:pointer;">Copy</button></div><div style="margin-top:12px;white-space:pre-wrap;line-height:1.6;">'+escapeAdCopyHtml(v.copy||"")+'</div></div>').join("");
           results.querySelectorAll("[data-copy-ad]").forEach((b,i)=>b.onclick=async()=>{try{await navigator.clipboard.writeText(data.variants[i].copy||"");b.textContent="Copied";setTimeout(()=>b.textContent="Copy",1200);}catch{b.textContent="Select & copy";}});
           if(status) status.textContent=data.fallback ? "Drafted with the built-in copy engine." : "Copy generated. Edit before publishing.";
         } catch(e) { if(status) status.textContent=e.message||"Unable to generate copy."; }
