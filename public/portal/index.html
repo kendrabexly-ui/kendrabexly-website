@@ -8068,13 +8068,31 @@ function escapeHtml(value) {
           }
           const subject = card.querySelector("[data-email-subject]")?.value || "";
           const body = card.querySelector("[data-email-body]")?.value || "";
+          const draft = drafts.find(item => String(item.id) === String(button.dataset.previewEmail));
           panel.replaceChildren();
           const subjectLine = document.createElement("div");
           subjectLine.style.cssText = "font-weight:700;margin-bottom:12px;";
           subjectLine.textContent = subject;
           const bodyText = document.createElement("div");
           bodyText.style.cssText = "white-space:pre-wrap;line-height:1.6;";
-          bodyText.textContent = body;
+          const linkMatch = draft?.email_type === "pending_final_approval"
+            ? body.match(/(^|\n)(https:\/\/[^\s]+\/complete\/\?token=[a-f0-9]{64})(?=\n|$)/i)
+            : null;
+          let privateUrl = null;
+          if (linkMatch) {
+            try {
+              const url = new URL(linkMatch[2]);
+              if (url.hostname === "kendrabexly.com" && url.searchParams.size === 1) privateUrl = url.href;
+            } catch (_) {}
+          }
+          if (privateUrl) {
+            bodyText.append(document.createTextNode(body.slice(0,linkMatch.index + linkMatch[1].length)));
+            const link = document.createElement("a");
+            link.href = privateUrl;
+            link.textContent = "Complete My Private Page";
+            link.style.cssText = "display:inline-block;padding:12px 18px;background:#29282d;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;";
+            bodyText.append(link,document.createTextNode(body.slice(linkMatch.index + linkMatch[0].length)));
+          } else bodyText.textContent = body;
           panel.append(subjectLine, bodyText);
           panel.style.display = "block";
           button.textContent = "Close Preview";

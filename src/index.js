@@ -16,6 +16,25 @@ Your next step is all in one private page:
 
 ${continuationUrl}
 
+There you can provide the additional details to complete screening.
+
+Once I finish my review and confirm the deposit, I’ll send your confirmation email.
+
+Kendra`;
+}
+
+function currentLegacyPrivateScreeningEmailBody(name,date,time,continuationUrl) {
+  return `Hi ${name},
+
+I'd love to move forward with your request.
+
+Date: ${date}
+Time: ${time}
+
+Your next step is all in one private page:
+
+${continuationUrl}
+
 There you can upload your ID, complete the screening details, and select your deposit method. The Details are available in the private page menu.
 
 Once I finish my review and confirm the deposit, I’ll send your confirmation email.
@@ -56,9 +75,26 @@ function refreshGeneratedScreeningDraft(draft) {
   try {
     const url = new URL(continuationUrl);
     if (url.pathname !== "/complete/" || !/^[a-f0-9]{64}$/i.test(url.searchParams.get("token")||"")) return null;
-    if (draft.body !== previousPrivateScreeningEmailBody(name,date,time,continuationUrl)) return null;
+    if (draft.body !== previousPrivateScreeningEmailBody(name,date,time,continuationUrl) &&
+        draft.body !== currentLegacyPrivateScreeningEmailBody(name,date,time,continuationUrl)) return null;
     return privateScreeningEmailBody(name,draft.requested_date||date,draft.requested_time||time,continuationUrl);
   } catch { return null; }
+}
+function screeningDraftHtml(body,emailType) {
+  const esc = value => String(value || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+  const text = String(body || "");
+  if (emailType !== "pending_final_approval") return esc(text).replace(/\n/g,"<br>");
+  const match = text.match(/(^|\n)(https:\/\/[^\s]+\/complete\/\?token=[a-f0-9]{64})(?=\n|$)/i);
+  if (!match) return esc(text).replace(/\n/g,"<br>");
+  const url = new URL(match[2]);
+  if (url.hostname !== "kendrabexly.com" || url.searchParams.size !== 1) return esc(text).replace(/\n/g,"<br>");
+  const before = text.slice(0,match.index + match[1].length);
+  const after = text.slice(match.index + match[0].length);
+  return esc(before).replace(/\n/g,"<br>") +
+    '<a href="'+esc(url.href)+'" style="display:inline-block;padding:13px 20px;background:#29282d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">Complete My Private Page</a>' +
+    esc(after).replace(/\n/g,"<br>");
 }
 const VALID_BOOKING_STATE_CODES = new Set([
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
@@ -5738,7 +5774,7 @@ if (
         }
         const draftId = Number(url.pathname.split("/").slice(-2, -1)[0]);
         const draft = await env.DB.prepare(`
-          SELECT ed.id, ed.subject, ed.body, ed.status, c.email, c.first_name
+          SELECT ed.id, ed.subject, ed.body, ed.email_type, ed.status, c.email, c.first_name
           FROM email_drafts ed
           LEFT JOIN clients c ON c.id = ed.client_id
           WHERE ed.id = ?
@@ -5747,11 +5783,8 @@ if (
         if (!draft.email) return Response.json({ ok:false, message:"This client does not have an email address." }, { status:400 });
         if (draft.status === "sent") return Response.json({ ok:false, message:"This email has already been sent." }, { status:400 });
 
-        const esc = (value) => String(value || "")
-          .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-          .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
         const html = '<div style="font-family:Arial,sans-serif;line-height:1.65;color:#29282d;white-space:normal;">' +
-          esc(draft.body).replace(/\n/g,"<br>") + "</div>";
+          screeningDraftHtml(draft.body,draft.email_type) + "</div>";
         const sendResponse = await fetch("https://api.resend.com/emails", {
           method:"POST",
           headers:{"Authorization":"Bearer " + env.RESEND_API_KEY,"Content-Type":"application/json"},
@@ -5759,7 +5792,8 @@ if (
             from:"Kendra Bexly <hello@kendrabexly.com>",
             to:[draft.email],
             subject:draft.subject,
-            html
+            html,
+            text:draft.body
           })
         });
         if (!sendResponse.ok) {

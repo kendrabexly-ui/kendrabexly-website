@@ -846,7 +846,7 @@
           const requestedDateText = data.requested_date
             ? new Date(data.requested_date + "T12:00:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})
             : "";
-          const timeText = selectedOptionText(requestedTime);
+          const timeText = requestedTime.selectedOptions[0]?.textContent?.trim() || requestedTime.value;
           form.innerHTML = '<section class="request-success" aria-labelledby="request-success-title">' +
             '<div class="eyebrow">REQUEST RECEIVED</div>' +
             '<h2 id="request-success-title">Your request is in 💋</h2>' +
