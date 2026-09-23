@@ -1992,6 +1992,16 @@ export default {
                  persona_transaction_id, persona_transaction_status, persona_database_status, persona_database_verification_id, persona_database_checked_at, persona_submitted_at, persona_updated_at, completed_at, updated_at
           FROM client_verification_audits WHERE id = ? AND client_id = ? LIMIT 1
         `).bind(auditId, clientId).first();
+        if (verificationStatus === "verified" && String(previous.verification_status || "") !== "verified" && row?.date_request_id) {
+          const booking = await env.DB.prepare(`SELECT dr.id, dr.client_id, dr.requested_date, dr.requested_time, dr.location_name, dr.location_address, c.first_name, c.email FROM date_requests dr JOIN clients c ON c.id = dr.client_id WHERE dr.id=? AND dr.client_id=? LIMIT 1`).bind(Number(row.date_request_id), clientId).first();
+          if (booking) {
+            const subject = "Your date is confirmed";
+            const body = "Hi "+(booking.first_name || "there")+"\n\nEverything is confirmed on my end for our date.\n\nDate: "+booking.requested_date+"\nTime: "+booking.requested_time+"\n"+(booking.location_name ? "Location: "+booking.location_name+"\n" : "")+(booking.location_address ? "Address: "+booking.location_address+"\n" : "")+"\nI am looking forward to seeing you and spending some lovely time together. Thank you for taking care of the details. I think we are going to have a really nice time. 💋\n\nSee you soon,\nKendra";
+            const existingDraft = await env.DB.prepare("SELECT id,status FROM email_drafts WHERE date_request_id=? AND email_type='date_confirmed' ORDER BY id DESC LIMIT 1").bind(Number(row.date_request_id)).first();
+            if (existingDraft?.status === "draft") await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(subject,body,existingDraft.id).run();
+            else if (!existingDraft) await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,Number(row.date_request_id),"date_confirmed",subject,body).run();
+          }
+        }
         return Response.json({ ok: true, record: verificationAuditPublicRecord(row) }, {
           headers: { "Cache-Control": "private, no-store" }
         });
@@ -8432,38 +8442,11 @@ if (approvedRequest) {
   await ensureSiteContentTables(env);
 }
 
-await env.DB
-  .prepare(`
-    INSERT INTO email_drafts (
-      client_id,
-      date_request_id,
-      email_type,
-      subject,
-      body,
-      status
-    )
-    VALUES (?, ?, ?, ?, ?, 'draft')
-  `)
-  .bind(
-    approvedRequest.client_id,
-    requestId,
-    "date_confirmed",
-    "Our date is confirmed",
-    `Hi ${approvedRequest.first_name},
-
-Our date is officially confirmed.
-
-Date: ${approvedRequest.requested_date}
-Time: ${approvedRequest.requested_time}
-Location: ${approvedRequest.location_name}
-${approvedRequest.location_address ? `Address: ${approvedRequest.location_address}\n` : ""}
-I'm looking forward to seeing you. I'll send you the exact address for our date location two hours before our scheduled time.
-
-See you soon,
-Kendra`
-  )
-  .run();
-        return Response.json({
+const existingConfirmationDraft = await env.DB.prepare("SELECT id,status FROM email_drafts WHERE date_request_id=? AND email_type='date_confirmed' ORDER BY id DESC LIMIT 1").bind(requestId).first();
+const confirmationSubject = "Your date is confirmed";
+const confirmationBody = "Hi "+approvedRequest.first_name+"\n\nEverything is confirmed on my end for our date.\n\nDate: "+approvedRequest.requested_date+"\nTime: "+approvedRequest.requested_time+"\n"+(approvedRequest.location_name ? "Location: "+approvedRequest.location_name+"\n" : "")+(approvedRequest.location_address ? "Address: "+approvedRequest.location_address+"\n" : "")+"\nI am looking forward to seeing you and spending some lovely time together. Thank you for taking care of the details. I think we are going to have a really nice time. 💋\n\nSee you soon,\nKendra";
+if(existingConfirmationDraft?.status === "draft") await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(confirmationSubject,confirmationBody,existingConfirmationDraft.id).run();
+else if(!existingConfirmationDraft) await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(approvedRequest.client_id,requestId,"date_confirmed",confirmationSubject,confirmationBody).run();        return Response.json({
           ok: true,
           message: "Final approval complete.",
           status: "approved"
