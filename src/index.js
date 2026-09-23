@@ -2796,6 +2796,33 @@ export default {
     }
     if (/^\/api\/admin\/x\/library\/\d+$/.test(url.pathname)) {const id=Number(url.pathname.split("/").pop());await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_content_library (id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,content TEXT NOT NULL,content_style TEXT,image_base64 TEXT,mime_type TEXT,file_name TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`).run();if(request.method==="DELETE"){await env.DB.prepare("DELETE FROM x_content_library WHERE id=?").bind(id).run();return Response.json({ok:true});}if(request.method==="PUT"){const d=await request.json().catch(()=>({})),content=String(d.content||"").trim(),title=String(d.title||"").trim().slice(0,120),style=String(d.content_style||"").trim().slice(0,80);if(!content)return Response.json({ok:false,message:"Add content before saving."},{status:400});const existing=await env.DB.prepare("SELECT id FROM x_content_library WHERE id=?").bind(id).first();if(!existing)return Response.json({ok:false,message:"Library item not found."},{status:404});await env.DB.prepare("UPDATE x_content_library SET title=?,content=?,content_style=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(title||null,content,style||null,id).run();return Response.json({ok:true});}if(request.method==="POST"){const d=await request.json().catch(()=>({}));if(d.action==="mark_used"){try{await env.DB.prepare("ALTER TABLE x_content_library ADD COLUMN last_used_at TEXT").run();}catch(e){}await env.DB.prepare("UPDATE x_content_library SET last_used_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(id).run();return Response.json({ok:true});}if(d.action==="archive"||d.action==="restore"){try{await env.DB.prepare("ALTER TABLE x_content_library ADD COLUMN archived_at TEXT").run();}catch(e){}await env.DB.prepare("UPDATE x_content_library SET archived_at="+(d.action==="archive"?"CURRENT_TIMESTAMP":"NULL")+",updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(id).run();return Response.json({ok:true,archived:d.action==="archive"});}return Response.json({ok:false,message:"Unknown library action."},{status:400});}if(request.method==="GET"){const x=await env.DB.prepare("SELECT * FROM x_content_library WHERE id=?").bind(id).first();if(!x)return Response.json({ok:false,message:"Library item not found."},{status:404});return Response.json({ok:true,item:{...x,data_url:x.image_base64?"data:"+x.mime_type+";base64,"+x.image_base64:null}});}}
 
+    if (url.pathname === "/api/admin/ad-copy/generate" && request.method === "POST") {
+      try {
+        const data = await request.json().catch(() => ({}));
+        const product = String(data.product || "").trim().slice(0, 1000);
+        const audience = String(data.audience || "").trim().slice(0, 800);
+        const offer = String(data.offer || "").trim().slice(0, 1000);
+        const platform = String(data.platform || "Instagram").trim().slice(0, 80);
+        const tone = String(data.tone || "Elegant").trim().slice(0, 80);
+        const intensity = Math.max(1, Math.min(5, Number(data.intensity || 3)));
+        const cta = String(data.cta || "Book now").trim().slice(0, 160);
+        if (!product) return Response.json({ ok:false, message:"Add what you are advertising." }, { status:400 });
+        const prompt = "Write 3 distinct advertising copy variations for a premium personal brand.\nProduct/service: "+product+"\nAudience: "+(audience||"Adults interested in a premium, discreet experience.")+"\nOffer: "+(offer||"No special offer.")+"\nPlatform: "+platform+"\nTone: "+tone+"\nTone intensity: "+intensity+"/5\nCTA: "+cta+"\nRules: polished, concise, confident, non-explicit, no unsupported claims, no guaranteed outcomes, and no spammy urgency. Return JSON only: {\\"variants\\":[{\\"label\\":\\"Short\\",\\"copy\\":\\"...\\"},{\\"label\\":\\"Balanced\\",\\"copy\\":\\"...\\"},{\\"label\\":\\"Bold\\",\\"copy\\":\\"...\\"}]}";
+        if (env.AI && typeof env.AI.run === "function") {
+          const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", { messages:[{role:"system",content:"You are an advertising copywriter. Return valid JSON only."},{role:"user",content:prompt}] });
+          const raw = result?.response || result?.result || "";
+          const parsed = typeof raw === "string" ? JSON.parse(raw.replace(/^```json\\s*|\\s*```$/g,"").trim()) : raw;
+          if (parsed?.variants?.length) return Response.json({ok:true, variants:parsed.variants.slice(0,3)});
+        }
+        const lowTone = tone.toLowerCase();
+        const lead = lowTone.includes("playful") ? "A little more fun, a little more memorable." : lowTone.includes("luxury") || lowTone.includes("elegant") ? "Refined, intentional, and made for those who appreciate the details." : lowTone.includes("bold") ? "Make your next choice with confidence." : "Discover an experience designed around you.";
+        const suffix = cta ? " " + cta + "." : "";
+        return Response.json({ok:true,fallback:true,variants:[{label:"Short",copy:lead+(offer?" "+offer+".":"")+suffix},{label:"Balanced",copy:(audience?audience+" — ":"")+lead+" "+product+(offer?" "+offer+".":".")+suffix},{label:"Bold",copy:product+". "+lead+(offer?" "+offer+".":"")+suffix}]});
+      } catch (error) {
+        console.error("Ad copy generation error:", error);
+        return Response.json({ok:false,message:"Unable to generate ad copy right now."},{status:500});
+      }
+    }
     if (url.pathname === "/api/admin/x/drafts" && request.method === "GET") {
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS x_post_drafts (
