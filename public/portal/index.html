@@ -7338,7 +7338,7 @@ function escapeHtml(value) {
           button.disabled=true;try{const r=await fetch("/api/admin/x/tweet-bank",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({items})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Import failed.");message.textContent=d.added+" added; "+d.skipped+" skipped (duplicates or over 280 characters). Posts with date or place references are set to manual review.";input.value="";await loadXTweetBank();}catch(err){message.textContent=err.message;}finally{button.disabled=false;}
         });
 
-        document.getElementById("x-day-post-count")?.addEventListener("change",e=>{const count=Math.max(3,Math.min(6,Number(e.currentTarget.value||4))),btn=document.getElementById("x-generate-day");if(btn&&!btn.disabled)btn.textContent="Generate "+count+" Posts";});
+        document.getElementById("x-day-post-count")?.addEventListener("change",e=>{const count=Math.max(3,Math.min(6,Number(e.currentTarget.value||4))),btn=document.getElementById("x-generate-day");window.xDayGenerationSlots=null;if(btn&&!btn.disabled)btn.textContent="Generate "+count+" Posts";});
 
         document.getElementById("x-generate-day")?.addEventListener("click",async e=>{
       const btn=e.currentTarget,theme=document.getElementById("x-day-theme").value.trim()||"Kendra’s natural daily mix — personal, conversational, playful, confident, flirty when it fits, and never forced.",box=document.getElementById("x-day-results");btn.disabled=true;btn.textContent="Generating...";box.innerHTML='<div class="empty">Checking your plan and creating only the content you need...</div>';
