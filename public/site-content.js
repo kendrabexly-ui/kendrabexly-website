@@ -46,26 +46,55 @@
     const gallery = document.querySelector("[data-public-gallery]");
     if (!gallery) return;
     try {
-      const [response, stylesResponse] = await Promise.all([\n        fetch("/api/public/gallery", {
-        headers: { "Accept": "application/json" }
-      });
-      const data = await response.json();
+      const [response, stylesResponse] = await Promise.all([
+        fetch("/api/public/gallery", { headers: { "Accept": "application/json" } }),
+        fetch("/api/public/photo-styles", { headers: { "Accept": "application/json" } })
+      ]);
+      const [data, stylesData] = await Promise.all([
+        response.json(),
+        stylesResponse.ok ? stylesResponse.json() : Promise.resolve({ ok: false, styles: [] })
+      ]);
       if (!response.ok || !data.ok || !Array.isArray(data.images)) {
         throw new Error(data.message || "Unable to load gallery.");
       }
-      const images = new Map(data.images.map(item => [Number(item.slot), item]));\n      const styles = new Map((stylesData.ok && Array.isArray(stylesData.styles) ? stylesData.styles : []).map(item => [item.target_type + ":" + item.target_key, item]));
+
+      const images = new Map(data.images.map(item => [Number(item.slot), item]));
+      const styles = new Map(
+        (stylesData.ok && Array.isArray(stylesData.styles) ? stylesData.styles : [])
+          .map(item => [item.target_type + ":" + item.target_key, item])
+      );
+
+      let visibleCount = 0;
       gallery.querySelectorAll("[data-photo-slot]").forEach(slot => {
         const number = Number(slot.dataset.photoSlot);
         const item = images.get(number);
-        if (!item) return;
+        if (!item) {
+          slot.hidden = true;
+          return;
+        }
+
         const image = document.createElement("img");
         image.alt = item.alt_text || "Kendra Bexly gallery photograph";
-        // Hidden slots still need their image request to start before being revealed.
         image.loading = "eager";
         image.decoding = "async";
-        image.onload = () => { slot.hidden = false; gallery.hidden = false; };
-        image.onerror = () => { slot.hidden = true; };
-        slot.appendChild(image);
+
+        const style = styles.get("gallery:" + number);
+        if (style) {
+          image.style.width = Number(style.width_percent || 100) + "%";
+          image.style.height = Number(style.height_percent || 100) + "%";
+          image.style.opacity = String(Number(style.opacity || 100) / 100);
+        }
+
+        image.onload = () => {
+          slot.hidden = false;
+          visibleCount += 1;
+          if (visibleCount > 0) gallery.hidden = false;
+        };
+        image.onerror = () => {
+          slot.hidden = true;
+        };
+
+        slot.replaceChildren(image);
         image.src = "/api/public/gallery/image?slot=" + number + "&v=" + encodeURIComponent(item.updated_at || "");
       });
     } catch (error) {
