@@ -274,6 +274,51 @@ h3 {
 }
 
 /* Invitation */
+
+/* Home page invitation cover */
+body.invitation-page > site-header,
+body.invitation-page > site-footer,
+body.invitation-page .page-photo-row,
+body.invitation-page main > .invitation-section {
+  display: none !important;
+}
+body.invitation-page {
+  margin: 0 !important;
+  min-height: 100svh;
+  background: #171311;
+}
+body.invitation-page #main-content {
+  min-height: 100svh;
+  margin: 0 !important;
+}
+body.invitation-page .invitation-cover {
+  width: 100vw !important;
+  min-height: 100svh !important;
+  height: 100svh !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  background-image:
+    linear-gradient(180deg, rgba(18,14,13,.66) 0%, rgba(18,14,13,.20) 42%, rgba(18,14,13,.34) 100%),
+    url("/api/public/gallery/image?slot=1") !important;
+  background-position: center center !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+body.invitation-page .invitation-cover .hero-content {
+  padding-top: clamp(72px, 12vh, 150px);
+}
+body.invitation-page .invitation-cover h1 {
+  font-size: clamp(58px, 8.5vw, 128px);
+  letter-spacing: -.045em;
+}
+body.invitation-page .invitation-cover .invitation-button {
+  margin-top: 42px;
+}
+
 .invitation-cover {
   position: relative;
   min-height: min(760px, 78vh) !important;
