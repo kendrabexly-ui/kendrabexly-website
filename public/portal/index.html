@@ -8972,20 +8972,33 @@ function escapeHtml(value) {
   <script src="/portal/photo-editor.js" defer></script>
 <script src="/portal/photo-controls.js" defer></script>
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const editor = document.getElementById("website-editor-content");
-    if (!editor) return;
-    ["photo-controls","gallery","rates-services","photo-editor"].forEach(id => {
-      const section = document.getElementById(id);
-      if (!section) return;
-      section.classList.remove("section", "active", "section-hard-hidden");
-      section.classList.add("website-editor-panel");
-      section.hidden = false;
-      section.removeAttribute("aria-hidden");
-      section.style.display = "block";
-      editor.appendChild(section);
+(function () {
+  function mountWebsiteEditor() {
+    var editor = document.getElementById("website-editor-content");
+    if (!editor || editor.dataset.mounted === "1") return;
+    var ids = ["photo-controls", "gallery", "rates-services", "photo-editor"];
+    var mounted = 0;
+    ids.forEach(function (id) {
+      var panel = document.getElementById(id);
+      if (!panel || panel === editor || editor.contains(panel)) return;
+      panel.classList.remove("section", "active", "section-hard-hidden");
+      panel.classList.add("website-editor-panel");
+      panel.hidden = false;
+      panel.removeAttribute("hidden");
+      panel.removeAttribute("aria-hidden");
+      panel.style.setProperty("display", "block", "important");
+      editor.appendChild(panel);
+      mounted++;
     });
-  });
+    if (mounted) editor.dataset.mounted = "1";
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountWebsiteEditor, {once:true});
+  } else {
+    mountWebsiteEditor();
+  }
+  window.addEventListener("load", mountWebsiteEditor, {once:true});
+})();
 </script>
 
 </body>
