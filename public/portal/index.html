@@ -8545,11 +8545,37 @@ function escapeHtml(value) {
       document.querySelectorAll(".section");
 
     const openSection = (sectionName) => {
+      const isWebsiteEditor = sectionName === "website-editor";
       const switched = typeof window.__switchAdminSection === "function"
         ? window.__switchAdminSection(sectionName)
         : false;
-      if (!switched) {
-        document.body.dataset.adminSection = sectionName;
+
+      document.body.dataset.adminSection = sectionName;
+
+      // Website Editor is a single real dashboard section. Its four tools are
+      // ordinary child panels, not dashboard sections, so never let the
+      // section controller hide them individually.
+      if (isWebsiteEditor) {
+        const editor = document.getElementById("website-editor");
+        if (editor) {
+          sections.forEach((item) => {
+            const active = item === editor;
+            item.classList.toggle("active", active);
+            item.classList.toggle("section-hard-hidden", !active);
+            item.hidden = !active;
+            item.setAttribute("aria-hidden", active ? "false" : "true");
+          });
+          editor.hidden = false;
+          editor.classList.add("active");
+          editor.classList.remove("section-hard-hidden");
+          editor.setAttribute("aria-hidden", "false");
+        }
+        navButtons.forEach((item) => {
+          const active = item.dataset.section === sectionName;
+          item.classList.toggle("active", active);
+          item.setAttribute("aria-selected", active ? "true" : "false");
+        });
+      } else if (!switched) {
         const button = Array.from(navButtons).find((item) => item.dataset.section === sectionName);
         const section = document.getElementById(sectionName);
         if (!button || !section) return;
