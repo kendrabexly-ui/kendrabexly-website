@@ -274,6 +274,16 @@
       margin-top: 0 !important;
     }
 
+    .website-editor-panel {
+      display: block !important;
+      visibility: visible !important;
+      margin-bottom: 28px;
+    }
+
+    .website-editor-panel[hidden] {
+      display: block !important;
+    }
+
     .section-heading {
       margin-bottom: 24px;
     }
@@ -8968,8 +8978,11 @@ function escapeHtml(value) {
     ["photo-controls","gallery","rates-services","photo-editor"].forEach(id => {
       const section = document.getElementById(id);
       if (!section) return;
-      section.classList.remove("section");
+      section.classList.remove("section", "active", "section-hard-hidden");
       section.classList.add("website-editor-panel");
+      section.hidden = false;
+      section.removeAttribute("aria-hidden");
+      section.style.display = "block";
       editor.appendChild(section);
     });
   });
