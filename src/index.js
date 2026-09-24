@@ -1859,6 +1859,9 @@ export default {
         const age = verificationAgeOnDate(birthdate);
 
         if (verificationStatus === "verified") {
+          if (employmentStatus !== "confirmed") {
+            return Response.json({ok:false,message:"Employment verification must be Confirmed before marking this client Verified."},{status:400});
+          }
           await ensureVerificationWorkspaceTables(env);
           const requiredRecords=await env.DB.prepare("SELECT record_status,checked_at,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
           if(!requiredRecords?.checked_at || requiredRecords.record_status==="not_checked" || !requiredRecords.source_name || !requiredRecords.source_url || !requiredRecords.public_records_reviewed || !requiredRecords.criminal_records_reviewed){

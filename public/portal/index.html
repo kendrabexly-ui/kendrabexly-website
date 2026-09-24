@@ -3076,9 +3076,35 @@ async function loadRequests(options = {}) {
                   </section>
 
 
+                  <section class="verification-card client-employment-verification is-collapsed" hidden>
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+                      <strong style="font-size:13px;">4. Employment Verification</strong>
+                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-employment-badge">Employment: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-employment-verification">Expand</button></span>
+                    </div>
+                    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Record the employer, role, source, and evidence used for this check. A credential record alone does not confirm employment.</div>
+                    <div class="verification-grid" style="margin-top:10px;">
+                      <label style="font-size:12px;font-weight:700;">Employer<input class="client-verification-employer" type="text" maxlength="200" autocomplete="organization" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Job title<input class="client-verification-job-title" type="text" maxlength="160" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Industry<input class="client-verification-industry" type="text" maxlength="160" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Verification method<select class="client-employment-method" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose a method</option><option value="employer_contact">Employer contact</option><option value="official_directory">Official directory</option><option value="work_email">Work email</option><option value="other_official_source">Other official source</option></select></label>
+                      <label style="font-size:12px;font-weight:700;">Work email <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-work-email" type="email" maxlength="254" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Employer website <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-website" type="url" maxlength="500" placeholder="https://" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Official source name<input class="client-employment-source-name" type="text" maxlength="200" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Official source URL<input class="client-employment-source-url" type="url" maxlength="800" placeholder="https://" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
+                      <label style="font-size:12px;font-weight:700;">Result<select class="client-employment-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="not_checked">Not checked</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="unable_to_confirm">Unable to confirm</option><option value="mismatch">Mismatch</option></select></label>
+                    </div>
+                    <div class="client-employment-domain-status verification-field-note" style="margin-top:7px;"></div>
+                    <div class="client-employment-status-note verification-field-note" style="margin-top:7px;"></div>
+                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Evidence / reference<textarea class="client-employment-evidence" rows="3" maxlength="1200" placeholder="Record the source and the result of your check." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
+                    <div class="verification-actions"><button type="button" class="client-employment-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Employment Check</button><span class="client-employment-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span></div>
+                    <div class="client-employment-checked verification-field-note" style="margin-top:7px;">Last checked: Not checked</div>
+                    <a class="client-employment-reopen verification-source-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a>
+                    <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Previous Employment Checks</summary><div class="client-employment-history verification-field-note" style="margin-top:6px;">No previous checks loaded.</div></details>
+                  </section>
+
                   <section class="verification-card client-credential-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">6. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
+                      <strong style="font-size:13px;">5. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-credential-badge">Credential: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-credential-card">Expand</button><button type="button" class="client-optional-skip" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="credential" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Credential Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Use an official licensing board or credential registry to confirm a claimed professional license or credential. A public registry result confirms the credential record—not current employment.</div>
@@ -3114,7 +3140,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-address-verification-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">7. Address Verification <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
+                      <strong style="font-size:13px;">6. Address Verification <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-address-verification-badge">Address: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-address-verification-card">Expand</button><button type="button" class="client-optional-skip" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Skip for this client</button><button type="button" class="client-optional-clear" data-section-key="address" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Address Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
@@ -3183,7 +3209,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-public-record-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">8. Public &amp; Criminal Court Record Search <span style="font-weight:500;color:var(--muted);">· Required before Verified</span></strong>
+                      <strong style="font-size:13px;">7. Public &amp; Criminal Court Record Search <span style="font-weight:500;color:var(--muted);">· Required before Verified</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Expand</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Public Record Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
@@ -3291,7 +3317,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-persona-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">9. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
+                      <strong style="font-size:13px;">8. Persona <span style="font-weight:500;color:var(--muted);">· Optional external check</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-persona-badge">Persona: Checking…</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-persona-card">Expand</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
@@ -3353,7 +3379,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <section class="verification-card client-verification-editor is-collapsed" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">10. Final Verification &amp; Decision</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
+                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">9. Final Verification &amp; Decision</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">Review the saved checks, choose the final decision, and record any private notes. Persona does not automatically approve or decline a client.</div>
                     <div class="verification-grid">
                       <label style="font-size:12px;font-weight:700;">Birthdate <span style="color:#8a2424;">*</span><input class="client-persona-birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="MM/DD/YYYY" value="${escapeHtml(personaDraft.birthdate || latest?.birthdate || latest?.date_of_birth || "")}" aria-describedby="client-birthdate-format-${client.client_id}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span id="client-birthdate-format-${client.client_id}" class="verification-field-note">Enter as MM/DD/YYYY.</span></label>
@@ -3419,7 +3445,7 @@ async function loadRequests(options = {}) {
                   </section>
 
                   <details class="verification-card client-audit-history">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">11. Audit History</summary>
+                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">10. Audit History</summary>
                     <div class="client-verification-audit-list" style="margin-top:9px;font-size:12px;color:var(--muted);">Loading verification history…</div>
                     <details style="margin-top:10px;padding-top:9px;border-top:1px solid var(--line);">
                       <summary style="cursor:pointer;font-size:12px;font-weight:700;">Verification Activity Log</summary>
@@ -4970,6 +4996,8 @@ async function loadRequests(options = {}) {
             employment_verification_method:section.querySelector(".client-employment-method")?.value||"",
             employment_work_email:section.querySelector(".client-employment-work-email")?.value||"",
             employment_employer_website:section.querySelector(".client-employment-website")?.value||"",
+            employment_source_name:section.querySelector(".client-employment-source-name")?.value||"",
+            employment_source_url:section.querySelector(".client-employment-source-url")?.value||"",
             employment_evidence_reference:section.querySelector(".client-employment-evidence")?.value||""
           };
           const response=await fetch("/api/admin/clients/employment-verification",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
@@ -5718,6 +5746,7 @@ async function loadRequests(options = {}) {
           if(event.currentTarget.open)loadVerificationCardData(event.currentTarget);
         });
         section.querySelector(".client-verification-save-all")?.addEventListener("click",()=>saveAllVerificationProgress(section));
+        section.querySelector(".client-employment-save")?.addEventListener("click",()=>saveEmploymentVerification(section));
         section.querySelector(".client-final-review-jump")?.addEventListener("click",()=>{
           const editor=section.querySelector(".client-verification-editor");
           expandVerificationTarget(editor);

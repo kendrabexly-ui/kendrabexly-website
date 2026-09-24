@@ -20,7 +20,7 @@ test("private ID preview remains permission protected without fresh-login requir
 test("verified decision requires saved public and criminal court searches",()=>{
   assert.match(worker,/ALTER TABLE client_public_record_checks ADD COLUMN public_records_reviewed/);
   assert.match(worker,/ALTER TABLE client_public_record_checks ADD COLUMN criminal_records_reviewed/);
-  assert.match(worker,/if \(verificationStatus === "verified"\) \{\s*await ensureVerificationWorkspaceTables\(env\)/);
+  assert.match(worker,/if \(verificationStatus === "verified"\) \{[\s\S]*?await ensureVerificationWorkspaceTables\(env\)/);
   assert.match(worker,/!requiredRecords\.public_records_reviewed \|\| !requiredRecords\.criminal_records_reviewed/);
   assert.match(worker,/!finalRecordChecks\.public_records_reviewed \|\| !finalRecordChecks\.criminal_records_reviewed/);
   assert.match(portal,/class="client-public-records-reviewed" type="checkbox"/);
@@ -65,9 +65,9 @@ test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/>2\. Phone Check</);
   assert.match(portal,/>3\. ID Record</);
   assert.match(portal,/>4\. Employment Verification</);
-  assert.match(portal,/>5\. Final Verification Checklist</);
-  assert.match(portal,/>10\. Final Review &amp; Decision</);
-  assert.match(portal,/>11\. Audit History</);
+  assert.match(portal,/>5\. License &amp; Credential Verification/);
+  assert.match(portal,/>9\. Final Verification &amp; Decision</);
+  assert.match(portal,/>10\. Audit History</);
   assert.match(portal,/finalReady=basicScreening==="confirmed"/);
 });
 
@@ -96,8 +96,7 @@ test("verification field cards start collapsed and navigation expands them",()=>
     "client-credential-card",
     "client-address-verification-card",
     "client-public-record-card",
-    "client-persona-card",
-    "client-final-review"
+    "client-persona-card"
   ]){
     assert.ok(portal.includes(`class="verification-card ${cardClass} is-collapsed`),`${cardClass} should start collapsed`);
   }
@@ -109,11 +108,12 @@ test("verification field cards start collapsed and navigation expands them",()=>
 
 test("employment is separate from the final checklist and Final Review confirms the decision",()=>{
   const employmentStart=portal.indexOf('class="verification-card client-employment-verification is-collapsed"');
-  const checklistStart=portal.indexOf('class="verification-card client-verification-editor is-collapsed"');
   const credentialStart=portal.indexOf('class="verification-card client-credential-card is-collapsed"');
-  assert.ok(employmentStart>0&&checklistStart>employmentStart&&credentialStart>checklistStart);
-  const employmentCard=portal.slice(employmentStart,checklistStart);
-  const finalChecklist=portal.slice(checklistStart,credentialStart);
+  const checklistStart=portal.indexOf('class="verification-card client-verification-editor is-collapsed"');
+  const auditStart=portal.indexOf('class="verification-card client-audit-history"');
+  assert.ok(employmentStart>0&&credentialStart>employmentStart&&checklistStart>credentialStart);
+  const employmentCard=portal.slice(employmentStart,credentialStart);
+  const finalChecklist=portal.slice(checklistStart,auditStart);
   assert.match(employmentCard,/client-verification-employer/);
   assert.match(employmentCard,/client-employment-method/);
   assert.doesNotMatch(finalChecklist,/client-verification-employer/);
@@ -121,8 +121,10 @@ test("employment is separate from the final checklist and Final Review confirms 
   assert.match(finalChecklist,/client-check-identity/);
   assert.match(finalChecklist,/client-verification-status/);
   assert.match(finalChecklist,/client-verification-decision-notes/);
-  assert.match(portal,/client-final-review-summary[\s\S]*Final decision:/);
-  assert.match(portal,/client-final-review-complete[\s\S]*confirmVerificationDecision/);
+  assert.match(portal,/client-final-review-summary/);
+  assert.match(portal,/Final decision:/);
+  assert.match(portal,/client-final-review-complete/);
+  assert.match(portal,/confirmVerificationDecision\(section\)/);
 });
 
 test("client dashboard renders verification profiles in bounded batches",()=>{
@@ -402,6 +404,7 @@ test("portal has structured employment verification workflow",()=>{
   assert.match(portal,/client-employment-method/);
   assert.match(portal,/client-employment-status/);
   assert.match(portal,/client-employment-evidence/);
+  assert.match(portal,/client-employment-save"\)\?\.addEventListener\("click",\(\)=>saveEmploymentVerification\(section\)\)/);
 });
 
 test("confirmed employment can satisfy employer role and industry checklist",()=>{
@@ -434,9 +437,9 @@ test("confirmed credential requires an official source",()=>{
 });
 
 test("portal has License and Credential Verification after basic screening",()=>{
-  assert.match(portal,/6\. License &amp; Credential Verification/);
-  assert.match(portal,/9\. Persona/);
-  assert.match(portal,/11\. Audit History/);
+  assert.match(portal,/5\. License &amp; Credential Verification/);
+  assert.match(portal,/8\. Persona/);
+  assert.match(portal,/10\. Audit History/);
 });
 
 test("registry routing includes official licensing sources",()=>{
