@@ -5,6 +5,8 @@
 
     event.preventDefault();
 
+    const firstName = form.elements.first_name;
+    const lastName = form.elements.last_name;
     const email = form.elements.email;
     const button = form.querySelector('button[type="submit"]');
     const status = form.querySelector(".footer-subscribe-status");
@@ -24,7 +26,7 @@
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify({ email: email.value.trim() })
+        body: JSON.stringify({ first_name: firstName.value.trim(), last_name: lastName.value.trim(), email: email.value.trim() })
       });
 
       const data = await response.json().catch(() => ({}));
