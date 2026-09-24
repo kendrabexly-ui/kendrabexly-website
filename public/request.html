@@ -842,20 +842,25 @@
 
           trackFunnel("form_submitted", result.request_id);
           const firstName = String(data.first_name || "").trim();
-          const emailAddress = String(data.email || "").trim();
-          const requestedDateText = data.requested_date
-            ? new Date(data.requested_date + "T12:00:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})
-            : "";
-          const timeText = requestedTime.selectedOptions[0]?.textContent?.trim() || requestedTime.value;
+          const safeName = firstName.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]));
+          const thankYouNotes = [
+            "I’m so glad you reached out. Thank you for taking a moment to introduce yourself. I’ll read your note with care and be in touch soon.",
+            "What a lovely surprise to hear from you. Thank you for sharing a little about yourself. I look forward to reading your request personally.",
+            "Thank you for finding your way here. Your introduction is safely with me, and I’ll give it my personal attention. I’ll write back soon.",
+            "I’m happy you took the time to say hello. Thank you for your thoughtful note. I’ll read it carefully and be in touch.",
+            "Your note has arrived, and I’m looking forward to reading it. Thank you for reaching out and sharing a little of yourself with me.",
+            "Thank you for the sweet introduction. I’m glad we had this chance to connect, and I’ll take a thoughtful look at your request soon.",
+            "It’s lovely to hear from you. Thank you for trusting me with your introduction. I’ll read your note personally and write back soon.",
+            "I’m glad you stopped by to say hello. Thank you for taking the time to reach out. I’ll give your request my attention and be in touch."
+          ];
+          const requestNumber = Number(result.request_id);
+          const noteIndex = Number.isInteger(requestNumber) && requestNumber > 0
+            ? (requestNumber - 1) % thankYouNotes.length
+            : Math.floor(Math.random() * thankYouNotes.length);
           form.innerHTML = '<section class="request-success" aria-labelledby="request-success-title">' +
             '<div class="eyebrow">REQUEST RECEIVED</div>' +
             '<h2 id="request-success-title">Your request is in 💋</h2>' +
-            '<p>Thank you' + (firstName ? ', <strong>' + firstName.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong>' : '') + '. I received your private request and will review it personally.</p>' +
-            '<div class="request-success-summary"><strong>' + (requestedDateText || 'Requested date') + '</strong>' + (timeText ? '<span>' + timeText + '</span>' : '') + '</div>' +
-            '<div class="no-payment-callout"><strong>Nothing else is required from you right now.</strong><span>I’ll review your request personally.</span></div>' +
-            '<h3>What happens next</h3>' +
-            '<ol><li>I review your request.</li><li>If I would like to move forward, you will receive one private link to complete the next step.</li><li>After I finish my review, I’ll send your confirmation.</li></ol>' +
-            '<p>Please watch <strong>' + emailAddress.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong> for the next step.</p>' +
+            '<p>' + (safeName ? '<strong>' + safeName + '</strong>, ' : '') + thankYouNotes[noteIndex] + '</p>' +
             '<a class="button" href="/">Return to the website</a>' +
           '</section>';
 
