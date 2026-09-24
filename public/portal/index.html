@@ -3773,6 +3773,7 @@ async function loadRequests(options = {}) {
         return "("+digits.slice(0,3)+") "+digits.slice(3,6)+"-"+digits.slice(6);
       };
       const sanitizeEmailWhileTyping=(value)=>String(value||"").replace(/\s+/g,"").toLowerCase().replace(/[;,]+$/,"");
+      const verificationEmailValid=(value)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value||"").trim().toLowerCase());
       const jumpToPersonaField=(section,selector)=>{
         if(!selector)return;
         const target=section.querySelector(selector);

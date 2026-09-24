@@ -351,6 +351,32 @@ test("phone line-type verification route is permission protected",()=>{
   assert.match(worker,/\["\/api\/admin\/clients\/phone-line-type", "edit_verification"\]/);
 });
 
+test("phone check can update the contact checklist without a missing email validator",()=>{
+  const start=portal.indexOf("      const verificationEmailValid=");
+  const end=portal.indexOf("\n",start);
+  const checklistStart=portal.indexOf("      const syncAutomaticChecklist=");
+  const checklistEnd=portal.indexOf("      const applyPhoneLineCheck=",checklistStart);
+  assert.ok(start>0&&checklistStart>0&&checklistEnd>checklistStart);
+  const evaluate=(email,allowed)=>{
+    const contact={checked:false};
+    const section={
+      dataset:{phoneLineAllowed:allowed?"1":"0",employmentStatus:"not_checked"},
+      _verificationAuditRecords:[],
+      querySelector(selector){
+        if(selector===".client-check-contact")return contact;
+        if(selector===".client-persona-email")return {value:email};
+        return null;
+      }
+    };
+    vm.runInNewContext(portal.slice(start,end)+"\n"+portal.slice(checklistStart,checklistEnd)+"syncAutomaticChecklist(section);",{section});
+    return contact.checked;
+  };
+  assert.equal(evaluate("client@example.com",true),true);
+  assert.equal(evaluate("invalid email",true),false);
+  assert.equal(evaluate("",true),false);
+  assert.equal(evaluate("client@example.com",false),false);
+});
+
 test("phone line-type verification uses Twilio Lookup Intelligence",()=>{
   assert.match(worker,/lookups\.twilio\.com\/v2\/PhoneNumbers/);
   assert.match(worker,/Fields=line_type_intelligence/);
