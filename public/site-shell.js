@@ -1,7 +1,6 @@
 (() => {
   const links = [
     { key: "invitation", href: "/", label: "Home" },
-    { key: "meet-kendra", href: "/meet-kendra", label: "Meet Kendra" },
     { key: "the-muse", href: "/the-muse", label: "Gallery" },
     { key: "our-time", href: "/our-time", label: "Our Time" },
     { key: "request", href: "/request", label: "Request a Date", button: true }
@@ -57,13 +56,6 @@
       window.addEventListener("resize", () => {
         if (window.innerWidth > 1100) close();
       });
-      if (!document.querySelector(".mobile-booking-cta") && !location.pathname.startsWith("/request") && !location.pathname.startsWith("/complete") && !location.pathname.startsWith("/portal") && !location.pathname.startsWith("/the-details")) {
-        const sticky = document.createElement("a");
-        sticky.className = "mobile-booking-cta";
-        sticky.href = "/request";
-        sticky.textContent = "Request a Date";
-        document.body.appendChild(sticky);
-      }
     }
   }
 
@@ -74,10 +66,12 @@
           '<div><div class="eyebrow">PRIVATE NOTES</div><h2>Stay in the Know</h2>' +
           '<p>Join my private list for personal notes, new availability, and the occasional invitation created especially for you.</p></div>' +
           '<form class="footer-subscribe-form" novalidate>' +
-            '<label><span>Email address</span><div class="footer-subscribe-row">' +
-              '<input name="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" required>' +
-              '<button class="button" type="submit">Subscribe</button>' +
-            '</div></label>' +
+            '<div class="footer-subscribe-fields">' +
+              '<label><span>First name</span><input name="first_name" type="text" autocomplete="given-name" required></label>' +
+              '<label><span>Last name</span><input name="last_name" type="text" autocomplete="family-name" required></label>' +
+              '<label class="footer-email-field"><span>Email address</span><input name="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" required></label>' +
+            '</div>' +
+            '<button class="button footer-subscribe-button" type="submit">Subscribe</button>' +
             '<small class="footer-subscribe-status" hidden role="status" aria-live="polite"></small>' +
           '</form>' +
         '</div>' +
