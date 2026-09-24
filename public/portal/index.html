@@ -2975,6 +2975,8 @@ async function loadRequests(options = {}) {
                 <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-harassment"> Harassment, repeated unwanted contact, or privacy concern</label>
                 <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-other"> Other safety concern</label>
                 <textarea class="safety-notes" placeholder="Add private safety notes or details..." rows="3" style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                <button type="button" class="blacklist-clear-review" data-client-id="${client.client_id}" style="margin-top:12px;padding:9px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;font-weight:700;">Client not found on blacklist · Continue verification</button>
+                <div class="blacklist-clear-status" role="status" aria-live="polite" style="margin-top:7px;font-size:12px;color:var(--muted);"></div>
               <button type="button" class="blacklist-client" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Blacklist Client</button>
                 </div>
               </details>`}
@@ -3494,12 +3496,34 @@ async function loadRequests(options = {}) {
               loadPersonaStatus(verificationSection);
               normalizePersonaFields(verificationSection);
             }
+            const clearButton=controls.querySelector(".blacklist-clear-review");
+            if(clearButton){
+              fetch("/api/admin/clients/blacklist-review?client_id="+encodeURIComponent(clearButton.dataset.clientId))
+                .then(response=>response.json()).then(result=>{
+                  const status=controls.querySelector(".blacklist-clear-status");
+                  if(result.ok&&result.reviewed&&status)status.textContent="Last reviewed: "+new Date(result.reviewed_at.replace(" ","T")+"Z").toLocaleString();
+                  else if(result.blocked&&status)status.textContent=result.message;
+                }).catch(()=>{});
+            }
           }
         });
       });
       clientRecords.querySelectorAll(".client-basic-screening-open-request").forEach((button)=>button.addEventListener("click",()=>{
         const requestId=Number(button.dataset.requestId||0);
         if(requestId>0)window.location.href=`/portal/request?id=${encodeURIComponent(requestId)}`;
+      }));
+      clientRecords.querySelectorAll(".blacklist-clear-review").forEach(button=>button.addEventListener("click",async()=>{
+        const controls=button.closest(".client-profile-actions"),status=controls?.querySelector(".blacklist-clear-status");
+        button.disabled=true;if(status)status.textContent="Checking blacklist…";
+        try{
+          const response=await fetch("/api/admin/clients/blacklist-review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:Number(button.dataset.clientId)})});
+          const result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.message||"Unable to review the blacklist.");
+          if(status)status.textContent="No active blacklist match · Reviewed "+new Date(result.reviewed_at.replace(" ","T")+"Z").toLocaleString();
+          const next=controls?.querySelector(".client-phone-checks");
+          if(next){next.classList.remove("is-collapsed");const toggle=next.querySelector(".verification-card-collapse");if(toggle)toggle.textContent="Collapse";next.scrollIntoView({behavior:"smooth",block:"start"});}
+        }catch(error){if(status)status.textContent=error.message||"Unable to review the blacklist.";}
+        finally{button.disabled=false;}
       }));
       clientRecords.querySelectorAll(".jump-followup-agent").forEach((button)=>button.addEventListener("click",()=>{
         const card=button.closest(".client-record");

@@ -410,6 +410,15 @@ test("saved ID is required at verification and checked again at final approval",
   assert.match(worker,/A saved, reviewed ID is required before final approval/);
 });
 
+test("blacklist-clear review checks the live list and opens the next verification card",()=>{
+  assert.match(worker,/\["\/api\/admin\/clients\/blacklist-review", "edit_verification"\]/);
+  assert.match(worker,/if\(blocked\)return Response\.json\(\{ok:false,blocked:true/);
+  assert.match(worker,/INSERT INTO client_blacklist_reviews/);
+  assert.match(portal,/class="blacklist-clear-review"/);
+  assert.match(portal,/class="client-safety-section"[\s\S]*?blacklist-clear-review[\s\S]*?client-phone-checks/);
+  assert.match(portal,/\.client-phone-checks"\);[\s\S]*?next\.classList\.remove\("is-collapsed"\)/);
+});
+
 test("portal has structured employment verification workflow",()=>{
   assert.match(portal,/class="verification-card client-employment-verification is-collapsed"/);
   assert.match(portal,/>4\. Employment Verification</);

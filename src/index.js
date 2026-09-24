@@ -107,6 +107,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-draft", "edit_verification"],
   ["/api/admin/clients/verification-activity", "edit_verification"],
   ["/api/admin/clients/verification-overview", "edit_verification"],
+  ["/api/admin/clients/blacklist-review", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/phone-reverse-lookup", "edit_verification"],
   ["/api/admin/clients/credential-verification", "edit_verification"],
@@ -5734,6 +5735,36 @@ if (
     // =========================================================
     // ADMIN BLACKLIST
     // =========================================================
+
+    if (url.pathname === "/api/admin/clients/blacklist-review" && ["GET","POST"].includes(request.method)) {
+      try {
+        const data=request.method==="POST" ? await request.json() : null;
+        const clientId=Number(request.method==="POST" ? data?.client_id : url.searchParams.get("client_id"));
+        if(!Number.isInteger(clientId)||clientId<1)return Response.json({ok:false,message:"A valid client is required."},{status:400});
+        const client=await env.DB.prepare("SELECT id,email,phone FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
+        if(!client)return Response.json({ok:false,message:"Client not found."},{status:404});
+        const blocked=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? OR (email <> '' AND LOWER(email)=LOWER(?)) OR (phone <> '' AND phone=?) LIMIT 1")
+          .bind(clientId,client.email||"",client.phone||"").first();
+        if(blocked)return Response.json({ok:false,blocked:true,message:"This client has an active blacklist match. Review the safety record before continuing."},{status:409});
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_blacklist_reviews (
+          client_id INTEGER PRIMARY KEY, contact_fingerprint TEXT NOT NULL, reviewed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )`).run();
+        const fingerprint=await sha256Hex(String(client.email||"").trim().toLowerCase()+"|"+String(client.phone||"").replace(/\D/g,""));
+        if(request.method==="POST"){
+          await env.DB.prepare(`INSERT INTO client_blacklist_reviews (client_id,contact_fingerprint,reviewed_at)
+            VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(client_id) DO UPDATE SET contact_fingerprint=excluded.contact_fingerprint,reviewed_at=CURRENT_TIMESTAMP`)
+            .bind(clientId,fingerprint).run();
+          await ensureVerificationWorkspaceTables(env);
+          await logVerificationActivity(env,clientId,null,"blacklist_clear_review","No active blacklist match found","Manual basic-screening review");
+        }
+        const review=await env.DB.prepare("SELECT reviewed_at FROM client_blacklist_reviews WHERE client_id=? AND contact_fingerprint=? LIMIT 1")
+          .bind(clientId,fingerprint).first();
+        return Response.json({ok:true,reviewed:Boolean(review),reviewed_at:review?.reviewed_at||null},{headers:{"Cache-Control":"private, no-store"}});
+      }catch(error){
+        console.error("Blacklist review error:",error);
+        return Response.json({ok:false,message:"Unable to save the blacklist review."},{status:500});
+      }
+    }
 
     if (
       url.pathname === "/api/admin/blacklist" &&
