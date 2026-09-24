@@ -390,7 +390,7 @@
     Proceed to private screening
   </button>
   <div style="margin-top:10px;font-size:13px;color:#6f675f;">
-    Approval creates the client's private form email draft. Review and send it from <strong>Email Drafts</strong>.
+    This creates a private screening email draft. Review and send it from <strong>Email Drafts</strong>. Identity and the date still require final approval.
   </div>
   <div id="basic-screening-milestones" style="margin-top:12px;font-size:13px;line-height:1.7;"></div>
   <button type="button" id="open-email-drafts-button" style="display:none;margin-top:10px;background:transparent;border:1px solid #cfc6ba;padding:10px 16px;border-radius:999px;font-family:inherit;cursor:pointer;">
@@ -510,7 +510,7 @@ const moveForwardButton =
 const basicScreeningMilestones=document.getElementById("basic-screening-milestones");
 const renderBasicScreeningMilestones=(approved,sent)=>{
   if(!basicScreeningMilestones)return;
-  basicScreeningMilestones.innerHTML='<div><strong>Approved to proceed:</strong> '+(approved?'Yes':'Awaiting decision')+'</div><div><strong>Private form email sent:</strong> '+(sent?'Sent':'Not sent')+'</div>';
+  basicScreeningMilestones.innerHTML='<div><strong>Screening invitation:</strong> '+(approved?'Ready':'Awaiting decision')+'</div><div><strong>Private form email sent:</strong> '+(sent?'Sent':'Not sent')+'</div>';
 };
 renderBasicScreeningMilestones(["screening_pending","pending_final_approval","approved","completed"].includes(String(item.status||"").toLowerCase()),Boolean(item.private_screening_email_sent_at));
 
@@ -675,7 +675,7 @@ moveForwardButton.addEventListener(
         );
       }
 
-      moveForwardStatus.textContent = "Approved to proceed. Review and send the private form email draft.";
+      moveForwardStatus.textContent = "Ready to invite to private screening. Review and send the email draft.";
       moveForwardButton.textContent = "Proceed to private screening";
       renderBasicScreeningMilestones(true,false);
       moveForwardButton.style.display = "none";

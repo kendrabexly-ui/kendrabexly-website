@@ -56,7 +56,7 @@ test("booking submission shows the server response instead of hiding it behind a
 test("dashboard verification starts with request-based basic screening",()=>{
   assert.match(portal,/data-progress-step="basic_screening">Basic Screening/);
   assert.match(portal,/class="verification-card client-basic-screening is-collapsed"/);
-  assert.match(portal,/>1\. Proceed to private screening</);
+  assert.match(portal,/>1\. Initial review &amp; screening invitation</);
   assert.match(portal,/latestOccupation = requestNoteValue\("Occupation"\)/);
   assert.match(portal,/latestBaseState = requestNoteValue\("Base state"\)/);
   assert.match(portal,/<strong>Base state<\/strong><div>\$\{escapeHtml\(latestBaseState \|\| "Not provided"\)\}<\/div>/);
@@ -79,7 +79,7 @@ test("client profile shows one verification summary",()=>{
 
 test("basic screening tracks approval and private form delivery separately",()=>{
   assert.match(worker,/AS private_screening_email_sent_at/g);
-  assert.match(portal,/<strong>Approved to proceed<\/strong>/);
+  assert.match(portal,/<strong>Screening invitation<\/strong>/);
   assert.match(portal,/<strong>Private form email sent<\/strong>/);
   assert.match(portal,/Boolean\(latest\?\.private_screening_email_sent_at\)/);
   assert.match(requestAdmin,/renderBasicScreeningMilestones\(true,false\)/);

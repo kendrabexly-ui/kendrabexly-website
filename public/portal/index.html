@@ -2776,7 +2776,7 @@ async function loadRequests(options = {}) {
               ? "pending_review"
               : "needs_more_information";
         const basicScreeningLabel = basicScreeningState === "confirmed"
-          ? "Approved to proceed"
+          ? "Ready for private screening"
           : basicScreeningState === "declined"
             ? "Closed"
             : basicScreeningState === "needs_more_information"
@@ -3012,12 +3012,12 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-basic-screening is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">1. Proceed to private screening</strong>
+                      <strong style="font-size:13px;">1. Initial review &amp; screening invitation</strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-basic-screening-badge" style="${basicScreeningStyle}">Basic screening: ${escapeHtml(basicScreeningLabel)}</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-basic-screening">Expand</button></span>
                     </div>
-                    <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">Review the request and blacklist decision before inviting the client to the private screening page.</div>
+                    <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">Review the request and blacklist decision before inviting the client to the private screening page. This invitation does not verify identity or approve the date.</div>
                     <div class="verification-overview-grid" style="margin-top:10px;">
-                      <div class="verification-overview-item"><strong>Approved to proceed</strong><div>${basicScreeningState === "confirmed" ? "Yes" : basicScreeningState === "declined" ? "No · Request closed" : "Awaiting decision"}</div></div>
+                      <div class="verification-overview-item"><strong>Screening invitation</strong><div>${basicScreeningState === "confirmed" ? "Ready" : basicScreeningState === "declined" ? "No · Request closed" : "Awaiting decision"}</div></div>
                       <div class="verification-overview-item"><strong>Private form email sent</strong><div>${privateScreeningEmailSent ? "Sent " + escapeHtml(formatVerificationTimestamp(latest.private_screening_email_sent_at)) : "Not sent"}</div></div>
                     </div>
                     <div class="verification-overview-grid" style="margin-top:10px;">
