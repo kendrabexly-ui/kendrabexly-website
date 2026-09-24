@@ -790,10 +790,7 @@
         <button type="button" data-section="clients">Clients</button>
         <button type="button" data-section="blacklist">Blacklist</button>
         <button type="button" data-section="emails">Email Drafts</button>
-        <button type="button" data-section="rates-services">Rates & Services</button>
-        <button type="button" data-section="gallery">Gallery</button>
-        <button type="button" data-section="photo-controls">Photo Controls</button>
-        <button type="button" data-section="photo-editor">Photo Editor</button>
+        <button type="button" data-section="website-editor">Website Editor</button>
         <button type="button" data-section="newsletter">Newsletter</button>
         <button type="button" data-section="x-agent">X Agent</button>
         <button type="button" data-section="marketing-retention">Marketing &amp; Retention</button>
@@ -818,6 +815,14 @@
           Private workspace
         </div>
       </div>
+
+      <section id="website-editor" class="section" aria-labelledby="website-editor-title">
+        <div class="section-heading">
+          <h2 id="website-editor-title">Website Editor</h2>
+          <p>Edit the public website from one place. Manage photos, site-wide photo appearance, the gallery, rates and services, and photo editing without leaving the dashboard.</p>
+        </div>
+        <div id="website-editor-content"></div>
+      </section>
 
       <!-- DASHBOARD -->
 
@@ -8951,5 +8956,19 @@ function escapeHtml(value) {
 </script>
   <script src="/portal/photo-editor.js" defer></script>
 <script src="/portal/photo-controls.js" defer></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const editor = document.getElementById("website-editor-content");
+    if (!editor) return;
+    ["photo-controls","gallery","rates-services","photo-editor"].forEach(id => {
+      const section = document.getElementById(id);
+      if (!section) return;
+      section.classList.remove("section");
+      section.classList.add("website-editor-panel");
+      editor.appendChild(section);
+    });
+  });
+</script>
+
 </body>
 </html>
