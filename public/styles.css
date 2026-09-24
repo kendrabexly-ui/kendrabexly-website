@@ -309,7 +309,7 @@ body.invitation-page .invitation-cover::before {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: url("/api/public/gallery/image?slot=1") center / contain no-repeat;
+  background: url("/invitation-photo.svg") center / 100% 100% no-repeat;
   pointer-events: none;
 }
 body.invitation-page .invitation-cover .invitation-cover-overlay {
