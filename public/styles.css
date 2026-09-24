@@ -275,51 +275,29 @@ h3 {
 
 /* Invitation */
 
-/* Home page invitation cover */
-body.invitation-page > site-header,
-body.invitation-page > site-footer,
-body.invitation-page .page-photo-row,
-body.invitation-page main > .invitation-section {
-  display: none !important;
-}
-body.invitation-page {
-  margin: 0 !important;
-  min-height: 100svh;
-  background: #171311;
-}
-body.invitation-page #main-content {
-  min-height: 100svh;
-  margin: 0 !important;
-}
+/* Invitation hero */
 body.invitation-page .invitation-cover {
-  width: 100vw !important;
-  min-height: 100svh !important;
-  height: 100svh !important;
-  margin: 0 !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  display: flex !important;
-  align-items: flex-start !important;
-  justify-content: center !important;
-  background: #171311 !important;
+  position: relative;
+  min-height: clamp(560px, 72vh, 760px) !important;
   overflow: hidden !important;
+  background: #171311 !important;
 }
 body.invitation-page .invitation-cover::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: url("/api/public/gallery/image?slot=1") center / 100% 100% no-repeat;
+  background: url("/api/public/gallery/image?slot=1") center / cover no-repeat;
   pointer-events: none;
 }
 body.invitation-page .invitation-cover .invitation-cover-overlay {
   z-index: 1;
   background:
-    linear-gradient(180deg, rgba(18,14,13,.58) 0%, rgba(18,14,13,.10) 45%, rgba(18,14,13,.32) 100%),
+    linear-gradient(180deg, rgba(18,14,13,.52) 0%, rgba(18,14,13,.12) 48%, rgba(18,14,13,.38) 100%),
     radial-gradient(circle at 50% 25%, rgba(255,255,255,.05), transparent 38%);
 }
 body.invitation-page .invitation-cover .hero-content {
-  padding-top: clamp(72px, 12vh, 150px);
+  padding: clamp(82px, 13vh, 140px) 0 76px;
 }
 body.invitation-page .invitation-cover h1 {
   font-size: clamp(58px, 8.5vw, 128px);
