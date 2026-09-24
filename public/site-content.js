@@ -82,7 +82,7 @@
         if (style) {
           image.style.width = Number(style.width_percent || 100) + "%";
           image.style.height = Number(style.height_percent || 100) + "%";
-          image.style.opacity = String(Number(style.opacity || 100) / 100);
+          image.style.opacity = String(Math.max(0, Math.min(1, Number(style.opacity ?? 1))));
         }
 
         image.onload = () => {
