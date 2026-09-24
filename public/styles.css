@@ -304,23 +304,13 @@ body.invitation-page .invitation-cover {
   background: #171311 !important;
   overflow: hidden !important;
 }
-body.invitation-page .invitation-cover::before,
-body.invitation-page .invitation-cover::after {
+body.invitation-page .invitation-cover::before {
   content: "";
   position: absolute;
   inset: 0;
-  pointer-events: none;
-}
-body.invitation-page .invitation-cover::before {
-  z-index: 0;
-  background: url("/api/public/gallery/image?slot=1") center / cover no-repeat;
-  filter: blur(22px);
-  transform: scale(1.06);
-  opacity: .72;
-}
-body.invitation-page .invitation-cover::after {
   z-index: 0;
   background: url("/api/public/gallery/image?slot=1") center / contain no-repeat;
+  pointer-events: none;
 }
 body.invitation-page .invitation-cover .invitation-cover-overlay {
   z-index: 1;
