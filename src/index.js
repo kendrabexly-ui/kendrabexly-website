@@ -3202,20 +3202,31 @@ export default {
     await env.DB.prepare(`
       CREATE TABLE IF NOT EXISTS newsletter_subscribers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        first_name TEXT NOT NULL DEFAULT '',
+        last_name TEXT NOT NULL DEFAULT '',
         email TEXT NOT NULL UNIQUE COLLATE NOCASE,
         status TEXT NOT NULL DEFAULT 'active',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         unsubscribed_at TEXT
       )
     `).run();
+    const columns = await env.DB.prepare("PRAGMA table_info(newsletter_subscribers)").all();
+    const names = new Set((columns.results || []).map(row => String(row.name || "")));
+    if (!names.has("first_name")) await env.DB.prepare("ALTER TABLE newsletter_subscribers ADD COLUMN first_name TEXT NOT NULL DEFAULT ''").run();
+    if (!names.has("last_name")) await env.DB.prepare("ALTER TABLE newsletter_subscribers ADD COLUMN last_name TEXT NOT NULL DEFAULT ''").run();
   }
 
   // Public newsletter signup
   if (url.pathname === "/api/newsletter/subscribe" && request.method === "POST") {
     await ensureNewsletterSubscribersTable();
     const data = await request.json();
+    const firstName = String(data.first_name || "").trim().slice(0, 80);
+    const lastName = String(data.last_name || "").trim().slice(0, 80);
     const email = String(data.email || "").trim().toLowerCase();
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!firstName || !lastName) {
+      return Response.json({ ok: false, message: "Please enter your first and last name." }, { status: 400 });
+    }
     if (!emailPattern.test(email)) {
       return Response.json({ ok: false, message: "Please enter a valid email address." }, { status: 400 });
     }
@@ -3223,16 +3234,14 @@ export default {
       "SELECT id, status FROM newsletter_subscribers WHERE LOWER(email) = LOWER(?)"
     ).bind(email).first();
     if (existing) {
-      if (existing.status !== "active") {
-        await env.DB.prepare(
-          "UPDATE newsletter_subscribers SET status = 'active', unsubscribed_at = NULL WHERE id = ?"
-        ).bind(existing.id).run();
-      }
+      await env.DB.prepare(
+        "UPDATE newsletter_subscribers SET first_name = ?, last_name = ?, status = 'active', unsubscribed_at = NULL WHERE id = ?"
+      ).bind(firstName, lastName, existing.id).run();
       return Response.json({ ok: true, message: "You're on the list. Thank you." });
     }
     await env.DB.prepare(
-      "INSERT INTO newsletter_subscribers (email, status) VALUES (?, 'active')"
-    ).bind(email).run();
+      "INSERT INTO newsletter_subscribers (first_name, last_name, email, status) VALUES (?, ?, ?, 'active')"
+    ).bind(firstName, lastName, email).run();
     return Response.json({ ok: true, message: "You're on the list. Thank you." });
   }
 
@@ -3240,7 +3249,7 @@ export default {
   if (url.pathname === "/api/admin/newsletter/subscribers" && request.method === "GET") {
     await ensureNewsletterSubscribersTable();
     const result = await env.DB.prepare(
-      "SELECT id, email, status FROM newsletter_subscribers ORDER BY id DESC LIMIT 500"
+      "SELECT id, first_name, last_name, email, status FROM newsletter_subscribers ORDER BY id DESC LIMIT 500"
     ).all();
     const subscribers = result.results || [];
     const activeCountRow = await env.DB.prepare(
