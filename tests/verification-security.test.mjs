@@ -74,7 +74,12 @@ test("dashboard verification starts with request-based basic screening",()=>{
 test("client profile shows one verification summary",()=>{
   assert.equal((portal.match(/>Verification Summary</g)||[]).length,1);
   assert.doesNotMatch(portal,/client-verification-summary/);
-  assert.match(portal,/if\(verification&&firstSection\) firstSection\.insertAdjacentElement\("beforebegin",verification\)/);
+  const profile=portal.indexOf('class="client-profile-actions"');
+  const verification=portal.indexOf('class="client-profile-section client-id-documents"',profile);
+  const blacklist=portal.indexOf('class="client-safety-section"',verification);
+  const followup=portal.indexOf('class="client-profile-section client-followup-agent"',verification);
+  assert.ok(profile<verification&&verification<blacklist&&blacklist<followup);
+  assert.doesNotMatch(portal,/basicScreening\.insertAdjacentElement\("beforebegin",safety\)/);
 });
 
 test("basic screening tracks approval and private form delivery separately",()=>{
@@ -393,7 +398,16 @@ test("employment verification fields are persisted on the audit record",()=>{
 
 test("employment verification requires evidence before Confirmed",()=>{
   assert.match(worker,/Employer, job title, industry, verification method, and evidence\/reference are required before employment can be marked Confirmed/);
-  assert.match(worker,/Employment verification must be Confirmed before marking this client Verified/);
+  assert.match(worker,/Confirm employment or record why it is not applicable before marking this client Verified/);
+  assert.match(worker,/if\(employmentStatus==="not_applicable" && !employmentEvidenceReference\)/);
+  assert.match(portal,/<option value="not_applicable">Not applicable · retired or no employer<\/option>/);
+});
+
+test("saved ID is required at verification and checked again at final approval",()=>{
+  assert.match(worker,/SELECT object_key FROM client_id_documents WHERE client_id=\? LIMIT 1/);
+  assert.match(worker,/Upload and review the client's private ID before marking this client Verified/);
+  assert.match(worker,/SELECT object_key,verification_status,verified_at FROM client_id_documents WHERE client_id=\? LIMIT 1/);
+  assert.match(worker,/A saved, reviewed ID is required before final approval/);
 });
 
 test("portal has structured employment verification workflow",()=>{

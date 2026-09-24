@@ -1830,7 +1830,7 @@ export default {
         const submittedJobTitle = String(data.submitted_job_title || "").trim().slice(0, 160);
         const submittedIndustry = String(data.submitted_industry || "").trim().slice(0, 160);
         const employmentStatus = String(data.employment_verification_status || "not_checked").trim().toLowerCase();
-        const allowedEmploymentStatuses = new Set(["not_checked","pending","confirmed","unable_to_confirm","mismatch"]);
+        const allowedEmploymentStatuses = new Set(["not_checked","pending","confirmed","not_applicable","unable_to_confirm","mismatch"]);
         if(!allowedEmploymentStatuses.has(employmentStatus)){
           return Response.json({ok:false,message:"Choose a valid employment verification status."},{status:400});
         }
@@ -1843,6 +1843,9 @@ export default {
         }
         if(employmentStatus==="confirmed" && !(submittedEmployer && submittedJobTitle && submittedIndustry && employmentMethod && employmentEvidenceReference)){
           return Response.json({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
+        }
+        if(employmentStatus==="not_applicable" && !employmentEvidenceReference){
+          return Response.json({ok:false,message:"Record why employment verification is not applicable before continuing."},{status:400});
         }
         if(["unable_to_confirm","mismatch"].includes(employmentStatus) && !employmentEvidenceReference){
           return Response.json({ok:false,message:"Add an evidence/reference note for an employment result that could not be confirmed or did not match."},{status:400});
@@ -1859,8 +1862,13 @@ export default {
         const age = verificationAgeOnDate(birthdate);
 
         if (verificationStatus === "verified") {
-          if (employmentStatus !== "confirmed") {
-            return Response.json({ok:false,message:"Employment verification must be Confirmed before marking this client Verified."},{status:400});
+          await ensureClientIdDocumentsTable(env);
+          const savedId=await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(clientId).first();
+          if(!savedId?.object_key){
+            return Response.json({ok:false,message:"Upload and review the client's private ID before marking this client Verified."},{status:400});
+          }
+          if (!(["confirmed","not_applicable"].includes(employmentStatus))) {
+            return Response.json({ok:false,message:"Confirm employment or record why it is not applicable before marking this client Verified."},{status:400});
           }
           await ensureVerificationWorkspaceTables(env);
           const requiredRecords=await env.DB.prepare("SELECT record_status,checked_at,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
@@ -5794,10 +5802,11 @@ if (
         const existing = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id = ? OR (email <> '' AND LOWER(email) = LOWER(?)) OR (phone <> '' AND phone = ?) LIMIT 1").bind(clientId, client.email || "", client.phone || "").first();
         if (existing) return Response.json({ ok:false, message:"This client is already blacklisted." }, { status:409 });
         const name = [client.first_name, client.last_name].filter(Boolean).join(" ").trim();
+        const approvedDates=await env.DB.prepare("SELECT COUNT(*) AS count FROM date_requests WHERE client_id=? AND status='approved'").bind(clientId).first();
         await env.DB.prepare("INSERT INTO blacklist (client_id, name, email, phone, reason) VALUES (?, ?, ?, ?, ?)").bind(clientId, name, client.email || "", client.phone || "", reason).run();
         await env.DB.prepare("UPDATE clients SET status='do_not_book' WHERE id=?").bind(clientId).run();
         await env.DB.prepare("UPDATE date_requests SET status='declined' WHERE client_id=? AND status IN ('pending','screening_pending','pending_final_approval')").bind(clientId).run();
-        return Response.json({ ok:true, client_status:"do_not_book" });
+        return Response.json({ ok:true, client_status:"do_not_book", approved_dates_needing_review:Number(approvedDates?.count||0) });
       } catch (error) {
         console.error("Add blacklist error:", error);
         return Response.json({ ok:false, message:"Unable to blacklist this client." }, { status:500 });
@@ -6150,7 +6159,7 @@ if (
         const jobTitle=String(data.submitted_job_title||"").trim().slice(0,160);
         const industry=String(data.submitted_industry||"").trim().slice(0,160);
         const status=String(data.employment_verification_status||"not_checked").trim().toLowerCase();
-        const allowed=new Set(["not_checked","pending","confirmed","unable_to_confirm","mismatch"]);
+        const allowed=new Set(["not_checked","pending","confirmed","not_applicable","unable_to_confirm","mismatch"]);
         if(!allowed.has(status))return Response.json({ok:false,message:"Choose a valid employment verification result."},{status:400});
         const method=String(data.employment_verification_method||"").trim().slice(0,160);
         const workEmail=String(data.employment_work_email||"").trim().toLowerCase().slice(0,254);
@@ -6160,6 +6169,7 @@ if (
         const evidence=String(data.employment_evidence_reference||"").trim().slice(0,1200);
         if(workEmail&&!verificationEmailValid(workEmail))return Response.json({ok:false,message:"Enter a valid work email address or leave it blank."},{status:400});
         if(status==="confirmed"&&!(employer&&jobTitle&&industry&&method&&evidence))return Response.json({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
+        if(status==="not_applicable"&&!evidence)return Response.json({ok:false,message:"Record why employment verification is not applicable before continuing."},{status:400});
         if(["unable_to_confirm","mismatch"].includes(status)&&!evidence)return Response.json({ok:false,message:"Add an evidence/reference note for this employment result."},{status:400});
         await env.DB.prepare(`
           UPDATE client_verification_audits
@@ -8405,6 +8415,11 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             { ok:false, message:"Screening must be marked Verified and completed before final approval." },
             { status:400 }
           );
+        }
+        await ensureClientIdDocumentsTable(env);
+        const finalId=await env.DB.prepare("SELECT object_key,verification_status,verified_at FROM client_id_documents WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();
+        if(!finalId?.object_key || finalId.verification_status!=="verified" || !finalId.verified_at){
+          return Response.json({ok:false,message:"A saved, reviewed ID is required before final approval."},{status:400});
         }
         await ensureVerificationWorkspaceTables(env);
         const finalRecordChecks=await env.DB.prepare("SELECT checked_at,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();

@@ -2853,109 +2853,7 @@ async function loadRequests(options = {}) {
             ${latest ? `<button type="button" class="client-profile-toggle" style="margin-top:14px;margin-right:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Open Client Profile →</button>` : ""}
             <div class="client-profile-actions" style="display:none;margin-top:14px;padding:14px;border:1px solid #eee7dc;border-radius:10px;background:#faf8f4;">
               <strong>Client Profile</strong>
-              <div style="margin-top:8px;font-size:12px;color:var(--muted);">Relationship notes, follow-up communication, and safety controls.</div>
-              ${blacklistRecord ? `<details class="client-profile-section client-safety-section" open style="margin-top:10px;padding:12px;border-radius:9px;background:#f3dfdf;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">Blacklist · Active</summary><div style="margin-top:10px;">
-                <strong>🚩 Active Blacklist Record</strong>
-                <div style="margin-top:6px;font-size:13px;">Added: ${escapeHtml(blacklistRecord.created_at || "—")}</div>
-                <div style="margin-top:6px;font-size:13px;"><strong>Safety reason:</strong> ${escapeHtml(blacklistRecord.reason || "No reason recorded")}</div>
-                <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(0,0,0,.1);">
-                  <strong style="font-size:13px;">Connected Identity History</strong>
-                  <div style="margin-top:6px;font-size:13px;"><strong>Attention level:</strong> ${riskLabel}</div>
-                  <div style="margin-top:5px;font-size:13px;"><strong>Identity changes detected:</strong> ${identityVariationCount}</div>
-                  <div style="margin-top:5px;font-size:13px;"><strong>Blocked attempts:</strong> ${blockedAttempts.length}</div>
-                  ${blockedAttempts.length > 1 ? '<div style="margin-top:7px;padding:7px 9px;border-radius:7px;background:#8f3d3d;color:white;font-size:12px;font-weight:700;">⚠️ REPEAT BLACKLIST ATTEMPTS</div>' : ""}
-                  <div style="margin-top:5px;font-size:13px;"><strong>Names used:</strong> ${escapeHtml(Array.from(identityNames).filter(Boolean).join(" · ") || "—")}</div>
-                  <div style="margin-top:5px;font-size:13px;"><strong>Emails used:</strong> ${escapeHtml(Array.from(identityEmails).filter(Boolean).join(" · ") || "—")}</div>
-                  <div style="margin-top:5px;font-size:13px;"><strong>Phones used:</strong> ${escapeHtml(Array.from(identityPhones).filter(Boolean).join(" · ") || "—")}</div>
-                  ${blockedAttempts.length ? `<details style="margin-top:10px;">
-                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">View blocked-attempt timeline</summary>
-                    <div style="margin-top:8px;">${[...blockedAttempts].sort((a,b) => Number(b.id || 0)-Number(a.id || 0)).map((attempt,index) => {
-                      const notes = String(attempt.notes || "");
-                      const get = (label) => {
-                        const match = notes.match(new RegExp(label + ":\\\\s*([^\\\\n]+)", "i"));
-                        return match?.[1]?.trim() || "";
-                      };
-                      return `<div style="padding:9px 0;border-top:1px solid rgba(0,0,0,.08);font-size:12px;">
-                        <strong>Attempt #${blockedAttempts.length-index}</strong> · ${escapeHtml(attempt.requested_date || "Date unavailable")} ${escapeHtml(attempt.requested_time || "")}
-                        <div style="margin-top:4px;">${escapeHtml(get("Submitted name") || "Name unavailable")} · ${escapeHtml(get("Submitted email") || "No email")} · ${escapeHtml(get("Submitted phone") || "No phone")}</div>
-                        ${attempt.location_name ? `<div style="margin-top:3px;">Location: ${escapeHtml(attempt.location_name)}</div>` : ""}
-                      </div>`;
-                    }).join("")}</div>
-                  </details>` : ""}
-                </div>
-                <button type="button" class="profile-remove-blacklist" data-blacklist-id="${blacklistRecord.id}" style="margin-top:10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
-              </div></details>` : `
-              <details class="client-profile-section client-safety-section" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
-                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Blacklist decision · Add client</summary>
-                <div style="margin-top:10px;">
-                <div style="font-size:12px;color:var(--muted);">Review safety concerns before proceeding to the private screening and deposit email. Adding a client declines open requests.</div>
-                <strong style="font-size:14px;">Safety Check</strong>
-                <label style="display:block;margin-top:10px;"><input type="checkbox" class="safety-boundaries"> Ignored or violated boundaries</label>
-                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-threatening"> Threatening, aggressive, or intimidating behavior</label>
-                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-identity"> Identity or screening information was concerning or inconsistent</label>
-                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-payment"> Payment-related concern or suspicious activity</label>
-                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-harassment"> Harassment, repeated unwanted contact, or privacy concern</label>
-                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-other"> Other safety concern</label>
-                <textarea class="safety-notes" placeholder="Add private safety notes or details..." rows="3" style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
-              </div>
-              <button type="button" class="blacklist-client" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Blacklist Client</button>
-                </div>
-              </details>`}
-              <details class="client-profile-section client-followup-agent" style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
-                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Follow Up</summary>
-                <div style="margin-top:10px;">
-                <strong style="font-size:13px;">Follow Up Agent</strong>
-                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Create an after date message for the most recent date marked successfully completed. Nothing is sent automatically.</div>
-                ${lastCompleted ? `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Follow up for:</strong> ${escapeHtml(formatCalendarDate(lastCompleted.requested_date))}${lastCompleted.requested_time ? " at "+escapeHtml(formatCalendarTime(lastCompleted.requested_time)) : ""}<div class="client-followup-context-status" style="margin-top:6px;font-weight:700;">${lastCompleted.after_date_follow_up_sent_at ? "✓ Follow Up Sent" : "○ Follow Up Not Sent"}</div></div>` : `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>No successfully completed date yet.</strong> Mark a date successfully completed before generating an after date follow up.</div>`}
-                ${followUpHistory.length ? `<details style="margin-top:9px;padding:9px 11px;border:1px solid #eee7dc;border-radius:8px;background:#fffdf9;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">Follow Up History (${followUpHistory.length})</summary><div style="margin-top:8px;">${followUpHistory.map((item,index)=>`<div style="padding:7px 0;${index ? "border-top:1px solid #eee7dc;" : ""}font-size:12px;"><strong>${escapeHtml(formatCalendarDate(item.date))}</strong>${item.time ? " at "+escapeHtml(formatCalendarTime(item.time)) : ""}<div style="margin-top:3px;font-weight:700;">${item.sent_at ? "✓ Sent" : "○ Not Sent"}</div>${item.sent_at ? `<div style="margin-top:2px;color:var(--muted);">Sent ${escapeHtml(item.sent_at)}</div>` : ""}<button type="button" class="view-followup-history" data-request-id="${item.id}" data-client-id="${client.client_id}" style="margin-top:5px;padding:0;border:0;background:transparent;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">View Follow Up</button><div class="followup-history-detail" style="display:none;margin-top:7px;padding:8px 10px;border-radius:7px;background:#f7f2e9;white-space:pre-wrap;line-height:1.5;"></div></div>`).join("")}</div></details>` : ""}
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                  <button type="button" class="generate-client-followup" data-followup-type="after-date" data-client-id="${client.client_id}" ${lastCompleted ? "" : "disabled"} style="padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;font-weight:700;">Generate Follow Up</button>
-                  <button type="button" class="send-client-followup" data-client-id="${client.client_id}" data-already-sent="${lastCompleted?.after_date_follow_up_sent_at ? "1" : "0"}" ${lastCompleted ? "" : "disabled"} style="padding:9px 13px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;font-weight:700;">${lastCompleted?.after_date_follow_up_sent_at ? "Resend Follow Up" : "Send Follow Up"}</button>
-                </div>
-                <textarea class="client-followup-draft" rows="5" placeholder="Your follow up draft will appear here..." style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
-                <details style="margin-top:9px;">
-                  <summary style="cursor:pointer;font-size:12px;font-weight:700;">Customize & Draft Tools</summary>
-                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:10px;">
-                    <label style="font-size:11px;font-weight:700;">TONE<select class="client-followup-tone" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="warm">Warm</option><option value="flirty">Flirty</option><option value="playful">Playful</option><option value="soft-sensual">Soft & Sensual</option><option value="direct">Direct</option></select></label>
-                    <label style="font-size:11px;font-weight:700;">LENGTH<select class="client-followup-length" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="short">Short</option><option value="medium">Medium</option></select></label>
-                    <label style="font-size:11px;font-weight:700;">GOAL<select class="client-followup-goal" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="no-pressure">Warm, No Pressure</option><option value="appreciation">Appreciation</option><option value="keep-connection">Keep Connection Open</option></select></label>
-                  </div>
-                  <textarea class="client-followup-instructions" rows="2" placeholder="Optional instructions, for example: make it sweeter, keep it simple, thank him for the flowers..." style="width:100%;margin-top:8px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;">
-                    <button type="button" class="save-client-followup" data-client-id="${client.client_id}" data-request-id="${lastCompleted?.id || ""}" ${lastCompleted ? "" : "disabled"} style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;">Save Draft</button>
-                    <button type="button" class="preview-client-followup" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Preview</button>
-                    <button type="button" class="copy-client-followup" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Copy</button>
-                    <button type="button" class="clear-client-followup" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear</button>
-                  </div>
-                </details>
-                <div class="client-followup-preview" style="display:none;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:9px;background:#fffdf9;">
-                  <div style="font-size:11px;font-weight:700;letter-spacing:.06em;margin-bottom:8px;">MESSAGE PREVIEW</div>
-                  <div class="client-followup-preview-body" style="white-space:pre-wrap;line-height:1.6;"></div>
-                </div>
-                <div class="client-followup-status" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
-                </div>
-              </details>
-
-              <details class="client-profile-section client-retention-offer" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
-                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Retention Offer</summary>
-                <div style="margin-top:10px;"><div style="font-size:12px;color:var(--muted);">Create a manual retention offer for this client. The email opens in preview first and is never sent automatically.</div>
-                <div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Eligibility:</strong> ${blacklistRecord ? "Not eligible · Blacklisted" : upcomingDate ? "Not eligible · Upcoming confirmed date" : completed > 0 ? "Eligible · "+completed+" completed date"+(completed===1?"":"s") : "Not eligible · No completed date"}</div>
-                <label style="display:block;margin-top:10px;font-size:11px;font-weight:700;">INCENTIVE<select class="client-retention-strategy" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="extra-time">Extra 30 Minutes</option><option value="experience-upgrade">Experience Upgrade</option><option value="special-rate">Special Rate</option></select></label>
-                <button type="button" class="client-retention-preview" data-client-id="${client.client_id}" ${(!blacklistRecord&&!upcomingDate&&completed>0)?"":"disabled"} style="margin-top:10px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;font-weight:700;cursor:${(!blacklistRecord&&!upcomingDate&&completed>0)?"pointer":"not-allowed"};opacity:${(!blacklistRecord&&!upcomingDate&&completed>0)?"1":".5"};">Preview Email</button>
-                <div class="client-retention-status" style="margin-top:7px;font-size:12px;color:var(--muted);"></div></div>
-              </details>
-
-              <details class="client-profile-section" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
-                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Notes & Preferences</summary>
-                <div style="margin-top:10px;">
-                <strong style="font-size:13px;">Private Notes & Preferences</strong>
-                <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Preferences</label>
-                <textarea class="client-preferences" rows="3" placeholder="Favorite details, preferences, things they enjoy, thoughtful touches to remember..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.preferences || "")}</textarea>
-                <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Private Client Notes</label>
-                <textarea class="client-private-notes" rows="3" placeholder="Private reminders and notes for future dates..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.notes || "")}</textarea>
-                <div style="display:flex;align-items:center;gap:10px;margin-top:9px;"><button type="button" class="save-client-profile" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Save Notes & Preferences</button><span class="client-profile-save-status" style="font-size:12px;color:var(--muted);"></span></div>
-                </div>
-              </details>
+              <div style="margin-top:8px;font-size:12px;color:var(--muted);">Verification, safety review, and follow-up communication.</div>
               <details class="client-profile-section client-id-documents" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" data-basic-screening-state="${basicScreeningState}" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
                 <summary style="cursor:pointer;font-size:13px;font-weight:700;">Verification</summary>
                 <div style="margin-top:10px;">
@@ -3033,6 +2931,53 @@ async function loadRequests(options = {}) {
                       <div class="verification-overview-item"><strong>Location</strong><div>${escapeHtml(latestAppointmentType ? latestAppointmentType.replaceAll("-"," ") : (latest?.location_name || "Not provided"))}</div></div>
                       <div class="verification-overview-item"><strong>Request status</strong><div>${escapeHtml(latestRequestStatus.replaceAll("_"," "))}</div></div>
                     </div>
+              ${blacklistRecord ? `<details class="client-safety-section" open style="margin-top:10px;padding:12px;border-radius:9px;background:#f3dfdf;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">Blacklist · Active</summary><div style="margin-top:10px;">
+                <strong>🚩 Active Blacklist Record</strong>
+                ${upcomingDate ? `<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff0d9;font-size:12px;font-weight:700;">Confirmed date requires your review: ${escapeHtml(formatCalendarDate(upcomingDate.requested_date))}. Blacklisting does not cancel a confirmed date or handle its deposit.</div>` : ""}
+                <div style="margin-top:6px;font-size:13px;">Added: ${escapeHtml(blacklistRecord.created_at || "—")}</div>
+                <div style="margin-top:6px;font-size:13px;"><strong>Safety reason:</strong> ${escapeHtml(blacklistRecord.reason || "No reason recorded")}</div>
+                <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(0,0,0,.1);">
+                  <strong style="font-size:13px;">Connected Identity History</strong>
+                  <div style="margin-top:6px;font-size:13px;"><strong>Attention level:</strong> ${riskLabel}</div>
+                  <div style="margin-top:5px;font-size:13px;"><strong>Identity changes detected:</strong> ${identityVariationCount}</div>
+                  <div style="margin-top:5px;font-size:13px;"><strong>Blocked attempts:</strong> ${blockedAttempts.length}</div>
+                  ${blockedAttempts.length > 1 ? '<div style="margin-top:7px;padding:7px 9px;border-radius:7px;background:#8f3d3d;color:white;font-size:12px;font-weight:700;">⚠️ REPEAT BLACKLIST ATTEMPTS</div>' : ""}
+                  <div style="margin-top:5px;font-size:13px;"><strong>Names used:</strong> ${escapeHtml(Array.from(identityNames).filter(Boolean).join(" · ") || "—")}</div>
+                  <div style="margin-top:5px;font-size:13px;"><strong>Emails used:</strong> ${escapeHtml(Array.from(identityEmails).filter(Boolean).join(" · ") || "—")}</div>
+                  <div style="margin-top:5px;font-size:13px;"><strong>Phones used:</strong> ${escapeHtml(Array.from(identityPhones).filter(Boolean).join(" · ") || "—")}</div>
+                  ${blockedAttempts.length ? `<details style="margin-top:10px;">
+                    <summary style="cursor:pointer;font-size:13px;font-weight:700;">View blocked-attempt timeline</summary>
+                    <div style="margin-top:8px;">${[...blockedAttempts].sort((a,b) => Number(b.id || 0)-Number(a.id || 0)).map((attempt,index) => {
+                      const notes = String(attempt.notes || "");
+                      const get = (label) => {
+                        const match = notes.match(new RegExp(label + ":\\\\s*([^\\\\n]+)", "i"));
+                        return match?.[1]?.trim() || "";
+                      };
+                      return `<div style="padding:9px 0;border-top:1px solid rgba(0,0,0,.08);font-size:12px;">
+                        <strong>Attempt #${blockedAttempts.length-index}</strong> · ${escapeHtml(attempt.requested_date || "Date unavailable")} ${escapeHtml(attempt.requested_time || "")}
+                        <div style="margin-top:4px;">${escapeHtml(get("Submitted name") || "Name unavailable")} · ${escapeHtml(get("Submitted email") || "No email")} · ${escapeHtml(get("Submitted phone") || "No phone")}</div>
+                        ${attempt.location_name ? `<div style="margin-top:3px;">Location: ${escapeHtml(attempt.location_name)}</div>` : ""}
+                      </div>`;
+                    }).join("")}</div>
+                  </details>` : ""}
+                </div>
+                <button type="button" class="profile-remove-blacklist" data-blacklist-id="${blacklistRecord.id}" style="margin-top:10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Remove from Blacklist</button>
+              </div></details>` : `
+              <details class="client-safety-section" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Blacklist · No active match</summary>
+                <div style="margin-top:10px;">
+                <div style="font-size:12px;color:var(--muted);">You can continue verification. Use this control only if you decide to blacklist this client; adding them declines open requests.</div>
+                <strong style="font-size:14px;">Safety Check</strong>
+                <label style="display:block;margin-top:10px;"><input type="checkbox" class="safety-boundaries"> Ignored or violated boundaries</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-threatening"> Threatening, aggressive, or intimidating behavior</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-identity"> Identity or screening information was concerning or inconsistent</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-payment"> Payment-related concern or suspicious activity</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-harassment"> Harassment, repeated unwanted contact, or privacy concern</label>
+                <label style="display:block;margin-top:8px;"><input type="checkbox" class="safety-other"> Other safety concern</label>
+                <textarea class="safety-notes" placeholder="Add private safety notes or details..." rows="3" style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+              <button type="button" class="blacklist-client" data-client-id="${client.client_id}" data-client-name="${escapeHtml(name)}" style="margin-top:12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Blacklist Client</button>
+                </div>
+              </details>`}
                     <div class="verification-actions">
                       <button type="button" class="client-basic-screening-open-request" data-request-id="${latest?.id || ""}" data-client-search="${escapeHtml(client.email || name)}" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;font-weight:700;">Open Request Review</button>
                       <span style="font-size:11px;color:var(--muted);">Choose Proceed to private screening in Request Review, then send the private form email from Email Drafts. Detailed employment and identity checks remain in the later steps.</span>
@@ -3091,7 +3036,7 @@ async function loadRequests(options = {}) {
                       <label style="font-size:12px;font-weight:700;">Employer website <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-website" type="url" maxlength="500" placeholder="https://" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Official source name<input class="client-employment-source-name" type="text" maxlength="200" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
                       <label style="font-size:12px;font-weight:700;">Official source URL<input class="client-employment-source-url" type="url" maxlength="800" placeholder="https://" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Result<select class="client-employment-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="not_checked">Not checked</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="unable_to_confirm">Unable to confirm</option><option value="mismatch">Mismatch</option></select></label>
+                      <label style="font-size:12px;font-weight:700;">Result<select class="client-employment-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="not_checked">Not checked</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="not_applicable">Not applicable · retired or no employer</option><option value="unable_to_confirm">Unable to confirm</option><option value="mismatch">Mismatch</option></select></label>
                     </div>
                     <div class="client-employment-domain-status verification-field-note" style="margin-top:7px;"></div>
                     <div class="client-employment-status-note verification-field-note" style="margin-top:7px;"></div>
@@ -3469,6 +3414,61 @@ async function loadRequests(options = {}) {
                 </div>
               </details>
 
+              <details class="client-profile-section client-followup-agent" style="margin-top:14px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Follow Up</summary>
+                <div style="margin-top:10px;">
+                <strong style="font-size:13px;">Follow Up Agent</strong>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Create an after date message for the most recent date marked successfully completed. Nothing is sent automatically.</div>
+                ${lastCompleted ? `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Follow up for:</strong> ${escapeHtml(formatCalendarDate(lastCompleted.requested_date))}${lastCompleted.requested_time ? " at "+escapeHtml(formatCalendarTime(lastCompleted.requested_time)) : ""}<div class="client-followup-context-status" style="margin-top:6px;font-weight:700;">${lastCompleted.after_date_follow_up_sent_at ? "✓ Follow Up Sent" : "○ Follow Up Not Sent"}</div></div>` : `<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>No successfully completed date yet.</strong> Mark a date successfully completed before generating an after date follow up.</div>`}
+                ${followUpHistory.length ? `<details style="margin-top:9px;padding:9px 11px;border:1px solid #eee7dc;border-radius:8px;background:#fffdf9;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">Follow Up History (${followUpHistory.length})</summary><div style="margin-top:8px;">${followUpHistory.map((item,index)=>`<div style="padding:7px 0;${index ? "border-top:1px solid #eee7dc;" : ""}font-size:12px;"><strong>${escapeHtml(formatCalendarDate(item.date))}</strong>${item.time ? " at "+escapeHtml(formatCalendarTime(item.time)) : ""}<div style="margin-top:3px;font-weight:700;">${item.sent_at ? "✓ Sent" : "○ Not Sent"}</div>${item.sent_at ? `<div style="margin-top:2px;color:var(--muted);">Sent ${escapeHtml(item.sent_at)}</div>` : ""}<button type="button" class="view-followup-history" data-request-id="${item.id}" data-client-id="${client.client_id}" style="margin-top:5px;padding:0;border:0;background:transparent;text-decoration:underline;cursor:pointer;font:inherit;font-size:12px;">View Follow Up</button><div class="followup-history-detail" style="display:none;margin-top:7px;padding:8px 10px;border-radius:7px;background:#f7f2e9;white-space:pre-wrap;line-height:1.5;"></div></div>`).join("")}</div></details>` : ""}
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                  <button type="button" class="generate-client-followup" data-followup-type="after-date" data-client-id="${client.client_id}" ${lastCompleted ? "" : "disabled"} style="padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;font-weight:700;">Generate Follow Up</button>
+                  <button type="button" class="send-client-followup" data-client-id="${client.client_id}" data-already-sent="${lastCompleted?.after_date_follow_up_sent_at ? "1" : "0"}" ${lastCompleted ? "" : "disabled"} style="padding:9px 13px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;font-weight:700;">${lastCompleted?.after_date_follow_up_sent_at ? "Resend Follow Up" : "Send Follow Up"}</button>
+                </div>
+                <textarea class="client-followup-draft" rows="5" placeholder="Your follow up draft will appear here..." style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                <details style="margin-top:9px;">
+                  <summary style="cursor:pointer;font-size:12px;font-weight:700;">Customize & Draft Tools</summary>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:10px;">
+                    <label style="font-size:11px;font-weight:700;">TONE<select class="client-followup-tone" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="warm">Warm</option><option value="flirty">Flirty</option><option value="playful">Playful</option><option value="soft-sensual">Soft & Sensual</option><option value="direct">Direct</option></select></label>
+                    <label style="font-size:11px;font-weight:700;">LENGTH<select class="client-followup-length" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="short">Short</option><option value="medium">Medium</option></select></label>
+                    <label style="font-size:11px;font-weight:700;">GOAL<select class="client-followup-goal" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="no-pressure">Warm, No Pressure</option><option value="appreciation">Appreciation</option><option value="keep-connection">Keep Connection Open</option></select></label>
+                  </div>
+                  <textarea class="client-followup-instructions" rows="2" placeholder="Optional instructions, for example: make it sweeter, keep it simple, thank him for the flowers..." style="width:100%;margin-top:8px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;">
+                    <button type="button" class="save-client-followup" data-client-id="${client.client_id}" data-request-id="${lastCompleted?.id || ""}" ${lastCompleted ? "" : "disabled"} style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:${lastCompleted ? "pointer" : "not-allowed"};opacity:${lastCompleted ? "1" : ".5"};font:inherit;">Save Draft</button>
+                    <button type="button" class="preview-client-followup" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Preview</button>
+                    <button type="button" class="copy-client-followup" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Copy</button>
+                    <button type="button" class="clear-client-followup" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Clear</button>
+                  </div>
+                </details>
+                <div class="client-followup-preview" style="display:none;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:9px;background:#fffdf9;">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:.06em;margin-bottom:8px;">MESSAGE PREVIEW</div>
+                  <div class="client-followup-preview-body" style="white-space:pre-wrap;line-height:1.6;"></div>
+                </div>
+                <div class="client-followup-status" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+                </div>
+              </details>
+
+              <details class="client-profile-section client-retention-offer" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Retention Offer</summary>
+                <div style="margin-top:10px;"><div style="font-size:12px;color:var(--muted);">Create a manual retention offer for this client. The email opens in preview first and is never sent automatically.</div>
+                <div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:#f7f2e9;font-size:12px;"><strong>Eligibility:</strong> ${blacklistRecord ? "Not eligible · Blacklisted" : upcomingDate ? "Not eligible · Upcoming confirmed date" : completed > 0 ? "Eligible · "+completed+" completed date"+(completed===1?"":"s") : "Not eligible · No completed date"}</div>
+                <label style="display:block;margin-top:10px;font-size:11px;font-weight:700;">INCENTIVE<select class="client-retention-strategy" style="display:block;width:100%;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="extra-time">Extra 30 Minutes</option><option value="experience-upgrade">Experience Upgrade</option><option value="special-rate">Special Rate</option></select></label>
+                <button type="button" class="client-retention-preview" data-client-id="${client.client_id}" ${(!blacklistRecord&&!upcomingDate&&completed>0)?"":"disabled"} style="margin-top:10px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;font-weight:700;cursor:${(!blacklistRecord&&!upcomingDate&&completed>0)?"pointer":"not-allowed"};opacity:${(!blacklistRecord&&!upcomingDate&&completed>0)?"1":".5"};">Preview Email</button>
+                <div class="client-retention-status" style="margin-top:7px;font-size:12px;color:var(--muted);"></div></div>
+              </details>
+
+              <details class="client-profile-section" style="margin-top:10px;padding:12px;border:1px solid #eee7dc;border-radius:9px;background:white;">
+                <summary style="cursor:pointer;font-size:13px;font-weight:700;">Notes & Preferences</summary>
+                <div style="margin-top:10px;">
+                <strong style="font-size:13px;">Private Notes & Preferences</strong>
+                <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Preferences</label>
+                <textarea class="client-preferences" rows="3" placeholder="Favorite details, preferences, things they enjoy, thoughtful touches to remember..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.preferences || "")}</textarea>
+                <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Private Client Notes</label>
+                <textarea class="client-private-notes" rows="3" placeholder="Private reminders and notes for future dates..." style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;">${escapeHtml(savedProfile.notes || "")}</textarea>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:9px;"><button type="button" class="save-client-profile" data-client-id="${client.client_id}" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Save Notes & Preferences</button><span class="client-profile-save-status" style="font-size:12px;color:var(--muted);"></span></div>
+                </div>
+              </details>
             </div>
             ${latest ? `<button type="button" class="client-history-toggle" style="margin-top:14px;background:transparent;border:0;padding:0;text-decoration:underline;cursor:pointer;font:inherit;">View date history ↓</button><div class="client-history" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee7dc;">${sorted.map(r => `<button type="button" class="client-history-request" data-request-id="${r.id}" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:8px 0;cursor:pointer;font:inherit;"><strong>${escapeHtml(r.requested_date || "Date not provided")}</strong> · ${escapeHtml(String(r.status || "pending").replaceAll("_"," "))} →</button>`).join("")}</div>` : ""}
           </div>`;
@@ -3476,14 +3476,6 @@ async function loadRequests(options = {}) {
       clientRecords.querySelector(".client-load-more")?.addEventListener("click",()=>{
         clientRenderLimit+=baseClientRenderLimit;
         requestAnimationFrame(renderClients);
-      });
-      clientRecords.querySelectorAll(".client-profile-actions").forEach((controls)=>{
-        const verification=controls.querySelector(".client-id-documents");
-        const safety=controls.querySelector(".client-safety-section");
-        const firstSection=controls.querySelector(".client-profile-section");
-        if(verification&&firstSection) firstSection.insertAdjacentElement("beforebegin",verification);
-        const basicScreening=verification?.querySelector(".client-basic-screening .verification-actions");
-        if(basicScreening&&safety) basicScreening.insertAdjacentElement("beforebegin",safety);
       });
       clientRecords.querySelectorAll(".client-profile-toggle").forEach((button) => {
         button.addEventListener("click", () => {
@@ -5946,7 +5938,7 @@ async function loadRequests(options = {}) {
           }
           const confirmedReady=Boolean(employer&&title&&industry&&method&&evidence);
           if(note){
-            const labels={not_checked:"Employment has not been checked.",pending:"Employment verification is pending.",confirmed:"Employment confirmed.",unable_to_confirm:"Employment could not be confirmed.",mismatch:"Employment information mismatch."};
+            const labels={not_checked:"Employment has not been checked.",pending:"Employment verification is pending.",confirmed:"Employment confirmed.",not_applicable:"No employer to verify; record the reason in Evidence / reference.",unable_to_confirm:"Employment could not be confirmed.",mismatch:"Employment information mismatch."};
             note.textContent=labels[employmentStatus]||"";
             note.style.color=employmentStatus==="confirmed"?"#2f6b45":["unable_to_confirm","mismatch"].includes(employmentStatus)?"#8a2424":"var(--muted)";
           }
@@ -5992,7 +5984,7 @@ async function loadRequests(options = {}) {
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
           const isFinal=["verified","unable_to_verify","declined"].includes(decision);
           let ready=isFinal;
-          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&section.querySelector(".client-employment-status")?.value==="confirmed"&&section.dataset.publicRecordsReviewed==="1"&&section.dataset.criminalRecordsReviewed==="1";
+          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&["confirmed","not_applicable"].includes(section.querySelector(".client-employment-status")?.value)&&section.dataset.publicRecordsReviewed==="1"&&section.dataset.criminalRecordsReviewed==="1";
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
@@ -6516,6 +6508,7 @@ async function loadRequests(options = {}) {
             return;
           }
           button.textContent = "Blacklisted";
+          if(Number(result.approved_dates_needing_review||0)>0) window.alert("This client has "+result.approved_dates_needing_review+" confirmed date(s). Review each date and any deposit separately; blacklisting does not cancel them.");
           loadBlacklist();
           loadRequests();
         });
