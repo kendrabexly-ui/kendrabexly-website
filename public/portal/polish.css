@@ -93,3 +93,71 @@ body { background: var(--cream); -webkit-font-smoothing: antialiased; }
 @media (prefers-reduced-motion: reduce) {
   .sidebar .nav button { transition: none; }
 }
+
+
+/* X Agent: keep generated post review cards readable on phones. */
+@media (max-width: 640px) {
+  #x-day-results {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #x-day-results > [data-day-card] {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    margin: 0 0 12px !important;
+    padding: 12px !important;
+  }
+
+  #x-day-results > [data-day-card] > div:first-child {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+  }
+
+  #x-day-results > [data-day-card] > div:first-child > input[type="checkbox"] {
+    flex: 0 0 auto !important;
+    margin-top: 2px !important;
+  }
+
+  #x-day-results > [data-day-card] > div:first-child > span {
+    display: block !important;
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.45 !important;
+  }
+
+  #x-day-results [data-day-post] {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 105px !important;
+    height: auto !important;
+    margin: 10px 0 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  #x-day-results > [data-day-card] > div:last-child {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+  }
+}
