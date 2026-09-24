@@ -8679,6 +8679,11 @@ function escapeHtml(value) {
         } else if (sectionName === "calendar") {
           await loadCalendarAvailabilityRemote();
           await Promise.all([loadCalendarUpcomingDates(), loadCalendarCompletedDates()]);
+        } else if (sectionName === "website-editor") {
+          await Promise.all([
+            typeof loadGalleryManager === "function" ? loadGalleryManager() : Promise.resolve(),
+            typeof loadRateServicesRemote === "function" ? loadRateServicesRemote() : Promise.resolve()
+          ]);
         } else if (sectionName === "gallery") {
           await loadGalleryManager();
         } else if (sectionName === "newsletter") {
