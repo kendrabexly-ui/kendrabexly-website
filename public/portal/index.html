@@ -734,8 +734,10 @@
 
         document.body.dataset.adminSection = sectionName;
 
+        const websiteEditorIds = new Set(["website-editor", "photo-controls", "gallery", "rates-services", "photo-editor"]);
+        const isWebsiteEditor = sectionName === "website-editor";
         document.querySelectorAll(".section").forEach((item) => {
-          const active = item.id === sectionName;
+          const active = isWebsiteEditor ? websiteEditorIds.has(item.id) : item.id === sectionName;
           item.classList.toggle("active", active);
           item.classList.toggle("section-hard-hidden", !active);
           item.hidden = !active;
@@ -831,7 +833,195 @@
           <h2 id="website-editor-title">Website Editor</h2>
           <p>Edit the public website from one place. Manage photos, site-wide photo appearance, the gallery, rates and services, and photo editing without leaving the dashboard.</p>
         </div>
-        <div id="website-editor-content"></div>
+        <div id="website-editor-content">
+<section id="photo-controls" class="section">
+        <div class="section-heading">
+          <h2>Photo Controls</h2>
+          <p>Adjust the displayed size and transparency of photos across every public page and gallery slot.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div><div class="panel-title">Site-wide photo appearance</div><div class="panel-subtitle">These controls change how the selected photo is rendered on the website without replacing the original image.</div></div></div>
+          <div class="panel-body">
+            <label class="field"><span>Photo target</span><select id="photo-controls-target"></select></label>
+            <div class="photo-controls-grid">
+              <label class="photo-control-field"><span>Width <output id="photo-control-width-value">100%</output></span><input id="photo-control-width" type="range" min="10" max="200" step="1" value="100"></label>
+              <label class="photo-control-field"><span>Height <output id="photo-control-height-value">100%</output></span><input id="photo-control-height" type="range" min="10" max="200" step="1" value="100"></label>
+              <label class="photo-control-field"><span>Opacity / transparency <output id="photo-control-opacity-value">100%</output></span><input id="photo-control-opacity" type="range" min="0" max="100" step="1" value="100"></label>
+            </div>
+            <div class="photo-controls-actions"><button id="photo-controls-save" class="button" type="button">Save Controls</button><button id="photo-controls-reset" class="button secondary" type="button">Reset to 100%</button></div>
+            <p id="photo-controls-status" class="photo-controls-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+
+<section id="gallery" class="section">
+  <div class="section-heading">
+    <h2>The Muse Gallery</h2>
+    <p>Upload, replace, or remove the 13 photographs displayed on The Muse page.</p>
+  </div>
+  <div style="padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:white;margin-bottom:14px;font-size:13px;line-height:1.55;">
+    <strong>Gallery Photo Manager</strong>
+    <div style="margin-top:4px;color:var(--muted);">Images are resized before upload. Use clear, high-quality JPG, PNG, or WebP files. Changes publish to The Muse automatically.</div>
+  </div>
+  <div id="gallery-manager" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;"></div>
+  <div id="gallery-manager-status" role="status" aria-live="polite" style="min-height:20px;margin-top:14px;color:var(--muted);font-size:13px;"></div>
+</section>
+
+<section id="rates-services" class="section">
+  <div class="section-heading">
+    <h2>Rates & Services</h2>
+    <p>Your single source of truth for standard services, durations, and rates.</p>
+  </div>
+  <div style="padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:white;margin-bottom:14px;font-size:13px;">
+    <strong>Master Service Menu</strong>
+    <div style="margin-top:4px;color:var(--muted);line-height:1.5;">Maintain your normal pricing here. Newsletter packages and retention offers should reference these rates rather than changing them.</div>
+  </div>
+  <div id="rates-services-editor"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+    <button id="rates-save" type="button" disabled style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:default;opacity:.5;">Save Changes</button>
+    <button id="rates-preview" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Preview Menu</button>
+    <button id="rates-copy" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Copy Menu</button>
+    <button id="rates-discard" type="button" disabled style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:default;opacity:.5;">Discard Edits</button>
+    <button id="rates-reset" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Restore Defaults</button>
+    <span id="rates-status" style="align-self:center;color:var(--muted);font-size:13px;"></span>
+  </div>
+  <div id="rates-preview-panel" style="display:none;margin-top:14px;padding:18px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
+</section>
+
+<section id="photo-editor" class="section" aria-labelledby="photo-editor-title">
+        <div class="section-heading">
+          <h2 id="photo-editor-title">Photo Editor</h2>
+          <p>Edit, blur, crop, sharpen, compare, and export photos without overwriting the original file.</p>
+        </div>
+
+        <div class="photo-editor-topbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+          <label class="photo-editor-upload-label" id="photo-editor-upload-label" for="photo-editor-file">Upload Photo</label>
+          <input id="photo-editor-file" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif">
+          <button type="button" id="photo-editor-clear" data-photo-requires-image>Clear Photo</button>
+          <button type="button" id="photo-editor-reset" data-photo-requires-image>Reset</button>
+          <button type="button" id="photo-editor-before-after" data-photo-requires-image aria-label="Hold to compare the original photo">Hold: Before</button>
+          <span id="photo-editor-unsaved" hidden style="font-size:12px;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:#fff8e8;">Unsaved edits</span>
+        </div>
+
+        <div class="photo-editor-shell">
+          <div>
+            <div class="photo-editor-canvas-wrap" id="photo-editor-canvas-wrap" tabindex="0" aria-label="Photo editing workspace">
+              <div class="photo-editor-empty" id="photo-editor-empty">
+                <strong>Choose a photo to begin</strong>
+                Upload JPG, PNG, WebP, HEIC, or HEIF. Full resolution is preserved by default; large photos may use more memory.
+              </div>
+              <canvas id="photo-editor-canvas" aria-label="Editable photo"></canvas>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+              <button type="button" id="photo-editor-zoom-out" data-photo-requires-image aria-label="Zoom out">−</button>
+              <span id="photo-editor-zoom-value" aria-live="polite">100%</span>
+              <button type="button" id="photo-editor-zoom-in" data-photo-requires-image aria-label="Zoom in">+</button>
+              <button type="button" id="photo-editor-fit" data-photo-requires-image>Fit to Screen</button>
+              <button type="button" id="photo-editor-actual" data-photo-requires-image>Actual Size</button>
+              <button type="button" id="photo-editor-pan" data-photo-requires-image>Pan / Move</button>
+              <span id="photo-editor-selection-size" style="font-size:12px;color:var(--muted);"></span>
+            </div>
+            <div class="photo-editor-meta" id="photo-editor-meta">No photo loaded.</div>
+          </div>
+
+          <div class="photo-editor-tools">
+            <div class="photo-editor-card">
+              <h3>Adjust</h3>
+              <div class="photo-editor-field"><label for="photo-editor-brightness"><span>Brightness</span><span id="photo-editor-brightness-value">100%</span></label><input id="photo-editor-brightness" data-photo-requires-image type="range" min="40" max="160" value="100"></div>
+              <div class="photo-editor-field"><label for="photo-editor-contrast"><span>Contrast</span><span id="photo-editor-contrast-value">100%</span></label><input id="photo-editor-contrast" data-photo-requires-image type="range" min="40" max="180" value="100"></div>
+              <div class="photo-editor-field"><label for="photo-editor-saturation"><span>Saturation</span><span id="photo-editor-saturation-value">100%</span></label><input id="photo-editor-saturation" data-photo-requires-image type="range" min="0" max="200" value="100"></div>
+              <div class="photo-editor-field"><label for="photo-editor-exposure"><span>Exposure</span><span id="photo-editor-exposure-value">0</span></label><input id="photo-editor-exposure" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
+              <div class="photo-editor-field"><label for="photo-editor-highlights"><span>Highlights</span><span id="photo-editor-highlights-value">0</span></label><input id="photo-editor-highlights" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
+              <div class="photo-editor-field"><label for="photo-editor-shadows"><span>Shadows</span><span id="photo-editor-shadows-value">0</span></label><input id="photo-editor-shadows" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
+              <div class="photo-editor-field"><label for="photo-editor-warmth"><span>Warmth</span><span id="photo-editor-warmth-value">0</span></label><input id="photo-editor-warmth" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
+              <div class="photo-editor-field"><label for="photo-editor-sharpness"><span>Sharpen strength</span><span id="photo-editor-sharpness-value">35%</span></label><input id="photo-editor-sharpness" data-photo-requires-image type="range" min="0" max="100" value="35"></div>
+              <div class="photo-editor-field"><label for="photo-editor-straighten"><span>Straighten</span><span id="photo-editor-straighten-value">0°</span></label><input id="photo-editor-straighten" data-photo-requires-image type="range" min="-10" max="10" step=".25" value="0"></div>
+              <div class="photo-editor-row" style="margin-top:10px;">
+                <button type="button" id="photo-editor-grayscale" data-photo-requires-image>Black & White</button>
+                <button type="button" id="photo-editor-rotate-left" data-photo-requires-image>↶ Rotate</button>
+                <button type="button" id="photo-editor-rotate-right" data-photo-requires-image>↷ Rotate</button>
+                <button type="button" id="photo-editor-flip" data-photo-requires-image>Flip</button>
+              </div>
+            </div>
+
+            <div class="photo-editor-card">
+              <h3>Blur</h3>
+              <div class="photo-editor-row">
+                <button type="button" id="photo-editor-blur-mode" data-photo-requires-image>Blur Box</button>
+                <button type="button" id="photo-editor-brush-mode" data-photo-requires-image>Soft Blur Brush</button>
+                <button type="button" id="photo-editor-erase-brush" data-photo-requires-image>Erase Blur</button>
+                <button type="button" id="photo-editor-blur-all" data-photo-requires-image>Blur Entire Photo</button>
+              </div>
+              <div class="photo-editor-field"><label for="photo-editor-blur-strength"><span>Blur strength</span><span id="photo-editor-blur-strength-value">12 px</span></label><input id="photo-editor-blur-strength" data-photo-requires-image type="range" min="2" max="40" value="12"></div>
+              <div class="photo-editor-field"><label for="photo-editor-brush-size"><span>Brush size</span><span id="photo-editor-brush-size-value">80 px</span></label><input id="photo-editor-brush-size" data-photo-requires-image type="range" min="20" max="400" value="80"></div>
+              <div class="photo-editor-note">Box blur previews live while you drag. Brush blur uses a soft circular brush; Erase Blur restores pixels from the start of the current brush pass.</div>
+            </div>
+
+            <div class="photo-editor-card">
+              <h3>Crop</h3>
+              <div class="photo-editor-row">
+                <select id="photo-editor-crop-ratio" data-photo-requires-image aria-label="Crop ratio">
+                  <option value="free">Free</option>
+                  <option value="square">Square</option>
+                  <option value="4:5">4:5</option>
+                  <option value="3:4">3:4</option>
+                  <option value="16:9">16:9</option>
+                </select>
+                <button type="button" id="photo-editor-crop-mode" data-photo-requires-image>Crop Area</button>
+                <button type="button" id="photo-editor-apply-crop" disabled>Apply Crop</button>
+              </div>
+              <div class="photo-editor-note">Drag a crop area, then resize it with the corner handles before applying.</div>
+            </div>
+
+            <div class="photo-editor-card">
+              <h3>Sharpen / Deblur</h3>
+              <button type="button" id="photo-editor-deblur" data-photo-requires-image>Apply Deblur / Sharpen</button>
+              <div class="photo-editor-note">Heavy sharpening runs outside the main dashboard thread to reduce freezing.</div>
+            </div>
+
+            <div class="photo-editor-card">
+              <h3>History</h3>
+              <div class="photo-editor-actions">
+                <button type="button" id="photo-editor-undo" disabled>Undo</button>
+                <button type="button" id="photo-editor-redo" disabled>Redo</button>
+              </div>
+              <div class="photo-editor-note">Shortcuts: ⌘/Ctrl+Z Undo, ⇧⌘/Ctrl+Z Redo, Esc Cancel, 0 Fit, 1 Actual Size.</div>
+            </div>
+
+            <div class="photo-editor-card">
+              <h3>Export</h3>
+              <div class="photo-editor-field">
+                <label for="photo-editor-filename"><span>Filename</span></label>
+                <input id="photo-editor-filename" data-photo-requires-image type="text" value="edited-photo" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;">
+              </div>
+              <div class="photo-editor-field"><label for="photo-editor-jpg-quality"><span>JPG quality</span><span id="photo-editor-jpg-quality-value">98%</span></label><input id="photo-editor-jpg-quality" data-photo-requires-image type="range" min="80" max="100" value="98"></div>
+              <div class="photo-editor-actions">
+                <button type="button" id="photo-editor-download-jpg" class="primary" data-photo-requires-image>Download JPG</button>
+                <button type="button" id="photo-editor-download-png" class="primary" data-photo-requires-image>Download PNG</button>
+              </div>
+              <div class="photo-editor-note"><strong>Quality protection:</strong> edits stay at the photo’s full working resolution. PNG is lossless and preserves transparency. JPG defaults to 98% quality and warns before lower-quality export.</div>
+            </div>
+
+            <div class="photo-editor-card">
+              <h3>Save Copy to Gallery</h3>
+              <div class="photo-editor-row">
+                <select id="photo-editor-gallery-slot" data-photo-requires-image aria-label="Muse Gallery slot">
+                  <option value="">Choose slot</option>
+                  <option value="1">Slot 1</option><option value="2">Slot 2</option><option value="3">Slot 3</option>
+                  <option value="4">Slot 4</option><option value="5">Slot 5</option><option value="6">Slot 6</option><option value="7">Slot 7</option><option value="8">Slot 8</option><option value="9">Slot 9</option><option value="10">Slot 10</option><option value="11">Slot 11</option><option value="12">Slot 12</option><option value="13">Slot 13</option>
+                </select>
+                <button type="button" id="photo-editor-save-gallery" data-photo-requires-image>Save Copy</button>
+              </div>
+            </div>
+
+            <div class="photo-editor-card" aria-live="polite">
+              <progress id="photo-editor-progress" max="100" value="0" hidden style="width:100%;"></progress>
+              <div class="photo-editor-status" id="photo-editor-status"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+</div>
       </section>
 
       <!-- DASHBOARD -->
@@ -904,25 +1094,7 @@
 
       </section>
 
-      <section id="photo-controls" class="section">
-        <div class="section-heading">
-          <h2>Photo Controls</h2>
-          <p>Adjust the displayed size and transparency of photos across every public page and gallery slot.</p>
-        </div>
-        <div class="panel">
-          <div class="panel-header"><div><div class="panel-title">Site-wide photo appearance</div><div class="panel-subtitle">These controls change how the selected photo is rendered on the website without replacing the original image.</div></div></div>
-          <div class="panel-body">
-            <label class="field"><span>Photo target</span><select id="photo-controls-target"></select></label>
-            <div class="photo-controls-grid">
-              <label class="photo-control-field"><span>Width <output id="photo-control-width-value">100%</output></span><input id="photo-control-width" type="range" min="10" max="200" step="1" value="100"></label>
-              <label class="photo-control-field"><span>Height <output id="photo-control-height-value">100%</output></span><input id="photo-control-height" type="range" min="10" max="200" step="1" value="100"></label>
-              <label class="photo-control-field"><span>Opacity / transparency <output id="photo-control-opacity-value">100%</output></span><input id="photo-control-opacity" type="range" min="0" max="100" step="1" value="100"></label>
-            </div>
-            <div class="photo-controls-actions"><button id="photo-controls-save" class="button" type="button">Save Controls</button><button id="photo-controls-reset" class="button secondary" type="button">Reset to 100%</button></div>
-            <p id="photo-controls-status" class="photo-controls-status" role="status" aria-live="polite"></p>
-          </div>
-        </div>
-      </section>
+      
 \n      <!-- CALENDAR & DATE MANAGEMENT -->
 
       <section id="calendar" class="section">
@@ -1261,177 +1433,15 @@
 
       <!-- GALLERY -->
 
-<section id="gallery" class="section">
-  <div class="section-heading">
-    <h2>The Muse Gallery</h2>
-    <p>Upload, replace, or remove the 13 photographs displayed on The Muse page.</p>
-  </div>
-  <div style="padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:white;margin-bottom:14px;font-size:13px;line-height:1.55;">
-    <strong>Gallery Photo Manager</strong>
-    <div style="margin-top:4px;color:var(--muted);">Images are resized before upload. Use clear, high-quality JPG, PNG, or WebP files. Changes publish to The Muse automatically.</div>
-  </div>
-  <div id="gallery-manager" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;"></div>
-  <div id="gallery-manager-status" role="status" aria-live="polite" style="min-height:20px;margin-top:14px;color:var(--muted);font-size:13px;"></div>
-</section>
+
 
       <!-- RATES & SERVICES -->
 
-<section id="rates-services" class="section">
-  <div class="section-heading">
-    <h2>Rates & Services</h2>
-    <p>Your single source of truth for standard services, durations, and rates.</p>
-  </div>
-  <div style="padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:white;margin-bottom:14px;font-size:13px;">
-    <strong>Master Service Menu</strong>
-    <div style="margin-top:4px;color:var(--muted);line-height:1.5;">Maintain your normal pricing here. Newsletter packages and retention offers should reference these rates rather than changing them.</div>
-  </div>
-  <div id="rates-services-editor"></div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-    <button id="rates-save" type="button" disabled style="border:0;border-radius:8px;padding:11px 16px;background:var(--ink);color:white;cursor:default;opacity:.5;">Save Changes</button>
-    <button id="rates-preview" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Preview Menu</button>
-    <button id="rates-copy" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Copy Menu</button>
-    <button id="rates-discard" type="button" disabled style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:default;opacity:.5;">Discard Edits</button>
-    <button id="rates-reset" type="button" style="border:1px solid var(--line);border-radius:8px;padding:11px 16px;background:white;cursor:pointer;">Restore Defaults</button>
-    <span id="rates-status" style="align-self:center;color:var(--muted);font-size:13px;"></span>
-  </div>
-  <div id="rates-preview-panel" style="display:none;margin-top:14px;padding:18px;border:1px solid var(--line);border-radius:10px;background:white;"></div>
-</section>
+
 
 
       <!-- PHOTO EDITOR -->
-      <section id="photo-editor" class="section" aria-labelledby="photo-editor-title">
-        <div class="section-heading">
-          <h2 id="photo-editor-title">Photo Editor</h2>
-          <p>Edit, blur, crop, sharpen, compare, and export photos without overwriting the original file.</p>
-        </div>
-
-        <div class="photo-editor-topbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-          <label class="photo-editor-upload-label" id="photo-editor-upload-label" for="photo-editor-file">Upload Photo</label>
-          <input id="photo-editor-file" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif">
-          <button type="button" id="photo-editor-clear" data-photo-requires-image>Clear Photo</button>
-          <button type="button" id="photo-editor-reset" data-photo-requires-image>Reset</button>
-          <button type="button" id="photo-editor-before-after" data-photo-requires-image aria-label="Hold to compare the original photo">Hold: Before</button>
-          <span id="photo-editor-unsaved" hidden style="font-size:12px;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:#fff8e8;">Unsaved edits</span>
-        </div>
-
-        <div class="photo-editor-shell">
-          <div>
-            <div class="photo-editor-canvas-wrap" id="photo-editor-canvas-wrap" tabindex="0" aria-label="Photo editing workspace">
-              <div class="photo-editor-empty" id="photo-editor-empty">
-                <strong>Choose a photo to begin</strong>
-                Upload JPG, PNG, WebP, HEIC, or HEIF. Full resolution is preserved by default; large photos may use more memory.
-              </div>
-              <canvas id="photo-editor-canvas" aria-label="Editable photo"></canvas>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
-              <button type="button" id="photo-editor-zoom-out" data-photo-requires-image aria-label="Zoom out">−</button>
-              <span id="photo-editor-zoom-value" aria-live="polite">100%</span>
-              <button type="button" id="photo-editor-zoom-in" data-photo-requires-image aria-label="Zoom in">+</button>
-              <button type="button" id="photo-editor-fit" data-photo-requires-image>Fit to Screen</button>
-              <button type="button" id="photo-editor-actual" data-photo-requires-image>Actual Size</button>
-              <button type="button" id="photo-editor-pan" data-photo-requires-image>Pan / Move</button>
-              <span id="photo-editor-selection-size" style="font-size:12px;color:var(--muted);"></span>
-            </div>
-            <div class="photo-editor-meta" id="photo-editor-meta">No photo loaded.</div>
-          </div>
-
-          <div class="photo-editor-tools">
-            <div class="photo-editor-card">
-              <h3>Adjust</h3>
-              <div class="photo-editor-field"><label for="photo-editor-brightness"><span>Brightness</span><span id="photo-editor-brightness-value">100%</span></label><input id="photo-editor-brightness" data-photo-requires-image type="range" min="40" max="160" value="100"></div>
-              <div class="photo-editor-field"><label for="photo-editor-contrast"><span>Contrast</span><span id="photo-editor-contrast-value">100%</span></label><input id="photo-editor-contrast" data-photo-requires-image type="range" min="40" max="180" value="100"></div>
-              <div class="photo-editor-field"><label for="photo-editor-saturation"><span>Saturation</span><span id="photo-editor-saturation-value">100%</span></label><input id="photo-editor-saturation" data-photo-requires-image type="range" min="0" max="200" value="100"></div>
-              <div class="photo-editor-field"><label for="photo-editor-exposure"><span>Exposure</span><span id="photo-editor-exposure-value">0</span></label><input id="photo-editor-exposure" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
-              <div class="photo-editor-field"><label for="photo-editor-highlights"><span>Highlights</span><span id="photo-editor-highlights-value">0</span></label><input id="photo-editor-highlights" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
-              <div class="photo-editor-field"><label for="photo-editor-shadows"><span>Shadows</span><span id="photo-editor-shadows-value">0</span></label><input id="photo-editor-shadows" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
-              <div class="photo-editor-field"><label for="photo-editor-warmth"><span>Warmth</span><span id="photo-editor-warmth-value">0</span></label><input id="photo-editor-warmth" data-photo-requires-image type="range" min="-100" max="100" value="0"></div>
-              <div class="photo-editor-field"><label for="photo-editor-sharpness"><span>Sharpen strength</span><span id="photo-editor-sharpness-value">35%</span></label><input id="photo-editor-sharpness" data-photo-requires-image type="range" min="0" max="100" value="35"></div>
-              <div class="photo-editor-field"><label for="photo-editor-straighten"><span>Straighten</span><span id="photo-editor-straighten-value">0°</span></label><input id="photo-editor-straighten" data-photo-requires-image type="range" min="-10" max="10" step=".25" value="0"></div>
-              <div class="photo-editor-row" style="margin-top:10px;">
-                <button type="button" id="photo-editor-grayscale" data-photo-requires-image>Black & White</button>
-                <button type="button" id="photo-editor-rotate-left" data-photo-requires-image>↶ Rotate</button>
-                <button type="button" id="photo-editor-rotate-right" data-photo-requires-image>↷ Rotate</button>
-                <button type="button" id="photo-editor-flip" data-photo-requires-image>Flip</button>
-              </div>
-            </div>
-
-            <div class="photo-editor-card">
-              <h3>Blur</h3>
-              <div class="photo-editor-row">
-                <button type="button" id="photo-editor-blur-mode" data-photo-requires-image>Blur Box</button>
-                <button type="button" id="photo-editor-brush-mode" data-photo-requires-image>Soft Blur Brush</button>
-                <button type="button" id="photo-editor-erase-brush" data-photo-requires-image>Erase Blur</button>
-                <button type="button" id="photo-editor-blur-all" data-photo-requires-image>Blur Entire Photo</button>
-              </div>
-              <div class="photo-editor-field"><label for="photo-editor-blur-strength"><span>Blur strength</span><span id="photo-editor-blur-strength-value">12 px</span></label><input id="photo-editor-blur-strength" data-photo-requires-image type="range" min="2" max="40" value="12"></div>
-              <div class="photo-editor-field"><label for="photo-editor-brush-size"><span>Brush size</span><span id="photo-editor-brush-size-value">80 px</span></label><input id="photo-editor-brush-size" data-photo-requires-image type="range" min="20" max="400" value="80"></div>
-              <div class="photo-editor-note">Box blur previews live while you drag. Brush blur uses a soft circular brush; Erase Blur restores pixels from the start of the current brush pass.</div>
-            </div>
-
-            <div class="photo-editor-card">
-              <h3>Crop</h3>
-              <div class="photo-editor-row">
-                <select id="photo-editor-crop-ratio" data-photo-requires-image aria-label="Crop ratio">
-                  <option value="free">Free</option>
-                  <option value="square">Square</option>
-                  <option value="4:5">4:5</option>
-                  <option value="3:4">3:4</option>
-                  <option value="16:9">16:9</option>
-                </select>
-                <button type="button" id="photo-editor-crop-mode" data-photo-requires-image>Crop Area</button>
-                <button type="button" id="photo-editor-apply-crop" disabled>Apply Crop</button>
-              </div>
-              <div class="photo-editor-note">Drag a crop area, then resize it with the corner handles before applying.</div>
-            </div>
-
-            <div class="photo-editor-card">
-              <h3>Sharpen / Deblur</h3>
-              <button type="button" id="photo-editor-deblur" data-photo-requires-image>Apply Deblur / Sharpen</button>
-              <div class="photo-editor-note">Heavy sharpening runs outside the main dashboard thread to reduce freezing.</div>
-            </div>
-
-            <div class="photo-editor-card">
-              <h3>History</h3>
-              <div class="photo-editor-actions">
-                <button type="button" id="photo-editor-undo" disabled>Undo</button>
-                <button type="button" id="photo-editor-redo" disabled>Redo</button>
-              </div>
-              <div class="photo-editor-note">Shortcuts: ⌘/Ctrl+Z Undo, ⇧⌘/Ctrl+Z Redo, Esc Cancel, 0 Fit, 1 Actual Size.</div>
-            </div>
-
-            <div class="photo-editor-card">
-              <h3>Export</h3>
-              <div class="photo-editor-field">
-                <label for="photo-editor-filename"><span>Filename</span></label>
-                <input id="photo-editor-filename" data-photo-requires-image type="text" value="edited-photo" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;">
-              </div>
-              <div class="photo-editor-field"><label for="photo-editor-jpg-quality"><span>JPG quality</span><span id="photo-editor-jpg-quality-value">98%</span></label><input id="photo-editor-jpg-quality" data-photo-requires-image type="range" min="80" max="100" value="98"></div>
-              <div class="photo-editor-actions">
-                <button type="button" id="photo-editor-download-jpg" class="primary" data-photo-requires-image>Download JPG</button>
-                <button type="button" id="photo-editor-download-png" class="primary" data-photo-requires-image>Download PNG</button>
-              </div>
-              <div class="photo-editor-note"><strong>Quality protection:</strong> edits stay at the photo’s full working resolution. PNG is lossless and preserves transparency. JPG defaults to 98% quality and warns before lower-quality export.</div>
-            </div>
-
-            <div class="photo-editor-card">
-              <h3>Save Copy to Gallery</h3>
-              <div class="photo-editor-row">
-                <select id="photo-editor-gallery-slot" data-photo-requires-image aria-label="Muse Gallery slot">
-                  <option value="">Choose slot</option>
-                  <option value="1">Slot 1</option><option value="2">Slot 2</option><option value="3">Slot 3</option>
-                  <option value="4">Slot 4</option><option value="5">Slot 5</option><option value="6">Slot 6</option><option value="7">Slot 7</option><option value="8">Slot 8</option><option value="9">Slot 9</option><option value="10">Slot 10</option><option value="11">Slot 11</option><option value="12">Slot 12</option><option value="13">Slot 13</option>
-                </select>
-                <button type="button" id="photo-editor-save-gallery" data-photo-requires-image>Save Copy</button>
-              </div>
-            </div>
-
-            <div class="photo-editor-card" aria-live="polite">
-              <progress id="photo-editor-progress" max="100" value="0" hidden style="width:100%;"></progress>
-              <div class="photo-editor-status" id="photo-editor-status"></div>
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       <!-- NEWSLETTER AGENT -->
 
@@ -8971,35 +8981,7 @@ function escapeHtml(value) {
 </script>
   <script src="/portal/photo-editor.js" defer></script>
 <script src="/portal/photo-controls.js" defer></script>
-<script>
-(function () {
-  function mountWebsiteEditor() {
-    var editor = document.getElementById("website-editor-content");
-    if (!editor || editor.dataset.mounted === "1") return;
-    var ids = ["photo-controls", "gallery", "rates-services", "photo-editor"];
-    var mounted = 0;
-    ids.forEach(function (id) {
-      var panel = document.getElementById(id);
-      if (!panel || panel === editor || editor.contains(panel)) return;
-      panel.classList.remove("section", "active", "section-hard-hidden");
-      panel.classList.add("website-editor-panel");
-      panel.hidden = false;
-      panel.removeAttribute("hidden");
-      panel.removeAttribute("aria-hidden");
-      panel.style.setProperty("display", "block", "important");
-      editor.appendChild(panel);
-      mounted++;
-    });
-    if (mounted) editor.dataset.mounted = "1";
-  }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mountWebsiteEditor, {once:true});
-  } else {
-    mountWebsiteEditor();
-  }
-  window.addEventListener("load", mountWebsiteEditor, {once:true});
-})();
-</script>
+
 
 </body>
 </html>
