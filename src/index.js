@@ -128,6 +128,18 @@ function verificationRouteAccess(pathname, method) {
   const fresh=method==="DELETE";
   return {permission:match[1],fresh};
 }
+async function clientBlacklistHold(env,clientId) {
+  if(!Number.isInteger(clientId)||clientId<1)return false;
+  const match=await env.DB.prepare(`SELECT b.id FROM blacklist b JOIN clients c ON c.id=?
+    WHERE b.client_id=c.id OR (c.email<>'' AND b.email<>'' AND LOWER(b.email)=LOWER(c.email))
+      OR (c.phone<>'' AND b.phone<>'' AND b.phone=c.phone) LIMIT 1`).bind(clientId).first();
+  if(match)return true;
+  const external=await env.DB.prepare(`SELECT e.result FROM request_external_blacklist_checks e
+    JOIN date_requests dr ON dr.id=e.date_request_id
+    WHERE dr.client_id=? AND dr.status IN ('pending','screening_pending','pending_final_approval')
+    ORDER BY dr.id DESC LIMIT 1`).bind(clientId).first().catch(()=>null);
+  return external?.result==="possible_match";
+}
 
 function isPersonaDatabasePending(transactionId,inquiryStatus,databaseStatus) {
   if (!transactionId) return false;
@@ -222,6 +234,13 @@ async function ensureSiteContentTables(env) {
       combined_step INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS request_external_blacklist_checks (
+      date_request_id INTEGER PRIMARY KEY,
+      result TEXT NOT NULL CHECK (result IN ('clear', 'possible_match')),
+      checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
   const continuationColumns = await env.DB.prepare("PRAGMA table_info(booking_continuations)").all();
@@ -1398,6 +1417,13 @@ export default {
     if(verificationAccess){
       const authorization=authorizeVerificationRequest(request,env,verificationAccess.permission,{fresh:verificationAccess.fresh});
       if(!authorization.ok)return verificationForbidden(authorization);
+      if(request.method==="POST" && !["/api/admin/clients/id-document/retention","/api/admin/clients/verification-sensitive"].includes(url.pathname)){
+        const contentType=request.headers.get("content-type")||"";
+        const input=contentType.includes("multipart/form-data") ? await request.clone().formData().catch(()=>null)
+          : await request.clone().json().catch(()=>null);
+        const clientId=Number(input instanceof FormData ? input.get("client_id") : input?.client_id);
+        if(await clientBlacklistHold(env,clientId))return Response.json({ok:false,message:"Verification is on hold because this client is blacklisted or has an unresolved blacklist match."},{status:409});
+      }
     }
 
 
@@ -5425,6 +5451,7 @@ if (
   request.method === "GET"
 ) {
   try {
+    await ensureSiteContentTables(env);
     const id = Number(url.searchParams.get("id"));
 
     if (!Number.isInteger(id) || id < 1) {
@@ -5457,6 +5484,8 @@ if (
           dr.final_approval,
           dr.notes,
           dr.created_at,
+          (SELECT result FROM request_external_blacklist_checks WHERE date_request_id=dr.id) AS external_blacklist_result,
+          (SELECT checked_at FROM request_external_blacklist_checks WHERE date_request_id=dr.id) AS external_blacklist_checked_at,
           (SELECT verification_status FROM client_verification_audits va WHERE va.date_request_id=dr.id AND va.client_id=dr.client_id LIMIT 1) AS verification_status,
           (SELECT completed_at FROM client_verification_audits va WHERE va.date_request_id=dr.id AND va.client_id=dr.client_id LIMIT 1) AS verification_completed_at,
           (SELECT completed_at FROM booking_continuations bc WHERE bc.date_request_id=dr.id LIMIT 1) AS screening_submitted_at,
@@ -5793,12 +5822,22 @@ if (
         const name = [client.first_name, client.last_name].filter(Boolean).join(" ").trim();
         await env.DB.prepare("INSERT INTO blacklist (client_id, name, email, phone, reason) VALUES (?, ?, ?, ?, ?)").bind(clientId, name, client.email || "", client.phone || "", reason).run();
         await env.DB.prepare("UPDATE clients SET status='do_not_book' WHERE id=?").bind(clientId).run();
-        await env.DB.prepare("UPDATE date_requests SET status='declined' WHERE client_id=? AND status='pending'").bind(clientId).run();
+        await env.DB.prepare("UPDATE date_requests SET status='declined',final_approval=0 WHERE client_id=? AND status IN ('pending','screening_pending','pending_final_approval','approved')").bind(clientId).run();
         return Response.json({ ok:true, client_status:"do_not_book" });
       } catch (error) {
         console.error("Add blacklist error:", error);
         return Response.json({ ok:false, message:"Unable to blacklist this client." }, { status:500 });
       }
+    }
+
+    if(url.pathname==="/api/admin/blacklist/update" && request.method==="POST"){
+      const data=await request.json().catch(()=>({}));
+      const id=Number(data.id),reason=String(data.reason||"").trim().slice(0,2000);
+      if(!Number.isInteger(id)||id<1||!reason)return Response.json({ok:false,message:"Enter a reason for this blacklist record."},{status:400});
+      const record=await env.DB.prepare("SELECT id FROM blacklist WHERE id=?").bind(id).first();
+      if(!record)return Response.json({ok:false,message:"Blacklist record not found."},{status:404});
+      await env.DB.prepare("UPDATE blacklist SET reason=? WHERE id=?").bind(reason,id).run();
+      return Response.json({ok:true,reason});
     }
 
 
@@ -6039,7 +6078,7 @@ if (
         }
         const draftId = Number(url.pathname.split("/").slice(-2, -1)[0]);
         const draft = await env.DB.prepare(`
-          SELECT ed.id, ed.subject, ed.body, ed.email_type, ed.status, c.email, c.first_name
+          SELECT ed.id, ed.client_id, ed.date_request_id, ed.subject, ed.body, ed.email_type, ed.status, c.email, c.first_name
           FROM email_drafts ed
           LEFT JOIN clients c ON c.id = ed.client_id
           WHERE ed.id = ?
@@ -6047,6 +6086,14 @@ if (
         if (!draft) return Response.json({ ok:false, message:"Email draft not found." }, { status:404 });
         if (!draft.email) return Response.json({ ok:false, message:"This client does not have an email address." }, { status:400 });
         if (draft.status === "sent") return Response.json({ ok:false, message:"This email has already been sent." }, { status:400 });
+        if(["pending_final_approval","deposit_request","date_confirmed"].includes(draft.email_type) && await clientBlacklistHold(env,Number(draft.client_id)))
+          return Response.json({ok:false,message:"This client is blacklisted. Booking emails cannot be sent."},{status:409});
+        if (draft.email_type === "pending_final_approval" && draft.date_request_id) {
+          await ensureSiteContentTables(env);
+          const check=await env.DB.prepare("SELECT result FROM request_external_blacklist_checks WHERE date_request_id=?")
+            .bind(draft.date_request_id).first();
+          if(check?.result!=="clear")return Response.json({ok:false,message:"Record a No match result from the external blacklist in Request Review before sending the private screening email."},{status:409});
+        }
 
         const html = '<div style="font-family:Arial,sans-serif;line-height:1.65;color:#29282d;white-space:normal;">' +
           screeningDraftHtml(draft.body,draft.email_type) + "</div>";
@@ -7699,6 +7746,28 @@ if (
 
    
     // ============================================================
+    // MANUAL EXTERNAL BLACKLIST CHECK
+    // ============================================================
+    if (url.pathname === "/api/admin/request/blacklist-check" && request.method === "POST") {
+      const data=await request.json().catch(()=>({}));
+      const requestId=Number(data.id);
+      const result=String(data.result||"");
+      if(!Number.isInteger(requestId)||requestId<1 || !["clear","possible_match"].includes(result))
+        return Response.json({ok:false,message:"Choose No match or Possible match for a valid request."},{status:400});
+      await ensureSiteContentTables(env);
+      const row=await env.DB.prepare(`SELECT dr.status,
+        (SELECT COUNT(*) FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='pending_final_approval' AND ed.status='sent') AS sent_count
+        FROM date_requests dr WHERE dr.id=?`).bind(requestId).first();
+      if(!row)return Response.json({ok:false,message:"Request not found."},{status:404});
+      if(!["pending","screening_pending"].includes(row.status)||Number(row.sent_count)>0)
+        return Response.json({ok:false,message:"The blacklist check can only be changed before the private screening email is sent."},{status:409});
+      await env.DB.prepare(`INSERT INTO request_external_blacklist_checks(date_request_id,result,checked_at)
+        VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(date_request_id) DO UPDATE SET result=excluded.result,checked_at=CURRENT_TIMESTAMP`)
+        .bind(requestId,result).run();
+      return Response.json({ok:true,result,message:result==="clear"?"No match recorded. You can proceed to private screening.":"Possible match recorded. Review it before proceeding."});
+    }
+
+    // ============================================================
     // MOVE REQUEST FORWARD
     // ============================================================
 
@@ -7725,6 +7794,7 @@ if (
             SELECT
               dr.id,
               dr.client_id,
+              dr.status,
               dr.requested_date,
               dr.requested_time,
               dr.location_name,
@@ -7749,6 +7819,13 @@ if (
             { status: 404 }
           );
         }
+        if(existingRequest.status!=="pending")return Response.json({ok:false,message:"This request has already moved beyond initial review."},{status:409});
+
+        await ensureSiteContentTables(env);
+        const externalCheck=await env.DB.prepare("SELECT result FROM request_external_blacklist_checks WHERE date_request_id=?").bind(requestId).first();
+        if(externalCheck?.result!=="clear")return Response.json({ok:false,message:"Record a No match result from the external blacklist before requesting ID and deposit."},{status:409});
+        const internalBlock=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();
+        if(internalBlock)return Response.json({ok:false,message:"This client is on the dashboard blacklist. Review the safety record before proceeding."},{status:409});
 
         const notesText = String(existingRequest.notes || "");
         const durationMatch = notesText.match(/Duration:\s*([^\n]+)/i);
@@ -7899,6 +7976,8 @@ if (
           WHERE dr.id=? LIMIT 1
         `).bind(requestId).first();
         if(!row) return Response.json({ok:false,message:"Request not found."},{status:404});
+        if(row.status!=="screening_pending" || await clientBlacklistHold(env,Number(row.client_id)))
+          return Response.json({ok:false,message:"This request cannot continue while it is closed or the client is blacklisted."},{status:409});
         const continuation=await env.DB.prepare("SELECT combined_step FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
         if(Number(continuation?.combined_step||0)===1) return Response.json({ok:false,message:"This client already received the combined screening and deposit request. Review the submitted form and confirm payment from the dashboard."},{status:409});
         if(!row.screening_submitted_at) return Response.json({ok:false,message:"The client must submit screening details before a deposit can be requested."},{status:409});
@@ -8350,6 +8429,8 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             { status: 404 }
           );
         }
+        if(await clientBlacklistHold(env,Number(existingRequest.client_id)))
+          return Response.json({ok:false,message:"This request cannot be approved while the client is blacklisted."},{status:409});
 
         if (!["pending_final_approval", "screening_pending"].includes(existingRequest.status)) {
           return Response.json(
