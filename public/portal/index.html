@@ -4894,14 +4894,23 @@ async function loadRequests(options = {}) {
             disposition_summary:section.querySelector(".client-public-record-disposition")?.value||"",
             evidence_reference:section.querySelector(".client-public-record-evidence")?.value||""
           };
-          const response=await fetch("/api/admin/clients/public-record-check",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
-          const result=await response.json();
+          const response=await fetch("/api/admin/clients/public-record-check",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
+          const result=await response.json().catch(()=>({ok:false,message:"The server returned an invalid save response."}));
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save public record check.");
-          applyPublicRecordCheck(section,result.check);
+          const verifyResponse=await fetch("/api/admin/clients/public-record-check?client_id="+encodeURIComponent(section.dataset.clientId)+"&saved_at="+Date.now(),{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
+          const verifyResult=await verifyResponse.json().catch(()=>({ok:false}));
+          if(!verifyResponse.ok||!verifyResult.ok||!verifyResult.check)throw new Error("The public record check was submitted but could not be confirmed as saved.");
+          const savedCheck=verifyResult.check;
+          const savedPublicReviewed=Boolean(savedCheck.public_records_reviewed);
+          const savedCriminalReviewed=Boolean(savedCheck.criminal_records_reviewed);
+          if(savedPublicReviewed!==payload.public_records_reviewed||savedCriminalReviewed!==payload.criminal_records_reviewed){
+            throw new Error("The public record review selections did not persist. Please save again.");
+          }
+          applyPublicRecordCheck(section,savedCheck);
           section.dispatchEvent(new Event("verification-record-check-saved"));
-          if(status){status.textContent="Saved just now";status.style.color="#2f6b45";}
-          section.dataset.publicRecordStatus=result.check?.record_status||"not_checked";
-          const publicState=result.check?.record_status==="potential_match"?"potential_match":result.check?.record_status==="confirmed_match"?"needs_review":result.check?.record_status==="unable_to_verify"?"unable_to_verify":result.check?.record_status==="no_public_record_found"?"confirmed":"in_progress";
+          if(status){status.textContent="Saved and verified just now";status.style.color="#2f6b45";}
+          section.dataset.publicRecordStatus=savedCheck.record_status||"not_checked";
+          const publicState=savedCheck.record_status==="potential_match"?"potential_match":savedCheck.record_status==="confirmed_match"?"needs_review":savedCheck.record_status==="unable_to_verify"?"unable_to_verify":savedCheck.record_status==="no_public_record_found"?"confirmed":"in_progress";
           await setOptionalSectionState(section,"public_records",publicState).catch(()=>{});
           await Promise.all([loadVerificationActivity(section),loadVerificationCheckHistory(section)]);
           if(card){card.dataset.dirty="0";setCardSaveState(card,"Saved just now","#2f6b45");if(result.address_check?.result_status==="confirmed"){card.classList.add("is-collapsed");const collapse=card.querySelector(".verification-card-collapse");if(collapse)collapse.textContent="Expand";}}
