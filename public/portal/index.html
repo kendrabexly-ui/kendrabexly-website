@@ -4871,7 +4871,14 @@ async function loadRequests(options = {}) {
         try{
           const response=await fetch("/api/admin/clients/public-record-check?client_id="+encodeURIComponent(section.dataset.clientId),{cache:"no-store"});
           const result=await response.json();
-          if(response.ok&&result.ok)applyPublicRecordCheck(section,result.check);
+          if(response.ok&&result.ok){
+            applyPublicRecordCheck(section,result.check);
+            // Recalculate Final Verification controls after saved public/criminal
+            // review state is restored from the server. Without this, the page
+            // can show no unresolved warnings while the completion button stays
+            // disabled from its initial render state.
+            section.dispatchEvent(new Event("verification-record-check-saved"));
+          }
         }catch(_error){}
       };
       const savePublicRecordCheck=async(section)=>{
