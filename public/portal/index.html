@@ -5143,7 +5143,7 @@ async function loadRequests(options = {}) {
         const warnings=[];
         if(section.dataset.hasDocument!=="1")warnings.push("ID document has not been uploaded.");
         if(String(publicRecords)==="potential_match")warnings.push("Public-record search contains a potential identity match.");
-        if(section.dataset.publicRecordsReviewed!=="1"||section.dataset.criminalRecordsReviewed!=="1")warnings.push("Both public-record and criminal-court searches must be saved before verification.");
+        if(!Boolean(section.querySelector(".client-public-records-reviewed")?.checked)||!Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked))warnings.push("Both public-record and criminal-court searches must be marked reviewed before verification.");
         if(String(publicRecords)==="confirmed_match")warnings.push("A confirmed public-record match is recorded.");
         if(["potential_match","confirmed_match"].includes(String(sexOffender)))warnings.push("Sex offender registry result requires review.");
         if(String(address)==="mismatch")warnings.push("Address verification shows a mismatch.");
