@@ -3403,7 +3403,7 @@ async function loadRequests(options = {}) {
                     <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Notes / evidence reference<textarea class="client-verification-evidence" rows="3" maxlength="2000" placeholder="Record the source or reference used. Do not enter passwords, full SSNs, or unnecessary sensitive information." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
                     <div class="client-final-review-summary" style="margin-top:12px;font-size:12px;line-height:1.55;color:var(--muted);">Review the completed checks below. When everything is approved, completing this final step will prepare the date confirmation email as a draft in Email Drafts.</div>
                     <div class="client-final-review-warnings" tabindex="-1" role="region" aria-label="Verification warnings" style="margin-top:8px;"></div>
-                    <div class="verification-actions" style="margin-top:10px;"><button type="button" class="client-final-review-complete" disabled style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification</button></div>
+                    
                     <div class="client-verification-completed-display" style="margin-top:9px;font-size:12px;color:var(--muted);">Completion: Not completed</div>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                       <div class="verification-save-indicator client-verification-draft-status" role="status" aria-live="polite"></div>
@@ -3412,7 +3412,7 @@ async function loadRequests(options = {}) {
                     <div class="verification-actions verification-sticky-actions">
                       <button type="button" class="client-needs-more-info" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Needs More Information</button>
                       <button type="button" class="client-verification-save" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);cursor:pointer;font:inherit;">Save Progress</button>
-                      <button type="button" class="client-verification-complete" disabled hidden tabindex="-1" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:not-allowed;opacity:.5;font:inherit;font-weight:700;">Complete Final Verification</button>
+                      
                       <span class="client-verification-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
                     </div>
                   </section>
@@ -6033,7 +6033,7 @@ async function loadRequests(options = {}) {
         const decisionNotes=section.querySelector(".client-verification-decision-notes");
         const declinedAction=section.querySelector(".client-declined-action");
         const declinedActionWrap=section.querySelector(".client-declined-action-wrap");
-        const completeButton=section.querySelector(".client-verification-complete");
+        const completeButton=null;
         const checklistSelectors=[".client-check-identity",".client-check-contact"];
         [".client-verification-status",".client-verification-method",".client-verification-employer",".client-verification-job-title",".client-verification-industry",".client-employment-status",".client-employment-method",".client-employment-work-email",".client-employment-website",".client-employment-evidence",".client-verification-reason",...checklistSelectors].forEach(sel=>section.querySelector(sel)?.addEventListener("change",()=>{updateEmploymentVerificationUi();saveSafeVerificationLocalDraft(section);}));
         const checklistLabels={"client-check-identity":"Identity matches ID","client-check-contact":"Contact information confirmed"};
@@ -6059,8 +6059,7 @@ async function loadRequests(options = {}) {
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
-          const finalComplete=section.querySelector(".client-final-review-complete");
-          if(finalComplete){finalComplete.disabled=!ready;finalComplete.style.opacity=ready?"1":".5";finalComplete.style.cursor=ready?"pointer":"not-allowed";}
+          
           updateVerificationSummary(section);
           updateVerificationFlowSummary(section);
         };
@@ -6096,14 +6095,7 @@ async function loadRequests(options = {}) {
           updateCompletionControls();
         }));
 
-        section.querySelector(".client-verification-complete")?.addEventListener("click",async()=>{
-          if(!completeButton||completeButton.disabled)return;
-          const confirmed=await confirmVerificationDecision(section);
-          if(!confirmed)return;
-          section.dataset.finalDecisionConfirmed="1";
-          section.querySelector(".client-verification-save")?.click();
-        });
-
+        
         section.querySelector(".client-verification-save")?.addEventListener("click",async(event)=>{
           const button=event.currentTarget,saveStatus=section.querySelector(".client-verification-save-status"),auditId=Number(section.dataset.verificationAuditId);
           if(!auditId){if(saveStatus)saveStatus.textContent="No verification record is available.";return;}
