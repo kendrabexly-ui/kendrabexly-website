@@ -6510,6 +6510,8 @@ if (
         const caseReference=String(data.case_reference||"").trim().slice(0,240);
         const dispositionSummary=String(data.disposition_summary||"").trim().slice(0,600);
         const evidenceReference=String(data.evidence_reference||"").trim().slice(0,1200);
+        const publicRecordsReviewed=data.public_records_reviewed ? 1 : 0;
+        const criminalRecordsReviewed=data.criminal_records_reviewed ? 1 : 0;
         if(recordStatus!=="not_checked" && !(sourceName&&sourceUrl)){
           return Response.json({ok:false,message:"Record the official court, registry, or agency source used for this check."},{status:400});
         }
