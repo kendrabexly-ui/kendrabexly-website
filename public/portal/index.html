@@ -5137,7 +5137,7 @@ async function loadRequests(options = {}) {
         const identity=section.dataset.hasDocument==="1"?(latest.identity_confirmed?"confirmed":"in_progress"):"not_checked";
         const employmentRaw=section.dataset.employmentStatus||latest.employment_verification_status||section.querySelector(".client-employment-status")?.value||"not_checked";
         const employment=employmentRaw==="pending"?"in_progress":employmentRaw==="unable_to_confirm"?"unable_to_verify":employmentRaw;
-        const manual=latest.verification_status==="needs_more_information"?"needs_review":checklist===5?"confirmed":checklist>0||section.querySelector(".client-persona-birthdate")?.value?"in_progress":"not_checked";
+        const manual=latest.verification_status==="needs_more_information"?"needs_review":checklist===2?"confirmed":checklist>0||section.querySelector(".client-persona-birthdate")?.value?"in_progress":"not_checked";
         const credential=states.credential==="skipped"?"skipped":section.dataset.credentialStatus||section.querySelector(".client-credential-status")?.value||"not_checked";
         const address=states.address==="skipped"?"skipped":section.dataset.addressStatus||section.querySelector(".client-address-check-result")?.value||"not_checked";
         const publicRecords=section.dataset.publicRecordStatus||section.querySelector(".client-public-record-status")?.value||"not_checked";
@@ -5158,7 +5158,7 @@ async function loadRequests(options = {}) {
         if(["errored","failed"].includes(String(personaRaw).toLowerCase()))warnings.push("Persona/database verification returned an error.");
         if(basicScreening==="pending_review")warnings.push("The initial request is still awaiting a basic screening decision.");
         if(basicScreening==="needs_more_information")warnings.push("Basic screening information is incomplete.");
-        const values={basic_screening:basicScreening,identity,employment,credential,address,public_records:publicRecords,persona,age:age===null?"Not checked":"Age "+age,phone,sex_offender:sexOffender,checklist:checklist+" of 5",warnings:String(warnings.length),decision};
+        const values={basic_screening:basicScreening,identity,employment,credential,address,public_records:publicRecords,persona,age:age===null?"Not checked":"Age "+age,phone,sex_offender:sexOffender,checklist:checklist+" of 2",warnings:String(warnings.length),decision};
         Object.entries(values).forEach(([key,value])=>{const el=section.querySelector('[data-summary-status="'+key+'"]');if(el)el.textContent=verificationPretty(value);});
         setVerificationBadge(section.querySelector(".client-id-badge"),"Identity",identity);
         setVerificationBadge(section.querySelector(".client-phone-check-badge"),"Phone",phone);
@@ -6055,7 +6055,7 @@ async function loadRequests(options = {}) {
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
           const isFinal=["verified","unable_to_verify","declined"].includes(decision);
           let ready=isFinal;
-          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&["confirmed","not_applicable"].includes(section.querySelector(".client-employment-status")?.value)&&Boolean(section.querySelector(".client-public-records-reviewed")?.checked)&&Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked);
+          if(decision==="verified")ready=ready&&(section.dataset.basicScreeningState||"pending_review")==="confirmed"&&!missing.length&&age!==null&&age>=verificationMinimumAge&&Boolean(section.querySelector(".client-public-records-reviewed")?.checked)&&Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked);
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
