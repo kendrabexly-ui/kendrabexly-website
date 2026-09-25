@@ -3279,7 +3279,7 @@ async function loadRequests(options = {}) {
                       </div>
                     </div>
                     <div class="verification-actions" style="margin-top:9px;">
-                      <button type="button" class="client-public-record-save" aria-label="Save public record check" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.08);">Save Public Record Check</button>
+                      
                       <button type="button" class="client-public-record-add-record" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Add another case / result</button>
                       <button type="button" class="client-public-record-add-search" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;font:inherit;">Add another jurisdiction</button>
                       <span class="client-public-record-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span>
@@ -5173,7 +5173,7 @@ async function loadRequests(options = {}) {
           ' · <strong>Checklist:</strong> '+escapeHtml(checklist+" of 2")+
           ' · <strong>Final decision:</strong> '+escapeHtml(verificationPretty(decision))+
           '<div style="margin-top:6px;">Final decision remains manual. Automated and optional checks provide evidence only and never approve or decline the client automatically.</div>';
-        const finalReady=basicScreening==="confirmed"&&checklist===2&&age!==null&&age>=verificationMinimumAge&&section.dataset.publicRecordsReviewed==="1"&&section.dataset.criminalRecordsReviewed==="1";
+        const finalReady=basicScreening==="confirmed"&&checklist===2&&age!==null&&age>=verificationMinimumAge&&Boolean(section.querySelector(".client-public-records-reviewed")?.checked)&&Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked);
         const completeState=["verified","unable_to_verify","declined"].includes(decision)?"complete":"not_checked";
         updateVerificationProgress(section,{
           basic_screening:basicScreening,
@@ -5872,28 +5872,12 @@ async function loadRequests(options = {}) {
         });
         section.querySelector(".client-address-check-county")?.addEventListener("change",()=>{renderAddressLookupLinks(section);const prCounty=section.querySelector(".client-public-record-county");const prState=section.querySelector(".client-public-record-state")?.value||"";const addressState=section.querySelector(".client-address-check-state")?.value||"";if(prCounty&&prState===addressState&&!prCounty.value)prCounty.value=section.querySelector(".client-address-check-county")?.value||"";renderPublicRecordLookups(section);});
         syncAddressCheckFromVerification(section);
-        const publicRecordSaveButton=section.querySelector(".client-public-record-save");
-        if(publicRecordSaveButton){
-          const runPublicRecordSave=async(event)=>{
-            event?.preventDefault();
-            event?.stopPropagation();
-            if(section.dataset.publicRecordSaveBusy==="1")return;
-            section.dataset.publicRecordSaveBusy="1";
-            publicRecordSaveButton.setAttribute("aria-busy","true");
-            try{
-              await savePublicRecordCheck(section);
-            }finally{
-              section.dataset.publicRecordSaveBusy="0";
-              publicRecordSaveButton.removeAttribute("aria-busy");
-            }
-          };
-          publicRecordSaveButton.addEventListener("click",runPublicRecordSave,{capture:true});
-          publicRecordSaveButton.addEventListener("touchend",(event)=>{
-            if(event.cancelable)event.preventDefault();
-            runPublicRecordSave(event);
-          },{passive:false,capture:true});
-        }
         section.querySelector(".client-sex-offender-save")?.addEventListener("click",()=>saveSexOffenderRegistryCheck(section));
+        section.querySelectorAll(".client-public-records-reviewed,.client-criminal-records-reviewed").forEach(input=>input.addEventListener("change",async()=>{
+          updateCompletionControls();
+          await savePublicRecordCheck(section);
+        }));
+
         const syncPublicRecordCountyVisibility=()=>{
           const state=section.querySelector(".client-public-record-state")?.value||"";
           const wrap=section.querySelector(".client-public-record-county-wrap");
@@ -6064,7 +6048,7 @@ async function loadRequests(options = {}) {
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
           const isFinal=["verified","unable_to_verify","declined"].includes(decision);
           let ready=isFinal;
-          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&["confirmed","not_applicable"].includes(section.querySelector(".client-employment-status")?.value)&&section.dataset.publicRecordsReviewed==="1"&&section.dataset.criminalRecordsReviewed==="1";
+          if(decision==="verified")ready=ready&&!missing.length&&age!==null&&age>=verificationMinimumAge&&["confirmed","not_applicable"].includes(section.querySelector(".client-employment-status")?.value)&&Boolean(section.querySelector(".client-public-records-reviewed")?.checked)&&Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked);
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
