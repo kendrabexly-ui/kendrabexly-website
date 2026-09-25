@@ -103,9 +103,9 @@
           <label for="combined-payment-method">Deposit method *</label>
           <select id="combined-payment-method" name="deposit_payment_method" disabled>
             <option value="">Choose a method</option>
-            <option value="gift-card" data-method="gift-card">Gift Card</option>
-            <option value="stripe" data-method="stripe">Stripe</option>
-            <option value="crypto" data-method="crypto">Crypto</option>
+            <option value="gift-card" data-method="gift-card">Prepaid Visa / Mastercard Gift Card</option>
+            <option value="stripe" data-method="stripe">Card Checkout (Stripe)</option>
+            <option value="crypto" data-method="crypto">Crypto — USDC / USDT on Solana</option>
           </select>
         </div>
         <div class="field full-width">
@@ -118,7 +118,7 @@
           <span id="combined-deposit-base">Base deposit</span>
           <span id="combined-deposit-fee" hidden></span>
         </div>
-        <p>The base deposit is 25% of the date total. Stripe and Crypto add a 10% processing fee to the deposit. This form records your selection; payment is confirmed separately.</p>
+        <p>The base deposit is 25% of the date total. Card checkout and Crypto add a 10% processing fee to the deposit. This form records your selection; payment is confirmed separately. Cash App is not accepted. Please do not attempt to send a deposit to a Cash App account.</p>
         <label class="checkbox-label"><input id="combined-acknowledgment" type="checkbox" name="deposit_step_acknowledged" value="yes" disabled><span>I have reviewed the deposit amount and understand that the date is not final until payment is confirmed and Kendra gives final approval.</span></label>
       </section>
       <section class="form-section">
@@ -150,9 +150,9 @@
           <label for="continuation-payment-method">Payment method *</label>
           <select id="continuation-payment-method" name="deposit_payment_method" required>
             <option value="">Choose a payment method</option>
-            <option value="gift-card" data-method="gift-card">Gift Card</option>
-            <option value="stripe" data-method="stripe">Stripe</option>
-            <option value="crypto" data-method="crypto">Crypto</option>
+            <option value="gift-card" data-method="gift-card">Prepaid Visa / Mastercard Gift Card</option>
+            <option value="stripe" data-method="stripe">Card Checkout (Stripe)</option>
+            <option value="crypto" data-method="crypto">Crypto — USDC / USDT on Solana</option>
           </select>
         </div>
         <div class="field full-width">
@@ -165,7 +165,7 @@
           <span id="deposit-base">Base deposit</span>
           <span id="deposit-fee" hidden></span>
         </div>
-        <p>Your deposit is 25% of the date total. Stripe and Crypto add a 10% processing fee to the deposit. Choosing a method here does not mark the deposit as paid; Kendra confirms payment separately.</p>
+        <p>Your deposit is 25% of the date total. Card checkout and Crypto add a 10% processing fee to the deposit. Choosing a method here does not mark the deposit as paid; Kendra confirms payment separately. Cash App is not accepted. Please do not attempt to send a deposit to a Cash App account.</p>
         <label class="checkbox-label">
           <input type="checkbox" name="deposit_step_acknowledged" value="yes" required>
           <span>I have reviewed the deposit amount, selected payment method, and payment instructions and understand that the date is not final until the deposit is confirmed and Kendra gives final approval.</span>
@@ -229,16 +229,16 @@
       const gift = select.querySelector('option[data-method="gift-card"]');
       const stripe = select.querySelector('option[data-method="stripe"]');
       const crypto = select.querySelector('option[data-method="crypto"]');
-      if (gift) gift.textContent = "Gift Card — " + money(baseDepositAmount);
-      if (stripe) stripe.textContent = "Stripe — " + money(feeTotal) + " total (" + money(fee) + " fee)";
-      if (crypto) crypto.textContent = "Crypto — " + money(feeTotal) + " total (" + money(fee) + " fee)";
+      if (gift) gift.textContent = "Prepaid Visa / Mastercard Gift Card — " + money(baseDepositAmount);
+      if (stripe) stripe.textContent = "Card Checkout (Stripe) — " + money(feeTotal) + " total (" + money(fee) + " fee)";
+      if (crypto) crypto.textContent = "Crypto — USDC / USDT on Solana — " + money(feeTotal) + " total (" + money(fee) + " fee)";
     }
 
     function updateCombinedDeposit() {
       const select = document.getElementById("combined-payment-method");
       const fee = Math.round(baseDepositAmount * 10) / 100;
       const feeTotal = Math.round((baseDepositAmount + fee) * 100) / 100;
-      for (const [method,label,total] of [["gift-card","Gift Card",baseDepositAmount],["stripe","Stripe",feeTotal],["crypto","Crypto",feeTotal]]) {
+      for (const [method,label,total] of [["gift-card","Prepaid Visa / Mastercard Gift Card",baseDepositAmount],["stripe","Card Checkout (Stripe)",feeTotal],["crypto","Crypto — USDC / USDT on Solana",feeTotal]]) {
         const option = select.querySelector('[data-method="'+method+'"]');
         if (option) option.textContent = label + " — " + money(total) + (method === "gift-card" ? "" : " total (" + money(fee) + " fee)");
       }
