@@ -6510,8 +6510,9 @@ if (
         const caseReference=String(data.case_reference||"").trim().slice(0,240);
         const dispositionSummary=String(data.disposition_summary||"").trim().slice(0,600);
         const evidenceReference=String(data.evidence_reference||"").trim().slice(0,1200);
-        const publicRecordsReviewed=data.public_records_reviewed ? 1 : 0;
-        const criminalRecordsReviewed=data.criminal_records_reviewed ? 1 : 0;
+        const truthyReviewFlag=(value)=>value===true||value===1||String(value||"").trim().toLowerCase()==="true"||String(value||"").trim()==="1"||String(value||"").trim().toLowerCase()==="on"||String(value||"").trim().toLowerCase()==="yes";
+        const publicRecordsReviewed=truthyReviewFlag(data.public_records_reviewed) ? 1 : 0;
+        const criminalRecordsReviewed=truthyReviewFlag(data.criminal_records_reviewed) ? 1 : 0;
         if(recordStatus!=="not_checked" && !(sourceName&&sourceUrl)){
           return Response.json({ok:false,message:"Record the official court, registry, or agency source used for this check."},{status:400});
         }
@@ -6559,7 +6560,11 @@ if (
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
           FROM client_public_record_checks WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
-        return Response.json({ok:true,check:saved},{headers:{"Cache-Control":"private, no-store"}});
+        return Response.json({ok:true,check:saved?{
+          ...saved,
+          public_records_reviewed:Boolean(saved.public_records_reviewed),
+          criminal_records_reviewed:Boolean(saved.criminal_records_reviewed)
+        }:null},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Public record check save error:",error);
         return Response.json({ok:false,message:"Unable to save public court record check.",technical_details:String(error?.message||error)},{status:500});
