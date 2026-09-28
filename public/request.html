@@ -848,14 +848,10 @@
             : "";
           const timeText = requestedTime.selectedOptions[0]?.textContent?.trim() || requestedTime.value;
           form.innerHTML = '<section class="request-success" aria-labelledby="request-success-title">' +
-            '<div class="eyebrow">REQUEST RECEIVED</div>' +
-            '<h2 id="request-success-title">Your request is in 💋</h2>' +
-            '<p>Thank you' + (firstName ? ', <strong>' + firstName.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong>' : '') + '. I received your private request and will review it personally.</p>' +
+            '<div class="eyebrow">THANK YOU, HANDSOME</div>' +
+            '<h2 id="request-success-title">I’ve got you 💋</h2>' +
+            '<p>Thank you' + (firstName ? ', <strong>' + firstName.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong>' : '') + '. I’m glad you found your way here. I have your details, and I’ll take a little time to look everything over. Keep an eye on <strong>' + emailAddress.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong> — if we’re a good fit, you’ll hear from me soon. Until then, consider this your first little kiss from me. 💕</p>' +
             '<div class="request-success-summary"><strong>' + (requestedDateText || 'Requested date') + '</strong>' + (timeText ? '<span>' + timeText + '</span>' : '') + '</div>' +
-            '<div class="no-payment-callout"><strong>Nothing else is required from you right now.</strong><span>I’ll review your request personally.</span></div>' +
-            '<h3>What happens next</h3>' +
-            '<ol><li>I review your request.</li><li>If I would like to move forward, you will receive one private link to complete the next step.</li><li>After I finish my review, I’ll send your confirmation.</li></ol>' +
-            '<p>Please watch <strong>' + emailAddress.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch])) + '</strong> for the next step.</p>' +
             '<a class="button" href="/">Return to the website</a>' +
           '</section>';
 
