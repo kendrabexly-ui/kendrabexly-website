@@ -4237,7 +4237,14 @@ My journal will continue to be a place where I share a little more of that side 
           "signature-girlfriend-experience": { experience:"Signature Girlfriend Experience", duration:"1.5 hours", price:750 },
           "greek-princess-experience": { experience:"Greek Princess Experience", duration:"1.5 hours", price:1000 }
         };
-        const selectedSubscriberSpecial = monthlySpecials[subscriberSpecial] || null;
+        // The current request form uses date_type as the experience selector and no
+        // longer posts the legacy subscriber_special field. For newsletter-linked
+        // requests, infer the selected monthly special from date_type while still
+        // accepting subscriber_special from older forms/links.
+        const selectedSubscriberSpecialKey =
+          subscriberSpecial || (newsletterOfferId && monthlySpecials[dateType] ? dateType : "");
+        const selectedSubscriberSpecial =
+          monthlySpecials[selectedSubscriberSpecialKey] || null;
 
         let newsletterOffer = null;
         let newsletterOfferExpired = false;
