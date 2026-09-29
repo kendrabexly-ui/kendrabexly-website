@@ -4178,7 +4178,17 @@ My journal will continue to be a place where I share a little more of that side 
       request.method === "POST"
     ) {
       try {
-        const data = await request.json();
+        const bookingFormContentType = String(request.headers.get("content-type") || "").toLowerCase();
+        const isWordPressBookingForm = bookingFormContentType.includes("application/x-www-form-urlencoded");
+        const data = isWordPressBookingForm
+          ? Object.fromEntries((await request.formData()).entries())
+          : await request.json();
+
+        if (data.booking_option && (!data.date_type || !data.duration)) {
+          const [optionType, optionDuration] = String(data.booking_option).split("|");
+          data.date_type = optionType || "";
+          data.duration = optionDuration || "";
+        }
 
         const firstName =
           String(data.first_name || "").trim();
@@ -4674,6 +4684,13 @@ My journal will continue to be a place where I share a little more of that side 
         // Do not create an email draft when a booking request is submitted.
         // The first client email is created only when the request is moved
         // forward for screening. Deposit instructions are created only after verification.
+
+        if (isWordPressBookingForm) {
+          return Response.redirect(
+            "https://kendrabexly.wordpress.com/?page_id=56&preview=true",
+            303
+          );
+        }
 
         return bookingCorsJson({
           ok: true,
