@@ -1405,6 +1405,108 @@ async function siteAvailableSlots(env, date, requestedDuration, excludeRequestId
   };
 }
 
+function standaloneBookingPage() {
+  return \`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meet Kendra | Private Booking</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+:root{--ivory:#F7F3EC;--ink:#180710;--blush:#EFE7DF;--wine:#6B173F;--gold:#B99A7A}
+*{box-sizing:border-box}body{margin:0;background:var(--ivory);color:var(--ink);font-family:Arial,sans-serif;line-height:1.55}
+.hero{background:var(--ink);color:var(--ivory);padding:72px 20px 56px;text-align:center}
+.eyebrow{color:var(--gold);font-size:12px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 14px}
+h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(38px,7vw,64px);margin:0 0 14px}
+.hero p{max-width:680px;margin:0 auto;color:var(--blush);font-size:18px}
+.wrap{max-width:920px;margin:0 auto;padding:46px 20px 80px}
+.card{background:#fff;border:1px solid #eadfd5;border-radius:22px;padding:28px;box-shadow:0 10px 30px rgba(24,7,16,.06)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{grid-column:1/-1}
+label{display:block;font-weight:600;margin-bottom:7px}input,select{width:100%;padding:14px 15px;border:1px solid #d8c8bc;border-radius:12px;background:#fff;color:var(--ink);font:inherit}
+input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
+.small{font-size:13px;opacity:.72;margin-top:5px}.section{grid-column:1/-1;margin-top:12px;padding-top:24px;border-top:1px solid #eadfd5}
+.section h2{font-family:Georgia,serif;font-weight:400;margin:0 0 6px;font-size:28px}
+.outcall{display:none;grid-column:1/-1;background:var(--blush);border-radius:16px;padding:20px}.outcall.show{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);padding:15px 28px;font:inherit;font-weight:700;cursor:pointer;margin-top:26px}
+button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:20px;padding:15px;border-radius:12px}.status.show{display:block}.status.error{background:#f8e7ea;color:var(--wine)}.status.success{background:#e9f3eb;color:#225b31}
+@media(max-width:700px){.grid,.outcall.show{grid-template-columns:1fr}.full,.section,.outcall{grid-column:auto}.card{padding:20px}.hero{padding-top:56px}}
+</style>
+</head>
+<body>
+<header class="hero">
+<p class="eyebrow">Private Booking</p>
+<h1>Meet Kendra</h1>
+<p>Tell me what you have in mind. I review every request personally.</p>
+</header>
+<main class="wrap">
+<form id="booking" class="card" novalidate>
+<div class="grid">
+<div><label for="first">First name *</label><input id="first" name="first_name" autocomplete="given-name" required></div>
+<div><label for="last">Last name *</label><input id="last" name="last_name" autocomplete="family-name" required></div>
+<div><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+<div><label for="phone">Mobile number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" required><div class="small">Please use a standard mobile number.</div></div>
+<div><label for="occupation">Occupation *</label><input id="occupation" name="occupation" required></div>
+<div><label for="base">Base state *</label><select id="base" name="base_state" required>
+<option value="">Choose a state</option>
+<option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option><option>CO</option><option>CT</option><option>DE</option><option>DC</option><option>FL</option><option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option><option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option><option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option><option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option><option>NJ</option><option>NM</option><option>NY</option><option>NC</option><option>ND</option><option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option><option>SC</option><option>SD</option><option>TN</option><option>TX</option><option>UT</option><option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option>
+</select></div>
+
+<div class="section"><h2>Our Time Together</h2><div class="small">Choose the experience and amount of time that feels right.</div></div>
+
+<div class="full"><label for="experience">Experience *</label><select id="experience" name="date_type" required>
+<option value="">Choose an experience</option>
+<option value="private-introduction">Private Introduction · 20 minutes · $250</option>
+<option value="signature-brief-introduction">Signature Brief Introduction · 30 minutes · $300</option>
+<option value="greek-princess-brief-introduction">Greek Princess Brief Introduction · 30 minutes · $400</option>
+<option value="signature-girlfriend-experience">Signature Girlfriend Experience</option>
+<option value="greek-princess-experience">Greek Princess Experience</option>
+</select></div>
+
+<div><label for="duration">Duration *</label><select id="duration" name="duration" required disabled><option value="">Choose an experience first</option></select></div>
+<div><label for="appointment">Location *</label><select id="appointment" name="appointment_type" required>
+<option value="">Choose one</option><option value="incall">Incall</option><option value="outcall">Outcall · +$100</option>
+</select></div>
+
+<div id="outcall" class="outcall">
+<div><label for="out1">Hotel, property, or address *</label><input id="out1" name="outcall_address_line_1"></div>
+<div><label for="out2">Suite / room / additional details</label><input id="out2" name="outcall_address_line_2"></div>
+<div><label for="city">City *</label><input id="city" name="outcall_city"></div>
+<div><label for="state">State</label><input id="state" name="outcall_state" maxlength="2"></div>
+<div><label for="zip">ZIP</label><input id="zip" name="outcall_postal_code" inputmode="numeric"></div>
+</div>
+
+<div><label for="date">Preferred date *</label><input id="date" name="requested_date" type="date" required></div>
+<div><label for="time">Available start time *</label><select id="time" name="requested_time" required disabled><option value="">Choose date and duration first</option></select><div class="small">Times are pulled from my live availability.</div></div>
+</div>
+
+<div id="status" class="status" role="status" aria-live="polite"></div>
+<button id="submit" type="submit">Send My Request</button>
+</form>
+</main>
+<script>
+(()=>{const f=document.getElementById("booking"),experience=document.getElementById("experience"),duration=document.getElementById("duration"),appointment=document.getElementById("appointment"),outcall=document.getElementById("outcall"),date=document.getElementById("date"),time=document.getElementById("time"),status=document.getElementById("status"),submit=document.getElementById("submit");
+const options={
+"private-introduction":[["20-minutes","20 minutes · $250"]],
+"signature-brief-introduction":[["30-minutes","30 minutes · $300"]],
+"greek-princess-brief-introduction":[["30-minutes","30 minutes · $400"]],
+"signature-girlfriend-experience":[["1-hour","1 hour · $500"],["1.5-hours","1½ hours · $750"],["2-hours","2 hours · $1,000"],["4-hours","4 hours · $2,300"]],
+"greek-princess-experience":[["1-hour","1 hour · $700"],["1.5-hours","1½ hours · $1,000"],["2-hours","2 hours · $1,300"],["4-hours","4 hours · $2,800"]]
+};
+function message(text,type){status.textContent=text;status.className="status show "+type}
+function setDurations(){const rows=options[experience.value]||[];duration.innerHTML=rows.length?rows.map(r=>'<option value="'+r[0]+'">'+r[1]+'</option>').join(""):'<option value="">Choose an experience first</option>';duration.disabled=!rows.length;loadTimes()}
+async function loadTimes(){if(!date.value||!duration.value){time.disabled=true;time.innerHTML='<option value="">Choose date and duration first</option>';return}time.disabled=true;time.innerHTML='<option value="">Checking availability…</option>';try{const res=await fetch("/api/public/availability?date="+encodeURIComponent(date.value)+"&duration="+encodeURIComponent(duration.value));const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to load availability.");if(!data.slots.length){time.innerHTML='<option value="">No times available</option>';return}time.innerHTML='<option value="">Choose a start time</option>'+data.slots.map(v=>{const p=v.split(":").map(Number),h=p[0],m=p[1],amp=h>=12?"PM":"AM",hh=((h+11)%12)+1;return '<option value="'+v+'">'+hh+":"+String(m).padStart(2,"0")+" "+amp+"</option>"}).join("");time.disabled=false}catch(err){time.innerHTML='<option value="">Availability unavailable</option>';message(err.message||"Unable to load availability.","error")}}
+experience.addEventListener("change",setDurations);duration.addEventListener("change",loadTimes);date.addEventListener("change",loadTimes);
+appointment.addEventListener("change",()=>{const show=appointment.value==="outcall";outcall.classList.toggle("show",show);document.getElementById("out1").required=show;document.getElementById("city").required=show});
+const min=new Date();min.setDate(min.getDate()+1);date.min=min.toISOString().slice(0,10);
+f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload=Object.fromEntries(new FormData(f).entries());try{const res=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");f.innerHTML='<div style="text-align:center;padding:34px 10px"><p class="eyebrow" style="color:#6B173F">YOUR REQUEST IS IN</p><h2 style="font-family:Georgia,serif;font-weight:400;font-size:38px;margin:0 0 14px">Thank you.</h2><p>Your private request has been received for review. If I would like to move forward, the next step will arrive privately.</p></div>'}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Send My Request"}});
+})();
+</script>
+</body>
+</html>\`;
+}
+
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -8749,6 +8851,17 @@ if (
       const destination = new URL(request.url);
       destination.pathname = legacyPortalRoutes.get(url.pathname);
       return Response.redirect(destination.toString(), 302);
+    }
+
+    if (url.pathname === "/booking" || url.pathname === "/booking/") {
+      return new Response(standaloneBookingPage(), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=UTF-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          "X-Robots-Tag": "noindex, nofollow"
+        }
+      });
     }
 
     // =========================================================
