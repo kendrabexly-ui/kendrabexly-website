@@ -1408,6 +1408,35 @@ async function siteAvailableSlots(env, date, requestedDuration, excludeRequestId
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const bookingCorsOrigin = String(request.headers.get("Origin") || "");
+    const bookingCorsAllowed = new Set([
+      "https://kendrabexly.wordpress.com",
+      "https://kendrabexly.com",
+      "https://www.kendrabexly.com"
+    ]);
+    const bookingCorsHeaders = bookingCorsAllowed.has(bookingCorsOrigin)
+      ? {
+          "Access-Control-Allow-Origin": bookingCorsOrigin,
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+          "Vary": "Origin"
+        }
+      : {};
+    const bookingCorsJson = (body, init = {}) => {
+      const headers = new Headers(init.headers || {});
+      Object.entries(bookingCorsHeaders).forEach(([key, value]) => headers.set(key, value));
+      return Response.json(body, { ...init, headers });
+    };
+    if (
+      request.method === "OPTIONS" &&
+      ["/api/request", "/api/public/availability"].includes(url.pathname)
+    ) {
+      return new Response(null, {
+        status: 204,
+        headers: bookingCorsHeaders
+      });
+    }
+
     const verificationAccess=verificationRouteAccess(url.pathname,request.method);
     if(verificationAccess){
       const authorization=authorizeVerificationRequest(request,env,verificationAccess.permission,{fresh:verificationAccess.fresh});
@@ -4127,10 +4156,10 @@ My journal will continue to be a place where I share a little more of that side 
       const date = String(url.searchParams.get("date") || "").trim();
       const duration = siteDurationMinutes(url.searchParams.get("duration") || "1-hour");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return Response.json({ ok: false, message: "Choose a valid date." }, { status: 400 });
+        return bookingCorsJson({ ok: false, message: "Choose a valid date." }, { status: 400 });
       }
       const availability = await siteAvailableSlots(env, date, duration);
-      return Response.json({
+      return bookingCorsJson({
         ok: true,
         date,
         duration_minutes: duration,
@@ -4219,7 +4248,7 @@ My journal will continue to be a place where I share a little more of that side 
           !Number.isFinite(requestedStart.getTime()) ||
           requestedStart.getTime() < Date.now() + 2 * 60 * 60 * 1000
         ) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message: "Please choose a start time at least 2 hours from the time you submit your request."
@@ -4263,7 +4292,7 @@ My journal will continue to be a place where I share a little more of that side 
           }
 
           if (newsletterOfferExpired) {
-            return Response.json(
+            return bookingCorsJson(
               {
                 ok: false,
                 message: "That newsletter special has expired. Please use the current newsletter offer or submit a standard private request."
@@ -4275,7 +4304,7 @@ My journal will continue to be a place where I share a little more of that side 
 
 
         if (newsletterOffer && !selectedSubscriberSpecial) {
-          return Response.json(
+          return bookingCorsJson(
             { ok:false, message:"Please choose either the Signature Girlfriend Experience or Greek Princess Experience monthly special." },
             { status:400 }
           );
@@ -4296,7 +4325,7 @@ My journal will continue to be a place where I share a little more of that side 
           !appointmentType ||
           !duration
         ) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message:
@@ -4307,7 +4336,7 @@ My journal will continue to be a place where I share a little more of that side 
         }
 
         if (!VALID_BOOKING_STATE_CODES.has(baseState)) {
-          return Response.json(
+          return bookingCorsJson(
             { ok: false, message: "Please choose a valid base state." },
             { status: 400 }
           );
@@ -4320,7 +4349,7 @@ My journal will continue to be a place where I share a little more of that side 
           /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!emailPattern.test(email)) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message:
@@ -4339,7 +4368,7 @@ My journal will continue to be a place where I share a little more of that side 
           !allowedAppointmentTypes.includes(appointmentType) ||
           !allowedDurations.includes(duration)
         ) {
-          return Response.json(
+          return bookingCorsJson(
             { ok: false, message: "Please choose valid booking options." },
             { status: 400 }
           );
@@ -4355,7 +4384,7 @@ My journal will continue to be a place where I share a little more of that side 
         };
 
         if (!allowedDurationsByExperience[dateType]?.includes(duration)) {
-          return Response.json(
+          return bookingCorsJson(
             { ok: false, message: "Please choose a duration available for the selected experience." },
             { status: 400 }
           );
@@ -4366,7 +4395,7 @@ My journal will continue to be a place where I share a little more of that side 
           appointmentType === "outcall" &&
           (!outcallAddressLine1 || !outcallCity)
         ) {
-          return Response.json(
+          return bookingCorsJson(
             { ok: false, message: "Please provide the outcall hotel, property, or neighborhood and city." },
             { status: 400 }
           );
@@ -4378,7 +4407,7 @@ My journal will continue to be a place where I share a little more of that side 
           siteDurationMinutes(duration)
         );
         if (!availability.slots.includes(requestedTime.slice(0, 5))) {
-          return Response.json(
+          return bookingCorsJson(
             { ok: false, message: "That start time is no longer available. Please choose another opening." },
             { status: 409 }
           );
@@ -4451,7 +4480,7 @@ My journal will continue to be a place where I share a little more of that side 
             flagNotes
           ).run();
 
-          return Response.json(
+          return bookingCorsJson(
             { ok:false, message:"This request cannot be accepted." },
             { status:403 }
           );
@@ -4646,7 +4675,7 @@ My journal will continue to be a place where I share a little more of that side 
         // The first client email is created only when the request is moved
         // forward for screening. Deposit instructions are created only after verification.
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           request_id: Number(requestId),
           first_name: firstName,
@@ -4660,7 +4689,7 @@ My journal will continue to be a place where I share a little more of that side 
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -4680,7 +4709,7 @@ My journal will continue to be a place where I share a little more of that side 
         await ensureSiteContentTables(env);
         await ensureClientVerificationAuditsTable(env);
         const token=String(url.searchParams.get("token")||"").trim();
-        if(!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
+        if(!token) return bookingCorsJson({ok:false,message:"Private link is missing."},{status:400});
         const tokenHash=await sha256Hex(token);
         const row=await env.DB.prepare(`
           SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
@@ -4695,8 +4724,8 @@ My journal will continue to be a place where I share a little more of that side 
           LEFT JOIN client_verification_audits va ON va.date_request_id=dr.id
           WHERE bc.token_hash=? LIMIT 1
         `).bind(tokenHash).first();
-        if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
-        if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired. Please contact Kendra for a new link."},{status:410});
+        if(!row) return bookingCorsJson({ok:false,message:"This private link is invalid."},{status:404});
+        if(new Date(String(row.expires_at)).getTime()<Date.now()) return bookingCorsJson({ok:false,message:"This private link has expired. Please contact Kendra for a new link."},{status:410});
         const screeningSubmitted=Boolean(row.screening_submitted_at);
         const verified=String(row.verification_status||"")==="verified"&&Boolean(row.verification_completed_at);
         const depositUnlocked=screeningSubmitted&&verified;
@@ -4709,7 +4738,7 @@ My journal will continue to be a place where I share a little more of that side 
         const depositProcessingFee=["stripe","crypto"].includes(paymentMethodKey)
           ? Math.round(baseDepositAmount*0.10*100)/100
           : 0;
-        return Response.json({
+        return bookingCorsJson({
           ok:true,
           request_id:Number(row.date_request_id),
           client_name:[row.first_name,row.last_name].filter(Boolean).join(" "),
@@ -4737,20 +4766,20 @@ My journal will continue to be a place where I share a little more of that side 
         });
       } catch(error) {
         console.error("Booking continuation load error:",error);
-        return Response.json({ok:false,message:"Unable to load this private request."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load this private request."},{status:500});
       }
     }
 
     if (url.pathname === "/api/booking/continuation/combined" && request.method === "POST") {
       let newObjectKey = "";
       try {
-        if (!env.ID_DOCUMENTS) return Response.json({ok:false,message:"Private ID storage is unavailable. Please try again later."},{status:503});
+        if (!env.ID_DOCUMENTS) return bookingCorsJson({ok:false,message:"Private ID storage is unavailable. Please try again later."},{status:503});
         await ensureSiteContentTables(env);
         await ensureClientVerificationAuditsTable(env);
         await ensureClientIdDocumentsTable(env);
         const form = await request.formData();
         const token = String(form.get("token") || "").trim();
-        if (!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
+        if (!token) return bookingCorsJson({ok:false,message:"Private link is missing."},{status:400});
         const row = await env.DB.prepare(`
           SELECT bc.date_request_id,bc.expires_at,bc.completed_at,bc.combined_step,
                  dr.client_id,dr.deposit_amount,dr.notes,dr.status
@@ -4758,21 +4787,21 @@ My journal will continue to be a place where I share a little more of that side 
           JOIN date_requests dr ON dr.id=bc.date_request_id
           WHERE bc.token_hash=? LIMIT 1
         `).bind(await sha256Hex(token)).first();
-        if (!row || Number(row.combined_step) !== 1) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
-        if (new Date(String(row.expires_at)).getTime() < Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
-        if (row.completed_at) return Response.json({ok:true,screening_submitted:true,deposit_completed:true,message:"Your details were already received."});
-        if (row.status !== "screening_pending") return Response.json({ok:false,message:"This request can no longer be completed through this link."},{status:409});
+        if (!row || Number(row.combined_step) !== 1) return bookingCorsJson({ok:false,message:"This private link is invalid."},{status:404});
+        if (new Date(String(row.expires_at)).getTime() < Date.now()) return bookingCorsJson({ok:false,message:"This private link has expired."},{status:410});
+        if (row.completed_at) return bookingCorsJson({ok:true,screening_submitted:true,deposit_completed:true,message:"Your details were already received."});
+        if (row.status !== "screening_pending") return bookingCorsJson({ok:false,message:"This request can no longer be completed through this link."},{status:409});
 
         const file = form.get("id_document");
-        if (!(file instanceof File) || !file.size) return Response.json({ok:false,message:"Upload a photo of your ID."},{status:400});
+        if (!(file instanceof File) || !file.size) return bookingCorsJson({ok:false,message:"Upload a photo of your ID."},{status:400});
         if (!new Set(["image/jpeg","image/png","image/webp"]).has(file.type) || file.size > 10*1024*1024) {
-          return Response.json({ok:false,message:"Use a JPG, PNG, or WebP image no larger than 10 MB."},{status:400});
+          return bookingCorsJson({ok:false,message:"Use a JPG, PNG, or WebP image no larger than 10 MB."},{status:400});
         }
         const signature = new Uint8Array(await file.slice(0,12).arrayBuffer());
         const validImage = file.type === "image/jpeg" ? signature[0]===0xff && signature[1]===0xd8 && signature[2]===0xff
           : file.type === "image/png" ? [137,80,78,71,13,10,26,10].every((byte,index)=>signature[index]===byte)
           : [82,73,70,70].every((byte,index)=>signature[index]===byte) && [87,69,66,80].every((byte,index)=>signature[index+8]===byte);
-        if (!validImage) return Response.json({ok:false,message:"That ID image could not be read. Upload a JPG, PNG, or WebP photo."},{status:400});
+        if (!validImage) return bookingCorsJson({ok:false,message:"That ID image could not be read. Upload a JPG, PNG, or WebP photo."},{status:400});
 
         const birthdate = idDocumentDate(form.get("birthdate"));
         const employer = String(form.get("current_employer")||"").trim().slice(0,160);
@@ -4780,20 +4809,20 @@ My journal will continue to be a place where I share a little more of that side 
         const industry = String(form.get("industry")||"").trim().slice(0,160);
         const plansNote = String(form.get("plans_note")||"").trim().replace(/\s+/g," ").slice(0,1200);
         if (!birthdate || verificationAgeOnDate(birthdate) === null || verificationAgeOnDate(birthdate) < 0 || !employer || !jobTitle || !industry) {
-          return Response.json({ok:false,message:"Complete your birthday and screening details."},{status:400});
+          return bookingCorsJson({ok:false,message:"Complete your birthday and screening details."},{status:400});
         }
         const requiresOutcallAddress = /Appointment type:\s*outcall/i.test(String(row.notes||""));
         const addressParts = ["outcall_address_line_1","outcall_address_line_2","outcall_city","outcall_state","outcall_postal_code"].map(key=>String(form.get(key)||"").trim().slice(0,200));
-        if (requiresOutcallAddress && [0,2,3,4].some(index=>!addressParts[index])) return Response.json({ok:false,message:"Complete the exact outcall address."},{status:400});
+        if (requiresOutcallAddress && [0,2,3,4].some(index=>!addressParts[index])) return bookingCorsJson({ok:false,message:"Complete the exact outcall address."},{status:400});
         const method = String(form.get("deposit_payment_method")||"").trim().toLowerCase();
         const appNumber = String(form.get("app_text_number")||"").trim().slice(0,40);
         const appDigits = appNumber.replace(/\D/g,"");
         if (!new Set(["gift-card","stripe","crypto"]).has(method) || form.get("deposit_step_acknowledged") !== "yes") {
-          return Response.json({ok:false,message:"Choose a deposit method and acknowledge the amount."},{status:400});
+          return bookingCorsJson({ok:false,message:"Choose a deposit method and acknowledge the amount."},{status:400});
         }
-        if (appNumber && (appDigits.length < 7 || appDigits.length > 15)) return Response.json({ok:false,message:"Enter a valid app-based text number or leave it blank."},{status:400});
+        if (appNumber && (appDigits.length < 7 || appDigits.length > 15)) return bookingCorsJson({ok:false,message:"Enter a valid app-based text number or leave it blank."},{status:400});
         const base = Number(row.deposit_amount||0);
-        if (base <= 0) return Response.json({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
+        if (base <= 0) return bookingCorsJson({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
         const fee = ["stripe","crypto"].includes(method) ? Math.round(base*10)/100 : 0;
         const total = Math.round((base+fee)*100)/100;
         const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
@@ -4830,10 +4859,10 @@ My journal will continue to be a place where I share a little more of that side 
         }
         try { await recordBookingFunnelEvent(env,"continuation_completed",{sessionId:"server:continuation",requestId:row.date_request_id,path:"/complete"}); }
         catch (trackingError) { console.error("Continuation tracking error:",trackingError); }
-        return Response.json({ok:true,screening_submitted:true,deposit_completed:true,request_id:Number(row.date_request_id),deposit_amount:total,message:"Your screening, ID, and deposit selection were received. Your date awaits review, payment confirmation, and final approval."});
+        return bookingCorsJson({ok:true,screening_submitted:true,deposit_completed:true,request_id:Number(row.date_request_id),deposit_amount:total,message:"Your screening, ID, and deposit selection were received. Your date awaits review, payment confirmation, and final approval."});
       } catch (error) {
         console.error("Combined booking continuation error:",error);
-        return Response.json({ok:false,message:"Unable to save this private step. Please try again."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save this private step. Please try again."},{status:500});
       }
     }
 
@@ -4844,7 +4873,7 @@ My journal will continue to be a place where I share a little more of that side 
         const data=await request.json().catch(()=>({}));
         const token=String(data.token||"").trim();
         const step=String(data.step||"screening").trim().toLowerCase();
-        if(!token) return Response.json({ok:false,message:"Private link is missing."},{status:400});
+        if(!token) return bookingCorsJson({ok:false,message:"Private link is missing."},{status:400});
         const tokenHash=await sha256Hex(token);
         const row=await env.DB.prepare(`
           SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
@@ -4855,13 +4884,13 @@ My journal will continue to be a place where I share a little more of that side 
           LEFT JOIN client_verification_audits va ON va.date_request_id=dr.id
           WHERE bc.token_hash=? LIMIT 1
         `).bind(tokenHash).first();
-        if(!row) return Response.json({ok:false,message:"This private link is invalid."},{status:404});
-        if(new Date(String(row.expires_at)).getTime()<Date.now()) return Response.json({ok:false,message:"This private link has expired."},{status:410});
-        if(Number(row.combined_step||0)===1) return Response.json({ok:false,message:"Please submit the screening, ID, and deposit selection together on this page."},{status:400});
+        if(!row) return bookingCorsJson({ok:false,message:"This private link is invalid."},{status:404});
+        if(new Date(String(row.expires_at)).getTime()<Date.now()) return bookingCorsJson({ok:false,message:"This private link has expired."},{status:410});
+        if(Number(row.combined_step||0)===1) return bookingCorsJson({ok:false,message:"Please submit the screening, ID, and deposit selection together on this page."},{status:400});
 
         if(step==="screening") {
           if(row.screening_submitted_at) {
-            return Response.json({ok:true,screening_submitted:true,request_id:Number(row.date_request_id),message:"Your screening details were already received."});
+            return bookingCorsJson({ok:true,screening_submitted:true,request_id:Number(row.date_request_id),message:"Your screening details were already received."});
           }
           const employer=String(data.current_employer||"").trim().slice(0,160);
           const jobTitle=String(data.job_title||"").trim().slice(0,160);
@@ -4874,10 +4903,10 @@ My journal will continue to be a place where I share a little more of that side 
           const outcallState=String(data.outcall_state||"").trim().slice(0,80);
           const outcallPostalCode=String(data.outcall_postal_code||"").trim().slice(0,20);
           const requiresOutcallAddress=/Appointment type:\s*outcall/i.test(String(row.notes||""));
-          if(!birthdate||verificationAgeOnDate(birthdate)===null||verificationAgeOnDate(birthdate)<0) return Response.json({ok:false,message:"Enter a valid birthday before submitting screening."},{status:400});
-          if(!employer||!jobTitle||!industry) return Response.json({ok:false,message:"Complete all screening details."},{status:400});
+          if(!birthdate||verificationAgeOnDate(birthdate)===null||verificationAgeOnDate(birthdate)<0) return bookingCorsJson({ok:false,message:"Enter a valid birthday before submitting screening."},{status:400});
+          if(!employer||!jobTitle||!industry) return bookingCorsJson({ok:false,message:"Complete all screening details."},{status:400});
           if(requiresOutcallAddress&&(!outcallAddressLine1||!outcallCity||!outcallState||!outcallPostalCode)) {
-            return Response.json({ok:false,message:"Complete the exact outcall address before submitting screening."},{status:400});
+            return bookingCorsJson({ok:false,message:"Complete the exact outcall address before submitting screening."},{status:400});
           }
           const exactOutcallAddress=[outcallAddressLine1,outcallAddressLine2,outcallCity,outcallState,outcallPostalCode].filter(Boolean).join(", ");
           await env.DB.prepare(`
@@ -4903,16 +4932,16 @@ My journal will continue to be a place where I share a little more of that side 
             requestId:row.date_request_id,
             path:"/complete"
           });
-          return Response.json({ok:true,screening_submitted:true,request_id:Number(row.date_request_id),message:"Screening details received. Kendra will review them before any deposit is requested."});
+          return bookingCorsJson({ok:true,screening_submitted:true,request_id:Number(row.date_request_id),message:"Screening details received. Kendra will review them before any deposit is requested."});
         }
 
         if(step==="deposit") {
           const verified=String(row.verification_status||"")==="verified"&&Boolean(row.verification_completed_at);
           if(!row.screening_submitted_at||!verified) {
-            return Response.json({ok:false,message:"Deposit selection is not available until screening is completed and verified."},{status:403});
+            return bookingCorsJson({ok:false,message:"Deposit selection is not available until screening is completed and verified."},{status:403});
           }
           if(Number(row.deposit_step_acknowledged||0)===1) {
-            return Response.json({ok:true,deposit_completed:true,request_id:Number(row.date_request_id),message:"Your deposit selection was already received."});
+            return bookingCorsJson({ok:true,deposit_completed:true,request_id:Number(row.date_request_id),message:"Your deposit selection was already received."});
           }
           const depositPaymentMethod=String(data.deposit_payment_method||"").trim().toLowerCase();
           const appTextNumber=String(data.app_text_number||"").trim().slice(0,40);
@@ -4920,13 +4949,13 @@ My journal will continue to be a place where I share a little more of that side 
           const allowedDepositPaymentMethods=new Set(["gift-card","stripe","crypto"]);
           const depositAck=data.deposit_step_acknowledged==="yes";
           if(!allowedDepositPaymentMethods.has(depositPaymentMethod)||!depositAck) {
-            return Response.json({ok:false,message:"Choose a payment method and acknowledge the deposit step."},{status:400});
+            return bookingCorsJson({ok:false,message:"Choose a payment method and acknowledge the deposit step."},{status:400});
           }
           if(appTextNumber&&(appTextDigits.length<7||appTextDigits.length>15)) {
-            return Response.json({ok:false,message:"Enter a valid app-based text number or leave it blank."},{status:400});
+            return bookingCorsJson({ok:false,message:"Enter a valid app-based text number or leave it blank."},{status:400});
           }
           const baseDepositAmount=Number(row.deposit_amount||0);
-          if(baseDepositAmount<=0) return Response.json({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
+          if(baseDepositAmount<=0) return bookingCorsJson({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
           const depositProcessingFee=["stripe","crypto"].includes(depositPaymentMethod)
             ? Math.round(baseDepositAmount*0.10*100)/100
             : 0;
@@ -4942,7 +4971,7 @@ My journal will continue to be a place where I share a little more of that side 
             SET deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP
             WHERE date_request_id=?
           `).bind(row.date_request_id).run();
-          return Response.json({
+          return bookingCorsJson({
             ok:true,
             deposit_completed:true,
             request_id:Number(row.date_request_id),
@@ -4953,17 +4982,17 @@ My journal will continue to be a place where I share a little more of that side 
           });
         }
 
-        return Response.json({ok:false,message:"Invalid continuation step."},{status:400});
+        return bookingCorsJson({ok:false,message:"Invalid continuation step."},{status:400});
       } catch(error) {
         console.error("Booking continuation submit error:",error);
-        return Response.json({ok:false,message:"Unable to save this private step."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save this private step."},{status:500});
       }
     }
 
     // Reject unsupported methods to request API
 
     if (url.pathname === "/api/request") {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Method not allowed."
@@ -5062,7 +5091,7 @@ My journal will continue to be a place where I share a little more of that side 
         `).all();
         const funnel=Object.fromEntries((funnelRows.results||[]).map(row=>[row.event_name,Number(row.count||0)]));
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
 
           funnel: {
@@ -5112,7 +5141,7 @@ My journal will continue to be a place where I share a little more of that side 
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -5133,14 +5162,14 @@ My journal will continue to be a place where I share a little more of that side 
         const requestId=Number(data.id);
         const requestedDate=String(data.requested_date||"").trim();
         const requestedTime=String(data.requested_time||"").trim().slice(0,5);
-        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)||!/^\d{2}:\d{2}$/.test(requestedTime)) return Response.json({ok:false,message:"Choose a valid new date and time."},{status:400});
+        if(!Number.isInteger(requestId)||requestId<1) return bookingCorsJson({ok:false,message:"Invalid request ID."},{status:400});
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)||!/^\d{2}:\d{2}$/.test(requestedTime)) return bookingCorsJson({ok:false,message:"Choose a valid new date and time."},{status:400});
         const item=await env.DB.prepare("SELECT id,status,notes,requested_date,requested_time FROM date_requests WHERE id=? LIMIT 1").bind(requestId).first();
-        if(!item) return Response.json({ok:false,message:"Booking request not found."},{status:404});
-        if(["declined","no_call_no_show","canceled","completed","blacklisted_submission"].includes(String(item.status||"").toLowerCase())) return Response.json({ok:false,message:"This booking can no longer be rescheduled."},{status:400});
+        if(!item) return bookingCorsJson({ok:false,message:"Booking request not found."},{status:404});
+        if(["declined","no_call_no_show","canceled","completed","blacklisted_submission"].includes(String(item.status||"").toLowerCase())) return bookingCorsJson({ok:false,message:"This booking can no longer be rescheduled."},{status:400});
         const duration=siteBookingDurationFromNotes(item.notes);
         const availability=await siteAvailableSlots(env,requestedDate,duration,requestId);
-        if(!(availability.slots||[]).includes(requestedTime)) return Response.json({ok:false,message:"That time is not available. Choose another date or time."},{status:409});
+        if(!(availability.slots||[]).includes(requestedTime)) return bookingCorsJson({ok:false,message:"That time is not available. Choose another date or time."},{status:409});
         const oldDate=item.requested_date,oldTime=item.requested_time;
         await env.DB.prepare("UPDATE date_requests SET requested_date=?, requested_time=? WHERE id=?").bind(requestedDate,requestedTime,requestId).run();
         await env.DB.prepare(`
@@ -5148,10 +5177,10 @@ My journal will continue to be a place where I share a little more of that side 
           SET body=replace(replace(body, ?, ?), ?, ?)
           WHERE date_request_id=? AND COALESCE(status,'draft')!='sent'
         `).bind(String(oldDate||""),requestedDate,String(oldTime||""),requestedTime,requestId).run();
-        return Response.json({ok:true,requested_date:requestedDate,requested_time:requestedTime,message:"Appointment rescheduled."});
+        return bookingCorsJson({ok:true,requested_date:requestedDate,requested_time:requestedTime,message:"Appointment rescheduled."});
       } catch(error) {
         console.error("Reschedule booking error:",error);
-        return Response.json({ok:false,message:"Unable to reschedule appointment."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to reschedule appointment."},{status:500});
       }
     }
 
@@ -5164,19 +5193,19 @@ My journal will continue to be a place where I share a little more of that side 
         const data=await request.json();
         const requestId=Number(data.id);
         const outcome=String(data.outcome||"").trim().toLowerCase();
-        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
-        if(!["declined","no_call_no_show"].includes(outcome)) return Response.json({ok:false,message:"Invalid booking outcome."},{status:400});
+        if(!Number.isInteger(requestId)||requestId<1) return bookingCorsJson({ok:false,message:"Invalid request ID."},{status:400});
+        if(!["declined","no_call_no_show"].includes(outcome)) return bookingCorsJson({ok:false,message:"Invalid booking outcome."},{status:400});
         const item=await env.DB.prepare("SELECT id,status,final_approval FROM date_requests WHERE id=? LIMIT 1").bind(requestId).first();
-        if(!item) return Response.json({ok:false,message:"Booking request not found."},{status:404});
+        if(!item) return bookingCorsJson({ok:false,message:"Booking request not found."},{status:404});
         if(outcome==="no_call_no_show" && !Number(item.final_approval||0)) {
-          return Response.json({ok:false,message:"No Call / No Show can only be used for a confirmed booking."},{status:400});
+          return bookingCorsJson({ok:false,message:"No Call / No Show can only be used for a confirmed booking."},{status:400});
         }
         await env.DB.prepare("UPDATE date_requests SET status=?, final_approval=CASE WHEN ?='declined' THEN 0 ELSE final_approval END WHERE id=?")
           .bind(outcome,outcome,requestId).run();
-        return Response.json({ok:true,status:outcome});
+        return bookingCorsJson({ok:true,status:outcome});
       } catch(error) {
         console.error("Booking outcome error:",error);
-        return Response.json({ok:false,message:"Unable to update booking."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to update booking."},{status:500});
       }
     }
 
@@ -5192,7 +5221,7 @@ My journal will continue to be a place where I share a little more of that side 
         const result = await env.DB.prepare(
           "SELECT day_of_week, enabled, start_time, end_time FROM calendar_work_hours ORDER BY day_of_week"
         ).all();
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           items: (result.results || []).map(item => ({
             day_of_week: Number(item.day_of_week),
@@ -5207,7 +5236,7 @@ My journal will continue to be a place where I share a little more of that side 
         const data = await request.json().catch(() => ({}));
         const items = Array.isArray(data.items) ? data.items : [];
         if (items.length !== 7) {
-          return Response.json({ ok: false, message: "Work hours must include all seven days." }, { status: 400 });
+          return bookingCorsJson({ ok: false, message: "Work hours must include all seven days." }, { status: 400 });
         }
         const normalized = [];
         for (const item of items) {
@@ -5218,12 +5247,12 @@ My journal will continue to be a place where I share a little more of that side 
           const startMinutes = siteMinutesFromTime(start);
           const endMinutes = siteMinutesFromTime(end);
           if (!Number.isInteger(day) || day < 0 || day > 6 || startMinutes === null || endMinutes === null || (enabled && endMinutes <= startMinutes)) {
-            return Response.json({ ok: false, message: "Choose valid start and end times for each enabled work day." }, { status: 400 });
+            return bookingCorsJson({ ok: false, message: "Choose valid start and end times for each enabled work day." }, { status: 400 });
           }
           normalized.push({ day_of_week: day, enabled, start_time: start, end_time: end });
         }
         if (new Set(normalized.map(item => item.day_of_week)).size !== 7) {
-          return Response.json({ ok: false, message: "Each day can only appear once." }, { status: 400 });
+          return bookingCorsJson({ ok: false, message: "Each day can only appear once." }, { status: 400 });
         }
         await env.DB.batch(normalized.map(item =>
           env.DB.prepare(`
@@ -5236,13 +5265,13 @@ My journal will continue to be a place where I share a little more of that side 
               updated_at = CURRENT_TIMESTAMP
           `).bind(item.day_of_week, item.enabled, item.start_time, item.end_time)
         ));
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           items: normalized.map(item => ({ ...item, enabled: item.enabled === 1 }))
         });
       }
 
-      return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+      return bookingCorsJson({ ok: false, message: "Method not allowed." }, { status: 405 });
     }
 
 
@@ -5265,31 +5294,31 @@ My journal will continue to be a place where I share a little more of that side 
         const result = await env.DB.prepare(
           "SELECT available_date AS date, available_time AS time FROM calendar_availability ORDER BY available_date, available_time"
         ).all();
-        return Response.json({ ok: true, items: result.results || [] });
+        return bookingCorsJson({ ok: true, items: result.results || [] });
       }
 
       const data = await request.json().catch(() => ({}));
       const date = String(data.date || "").trim();
       const time = String(data.time || "").trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}(?::\d{2})?$/.test(time)) {
-        return Response.json({ ok: false, message: "Choose a valid availability date and time." }, { status: 400 });
+        return bookingCorsJson({ ok: false, message: "Choose a valid availability date and time." }, { status: 400 });
       }
 
       if (request.method === "POST") {
         await env.DB.prepare(
           "INSERT OR IGNORE INTO calendar_availability (available_date, available_time) VALUES (?, ?)"
         ).bind(date, time).run();
-        return Response.json({ ok: true, item: { date, time } });
+        return bookingCorsJson({ ok: true, item: { date, time } });
       }
 
       if (request.method === "DELETE") {
         await env.DB.prepare(
           "DELETE FROM calendar_availability WHERE available_date = ? AND available_time = ?"
         ).bind(date, time).run();
-        return Response.json({ ok: true });
+        return bookingCorsJson({ ok: true });
       }
 
-      return Response.json({ ok: false, message: "Method not allowed." }, { status: 405 });
+      return bookingCorsJson({ ok: false, message: "Method not allowed." }, { status: 405 });
     }
 
 
@@ -5320,13 +5349,13 @@ My journal will continue to be a place where I share a little more of that side 
           env.DB.prepare("DELETE FROM date_requests")
         ]);
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           deleted: Number(countRow?.total || 0)
         });
       } catch (error) {
         console.error("Clear admin requests error:", error);
-        return Response.json(
+        return bookingCorsJson(
           { ok: false, message: "Unable to clear booking submissions." },
           { status: 500 }
         );
@@ -5350,7 +5379,7 @@ My journal will continue to be a place where I share a little more of that side 
         )];
 
         if (!ids.length || ids.length > 100) {
-          return Response.json(
+          return bookingCorsJson(
             { ok: false, message: "Choose one or more valid client records." },
             { status: 400 }
           );
@@ -5363,7 +5392,7 @@ My journal will continue to be a place where I share a little more of that side 
         const existingIds = (existing.results || []).map(row => Number(row.id));
 
         if (!existingIds.length) {
-          return Response.json({ ok: true, deleted: 0 });
+          return bookingCorsJson({ ok: true, deleted: 0 });
         }
 
         const existingPlaceholders = existingIds.map(() => "?").join(",");
@@ -5397,10 +5426,10 @@ My journal will continue to be a place where I share a little more of that side 
           ).bind(...existingIds)
         ]);
 
-        return Response.json({ ok: true, deleted: existingIds.length });
+        return bookingCorsJson({ ok: true, deleted: existingIds.length });
       } catch (error) {
         console.error("Delete selected clients error:", error);
-        return Response.json(
+        return bookingCorsJson(
           { ok: false, message: "Unable to delete the selected client records." },
           { status: 500 }
         );
@@ -5449,7 +5478,7 @@ My journal will continue to be a place where I share a little more of that side 
             .all();
 
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           requests: result.results || []
         });
@@ -5460,7 +5489,7 @@ My journal will continue to be a place where I share a little more of that side 
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -5482,7 +5511,7 @@ if (
     const id = Number(url.searchParams.get("id"));
 
     if (!Number.isInteger(id) || id < 1) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Invalid request ID."
@@ -5527,7 +5556,7 @@ if (
       .first();
 
     if (!item) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Request not found."
@@ -5536,7 +5565,7 @@ if (
       );
     }
 
-    return Response.json({
+    return bookingCorsJson({
       ok: true,
       request: item
     });
@@ -5547,7 +5576,7 @@ if (
       error
     );
 
-    return Response.json(
+    return bookingCorsJson(
       {
         ok: false,
         message: "Unable to load request."
@@ -5588,7 +5617,7 @@ if (
             .all();
 
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           clients: result.results || []
         });
@@ -5599,7 +5628,7 @@ if (
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -5617,15 +5646,15 @@ if (
         const clientId = Number(data.client_id);
         const allowedOfferStrategies = new Set(["extra-time","experience-upgrade","special-rate"]);
         const offerStrategy = allowedOfferStrategies.has(String(data.offer_strategy||"")) ? String(data.offer_strategy) : "extra-time";
-        if (!Number.isFinite(clientId) || clientId <= 0) return Response.json({ok:false,message:"Client not found."},{status:400});
+        if (!Number.isFinite(clientId) || clientId <= 0) return bookingCorsJson({ok:false,message:"Client not found."},{status:400});
         const notes = String(data.notes || "").trim().slice(0,4000);
         const preferences = String(data.preferences || "").trim().slice(0,4000);
         try { await env.DB.prepare("ALTER TABLE clients ADD COLUMN preferences TEXT").run(); } catch (e) {}
         await env.DB.prepare("UPDATE clients SET notes=?, preferences=? WHERE id=?").bind(notes || null, preferences || null, clientId).run();
-        return Response.json({ok:true,notes,preferences});
+        return bookingCorsJson({ok:true,notes,preferences});
       } catch (error) {
         console.error("Admin client profile update error:", error);
-        return Response.json({ok:false,message:"Unable to save client profile."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save client profile."},{status:500});
       }
     }
 
@@ -5638,13 +5667,13 @@ if (
         const length=String(data.length||"short").slice(0,20);
         const goal=String(data.goal||"no-pressure").slice(0,40);
         const instructions=String(data.instructions||"").trim().slice(0,700);
-        if(!Number.isFinite(clientId)||clientId<=0)return Response.json({ok:false,message:"Choose a client first."},{status:400});
+        if(!Number.isFinite(clientId)||clientId<=0)return bookingCorsJson({ok:false,message:"Choose a client first."},{status:400});
         const client=await env.DB.prepare("SELECT id,first_name,last_name,email,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
-        if(!client)return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!client)return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         try{await env.DB.prepare("ALTER TABLE clients ADD COLUMN preferences TEXT").run();}catch(e){}
         const profile=await env.DB.prepare("SELECT preferences FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
         const lastCompleted=await env.DB.prepare("SELECT id FROM date_requests WHERE client_id=? AND status='completed' ORDER BY requested_date DESC, requested_time DESC, id DESC LIMIT 1").bind(clientId).first();
-        if(!lastCompleted)return Response.json({ok:false,message:"This client does not have a successfully completed date yet."},{status:400});
+        if(!lastCompleted)return bookingCorsJson({ok:false,message:"This client does not have a successfully completed date yet."},{status:400});
         const prompt="Draft a short personal after date follow up for my most recent date marked successfully completed. The completed record is used only to establish eligibility and must not supply content for the message. Make it warm, appreciative, lightly flirty, and natural. Do not sound like customer service and do not pressure him to book again. Never mention when the date happened, including last night, last week, the other night, recently, or similar relative time references. Never mention how long we spent together. Never claim I had a great time, loved something, enjoyed a conversation, felt a certain way, found him easy to be around, or remember a specific moment unless that exact personal detail is explicitly present in Private notes, Private preferences, or Additional instructions. Generic appreciation such as thank you for spending time with me is allowed.";
         const controlPrompt="\nWriting controls: Tone: "+tone+". Length: "+length+". Goal: "+goal+". Additional instructions: "+(instructions||"none")+". Respect these controls while keeping the message natural.";
         const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
@@ -5656,10 +5685,10 @@ if (
         draft=draft.replace(/^\s*(?:draft|message)\s*:?\s*/i,"").trim();
         if(!draft)throw new Error("Workers AI returned an empty message.");
         draft=draft.replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
-        return Response.json({ok:true,draft});
+        return bookingCorsJson({ok:true,draft});
       } catch(error) {
         console.error("Client follow up generation error:",error);
-        return Response.json({ok:false,message:"Unable to generate follow up."},{status:502});
+        return bookingCorsJson({ok:false,message:"Unable to generate follow up."},{status:502});
       }
     }
 
@@ -5669,51 +5698,51 @@ if (
         const clientId=Number(data.client_id),requestId=Number(data.date_request_id);
         const body=String(data.body||"").trim();
         const subject=String(data.subject||"A little note from me").trim().slice(0,180);
-        if(!Number.isInteger(clientId)||clientId<1||!Number.isInteger(requestId)||requestId<1)return Response.json({ok:false,message:"A completed date is required."},{status:400});
-        if(!body)return Response.json({ok:false,message:"Generate or write a follow up first."},{status:400});
+        if(!Number.isInteger(clientId)||clientId<1||!Number.isInteger(requestId)||requestId<1)return bookingCorsJson({ok:false,message:"A completed date is required."},{status:400});
+        if(!body)return bookingCorsJson({ok:false,message:"Generate or write a follow up first."},{status:400});
         const completed=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? AND status='completed' LIMIT 1").bind(requestId,clientId).first();
-        if(!completed)return Response.json({ok:false,message:"This follow up must belong to a successfully completed date."},{status:400});
+        if(!completed)return bookingCorsJson({ok:false,message:"This follow up must belong to a successfully completed date."},{status:400});
         const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
         if(existing){
           await env.DB.prepare("UPDATE email_drafts SET subject=?,body=?,status='draft' WHERE id=?").bind(subject,body,existing.id).run();
-          return Response.json({ok:true,draft_id:existing.id,message:"Follow up draft saved."});
+          return bookingCorsJson({ok:true,draft_id:existing.id,message:"Follow up draft saved."});
         }
         const result=await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,requestId,"after_date_follow_up",subject,body).run();
-        return Response.json({ok:true,draft_id:result.meta?.last_row_id||null,message:"Follow up draft saved."});
+        return bookingCorsJson({ok:true,draft_id:result.meta?.last_row_id||null,message:"Follow up draft saved."});
       }catch(error){
         console.error("Save follow up draft error:",error);
-        return Response.json({ok:false,message:"Unable to save follow up draft."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save follow up draft."},{status:500});
       }
     }
 
     if (url.pathname === "/api/admin/clients/follow-up/send" && request.method === "POST") {
       try {
-        if(!env.RESEND_API_KEY)return Response.json({ok:false,message:"Email delivery is not configured."},{status:500});
+        if(!env.RESEND_API_KEY)return bookingCorsJson({ok:false,message:"Email delivery is not configured."},{status:500});
         const data=await request.json();
         const clientId=Number(data.client_id);
         const requestId=Number(data.date_request_id);
         const subject=String(data.subject||"A little note from me").trim().slice(0,180);
         let body=String(data.body||"").trim();
-        if(!Number.isInteger(clientId)||clientId<1)return Response.json({ok:false,message:"Choose a client first."},{status:400});
-        if(!Number.isInteger(requestId)||requestId<1)return Response.json({ok:false,message:"A successfully completed date is required before sending an after date follow up."},{status:400});
-        if(!body)return Response.json({ok:false,message:"Write or generate a follow up first."},{status:400});
+        if(!Number.isInteger(clientId)||clientId<1)return bookingCorsJson({ok:false,message:"Choose a client first."},{status:400});
+        if(!Number.isInteger(requestId)||requestId<1)return bookingCorsJson({ok:false,message:"A successfully completed date is required before sending an after date follow up."},{status:400});
+        if(!body)return bookingCorsJson({ok:false,message:"Write or generate a follow up first."},{status:400});
         const completed=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? AND status='completed' LIMIT 1").bind(requestId,clientId).first();
-        if(!completed)return Response.json({ok:false,message:"This follow up is not linked to a successfully completed date."},{status:400});
+        if(!completed)return bookingCorsJson({ok:false,message:"This follow up is not linked to a successfully completed date."},{status:400});
         const previouslySent=await env.DB.prepare("SELECT id,sent_at FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' AND status='sent' LIMIT 1").bind(requestId).first();
-        if(previouslySent && data.resend!==true)return Response.json({ok:false,already_sent:true,sent_at:previouslySent.sent_at||null,message:"An After Date Follow Up has already been sent for this completed date. Use Resend Follow Up if you intentionally want to send it again."},{status:409});
+        if(previouslySent && data.resend!==true)return bookingCorsJson({ok:false,already_sent:true,sent_at:previouslySent.sent_at||null,message:"An After Date Follow Up has already been sent for this completed date. Use Resend Follow Up if you intentionally want to send it again."},{status:409});
         const client=await env.DB.prepare("SELECT id,first_name,email FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
-        if(!client?.email)return Response.json({ok:false,message:"This client does not have an email address."},{status:400});
+        if(!client?.email)return bookingCorsJson({ok:false,message:"This client does not have an email address."},{status:400});
         body=body.replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
         const resendResponse=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.EMAIL_FROM||"Kendra Bexly <hello@kendrabexly.com>",to:[client.email],subject,text:body})});
-        const resendData=await resendResponse.json().catch(()=>({}));
+        const resendData=await resendbookingCorsJson().catch(()=>({}));
         if(!resendResponse.ok)throw new Error(resendData?.message||"Email provider rejected the message.");
         const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
         if(existing) await env.DB.prepare("UPDATE email_drafts SET subject=?,body=?,status='sent',sent_at=CURRENT_TIMESTAMP WHERE id=?").bind(subject,body,existing.id).run();
         else await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status,sent_at) VALUES (?,?,?,?,?,'sent',CURRENT_TIMESTAMP)").bind(clientId,requestId,"after_date_follow_up",subject,body).run();
-        return Response.json({ok:true,message:"Follow up sent.",email_id:resendData?.id||null});
+        return bookingCorsJson({ok:true,message:"Follow up sent.",email_id:resendData?.id||null});
       }catch(error){
         console.error("Follow up send error:",error);
-        return Response.json({ok:false,message:"Unable to send follow up."},{status:502});
+        return bookingCorsJson({ok:false,message:"Unable to send follow up."},{status:502});
       }
     }
 
@@ -5751,7 +5780,7 @@ if (
             .all();
 
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           payments: result.results || []
         });
@@ -5762,7 +5791,7 @@ if (
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -5782,12 +5811,12 @@ if (
       try {
         const data=request.method==="POST" ? await request.json() : null;
         const clientId=Number(request.method==="POST" ? data?.client_id : url.searchParams.get("client_id"));
-        if(!Number.isInteger(clientId)||clientId<1)return Response.json({ok:false,message:"A valid client is required."},{status:400});
+        if(!Number.isInteger(clientId)||clientId<1)return bookingCorsJson({ok:false,message:"A valid client is required."},{status:400});
         const client=await env.DB.prepare("SELECT id,email,phone FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
-        if(!client)return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!client)return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const blocked=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? OR (email <> '' AND LOWER(email)=LOWER(?)) OR (phone <> '' AND phone=?) LIMIT 1")
           .bind(clientId,client.email||"",client.phone||"").first();
-        if(blocked)return Response.json({ok:false,blocked:true,message:"This client has an active blacklist match. Review the safety record before continuing."},{status:409});
+        if(blocked)return bookingCorsJson({ok:false,blocked:true,message:"This client has an active blacklist match. Review the safety record before continuing."},{status:409});
         await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_blacklist_reviews (
           client_id INTEGER PRIMARY KEY, contact_fingerprint TEXT NOT NULL, reviewed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )`).run();
@@ -5801,10 +5830,10 @@ if (
         }
         const review=await env.DB.prepare("SELECT reviewed_at FROM client_blacklist_reviews WHERE client_id=? AND contact_fingerprint=? LIMIT 1")
           .bind(clientId,fingerprint).first();
-        return Response.json({ok:true,reviewed:Boolean(review),reviewed_at:review?.reviewed_at||null},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,reviewed:Boolean(review),reviewed_at:review?.reviewed_at||null},{headers:{"Cache-Control":"private, no-store"}});
       }catch(error){
         console.error("Blacklist review error:",error);
-        return Response.json({ok:false,message:"Unable to save the blacklist review."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save the blacklist review."},{status:500});
       }
     }
 
@@ -5833,7 +5862,7 @@ if (
             .all();
 
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           blacklist: result.results || []
         });
@@ -5844,7 +5873,7 @@ if (
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -5865,24 +5894,24 @@ if (
         const clientId = Number(data.client_id);
         const reason = String(data.reason || "").trim();
         if (!Number.isInteger(clientId) || clientId <= 0) {
-          return Response.json({ ok:false, message:"A valid client is required." }, { status:400 });
+          return bookingCorsJson({ ok:false, message:"A valid client is required." }, { status:400 });
         }
         if (!reason) {
-          return Response.json({ ok:false, message:"Please enter a reason for blacklisting this client." }, { status:400 });
+          return bookingCorsJson({ ok:false, message:"Please enter a reason for blacklisting this client." }, { status:400 });
         }
         const client = await env.DB.prepare("SELECT id, first_name, last_name, email, phone FROM clients WHERE id = ?").bind(clientId).first();
-        if (!client) return Response.json({ ok:false, message:"Client not found." }, { status:404 });
+        if (!client) return bookingCorsJson({ ok:false, message:"Client not found." }, { status:404 });
         const existing = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id = ? OR (email <> '' AND LOWER(email) = LOWER(?)) OR (phone <> '' AND phone = ?) LIMIT 1").bind(clientId, client.email || "", client.phone || "").first();
-        if (existing) return Response.json({ ok:false, message:"This client is already blacklisted." }, { status:409 });
+        if (existing) return bookingCorsJson({ ok:false, message:"This client is already blacklisted." }, { status:409 });
         const name = [client.first_name, client.last_name].filter(Boolean).join(" ").trim();
         const approvedDates=await env.DB.prepare("SELECT COUNT(*) AS count FROM date_requests WHERE client_id=? AND status='approved'").bind(clientId).first();
         await env.DB.prepare("INSERT INTO blacklist (client_id, name, email, phone, reason) VALUES (?, ?, ?, ?, ?)").bind(clientId, name, client.email || "", client.phone || "", reason).run();
         await env.DB.prepare("UPDATE clients SET status='do_not_book' WHERE id=?").bind(clientId).run();
         await env.DB.prepare("UPDATE date_requests SET status='declined' WHERE client_id=? AND status IN ('pending','screening_pending','pending_final_approval')").bind(clientId).run();
-        return Response.json({ ok:true, client_status:"do_not_book", approved_dates_needing_review:Number(approvedDates?.count||0) });
+        return bookingCorsJson({ ok:true, client_status:"do_not_book", approved_dates_needing_review:Number(approvedDates?.count||0) });
       } catch (error) {
         console.error("Add blacklist error:", error);
-        return Response.json({ ok:false, message:"Unable to blacklist this client." }, { status:500 });
+        return bookingCorsJson({ ok:false, message:"Unable to blacklist this client." }, { status:500 });
       }
     }
 
@@ -5895,15 +5924,15 @@ if (
         const data = await request.json();
         const id = Number(data.id);
         if (!Number.isInteger(id) || id <= 0) {
-          return Response.json({ ok:false, message:"A valid blacklist record is required." }, { status:400 });
+          return bookingCorsJson({ ok:false, message:"A valid blacklist record is required." }, { status:400 });
         }
         const record=await env.DB.prepare("SELECT client_id FROM blacklist WHERE id=? LIMIT 1").bind(id).first();
         await env.DB.prepare("DELETE FROM blacklist WHERE id = ?").bind(id).run();
         if(record?.client_id) await env.DB.prepare("UPDATE clients SET status='active' WHERE id=?").bind(record.client_id).run();
-        return Response.json({ ok:true });
+        return bookingCorsJson({ ok:true });
       } catch (error) {
         console.error("Remove blacklist error:", error);
-        return Response.json({ ok:false, message:"Unable to remove this client from the blacklist." }, { status:500 });
+        return bookingCorsJson({ ok:false, message:"Unable to remove this client from the blacklist." }, { status:500 });
       }
     }
 
@@ -5963,7 +5992,7 @@ if (
             .bind(updatedBody,draft.id,draft.body).run();
           if (result.meta?.changes) draft.body = updatedBody;
         }
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           email_drafts: drafts
         });
@@ -5974,7 +6003,7 @@ if (
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -5992,10 +6021,10 @@ if (
         const result = await env.DB.prepare(
           "DELETE FROM email_drafts WHERE COALESCE(status, 'draft') != 'sent'"
         ).run();
-        return Response.json({ ok:true, deleted:Number(result.meta?.changes || 0) });
+        return bookingCorsJson({ ok:true, deleted:Number(result.meta?.changes || 0) });
       } catch (error) {
         console.error("Clear email drafts error:", error);
-        return Response.json({ ok:false, message:"Unable to clear email drafts." }, { status:500 });
+        return bookingCorsJson({ ok:false, message:"Unable to clear email drafts." }, { status:500 });
       }
     }
 
@@ -6005,14 +6034,14 @@ if (
     ) {
       try {
         const id=Number(url.pathname.split("/").pop());
-        if(!Number.isInteger(id)||id<=0) return Response.json({ok:false,message:"Invalid email draft ID."},{status:400});
+        if(!Number.isInteger(id)||id<=0) return bookingCorsJson({ok:false,message:"Invalid email draft ID."},{status:400});
         const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE id=? LIMIT 1").bind(id).first();
-        if(!existing) return Response.json({ok:false,message:"Email draft not found."},{status:404});
+        if(!existing) return bookingCorsJson({ok:false,message:"Email draft not found."},{status:404});
         await env.DB.prepare("DELETE FROM email_drafts WHERE id=?").bind(id).run();
-        return Response.json({ok:true,deleted:id});
+        return bookingCorsJson({ok:true,deleted:id});
       } catch(error) {
         console.error("Delete email draft error:",error);
-        return Response.json({ok:false,message:"Unable to delete email draft."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to delete email draft."},{status:500});
       }
     }
 
@@ -6030,7 +6059,7 @@ if (
     );
 
     if (!Number.isInteger(id) || id <= 0) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Invalid email draft ID."
@@ -6048,7 +6077,7 @@ if (
       String(data.body || "").trim();
 
     if (!subject || !body) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Subject and email body are required."
@@ -6067,7 +6096,7 @@ if (
       .first();
 
     if (!existing) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Email draft not found."
@@ -6090,7 +6119,7 @@ if (
       )
       .run();
 
-    return Response.json({
+    return bookingCorsJson({
       ok: true,
       message: "Email draft saved."
     });
@@ -6101,7 +6130,7 @@ if (
       error
     );
 
-    return Response.json(
+    return bookingCorsJson(
       {
         ok: false,
         message: "Unable to save email draft."
@@ -6120,7 +6149,7 @@ if (
     ) {
       try {
         if (!env.RESEND_API_KEY) {
-          return Response.json({ ok:false, message:"Email delivery is not configured." }, { status:500 });
+          return bookingCorsJson({ ok:false, message:"Email delivery is not configured." }, { status:500 });
         }
         const draftId = Number(url.pathname.split("/").slice(-2, -1)[0]);
         const draft = await env.DB.prepare(`
@@ -6129,16 +6158,16 @@ if (
           LEFT JOIN clients c ON c.id = ed.client_id
           WHERE ed.id = ?
         `).bind(draftId).first();
-        if (!draft) return Response.json({ ok:false, message:"Email draft not found." }, { status:404 });
-        if (!draft.email) return Response.json({ ok:false, message:"This client does not have an email address." }, { status:400 });
-        if (draft.status === "sent") return Response.json({ ok:false, message:"This email has already been sent." }, { status:400 });
+        if (!draft) return bookingCorsJson({ ok:false, message:"Email draft not found." }, { status:404 });
+        if (!draft.email) return bookingCorsJson({ ok:false, message:"This client does not have an email address." }, { status:400 });
+        if (draft.status === "sent") return bookingCorsJson({ ok:false, message:"This email has already been sent." }, { status:400 });
         const blockedRecipient = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? OR (email <> '' AND LOWER(email)=LOWER(?)) OR (phone <> '' AND phone=?) LIMIT 1")
           .bind(draft.client_id, draft.email || "", draft.phone || "").first();
-        if (blockedRecipient) return Response.json({ ok:false, message:"This client is blacklisted. The email was not sent." }, { status:409 });
+        if (blockedRecipient) return bookingCorsJson({ ok:false, message:"This client is blacklisted. The email was not sent." }, { status:409 });
         if (draft.date_request_id && ["pending_final_approval", "deposit_request"].includes(draft.email_type)) {
           const requestState = await env.DB.prepare("SELECT status FROM date_requests WHERE id=? LIMIT 1").bind(draft.date_request_id).first();
           if (!requestState || ["declined", "blacklisted_submission", "canceled"].includes(requestState.status))
-            return Response.json({ ok:false, message:"This request is closed. The email was not sent." }, { status:409 });
+            return bookingCorsJson({ ok:false, message:"This request is closed. The email was not sent." }, { status:409 });
         }
 
         const html = '<div style="font-family:Arial,sans-serif;line-height:1.65;color:#29282d;white-space:normal;">' +
@@ -6156,9 +6185,9 @@ if (
         });
         if (!sendResponse.ok) {
           console.error("Client email delivery failed:", sendResponse.status, await sendResponse.text());
-          return Response.json({ ok:false, message:"Email delivery failed. The draft was not marked sent." }, { status:502 });
+          return bookingCorsJson({ ok:false, message:"Email delivery failed. The draft was not marked sent." }, { status:502 });
         }
-        const sendData = await sendResponse.json().catch(() => ({}));
+        const sendData = await sendbookingCorsJson().catch(() => ({}));
         await env.DB.prepare("UPDATE email_drafts SET status = 'sent', sent_at = CURRENT_TIMESTAMP WHERE id = ?")
           .bind(draftId).run();
         await env.DB.prepare(`
@@ -6166,10 +6195,10 @@ if (
           VALUES (?, ?, CURRENT_TIMESTAMP)
           ON CONFLICT(email_draft_id) DO UPDATE SET provider_email_id=excluded.provider_email_id, updated_at=CURRENT_TIMESTAMP
         `).bind(draftId, String(sendData.id || "")).run();
-        return Response.json({ ok:true, message:"Email sent to " + draft.email + ".", status:"sent" });
+        return bookingCorsJson({ ok:true, message:"Email sent to " + draft.email + ".", status:"sent" });
       } catch (error) {
         console.error("Client email send error:", error);
-        return Response.json({ ok:false, message:"Unable to send this email." }, { status:500 });
+        return bookingCorsJson({ ok:false, message:"Unable to send this email." }, { status:500 });
       }
     }
 
@@ -6188,7 +6217,7 @@ if (
       const requiredFields = String(env.PERSONA_REQUIRED_FIELDS || "")
         .split(",").map(value => value.trim()).filter(Boolean);
       const effectiveRequiredFields = requiredFields.length ? requiredFields : ["name_first","name_last","birthdate"];
-      return Response.json({
+      return bookingCorsJson({
         ok:true,
         connected:apiKeyConfigured && inquiryTemplateConfigured,
         setup_state:apiKeyConfigured && inquiryTemplateConfigured ? "connected" : "pending_setup",
@@ -6225,25 +6254,25 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const audit=await env.DB.prepare("SELECT id,employment_verification_status FROM client_verification_audits WHERE client_id=? ORDER BY accepted_at DESC,id DESC LIMIT 1").bind(clientId).first();
-        if(!audit)return Response.json({ok:false,message:"No verification record is available for this client."},{status:404});
+        if(!audit)return bookingCorsJson({ok:false,message:"No verification record is available for this client."},{status:404});
         const employer=String(data.submitted_employer||"").trim().slice(0,200);
         const jobTitle=String(data.submitted_job_title||"").trim().slice(0,160);
         const industry=String(data.submitted_industry||"").trim().slice(0,160);
         const status=String(data.employment_verification_status||"not_checked").trim().toLowerCase();
         const allowed=new Set(["not_checked","pending","confirmed","not_applicable","unable_to_confirm","mismatch"]);
-        if(!allowed.has(status))return Response.json({ok:false,message:"Choose a valid employment verification result."},{status:400});
+        if(!allowed.has(status))return bookingCorsJson({ok:false,message:"Choose a valid employment verification result."},{status:400});
         const method=String(data.employment_verification_method||"").trim().slice(0,160);
         const workEmail=String(data.employment_work_email||"").trim().toLowerCase().slice(0,254);
         const website=String(data.employment_employer_website||"").trim().slice(0,500);
         const sourceName=String(data.employment_source_name||"").trim().slice(0,200);
         const sourceUrl=String(data.employment_source_url||"").trim().slice(0,800);
         const evidence=String(data.employment_evidence_reference||"").trim().slice(0,1200);
-        if(workEmail&&!verificationEmailValid(workEmail))return Response.json({ok:false,message:"Enter a valid work email address or leave it blank."},{status:400});
-        if(status==="confirmed"&&!(employer&&jobTitle&&industry&&method&&evidence))return Response.json({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
-        if(status==="not_applicable"&&!evidence)return Response.json({ok:false,message:"Record why employment verification is not applicable before continuing."},{status:400});
-        if(["unable_to_confirm","mismatch"].includes(status)&&!evidence)return Response.json({ok:false,message:"Add an evidence/reference note for this employment result."},{status:400});
+        if(workEmail&&!verificationEmailValid(workEmail))return bookingCorsJson({ok:false,message:"Enter a valid work email address or leave it blank."},{status:400});
+        if(status==="confirmed"&&!(employer&&jobTitle&&industry&&method&&evidence))return bookingCorsJson({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
+        if(status==="not_applicable"&&!evidence)return bookingCorsJson({ok:false,message:"Record why employment verification is not applicable before continuing."},{status:400});
+        if(["unable_to_confirm","mismatch"].includes(status)&&!evidence)return bookingCorsJson({ok:false,message:"Add an evidence/reference note for this employment result."},{status:400});
         await env.DB.prepare(`
           UPDATE client_verification_audits
           SET submitted_employer=?,submitted_job_title=?,submitted_industry=?,
@@ -6270,9 +6299,9 @@ if (
                  employment_source_name,employment_source_url,employment_evidence_reference,employment_checked_at,employer_confirmed,job_title_confirmed,industry_confirmed,updated_at
           FROM client_verification_audits WHERE id=? AND client_id=? LIMIT 1
         `).bind(Number(audit.id),clientId).first();
-        return Response.json({ok:true,employment:row},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,employment:row},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to save employment verification.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save employment verification.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6280,14 +6309,14 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const clientId=Number(url.searchParams.get("client_id")||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const row=await env.DB.prepare(`
           SELECT client_id,occupation,credential_type,license_number,issuing_state,issuing_board,
                  credential_status,issue_date,expiration_date,disciplinary_indicator,source_name,
                  source_url,evidence_notes,checked_at,checked_by,updated_at
           FROM client_credential_verifications WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
-        return Response.json({ok:true,credential:row?{
+        return bookingCorsJson({ok:true,credential:row?{
           client_id:Number(row.client_id),occupation:row.occupation||"",credential_type:row.credential_type||"",
           license_number:row.license_number||"",issuing_state:row.issuing_state||"",issuing_board:row.issuing_board||"",
           credential_status:row.credential_status||"not_checked",issue_date:row.issue_date||"",expiration_date:row.expiration_date||"",
@@ -6295,7 +6324,7 @@ if (
           evidence_notes:row.evidence_notes||"",checked_at:row.checked_at||"",checked_by:row.checked_by||"",updated_at:row.updated_at||""
         }:null},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to load license and credential verification.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load license and credential verification.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6304,7 +6333,7 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const occupation=String(data.occupation||"").trim().slice(0,160);
         const credentialType=String(data.credential_type||"").trim().slice(0,160);
         const licenseNumber=String(data.license_number||"").trim().slice(0,120);
@@ -6312,12 +6341,12 @@ if (
         const issuingBoard=String(data.issuing_board||"").trim().slice(0,200);
         const credentialStatus=String(data.credential_status||"not_checked").trim().toLowerCase();
         const allowedStatuses=new Set(["not_checked","pending","confirmed","not_found","unable_to_verify","expired","inactive","suspended","revoked","mismatch","needs_review"]);
-        if(!allowedStatuses.has(credentialStatus))return Response.json({ok:false,message:"Choose a valid license or credential result."},{status:400});
+        if(!allowedStatuses.has(credentialStatus))return bookingCorsJson({ok:false,message:"Choose a valid license or credential result."},{status:400});
         const issueDate=idDocumentDate(data.issue_date)||"";
         const expirationDate=idDocumentDate(data.expiration_date)||"";
         const disciplinaryIndicator=String(data.disciplinary_indicator||"unknown").trim().toLowerCase();
         if(!["unknown","none_found","public_record_found","not_applicable"].includes(disciplinaryIndicator)){
-          return Response.json({ok:false,message:"Choose a valid disciplinary/public-record result."},{status:400});
+          return bookingCorsJson({ok:false,message:"Choose a valid disciplinary/public-record result."},{status:400});
         }
         const sourceName=String(data.source_name||"").trim().slice(0,200);
         const sourceUrl=String(data.source_url||"").trim().slice(0,800);
@@ -6326,13 +6355,13 @@ if (
         const evidenceNotes=String(data.evidence_notes||"").trim().slice(0,1600);
         const genericDirectorySource=/usa\.gov\/state-governments/i.test(sourceUrl)||/^usa\.gov state governments$/i.test(sourceName);
         if(credentialStatus==="confirmed" && !(occupation&&credentialType&&licenseNumber&&issuingState&&issuingBoard&&sourceName&&sourceUrl)){
-          return Response.json({ok:false,message:"Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Active / verified."},{status:400});
+          return bookingCorsJson({ok:false,message:"Occupation, credential type, license number, issuing state, issuing board, and an official source are required before marking a credential Active / verified."},{status:400});
         }
         if(credentialStatus==="confirmed" && genericDirectorySource){
-          return Response.json({ok:false,message:"USA.gov State Governments is a directory, not credential evidence. Open the actual licensing board or registry and save that official source name and direct URL."},{status:400});
+          return bookingCorsJson({ok:false,message:"USA.gov State Governments is a directory, not credential evidence. Open the actual licensing board or registry and save that official source name and direct URL."},{status:400});
         }
         if(["not_found","unable_to_verify","expired","inactive","suspended","revoked","mismatch","needs_review"].includes(credentialStatus) && !evidenceNotes){
-          return Response.json({ok:false,message:"Add an evidence note for this credential result."},{status:400});
+          return bookingCorsJson({ok:false,message:"Add an evidence note for this credential result."},{status:400});
         }
         const actor=accessIdentity(request).email||"authorized-admin";
         const previous=await env.DB.prepare("SELECT credential_status FROM client_credential_verifications WHERE client_id=? LIMIT 1").bind(clientId).first();
@@ -6374,10 +6403,10 @@ if (
                  source_url,evidence_notes,checked_at,checked_by,updated_at
           FROM client_credential_verifications WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
-        return Response.json({ok:true,credential:saved},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,credential:saved},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Credential verification save error:",error);
-        return Response.json({ok:false,message:"Unable to save license and credential verification.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save license and credential verification.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6385,11 +6414,11 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const clientId=Number(url.searchParams.get("client_id")||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const rows=await env.DB.prepare("SELECT section_key,section_state,updated_by,updated_at FROM client_verification_section_states WHERE client_id=? ORDER BY section_key").bind(clientId).all();
-        return Response.json({ok:true,states:rows.results||[]},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,states:rows.results||[]},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to load verification section states.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load verification section states.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6398,13 +6427,13 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const sectionKey=String(data.section_key||"").trim().toLowerCase();
         const allowedSections=new Set(["credential","address","public_records"]);
-        if(!allowedSections.has(sectionKey))return Response.json({ok:false,message:"Choose a valid optional verification section."},{status:400});
+        if(!allowedSections.has(sectionKey))return bookingCorsJson({ok:false,message:"Choose a valid optional verification section."},{status:400});
         const sectionState=String(data.section_state||"not_checked").trim().toLowerCase();
         const allowedStates=new Set(["not_checked","in_progress","confirmed","partial_match","potential_match","mismatch","unable_to_verify","needs_review","skipped"]);
-        if(!allowedStates.has(sectionState))return Response.json({ok:false,message:"Choose a valid section status."},{status:400});
+        if(!allowedStates.has(sectionState))return bookingCorsJson({ok:false,message:"Choose a valid section status."},{status:400});
         const actor=accessIdentity(request).email||"authorized-admin";
         if(data.clear_data){
           if(sectionKey==="credential")await env.DB.prepare("DELETE FROM client_credential_verifications WHERE client_id=?").bind(clientId).run();
@@ -6421,9 +6450,9 @@ if (
           sectionState==="skipped"?"verification_section_skipped":"verification_section_state_changed",
           sectionKey.replaceAll("_"," ").replace(/^./,c=>c.toUpperCase())+(sectionState==="skipped"?" skipped":" status updated"),
           "Status: "+sectionState+" · Updated by "+actor+(data.clear_data?" · Saved working data cleared":""));
-        return Response.json({ok:true,state:{section_key:sectionKey,section_state:sectionState,updated_by:actor}},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,state:{section_key:sectionKey,section_state:sectionState,updated_by:actor}},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to update verification section status.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to update verification section status.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6431,14 +6460,14 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const clientId=Number(url.searchParams.get("client_id")||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const category=String(url.searchParams.get("category")||"").trim();
         const result=category
           ? await env.DB.prepare("SELECT id,category,result_status,source_name,source_url,reference,summary,metadata_json,checked_by,checked_at FROM client_verification_check_history WHERE client_id=? AND category=? ORDER BY checked_at DESC,id DESC LIMIT 100").bind(clientId,category).all()
           : await env.DB.prepare("SELECT id,category,result_status,source_name,source_url,reference,summary,metadata_json,checked_by,checked_at FROM client_verification_check_history WHERE client_id=? ORDER BY checked_at DESC,id DESC LIMIT 200").bind(clientId).all();
-        return Response.json({ok:true,history:result.results||[]},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,history:result.results||[]},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to load verification check history.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load verification check history.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6447,19 +6476,19 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const category=String(data.category||"").trim().toLowerCase();
         const allowedCategories=new Set(["sex_offender_registry","federal_records","supplemental_public_record"]);
-        if(!allowedCategories.has(category))return Response.json({ok:false,message:"Choose a valid supplemental verification category."},{status:400});
+        if(!allowedCategories.has(category))return bookingCorsJson({ok:false,message:"Choose a valid supplemental verification category."},{status:400});
         const resultStatus=String(data.result_status||"not_checked").trim().toLowerCase();
         const allowedStatuses=new Set(["not_checked","no_match","potential_match","confirmed_match","unable_to_verify"]);
-        if(!allowedStatuses.has(resultStatus))return Response.json({ok:false,message:"Choose a valid verification result."},{status:400});
+        if(!allowedStatuses.has(resultStatus))return bookingCorsJson({ok:false,message:"Choose a valid verification result."},{status:400});
         const sourceName=String(data.source_name||"").trim().slice(0,200);
         const sourceUrl=String(data.source_url||"").trim().slice(0,800);
         const reference=String(data.reference||"").trim().slice(0,240);
         const summary=String(data.summary||"").trim().slice(0,1200);
-        if(resultStatus!=="not_checked" && !(sourceName&&sourceUrl))return Response.json({ok:false,message:"Record the official source used for this check."},{status:400});
-        if(["potential_match","confirmed_match"].includes(resultStatus) && !summary)return Response.json({ok:false,message:"Add an evidence/reference note for a potential or confirmed match."},{status:400});
+        if(resultStatus!=="not_checked" && !(sourceName&&sourceUrl))return bookingCorsJson({ok:false,message:"Record the official source used for this check."},{status:400});
+        if(["potential_match","confirmed_match"].includes(resultStatus) && !summary)return bookingCorsJson({ok:false,message:"Add an evidence/reference note for a potential or confirmed match."},{status:400});
         const actor=accessIdentity(request).email||"authorized-admin";
         if(resultStatus!=="not_checked"){
           await logVerificationCheckHistory(env,clientId,category,resultStatus,sourceName,sourceUrl,reference,summary,{},actor);
@@ -6468,9 +6497,9 @@ if (
           await logVerificationActivity(env,clientId,audit?.id||null,"public_record_"+category+"_updated",
             categoryLabel+" check saved","Result: "+resultStatus+" · Source: "+sourceName+" · Checked by "+actor);
         }
-        return Response.json({ok:true,saved:resultStatus!=="not_checked"},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,saved:resultStatus!=="not_checked"},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to save supplemental public-record check.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save supplemental public-record check.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6478,13 +6507,13 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const clientId=Number(url.searchParams.get("client_id")||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const row=await env.DB.prepare(`
           SELECT client_id,jurisdiction_state,jurisdiction_county,search_scope,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed,
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
           FROM client_public_record_checks WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
-        return Response.json({ok:true,check:row?{
+        return bookingCorsJson({ok:true,check:row?{
           client_id:Number(row.client_id),jurisdiction_state:row.jurisdiction_state||"",
           jurisdiction_county:row.jurisdiction_county||"",search_scope:row.search_scope||"state_local",record_status:row.record_status||"not_checked",
           source_name:row.source_name||"",source_url:row.source_url||"",public_records_reviewed:Boolean(row.public_records_reviewed),criminal_records_reviewed:Boolean(row.criminal_records_reviewed),case_reference:row.case_reference||"",
@@ -6492,7 +6521,7 @@ if (
           checked_at:row.checked_at||"",checked_by:row.checked_by||"",updated_at:row.updated_at||""
         }:null},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to load public court record check.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load public court record check.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6501,16 +6530,16 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const jurisdictionState=normalizeVerificationState(data.jurisdiction_state||"").slice(0,40);
         const jurisdictionCounty=String(data.jurisdiction_county||"").trim().slice(0,120);
         const searchScope=String(data.search_scope||"state_local").trim().toLowerCase();
         if(!["state_local","federal","sex_offender_registry","multiple_sources"].includes(searchScope)){
-          return Response.json({ok:false,message:"Choose a valid public-record search scope."},{status:400});
+          return bookingCorsJson({ok:false,message:"Choose a valid public-record search scope."},{status:400});
         }
         const recordStatus=String(data.record_status||"not_checked").trim().toLowerCase();
         if(!["not_checked","no_public_record_found","potential_match","confirmed_match","unable_to_verify"].includes(recordStatus)){
-          return Response.json({ok:false,message:"Choose a valid public-record result."},{status:400});
+          return bookingCorsJson({ok:false,message:"Choose a valid public-record result."},{status:400});
         }
         const sourceName=String(data.source_name||"").trim().slice(0,200);
         const sourceUrl=String(data.source_url||"").trim().slice(0,800);
@@ -6521,13 +6550,13 @@ if (
         const publicRecordsReviewed=truthyReviewFlag(data.public_records_reviewed) ? 1 : 0;
         const criminalRecordsReviewed=truthyReviewFlag(data.criminal_records_reviewed) ? 1 : 0;
         if(recordStatus!=="not_checked" && !(sourceName&&sourceUrl)){
-          return Response.json({ok:false,message:"Record the official court, registry, or agency source used for this check."},{status:400});
+          return bookingCorsJson({ok:false,message:"Record the official court, registry, or agency source used for this check."},{status:400});
         }
         if(recordStatus==="potential_match" && !evidenceReference){
-          return Response.json({ok:false,message:"Add an evidence/reference note explaining why this is only a potential match."},{status:400});
+          return bookingCorsJson({ok:false,message:"Add an evidence/reference note explaining why this is only a potential match."},{status:400});
         }
         if(recordStatus==="confirmed_match" && !(caseReference&&evidenceReference)){
-          return Response.json({ok:false,message:"A confirmed match requires a case/reference number and identity corroboration in the evidence/reference field."},{status:400});
+          return bookingCorsJson({ok:false,message:"A confirmed match requires a case/reference number and identity corroboration in the evidence/reference field."},{status:400});
         }
         const actor=accessIdentity(request).email||"authorized-admin";
         await env.DB.prepare(`
@@ -6567,14 +6596,14 @@ if (
                  case_reference,disposition_summary,evidence_reference,checked_at,checked_by,updated_at
           FROM client_public_record_checks WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
-        return Response.json({ok:true,check:saved?{
+        return bookingCorsJson({ok:true,check:saved?{
           ...saved,
           public_records_reviewed:Boolean(saved.public_records_reviewed),
           criminal_records_reviewed:Boolean(saved.criminal_records_reviewed)
         }:null},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Public record check save error:",error);
-        return Response.json({ok:false,message:"Unable to save public court record check.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save public court record check.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6582,13 +6611,13 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const clientId=Number(url.searchParams.get("client_id")||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const row=await env.DB.prepare(`
           SELECT client_id,address_line1,address_line2,city,state,postal_code,result_status,verification_method,
                  source_name,source_url,evidence_reference,checked_at,checked_by,updated_at
           FROM client_address_verifications WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
-        return Response.json({ok:true,address_check:row?{
+        return bookingCorsJson({ok:true,address_check:row?{
           client_id:Number(row.client_id),address_line1:row.address_line1||"",address_line2:row.address_line2||"",
           city:row.city||"",state:row.state||"",postal_code:row.postal_code||"",result_status:row.result_status||"not_checked",
           verification_method:row.verification_method||"",source_name:row.source_name||"",source_url:row.source_url||"",
@@ -6596,7 +6625,7 @@ if (
           updated_at:row.updated_at||""
         }:null},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to load address verification.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load address verification.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6605,7 +6634,7 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const addressLine1=String(data.address_line1||"").trim().slice(0,240);
         const addressLine2=String(data.address_line2||"").trim().slice(0,160);
         const city=String(data.city||"").trim().slice(0,120);
@@ -6613,17 +6642,17 @@ if (
         const postalCode=String(data.postal_code||"").trim().slice(0,20);
         const resultStatus=String(data.result_status||"not_checked").trim().toLowerCase();
         if(!["not_checked","confirmed","partial_match","mismatch","unable_to_verify"].includes(resultStatus)){
-          return Response.json({ok:false,message:"Choose a valid address verification result."},{status:400});
+          return bookingCorsJson({ok:false,message:"Choose a valid address verification result."},{status:400});
         }
         const verificationMethod=String(data.verification_method||"").trim().slice(0,120);
         const sourceName=String(data.source_name||"").trim().slice(0,200);
         const sourceUrl=String(data.source_url||"").trim().slice(0,800);
         const evidenceReference=String(data.evidence_reference||"").trim().slice(0,1200);
         if(resultStatus!=="not_checked" && !(addressLine1&&city&&state&&postalCode&&verificationMethod)){
-          return Response.json({ok:false,message:"Address, city, state, postal code, and verification method are required before saving an address result."},{status:400});
+          return bookingCorsJson({ok:false,message:"Address, city, state, postal code, and verification method are required before saving an address result."},{status:400});
         }
         if(["partial_match","mismatch","unable_to_verify"].includes(resultStatus) && !evidenceReference){
-          return Response.json({ok:false,message:"Add an evidence/reference note for this address result."},{status:400});
+          return bookingCorsJson({ok:false,message:"Add an evidence/reference note for this address result."},{status:400});
         }
         const actor=accessIdentity(request).email||"authorized-admin";
         await env.DB.prepare(`
@@ -6655,10 +6684,10 @@ if (
                  source_name,source_url,evidence_reference,checked_at,checked_by,updated_at
           FROM client_address_verifications WHERE client_id=? LIMIT 1
         `).bind(clientId).first();
-        return Response.json({ok:true,address_check:saved},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,address_check:saved},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Address verification save error:",error);
-        return Response.json({ok:false,message:"Unable to save address verification.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to save address verification.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6666,9 +6695,9 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const clientId=Number(url.searchParams.get("client_id")||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const row=await env.DB.prepare("SELECT client_id, phone_e164, provider, valid, line_type, carrier_name, is_voip, caller_name, caller_type, caller_name_checked_at, checked_at FROM client_phone_line_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
-        return Response.json({ok:true,check:row?{
+        return bookingCorsJson({ok:true,check:row?{
           client_id:Number(row.client_id),
           phone_e164:row.phone_e164||"",
           provider:row.provider||"twilio_lookup",
@@ -6682,7 +6711,7 @@ if (
           checked_at:row.checked_at||""
         }:null},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
-        return Response.json({ok:false,message:"Unable to load phone line-type check.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load phone line-type check.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6691,14 +6720,14 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const phone=normalizePhoneForLookup(data.phone_number);
-        if(!phone)return Response.json({ok:false,code:"invalid_phone",message:"Enter a valid phone number before checking its line type."},{status:400});
+        if(!phone)return bookingCorsJson({ok:false,code:"invalid_phone",message:"Enter a valid phone number before checking its line type."},{status:400});
 
         const apiUser=String(env.TWILIO_API_KEY||env.TWILIO_ACCOUNT_SID||"").trim();
         const apiSecret=String(env.TWILIO_API_SECRET||env.TWILIO_AUTH_TOKEN||"").trim();
         if(!apiUser||!apiSecret){
-          return Response.json({
+          return bookingCorsJson({
             ok:false,code:"phone_lookup_not_configured",
             message:"Phone line-type lookup is not configured.",
             technical_details:"Add TWILIO_API_KEY and TWILIO_API_SECRET, or TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN, in Cloudflare."
@@ -6707,17 +6736,17 @@ if (
 
         const actor=accessIdentity(request).email||"admin";
         const rate=await enforceVerificationRateLimit(env,"phone_line_type",actor+":"+clientId,20,300);
-        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many phone line-type checks. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+        if(!rate.ok)return bookingCorsJson({ok:false,code:"rate_limited",message:"Too many phone line-type checks. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
 
         const auth=btoa(apiUser+":"+apiSecret);
         const lookupResponse=await fetch(
           "https://lookups.twilio.com/v2/PhoneNumbers/"+encodeURIComponent(phone)+"?Fields=line_type_intelligence",
           {headers:{Authorization:"Basic "+auth,"Accept":"application/json"}}
         );
-        const lookup=await lookupResponse.json().catch(()=>({}));
+        const lookup=await lookupbookingCorsJson().catch(()=>({}));
         if(!lookupResponse.ok){
           const detail=lookup?.message||lookup?.detail||("Twilio Lookup returned HTTP "+lookupResponse.status+".");
-          return Response.json({ok:false,code:"phone_lookup_failed",message:"Unable to verify the phone line type.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
+          return bookingCorsJson({ok:false,code:"phone_lookup_failed",message:"Unable to verify the phone line type.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
         }
 
         const valid=Boolean(lookup?.valid);
@@ -6742,7 +6771,7 @@ if (
           "Line type: "+lineType+(carrierName?" · Carrier: "+carrierName:"")
         );
 
-        return Response.json({
+        return bookingCorsJson({
           ok:true,
           phone_e164:phone,
           valid,
@@ -6755,7 +6784,7 @@ if (
         },{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Phone line-type lookup error:",error);
-        return Response.json({ok:false,message:"Unable to verify the phone line type.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to verify the phone line type.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6764,14 +6793,14 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id||0);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const phone=normalizePhoneForLookup(data.phone_number);
-        if(!phone)return Response.json({ok:false,code:"invalid_phone",message:"Enter a valid U.S. phone number before running reverse phone lookup."},{status:400});
+        if(!phone)return bookingCorsJson({ok:false,code:"invalid_phone",message:"Enter a valid U.S. phone number before running reverse phone lookup."},{status:400});
 
         const apiUser=String(env.TWILIO_API_KEY||env.TWILIO_ACCOUNT_SID||"").trim();
         const apiSecret=String(env.TWILIO_API_SECRET||env.TWILIO_AUTH_TOKEN||"").trim();
         if(!apiUser||!apiSecret){
-          return Response.json({
+          return bookingCorsJson({
             ok:false,code:"phone_lookup_not_configured",
             message:"Reverse phone lookup is not configured.",
             technical_details:"Add TWILIO_API_KEY and TWILIO_API_SECRET, or TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN, in Cloudflare."
@@ -6780,17 +6809,17 @@ if (
 
         const actor=accessIdentity(request).email||"admin";
         const rate=await enforceVerificationRateLimit(env,"phone_reverse_lookup",actor+":"+clientId,10,300);
-        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many reverse phone lookups. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+        if(!rate.ok)return bookingCorsJson({ok:false,code:"rate_limited",message:"Too many reverse phone lookups. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
 
         const auth=btoa(apiUser+":"+apiSecret);
         const lookupResponse=await fetch(
           "https://lookups.twilio.com/v2/PhoneNumbers/"+encodeURIComponent(phone)+"?Fields=caller_name",
           {headers:{Authorization:"Basic "+auth,"Accept":"application/json"}}
         );
-        const lookup=await lookupResponse.json().catch(()=>({}));
+        const lookup=await lookupbookingCorsJson().catch(()=>({}));
         if(!lookupResponse.ok){
           const detail=lookup?.message||lookup?.detail||("Twilio Lookup returned HTTP "+lookupResponse.status+".");
-          return Response.json({ok:false,code:"phone_reverse_lookup_failed",message:"Unable to complete reverse phone lookup.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
+          return bookingCorsJson({ok:false,code:"phone_reverse_lookup_failed",message:"Unable to complete reverse phone lookup.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
         }
 
         const caller=lookup?.caller_name||{};
@@ -6817,7 +6846,7 @@ if (
           callerName?("Caller name returned: "+callerName+" · Type: "+(callerType||"unknown")):"No caller name returned.",
           {phone_last4:phone.slice(-4)},actor);
 
-        return Response.json({
+        return bookingCorsJson({
           ok:true,
           phone_e164:phone,
           valid,
@@ -6828,7 +6857,7 @@ if (
         },{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Reverse phone lookup error:",error);
-        return Response.json({ok:false,message:"Unable to complete reverse phone lookup.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to complete reverse phone lookup.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -6836,18 +6865,18 @@ if (
       try {
         const actor=accessIdentity(request).email||"admin";
         const rate=await enforceVerificationRateLimit(env,"persona_test",actor,10,300);
-        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona connection tests. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+        if(!rate.ok)return bookingCorsJson({ok:false,code:"rate_limited",message:"Too many Persona connection tests. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
         const result=await fetchPersonaInquiryTemplateConfig(env);
-        return Response.json(result,{status:result.ok?200:(result.state==="invalid_credentials"?401:result.state==="incorrect_inquiry_template"?400:502),headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson(result,{status:result.ok?200:(result.state==="invalid_credentials"?401:result.state==="incorrect_inquiry_template"?400:502),headers:{"Cache-Control":"private, no-store"}});
       } catch (error) {
-        return Response.json({ok:false,state:"connection_error",message:"Persona connection error",technical_details:String(error?.message||error)},{status:502,headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:false,state:"connection_error",message:"Persona connection error",technical_details:String(error?.message||error)},{status:502,headers:{"Cache-Control":"private, no-store"}});
       }
     }
 
     if (url.pathname === "/api/admin/clients/persona-verify" && request.method === "POST") {
       try {
         if (!env.PERSONA_API_KEY) {
-          return Response.json({
+          return bookingCorsJson({
             ok:false,
             message:"Persona setup is still pending. Manual verification remains available.",
             technical_details:"PERSONA_API_KEY is missing."
@@ -6856,11 +6885,11 @@ if (
         await ensureVerificationWorkspaceTables(env);
         const personaConfig=await fetchPersonaInquiryTemplateConfig(env);
         if(!personaConfig.ok){
-          return Response.json({ok:false,message:personaConfig.message,technical_details:personaConfig.technical_details,connection_state:personaConfig.state},{status:personaConfig.state==="invalid_credentials"?401:personaConfig.state==="incorrect_inquiry_template"?400:502});
+          return bookingCorsJson({ok:false,message:personaConfig.message,technical_details:personaConfig.technical_details,connection_state:personaConfig.state},{status:personaConfig.state==="invalid_credentials"?401:personaConfig.state==="incorrect_inquiry_template"?400:502});
         }
         const personaInquiryTemplateId=String(personaConfig.inquiry_template_id||"").trim();
         if(!/^itmpl_[A-Za-z0-9]+$/.test(personaInquiryTemplateId)){
-          return Response.json({ok:false,message:"Persona setup is still pending. Manual verification remains available.",technical_details:"No usable Persona Inquiry Template is available."},{status:503});
+          return bookingCorsJson({ok:false,message:"Persona setup is still pending. Manual verification remains available.",technical_details:"No usable Persona Inquiry Template is available."},{status:503});
         }
 
         const data = await request.json().catch(() => ({}));
@@ -6892,7 +6921,7 @@ if (
         ) delete personaFields.address_street_2;
 
         if (!Number.isInteger(clientId) || clientId < 1) {
-          return Response.json({ok:false,message:"Choose a valid client."},{status:400});
+          return bookingCorsJson({ok:false,message:"Choose a valid client."},{status:400});
         }
         const sensitive = await env.DB.prepare(
           "SELECT encrypted_id_number, id_class, issuing_state, expiration_date FROM client_verification_sensitive_fields WHERE client_id=? LIMIT 1"
@@ -6900,7 +6929,7 @@ if (
         let savedIdNumber="";
         if (sensitive?.encrypted_id_number) {
           try { savedIdNumber=await decryptVerificationField(env,sensitive.encrypted_id_number); }
-          catch(error) { return Response.json({ok:false,message:"Saved ID details could not be decrypted.",technical_details:String(error?.message||error)},{status:500}); }
+          catch(error) { return bookingCorsJson({ok:false,message:"Saved ID details could not be decrypted.",technical_details:String(error?.message||error)},{status:500}); }
         }
         const idNumberField=firstSupportedPersonaField(supportedPersonaFields,PERSONA_ID_NUMBER_FIELD_CANDIDATES);
         const idClassField=firstSupportedPersonaField(supportedPersonaFields,PERSONA_ID_CLASS_FIELD_CANDIDATES);
@@ -6922,34 +6951,34 @@ if (
           if(!sensitive?.issuing_state)fallbackErrors.push({field:"issuing_state",message:"Issuing state is required when address is unavailable."});
         }
         if(fallbackErrors.length){
-          return Response.json({ok:false,message:"Complete either the address or the DL/State ID fallback.",field_errors:fallbackErrors},{status:400});
+          return bookingCorsJson({ok:false,message:"Complete either the address or the DL/State ID fallback.",field_errors:fallbackErrors},{status:400});
         }
         const addressFields=new Set(["address_street_1","address_street_2","address_city","address_subdivision","address_postal_code","address_country_code"]);
         const requiredFields=(personaConfig.required_fields || []).filter(field=>!(idFallbackComplete&&addressFields.has(field)));
         const missingRequired = requiredFields.filter(key=>!String(personaFields[key]||"").trim());
         if (missingRequired.length) {
-          return Response.json({ok:false,message:"Complete all fields required by the configured Persona Inquiry Template.",missing_fields:missingRequired},{status:400});
+          return bookingCorsJson({ok:false,message:"Complete all fields required by the configured Persona Inquiry Template.",missing_fields:missingRequired},{status:400});
         }
         if (personaFields.address_country_code && !/^[A-Z]{2}$/.test(personaFields.address_country_code)) {
-          return Response.json({ok:false,message:"Country code must use a two-letter code such as US.",field_errors:["Country code must contain two letters."]},{status:400});
+          return bookingCorsJson({ok:false,message:"Country code must use a two-letter code such as US.",field_errors:["Country code must contain two letters."]},{status:400});
         }
         if (personaFields.address_country_code === "US" && personaFields.address_subdivision && !VALID_US_STATE_CODES.has(personaFields.address_subdivision)) {
-          return Response.json({ok:false,message:"State must use a valid two-letter U.S. abbreviation.",field_errors:[{field:"address_subdivision",message:"State is invalid."}]},{status:400});
+          return bookingCorsJson({ok:false,message:"State must use a valid two-letter U.S. abbreviation.",field_errors:[{field:"address_subdivision",message:"State is invalid."}]},{status:400});
         }
         if (personaFields.address_country_code === "US" && personaFields.address_postal_code && !/^\d{5}(?:-\d{4})?$/.test(personaFields.address_postal_code)) {
-          return Response.json({ok:false,message:"Enter a valid U.S. ZIP code.",field_errors:[{field:"address_postal_code",message:"Postal code must be 12345 or 12345-6789."}]},{status:400});
+          return bookingCorsJson({ok:false,message:"Enter a valid U.S. ZIP code.",field_errors:[{field:"address_postal_code",message:"Postal code must be 12345 or 12345-6789."}]},{status:400});
         }
         if (personaFields.email_address && !verificationEmailValid(personaFields.email_address)) {
-          return Response.json({ok:false,message:"Enter a valid email address before submitting to Persona.",field_errors:[{field:"email_address",message:"Email format is invalid."}]},{status:400});
+          return bookingCorsJson({ok:false,message:"Enter a valid email address before submitting to Persona.",field_errors:[{field:"email_address",message:"Email format is invalid."}]},{status:400});
         }
         if (personaFields.phone_number) {
           const digits=personaFields.phone_number.replace(/\D/g,"");
           if (!(digits.length===11&&digits.startsWith("1"))) {
-            return Response.json({ok:false,message:"Enter a complete U.S. phone number before submitting to Persona.",field_errors:[{field:"phone_number",message:"Phone number is incomplete."}]},{status:400});
+            return bookingCorsJson({ok:false,message:"Enter a complete U.S. phone number before submitting to Persona.",field_errors:[{field:"phone_number",message:"Phone number is incomplete."}]},{status:400});
           }
         }
         if (!await requireIdDocumentClient(env, clientId)) {
-          return Response.json({ok:false,message:"Client not found."},{status:404});
+          return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         }
 
         if (!Number.isInteger(requestId) || requestId < 1) {
@@ -6959,13 +6988,13 @@ if (
           requestId = Number(latestRequest?.id || 0);
         }
         if (!requestId) {
-          return Response.json({ok:false,message:"This client does not have a booking request to attach the verification record to."},{status:400});
+          return bookingCorsJson({ok:false,message:"This client does not have a booking request to attach the verification record to."},{status:400});
         }
         const ownedRequest=await env.DB.prepare("SELECT id FROM date_requests WHERE id=? AND client_id=? LIMIT 1").bind(requestId,clientId).first();
-        if(!ownedRequest)return Response.json({ok:false,message:"The selected booking request does not belong to this client."},{status:400});
+        if(!ownedRequest)return bookingCorsJson({ok:false,message:"The selected booking request does not belong to this client."},{status:400});
         const actor=accessIdentity(request).email||"admin";
         const personaRate=await enforceVerificationRateLimit(env,"persona_verify",actor+":"+clientId,5,600);
-        if(!personaRate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona submissions for this client. Refresh the current status before trying again."},{status:429,headers:{"Retry-After":String(personaRate.retry_after)}});
+        if(!personaRate.ok)return bookingCorsJson({ok:false,code:"rate_limited",message:"Too many Persona submissions for this client. Refresh the current status before trying again."},{status:429,headers:{"Retry-After":String(personaRate.retry_after)}});
 
         let audit = await env.DB.prepare(
           "SELECT id, date_request_id, persona_transaction_id, persona_transaction_status FROM client_verification_audits WHERE client_id=? AND date_request_id=? LIMIT 1"
@@ -6984,7 +7013,7 @@ if (
           ).bind(clientId, requestId).first();
         }
         if (!audit) {
-          return Response.json({ok:false,message:"Unable to create the verification audit for this booking request."},{status:500});
+          return bookingCorsJson({ok:false,message:"Unable to create the verification audit for this booking request."},{status:500});
         }
         const existingPersonaId = String(audit.persona_transaction_id || "");
         const existingPersonaStatus = String(audit.persona_transaction_status || "").toLowerCase();
@@ -6993,13 +7022,13 @@ if (
         const forceNewPersona=Boolean(data.force_new_persona);
         if (existingPersonaId) {
           if ((activePersonaStatuses.has(existingPersonaStatus) || !existingPersonaStatus) && !forceNewPersona) {
-            return Response.json({ok:false,code:"persona_already_pending",message:"A Persona verification is already pending for this client.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus||"pending"},retry_allowed:false,new_test_allowed:true},{status:409});
+            return bookingCorsJson({ok:false,code:"persona_already_pending",message:"A Persona verification is already pending for this client.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus||"pending"},retry_allowed:false,new_test_allowed:true},{status:409});
           }
           if (existingPersonaStatus === "approved" && !forceNewPersona) {
-            return Response.json({ok:false,code:"persona_already_approved",message:"Persona already returned Approved for this client. Use the existing result.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:false,new_test_allowed:true},{status:409});
+            return bookingCorsJson({ok:false,code:"persona_already_approved",message:"Persona already returned Approved for this client. Use the existing result.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:false,new_test_allowed:true},{status:409});
           }
           if (retryablePersonaStatuses.has(existingPersonaStatus) && !data.retry_persona && !forceNewPersona) {
-            return Response.json({ok:false,code:"persona_retry_required",message:"The previous Persona verification ended without approval. Use Retry Persona if you want to submit it again.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:true,new_test_allowed:true},{status:409});
+            return bookingCorsJson({ok:false,code:"persona_retry_required",message:"The previous Persona verification ended without approval. Use Retry Persona if you want to submit it again.",existing_transaction:{id:existingPersonaId,status:existingPersonaStatus},retry_allowed:true,new_test_allowed:true},{status:409});
           }
         }
 
@@ -7104,12 +7133,12 @@ if (
                 }
               })
             });
-            personaData = await personaResponse.json().catch(() => ({}));
+            personaData = await personabookingCorsJson().catch(() => ({}));
           }catch(error){
             const state=personaFetchState(error);
             await env.DB.prepare("UPDATE persona_verification_attempts SET transaction_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(state.code,attempt.id).run();
             await logVerificationActivity(env,clientId,audit.id,"persona_transport_error","Persona request did not complete",state.message);
-            return Response.json({ok:false,code:state.code,message:state.message,retry_allowed:false,refresh_recommended:true},{status:state.code==="persona_timeout"?504:503});
+            return bookingCorsJson({ok:false,code:state.code,message:state.message,retry_allowed:false,refresh_recommended:true},{status:state.code==="persona_timeout"?504:503});
           }finally{clearTimeout(timeout);}
 
           finalPersonaRequestId=personaResponse.headers.get("Request-Id") || "";
@@ -7150,7 +7179,7 @@ if (
             /^persona_sandbox_/i.test(String(env.PERSONA_API_KEY||"")) &&
             acceptedProfile==="" &&
             uniqueProfiles.at(-1)?.name==="persona_docs_workflow_safe";
-          return Response.json({
+          return bookingCorsJson({
             ok:false,
             code:sandboxTemplateMismatch?"persona_template_environment_mismatch":"persona_request_rejected",
             message:sandboxTemplateMismatch
@@ -7199,7 +7228,7 @@ if (
           FROM client_verification_audits WHERE id=? LIMIT 1
         `).bind(audit.id).first();
 
-        return Response.json({
+        return bookingCorsJson({
           ok:true,
           message:transactionStatus === "approved"
             ? "Persona returned Approved. Review the manual checklist and choose the final decision."
@@ -7210,7 +7239,7 @@ if (
         }, {headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Persona admin verification error:", error);
-        return Response.json({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(error?.message || error),retry_allowed:true},{status:500});
+        return bookingCorsJson({ok:false,message:"Persona could not complete this verification request. Manual verification remains available.",technical_details:String(error?.message || error),retry_allowed:true},{status:500});
       }
     }
 
@@ -7218,24 +7247,24 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const config=await fetchPersonaInquiryTemplateConfig(env);
-        if(!config.ok)return Response.json({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_inquiry_template"?400:502});
+        if(!config.ok)return bookingCorsJson({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_inquiry_template"?400:502});
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const actor=accessIdentity(request).email||"admin";
         const rate=await enforceVerificationRateLimit(env,"persona_refresh",actor+":"+clientId,20,300);
-        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona status refreshes. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+        if(!rate.ok)return bookingCorsJson({ok:false,code:"rate_limited",message:"Too many Persona status refreshes. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
         const audit=await env.DB.prepare(
           "SELECT * FROM client_verification_audits WHERE client_id=? AND persona_transaction_id<>'' ORDER BY persona_submitted_at DESC, id DESC LIMIT 1"
         ).bind(clientId).first();
-        if(!audit)return Response.json({ok:false,message:"No Persona inquiry is available to refresh."},{status:404});
+        if(!audit)return bookingCorsJson({ok:false,message:"No Persona inquiry is available to refresh."},{status:404});
         const headers={Authorization:"Bearer "+String(env.PERSONA_API_KEY),"Key-Inflection":"snake"};
         if(env.PERSONA_API_VERSION)headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
         const response=await fetch("https://api.withpersona.com/api/v1/inquiries/"+encodeURIComponent(audit.persona_transaction_id),{headers});
         const payload=await response.json().catch(()=>({}));
         if(!response.ok){
           const detail=payload?.errors?.[0]?.detail||payload?.errors?.[0]?.title||payload?.message||"Persona could not refresh this inquiry.";
-          return Response.json({ok:false,message:"Unable to refresh Persona status.",technical_details:String(detail)},{status:response.status===404?404:502});
+          return bookingCorsJson({ok:false,message:"Unable to refresh Persona status.",technical_details:String(detail)},{status:response.status===404?404:502});
         }
         const newStatus=String(payload?.data?.attributes?.status||"").toLowerCase()||String(audit.persona_transaction_status||"pending");
         await env.DB.prepare("UPDATE client_verification_audits SET persona_transaction_status=?, persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?")
@@ -7244,10 +7273,10 @@ if (
           .bind(newStatus,audit.persona_transaction_id).run();
         await logVerificationActivity(env,clientId,audit.id,"persona_refresh","Persona status refreshed","Status: "+newStatus);
         const updated=await env.DB.prepare("SELECT * FROM client_verification_audits WHERE id=? LIMIT 1").bind(audit.id).first();
-        return Response.json({ok:true,message:"Persona status refreshed.",transaction_status:newStatus,record:verificationAuditPublicRecord(updated)},{headers:{"Cache-Control":"private, no-store"}});
+        return bookingCorsJson({ok:true,message:"Persona status refreshed.",transaction_status:newStatus,record:verificationAuditPublicRecord(updated)},{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Persona status refresh error:",error);
-        return Response.json({ok:false,message:"Unable to refresh Persona status.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to refresh Persona status.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -7255,20 +7284,20 @@ if (
       try {
         await ensureVerificationWorkspaceTables(env);
         const config=await fetchPersonaInquiryTemplateConfig(env);
-        if(!config.ok)return Response.json({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_inquiry_template"?400:502});
+        if(!config.ok)return bookingCorsJson({ok:false,message:config.message,technical_details:config.technical_details},{status:config.state==="invalid_credentials"?401:config.state==="incorrect_inquiry_template"?400:502});
 
         const data=await request.json().catch(()=>({}));
         const clientId=Number(data.client_id);
-        if(!await requireIdDocumentClient(env,clientId))return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!await requireIdDocumentClient(env,clientId))return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
 
         const actor=accessIdentity(request).email||"admin";
         const rate=await enforceVerificationRateLimit(env,"persona_workflow_result",actor+":"+clientId,20,300);
-        if(!rate.ok)return Response.json({ok:false,code:"rate_limited",message:"Too many Persona workflow checks. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
+        if(!rate.ok)return bookingCorsJson({ok:false,code:"rate_limited",message:"Too many Persona workflow checks. Try again shortly."},{status:429,headers:{"Retry-After":String(rate.retry_after)}});
 
         const audit=await env.DB.prepare(
           "SELECT * FROM client_verification_audits WHERE client_id=? AND persona_transaction_id<>'' ORDER BY persona_submitted_at DESC, id DESC LIMIT 1"
         ).bind(clientId).first();
-        if(!audit)return Response.json({ok:false,message:"No Persona inquiry is available to inspect."},{status:404});
+        if(!audit)return bookingCorsJson({ok:false,message:"No Persona inquiry is available to inspect."},{status:404});
 
         const headers={Authorization:"Bearer "+String(env.PERSONA_API_KEY),"Key-Inflection":"snake"};
         if(env.PERSONA_API_VERSION)headers["Persona-Version"]=String(env.PERSONA_API_VERSION);
@@ -7278,10 +7307,10 @@ if (
           "https://api.withpersona.com/api/v1/inquiries/"+encodeURIComponent(inquiryId)+"?include=verifications",
           {headers}
         );
-        const personaPayload=await personaResponse.json().catch(()=>({}));
+        const personaPayload=await personabookingCorsJson().catch(()=>({}));
         if(!personaResponse.ok){
           const detail=personaPayload?.errors?.[0]?.detail||personaPayload?.errors?.[0]?.title||personaPayload?.message||"Persona could not inspect this inquiry.";
-          return Response.json({
+          return bookingCorsJson({
             ok:false,
             message:"Unable to check Persona workflow result.",
             technical_details:String(detail),
@@ -7358,7 +7387,7 @@ if (
             {headers:workflowHeaders}
           );
           eventRequestId=eventsResponse.headers.get("Request-Id")||"";
-          const eventsPayload=await eventsResponse.json().catch(()=>({}));
+          const eventsPayload=await eventsbookingCorsJson().catch(()=>({}));
           if(eventsResponse.ok){
             const events=Array.isArray(eventsPayload?.data)?eventsPayload.data:[];
             matchedTriggerEvent=events.find(eventMatchesInquiry)||null;
@@ -7376,7 +7405,7 @@ if (
             {headers:workflowHeaders}
           );
           workflowRequestId=workflowListResponse.headers.get("Request-Id")||"";
-          const workflowListPayload=await workflowListResponse.json().catch(()=>({}));
+          const workflowListPayload=await workflowListbookingCorsJson().catch(()=>({}));
           if(workflowListResponse.ok){
             const runs=Array.isArray(workflowListPayload?.data)?workflowListPayload.data:[];
             if(matchedTriggerEvent){
@@ -7405,7 +7434,7 @@ if (
                     "https://api.withpersona.com/api/v1/workflows/"+encodeURIComponent(workflowId),
                     {headers:workflowHeaders}
                   );
-                  const wfPayload=await wfResponse.json().catch(()=>({}));
+                  const wfPayload=await wfbookingCorsJson().catch(()=>({}));
                   if(wfResponse.ok)matchedWorkflow=wfPayload?.data||null;
                 }catch(_error){}
               }
@@ -7427,7 +7456,7 @@ if (
                 "https://api.withpersona.com/api/v1/workflow-runs/"+encodeURIComponent(runId),
                 {headers:workflowHeaders}
               );
-              const detailPayload=await detailResponse.json().catch(()=>({}));
+              const detailPayload=await detailbookingCorsJson().catch(()=>({}));
               if(detailResponse.ok && detailPayload?.data){
                 matchedWorkflowRun=detailPayload.data;
                 const attrs=detailPayload.data?.attributes||{};
@@ -7472,7 +7501,7 @@ if (
             "UPDATE client_verification_audits SET persona_database_status=?, persona_database_verification_id=?, persona_database_checked_at=CURRENT_TIMESTAMP, persona_updated_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=? AND persona_transaction_id=?"
           ).bind(databaseStatus||"unknown",databaseVerificationId,audit.id,inquiryId).run();
           if(Number(persisted.meta?.changes||0)===0){
-            return Response.json({ok:false,code:"stale_persona_result",message:"This Persona result belongs to an older inquiry and was not applied.",inquiry_id:inquiryId},{status:409,headers:{"Cache-Control":"private, no-store"}});
+            return bookingCorsJson({ok:false,code:"stale_persona_result",message:"This Persona result belongs to an older inquiry and was not applied.",inquiry_id:inquiryId},{status:409,headers:{"Cache-Control":"private, no-store"}});
           }
           if(databaseStatus==="passed"&&(previousDatabaseStatus!=="passed"||previousDatabaseVerificationId!==databaseVerificationId)){
             await logVerificationActivity(
@@ -7497,7 +7526,7 @@ if (
               : "No matching workflow run or Database verification attached to inquiry "+inquiryId
         );
 
-        return Response.json({
+        return bookingCorsJson({
           ok:true,
           inquiry_id:inquiryId,
           inquiry_status:inquiryStatus,
@@ -7560,7 +7589,7 @@ if (
         },{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Persona workflow result error:",error);
-        return Response.json({ok:false,message:"Unable to check Persona workflow result.",technical_details:String(error?.message||error)},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to check Persona workflow result.",technical_details:String(error?.message||error)},{status:500});
       }
     }
 
@@ -7576,7 +7605,7 @@ if (
         const verified = await verifyPersonaWebhookSignature(rawBody, signature, env.PERSONA_WEBHOOK_SECRET);
         if (!verified) {
           await env.DB.prepare("UPDATE persona_webhook_health SET last_rejected_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
-          return Response.json({ok:false,message:"Invalid webhook signature."},{status:401});
+          return bookingCorsJson({ok:false,message:"Invalid webhook signature."},{status:401});
         }
 
         const event = JSON.parse(rawBody || "{}");
@@ -7593,7 +7622,7 @@ if (
           const inserted=await env.DB.prepare(
             "INSERT OR IGNORE INTO persona_webhook_events (event_id,event_type,transaction_id,resulting_status,received_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)"
           ).bind(eventId,eventName,objectId,objectStatus).run();
-          if(!Number(inserted.meta?.changes||0))return Response.json({ok:true,duplicate:true,event_id:eventId});
+          if(!Number(inserted.meta?.changes||0))return bookingCorsJson({ok:true,duplicate:true,event_id:eventId});
         }
 
         let verificationStatus = "";
@@ -7610,7 +7639,7 @@ if (
           } else if (["created","needs_review","pending_fallback_inquiry"].includes(objectStatus)) {
             verificationStatus = "pending_review";
           } else {
-            return Response.json({ok:true,ignored:true,reason:"unhandled_transaction_status"});
+            return bookingCorsJson({ok:true,ignored:true,reason:"unhandled_transaction_status"});
           }
         } else if (
           eventName.includes("inquiry.completed") ||
@@ -7630,13 +7659,13 @@ if (
           transactionStatus = objectStatus || "failed";
           verificationStatus = "unable_to_verify";
         } else {
-          return Response.json({ok:true,ignored:true});
+          return bookingCorsJson({ok:true,ignored:true});
         }
 
         const requestId = Number(referenceId);
         if (!Number.isInteger(requestId) || requestId < 1) {
           console.warn("Persona webhook missing valid booking request reference ID:", referenceId, objectId);
-          return Response.json({ok:true,ignored:true,reason:"missing_reference_id"});
+          return bookingCorsJson({ok:true,ignored:true,reason:"missing_reference_id"});
         }
 
         const audit = await env.DB.prepare(
@@ -7644,7 +7673,7 @@ if (
         ).bind(requestId).first();
         if (!audit) {
           console.warn("Persona webhook has no matching verification audit:", requestId, objectId);
-          return Response.json({ok:true,ignored:true,reason:"audit_not_found"});
+          return bookingCorsJson({ok:true,ignored:true,reason:"audit_not_found"});
         }
         const currentInquiryId=String(audit.persona_transaction_id||"");
         if(currentInquiryId&&objectId&&currentInquiryId!==objectId){
@@ -7652,7 +7681,7 @@ if (
             env,Number(audit.client_id),Number(audit.id),"persona_stale_webhook_ignored","Older Persona webhook ignored",
             "Current inquiry preserved. Incoming inquiry: "+objectId
           );
-          return Response.json({ok:true,ignored:true,reason:"stale_persona_inquiry"});
+          return bookingCorsJson({ok:true,ignored:true,reason:"stale_persona_inquiry"});
         }
 
         await env.DB.prepare(`
@@ -7687,7 +7716,7 @@ if (
         }
         await env.DB.prepare("UPDATE persona_webhook_health SET last_success_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=1").run();
 
-        return Response.json({
+        return bookingCorsJson({
           ok:true,
           booking_request_id:requestId,
           status:"persona_updated",
@@ -7695,7 +7724,7 @@ if (
         });
       } catch(error) {
         console.error("Persona webhook error:",error);
-        return Response.json({ok:false,message:"Unable to process verification webhook."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to process verification webhook."},{status:500});
       }
     }
 
@@ -7707,9 +7736,9 @@ if (
         const event = await request.json();
         const type = String(event?.type || "");
         const providerId = String(event?.data?.email_id || event?.data?.id || "");
-        if (!providerId) return Response.json({ok:true,ignored:true});
+        if (!providerId) return bookingCorsJson({ok:true,ignored:true});
         const tracked = await env.DB.prepare("SELECT email_draft_id FROM email_tracking WHERE provider_email_id=? LIMIT 1").bind(providerId).first();
-        if (!tracked) return Response.json({ok:true,ignored:true});
+        if (!tracked) return bookingCorsJson({ok:true,ignored:true});
         if (type === "email.opened") {
           await env.DB.prepare(`
             UPDATE email_tracking SET
@@ -7720,23 +7749,23 @@ if (
             WHERE email_draft_id=?
           `).bind(tracked.email_draft_id).run();
         }
-        return Response.json({ok:true});
+        return bookingCorsJson({ok:true});
       } catch(error) {
         console.error("Resend webhook error:",error);
-        return Response.json({ok:false},{status:500});
+        return bookingCorsJson({ok:false},{status:500});
       }
     }
 
     // Mark a sent email as responded when the client replies outside the dashboard.
     if (url.pathname.match(/^\/api\/admin\/email-drafts\/\d+\/responded$/) && request.method === "POST") {
       const draftId=Number(url.pathname.split("/").slice(-2,-1)[0]);
-      if(!Number.isInteger(draftId)||draftId<1) return Response.json({ok:false,message:"Invalid email ID."},{status:400});
+      if(!Number.isInteger(draftId)||draftId<1) return bookingCorsJson({ok:false,message:"Invalid email ID."},{status:400});
       await env.DB.prepare(`
         INSERT INTO email_tracking (email_draft_id, responded_at, updated_at)
         VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(email_draft_id) DO UPDATE SET responded_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
       `).bind(draftId).run();
-      return Response.json({ok:true});
+      return bookingCorsJson({ok:true});
     }
 
     // =========================================================
@@ -7770,7 +7799,7 @@ if (
             .all();
 
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           newsletters:
             result.results || []
@@ -7782,7 +7811,7 @@ if (
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message:
@@ -7812,7 +7841,7 @@ if (
         const requestId = Number(data.id);
 
         if (!Number.isInteger(requestId) || requestId < 1) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message: "Invalid request ID."
@@ -7843,7 +7872,7 @@ if (
           .first();
 
         if (!existingRequest) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message: "Request not found."
@@ -7854,7 +7883,7 @@ if (
 
         const blockedClient = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? OR (email <> '' AND LOWER(email)=LOWER(?)) OR (phone <> '' AND phone=?) LIMIT 1")
           .bind(existingRequest.client_id, existingRequest.email || "", existingRequest.phone || "").first();
-        if (blockedClient) return Response.json({ok:false,message:"This client is blacklisted. Private screening cannot be requested."},{status:409});
+        if (blockedClient) return bookingCorsJson({ok:false,message:"This client is blacklisted. Private screening cannot be requested."},{status:409});
 
         const notesText = String(existingRequest.notes || "");
         const durationMatch = notesText.match(/Duration:\s*([^\n]+)/i);
@@ -7956,7 +7985,7 @@ if (
           ).run();
         }
 
-        return Response.json({
+        return bookingCorsJson({
           ok: true,
           message: "Request moved forward.",
           status: "screening_pending",
@@ -7973,7 +8002,7 @@ if (
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message: "Unable to move request forward."
@@ -7990,7 +8019,7 @@ if (
       try {
         const data=await request.json().catch(()=>({}));
         const requestId=Number(data.id);
-        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        if(!Number.isInteger(requestId)||requestId<1) return bookingCorsJson({ok:false,message:"Invalid request ID."},{status:400});
         await ensureSiteContentTables(env);
         await ensureClientVerificationAuditsTable(env);
         const row=await env.DB.prepare(`
@@ -8004,16 +8033,16 @@ if (
           LEFT JOIN booking_continuations bc ON bc.date_request_id=dr.id
           WHERE dr.id=? LIMIT 1
         `).bind(requestId).first();
-        if(!row) return Response.json({ok:false,message:"Request not found."},{status:404});
+        if(!row) return bookingCorsJson({ok:false,message:"Request not found."},{status:404});
         const blockedDepositClient=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(row.client_id).first();
-        if(blockedDepositClient) return Response.json({ok:false,message:"This client is blacklisted. A deposit request cannot be created."},{status:409});
+        if(blockedDepositClient) return bookingCorsJson({ok:false,message:"This client is blacklisted. A deposit request cannot be created."},{status:409});
         const continuation=await env.DB.prepare("SELECT combined_step FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
-        if(Number(continuation?.combined_step||0)===1) return Response.json({ok:false,message:"This client already received the combined screening and deposit request. Review the submitted form and confirm payment from the dashboard."},{status:409});
-        if(!row.screening_submitted_at) return Response.json({ok:false,message:"The client must submit screening details before a deposit can be requested."},{status:409});
+        if(Number(continuation?.combined_step||0)===1) return bookingCorsJson({ok:false,message:"This client already received the combined screening and deposit request. Review the submitted form and confirm payment from the dashboard."},{status:409});
+        if(!row.screening_submitted_at) return bookingCorsJson({ok:false,message:"The client must submit screening details before a deposit can be requested."},{status:409});
         if(String(row.verification_status||"")!=="verified"||!row.verification_completed_at) {
-          return Response.json({ok:false,message:"Mark screening Verified before requesting a deposit."},{status:409});
+          return bookingCorsJson({ok:false,message:"Mark screening Verified before requesting a deposit."},{status:409});
         }
-        if(Number(row.deposit_amount||0)<=0) return Response.json({ok:false,message:"Deposit amount is unavailable."},{status:409});
+        if(Number(row.deposit_amount||0)<=0) return bookingCorsJson({ok:false,message:"Deposit amount is unavailable."},{status:409});
 
         const continuationToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
         const continuationTokenHash=await sha256Hex(continuationToken);
@@ -8056,10 +8085,10 @@ Kendra`;
             .bind(row.client_id,requestId,"deposit_request",subject,body).run();
         }
         await env.DB.prepare("UPDATE date_requests SET status='pending_final_approval' WHERE id=?").bind(requestId).run();
-        return Response.json({ok:true,status:"pending_final_approval",deposit_amount:Number(row.deposit_amount),message:"Deposit request draft created. Review it in Email Drafts before sending."});
+        return bookingCorsJson({ok:true,status:"pending_final_approval",deposit_amount:Number(row.deposit_amount),message:"Deposit request draft created. Review it in Email Drafts before sending."});
       } catch(error) {
         console.error("Request deposit error:",error);
-        return Response.json({ok:false,message:"Unable to create the deposit request."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to create the deposit request."},{status:500});
       }
     }
 
@@ -8070,10 +8099,10 @@ Kendra`;
       try {
         const data=await request.json();
         const requestId=Number(data.id);
-        if(!Number.isInteger(requestId)||requestId<1) return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        if(!Number.isInteger(requestId)||requestId<1) return bookingCorsJson({ok:false,message:"Invalid request ID."},{status:400});
         const item=await env.DB.prepare("SELECT id, deposit_amount, notes FROM date_requests WHERE id=? LIMIT 1").bind(requestId).first();
-        if(!item) return Response.json({ok:false,message:"Request not found."},{status:404});
-        if(Number(item.deposit_amount||0)>0) return Response.json({ok:true,deposit_amount:Number(item.deposit_amount)});
+        if(!item) return bookingCorsJson({ok:false,message:"Request not found."},{status:404});
+        if(Number(item.deposit_amount||0)>0) return bookingCorsJson({ok:true,deposit_amount:Number(item.deposit_amount)});
 
         const notes=String(item.notes||"");
         const dateTypeKey=(notes.match(/Date type:\s*([^\n]+)/i)?.[1]||"").trim().toLowerCase();
@@ -8103,12 +8132,12 @@ Kendra`;
         const outcallAddOn=appointmentTypeKey==="outcall"?(Number(outcallService?.rates?.[0]?.[1])||100):0;
         const bookingRate=(specialRate||standardRate)+outcallAddOn;
         const depositAmount=bookingRate>0?Math.round(bookingRate*.25*100)/100:0;
-        if(depositAmount<=0)return Response.json({ok:false,message:"Unable to match this request to a current rate."},{status:400});
+        if(depositAmount<=0)return bookingCorsJson({ok:false,message:"Unable to match this request to a current rate."},{status:400});
         await env.DB.prepare("UPDATE date_requests SET deposit_amount=? WHERE id=?").bind(depositAmount,requestId).run();
-        return Response.json({ok:true,deposit_amount:depositAmount,booking_rate:bookingRate});
+        return bookingCorsJson({ok:true,deposit_amount:depositAmount,booking_rate:bookingRate});
       } catch(error) {
         console.error("Calculate deposit error:",error);
-        return Response.json({ok:false,message:"Unable to calculate deposit."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to calculate deposit."},{status:500});
       }
     }
 
@@ -8123,16 +8152,16 @@ Kendra`;
         const data = await request.json();
         const requestId = Number(data.id);
         if (!Number.isInteger(requestId) || requestId < 1) {
-          return Response.json({ ok:false, message:"Invalid request ID." }, { status:400 });
+          return bookingCorsJson({ ok:false, message:"Invalid request ID." }, { status:400 });
         }
 
         const item = await env.DB.prepare(
           "SELECT id, status, deposit_amount, deposit_paid, requested_date, requested_time, notes FROM date_requests WHERE id = ? LIMIT 1"
         ).bind(requestId).first();
-        if (!item) return Response.json({ ok:false, message:"Request not found." }, { status:404 });
+        if (!item) return bookingCorsJson({ ok:false, message:"Request not found." }, { status:404 });
         const depositStep=await env.DB.prepare("SELECT deposit_step_acknowledged FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
         if(Number(depositStep?.deposit_step_acknowledged||0)!==1) {
-          return Response.json({ok:false,message:"The client must complete the deposit selection step before payment can be confirmed."},{status:409});
+          return bookingCorsJson({ok:false,message:"The client must complete the deposit selection step before payment can be confirmed."},{status:409});
         }
         // Older/in-flight requests may have reached final approval before a
         // deposit amount was stored. Recalculate it from the same rate source used
@@ -8179,14 +8208,14 @@ Kendra`;
             await env.DB.prepare("UPDATE date_requests SET deposit_amount = ? WHERE id = ?").bind(depositAmount, requestId).run();
             item.deposit_amount = depositAmount;
           } else {
-            return Response.json({ ok:false, message:"Unable to calculate the deposit from this request. Verify the selected experience and duration." }, { status:400 });
+            return bookingCorsJson({ ok:false, message:"Unable to calculate the deposit from this request. Verify the selected experience and duration." }, { status:400 });
           }
         }
 
         const appointmentLocal = new Date(String(item.requested_date || "") + "T" + String(item.requested_time || "") + ":00-07:00");
         const depositCutoff = new Date(appointmentLocal.getTime() - 4 * 60 * 60 * 1000);
         if (Number.isFinite(depositCutoff.getTime()) && Date.now() > depositCutoff.getTime()) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok:false,
               message:"The deposit deadline has passed. Deposits must be received no later than 4 hours before the scheduled date."
@@ -8209,7 +8238,7 @@ Kendra`;
           path:"/portal/request"
         });
 
-        return Response.json({
+        return bookingCorsJson({
           ok:true,
           status:item.status,
           deposit_amount:Number(item.deposit_amount),
@@ -8217,7 +8246,7 @@ Kendra`;
         });
       } catch (error) {
         console.error("Confirm deposit error:", error);
-        return Response.json({ ok:false, message:"Unable to confirm deposit." }, { status:500 });
+        return bookingCorsJson({ ok:false, message:"Unable to confirm deposit." }, { status:500 });
       }
     }
 
@@ -8225,10 +8254,10 @@ Kendra`;
       try {
         const data=await request.json();
         const requestId=Number(data.id);
-        if(!Number.isInteger(requestId)||requestId<1)return Response.json({ok:false,message:"Invalid request ID."},{status:400});
+        if(!Number.isInteger(requestId)||requestId<1)return bookingCorsJson({ok:false,message:"Invalid request ID."},{status:400});
         const item=await env.DB.prepare(`SELECT dr.id,dr.client_id,dr.status,dr.requested_date,dr.requested_time,c.first_name,c.notes FROM date_requests dr JOIN clients c ON c.id=dr.client_id WHERE dr.id=? LIMIT 1`).bind(requestId).first();
-        if(!item)return Response.json({ok:false,message:"Request not found."},{status:404});
-        if(item.status!=="approved")return Response.json({ok:false,message:"Only an approved date can be marked successfully completed."},{status:400});
+        if(!item)return bookingCorsJson({ok:false,message:"Request not found."},{status:404});
+        if(item.status!=="approved")return bookingCorsJson({ok:false,message:"Only an approved date can be marked successfully completed."},{status:400});
         await env.DB.prepare("UPDATE date_requests SET status='completed' WHERE id=?").bind(requestId).run();
         let body=`Hi ${item.first_name || ""},
 
@@ -8248,10 +8277,10 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         body=String(body||"").trim().replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
         const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
         if(!existing)await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(item.client_id,requestId,"after_date_follow_up","A little note after our date",body).run();
-        return Response.json({ok:true,status:"completed",follow_up_drafted:true,message:"Date marked successfully completed. Your after date follow up draft is ready for review."});
+        return bookingCorsJson({ok:true,status:"completed",follow_up_drafted:true,message:"Date marked successfully completed. Your after date follow up draft is ready for review."});
       } catch(error){
         console.error("Complete date error:",error);
-        return Response.json({ok:false,message:"Unable to mark this date completed."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to mark this date completed."},{status:500});
       }
     }
 
@@ -8294,10 +8323,10 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
             ) AS booked_after_contact
           FROM retention r
         `).all();
-        return Response.json({ok:true,clients:result.results||[]});
+        return bookingCorsJson({ok:true,clients:result.results||[]});
       } catch(error) {
         console.error("Retention follow-up status error:",error);
-        return Response.json({ok:false,message:"Unable to load retention follow-up status."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to load retention follow-up status."},{status:500});
       }
     }
 
@@ -8310,24 +8339,24 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         const clientId=Number(data.client_id);
         const allowed=new Set(["extra-time","experience-upgrade","special-rate"]);
         const strategy=allowed.has(String(data.offer_strategy||""))?String(data.offer_strategy):"extra-time";
-        if(!Number.isInteger(clientId)||clientId<1) return Response.json({ok:false,message:"Choose a valid client."},{status:400});
+        if(!Number.isInteger(clientId)||clientId<1) return bookingCorsJson({ok:false,message:"Choose a valid client."},{status:400});
         const client=await env.DB.prepare("SELECT id,first_name,last_name,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
-        if(!client) return Response.json({ok:false,message:"Client not found."},{status:404});
+        if(!client) return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const blocked=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(clientId).first().catch(()=>null);
-        if(blocked) return Response.json({ok:false,message:"Blacklisted clients cannot receive retention follow-ups."},{status:400});
+        if(blocked) return bookingCorsJson({ok:false,message:"Blacklisted clients cannot receive retention follow-ups."},{status:400});
         const dates=await env.DB.prepare("SELECT id,requested_date,requested_time,status,notes FROM date_requests WHERE client_id=? ORDER BY requested_date DESC,requested_time DESC").bind(clientId).all();
         const rows=dates.results||[], now=Date.now();
         const completed=rows.filter(r=>{const st=String(r.status||"").toLowerCase();if(st==="completed")return true;if(st!=="approved"||!r.requested_date)return false;const t=new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime();return Number.isFinite(t)&&t<now;});
         const upcoming=rows.some(r=>String(r.status||"").toLowerCase()==="approved"&&r.requested_date&&new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=now);
-        if(!completed.length) return Response.json({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
-        if(upcoming) return Response.json({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
+        if(!completed.length) return bookingCorsJson({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
+        if(upcoming) return bookingCorsJson({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
         const frequency=String(data.frequency||"quarterly");
         const frequencyDays=frequency==="monthly"?30:frequency==="quarterly"?90:0;
         const recent=await env.DB.prepare("SELECT sent_at FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='sent' ORDER BY sent_at DESC LIMIT 1").bind(clientId).first();
         if(frequencyDays&&recent?.sent_at){
           const sentMs=new Date(String(recent.sent_at).replace(" ","T")+"Z").getTime();
           const elapsedDays=Number.isFinite(sentMs)?Math.floor((Date.now()-sentMs)/86400000):frequencyDays;
-          if(elapsedDays<frequencyDays) return Response.json({ok:false,message:"This client is not eligible for another retention offer yet. The current cadence allows one every "+frequencyDays+" days."},{status:409});
+          if(elapsedDays<frequencyDays) return bookingCorsJson({ok:false,message:"This client is not eligible for another retention offer yet. The current cadence allows one every "+frequencyDays+" days."},{status:409});
         }
         const last=completed[0];
         const offer=strategy==="extra-time"?"an extra 30 minutes":strategy==="experience-upgrade"?"a special experience upgrade":"a special rate";
@@ -8344,10 +8373,10 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         const allowedHistory=useHistory?("Completed dates: "+completed.length+"\nLast completed: "+String(last.requested_date||"")+"\nLast date notes: "+String(last.notes||"")):"Do not reference prior date count, date timing, or date notes.";
         let body=`Hi${greetingName ? " "+greetingName : ""},\n\nYou crossed my mind, so I wanted to say hello. I enjoyed seeing you and would love to spend time together again when the timing feels right. I have ${offer} available for a future date.${expirationDays ? " It will be available through "+expirationText+"." : ""}\n\nKendra`;
         if(env.AI){try{const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[{role:"system",content:KENDRA_VOICE_PROFILE+" Write a short private retention email. Requested tone: "+(toneInstructions[tone]||toneInstructions["warm-personal"])+". Never sound robotic or like mass marketing. Do not invent memories. Do not pressure the client. Do not invent prices, discounts, amounts, or terms. No hyphens or dash punctuation. Follow the personalization permissions exactly. Return only the body without a signature."},{role:"user",content:"Client first name permission: "+(useFirstName?String(client.first_name||""):"DO NOT USE CLIENT NAME")+"\nSaved preferences/notes permission: "+(usePreferences?(allowedNotes||"No saved preferences"):"DO NOT REFERENCE SAVED PREFERENCES OR NOTES")+"\nClient history permission: "+allowedHistory+"\nOffer: "+offer+"\nExpiration rule: "+expirationInstruction+"\nMention the offer naturally."}],max_tokens:350,temperature:.75});const generated=String(ai?.response||ai?.result?.response||"").trim().replace(/^[\"“]|[\"”]$/g,"").replace(/[–—]/g,",");if(generated)body=generated+"\n\nKendra";}catch(e){console.error("Retention preview generation error:",e);}}
-        return Response.json({ok:true,subject:"A little hello",body,offer_strategy:strategy});
+        return bookingCorsJson({ok:true,subject:"A little hello",body,offer_strategy:strategy});
       } catch(error) {
         console.error("Retention follow-up preview error:",error);
-        return Response.json({ok:false,message:"Unable to preview retention follow-up."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to preview retention follow-up."},{status:500});
       }
     }
 
@@ -8360,11 +8389,11 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         const clientId = Number(data.client_id);
         const allowedOfferStrategies = new Set(["extra-time","experience-upgrade","special-rate"]);
         const offerStrategy = allowedOfferStrategies.has(String(data.offer_strategy||"")) ? String(data.offer_strategy) : "extra-time";
-        if (!Number.isInteger(clientId) || clientId < 1) return Response.json({ok:false,message:"Choose a valid client."},{status:400});
+        if (!Number.isInteger(clientId) || clientId < 1) return bookingCorsJson({ok:false,message:"Choose a valid client."},{status:400});
         const client = await env.DB.prepare("SELECT id,first_name,last_name,email,notes FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
-        if (!client) return Response.json({ok:false,message:"Client not found."},{status:404});
+        if (!client) return bookingCorsJson({ok:false,message:"Client not found."},{status:404});
         const blocked = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(clientId).first().catch(()=>null);
-        if (blocked) return Response.json({ok:false,message:"Blacklisted clients cannot receive retention follow-ups."},{status:400});
+        if (blocked) return bookingCorsJson({ok:false,message:"Blacklisted clients cannot receive retention follow-ups."},{status:400});
         const dates = await env.DB.prepare("SELECT id,requested_date,requested_time,status,notes FROM date_requests WHERE client_id=? ORDER BY requested_date DESC, requested_time DESC").bind(clientId).all();
         const rows = dates.results || [];
         const now = Date.now();
@@ -8376,10 +8405,10 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           return Number.isFinite(when)&&when<now;
         });
         const upcoming = rows.some(r => String(r.status||"").toLowerCase()==="approved" && r.requested_date && new Date(String(r.requested_date)+"T"+String(r.requested_time||"00:00")).getTime()>=now);
-        if (!completed.length) return Response.json({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
+        if (!completed.length) return bookingCorsJson({ok:false,message:"Retention follow-ups require at least one successfully completed date."},{status:400});
         const eligibility=String(data.eligibility||"completed");
-        if(eligibility==="returning" && completed.length<2) return Response.json({ok:false,message:"This retention plan is limited to returning clients with at least two completed dates."},{status:409});
-        if (upcoming) return Response.json({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
+        if(eligibility==="returning" && completed.length<2) return bookingCorsJson({ok:false,message:"This retention plan is limited to returning clients with at least two completed dates."},{status:409});
+        if (upcoming) return bookingCorsJson({ok:false,message:"This client already has an upcoming confirmed date."},{status:400});
         const last = completed[0];
         const offerLabel = offerStrategy==="extra-time" ? "an extra 30 minutes" : offerStrategy==="experience-upgrade" ? "a special experience upgrade" : "a special rate";
         let body = `Hi ${client.first_name || ""},\n\nYou crossed my mind, so I wanted to say hello. I enjoyed seeing you and would love to spend time together again when the timing feels right. I have ${offerLabel} available for a future date.\n\nKendra`;
@@ -8403,18 +8432,18 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         if(frequencyDays&&latestSent?.sent_at){
           const sentMs=new Date(String(latestSent.sent_at).replace(" ","T")+"Z").getTime();
           const elapsedDays=Number.isFinite(sentMs)?Math.floor((Date.now()-sentMs)/86400000):frequencyDays;
-          if(elapsedDays<frequencyDays) return Response.json({ok:false,message:"This client is not eligible for another retention offer yet. The current cadence allows one every "+frequencyDays+" days."},{status:409});
+          if(elapsedDays<frequencyDays) return bookingCorsJson({ok:false,message:"This client is not eligible for another retention offer yet. The current cadence allows one every "+frequencyDays+" days."},{status:409});
         }
         const existing = await env.DB.prepare("SELECT id FROM email_drafts WHERE client_id=? AND email_type='retention_follow_up' AND status='draft' LIMIT 1").bind(clientId).first();
         if(existing) {
           await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(draftSubject,body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->",existing.id).run();
-          return Response.json({ok:true,id:existing.id,updated:true,message:"Retention follow-up draft refreshed."});
+          return bookingCorsJson({ok:true,id:existing.id,updated:true,message:"Retention follow-up draft refreshed."});
         }
         const result=await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(clientId,last.id,"retention_follow_up",draftSubject,body+"\n\n<!-- RETENTION_OFFER:"+offerStrategy+" -->").run();
-        return Response.json({ok:true,id:result.meta.last_row_id,message:"Retention follow-up draft created."});
+        return bookingCorsJson({ok:true,id:result.meta.last_row_id,message:"Retention follow-up draft created."});
       } catch(error) {
         console.error("Retention follow-up draft error:",error);
-        return Response.json({ok:false,message:"Unable to create retention follow-up draft."},{status:500});
+        return bookingCorsJson({ok:false,message:"Unable to create retention follow-up draft."},{status:500});
       }
     }
 
@@ -8431,7 +8460,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         const requestId = Number(data.id);
 
         if (!Number.isInteger(requestId) || requestId < 1) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message: "Invalid request ID."
@@ -8450,7 +8479,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           .first();
 
         if (!existingRequest) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message: "Request not found."
@@ -8460,7 +8489,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         }
 
         if (!["pending_final_approval", "screening_pending"].includes(existingRequest.status)) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message: "Request is not pending final approval."
@@ -8473,7 +8502,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           String(existingRequest.notes || "").includes("Newsletter special: Newsletter #");
 
         if (!existingRequest.deposit_paid) {
-          return Response.json(
+          return bookingCorsJson(
             { ok:false, message:"Deposit must be confirmed before final approval." },
             { status:400 }
           );
@@ -8491,7 +8520,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           String(verificationRecord?.verification_status || "") !== "verified" ||
           !verificationRecord?.completed_at
         ) {
-          return Response.json(
+          return bookingCorsJson(
             { ok:false, message:"Screening must be marked Verified and completed before final approval." },
             { status:400 }
           );
@@ -8499,16 +8528,16 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
         await ensureClientIdDocumentsTable(env);
         const finalId=await env.DB.prepare("SELECT object_key,verification_status,verified_at FROM client_id_documents WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();
         if(!finalId?.object_key || finalId.verification_status!=="verified" || !finalId.verified_at){
-          return Response.json({ok:false,message:"A saved, reviewed ID is required before final approval."},{status:400});
+          return bookingCorsJson({ok:false,message:"A saved, reviewed ID is required before final approval."},{status:400});
         }
         await ensureVerificationWorkspaceTables(env);
         const finalRecordChecks=await env.DB.prepare("SELECT checked_at,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();
         if(!finalRecordChecks?.checked_at || finalRecordChecks.record_status==="not_checked" || !finalRecordChecks.source_name || !finalRecordChecks.source_url || !finalRecordChecks.public_records_reviewed || !finalRecordChecks.criminal_records_reviewed){
-          return Response.json({ok:false,message:"Save both the public-record and criminal-court searches before final approval."},{status:400});
+          return bookingCorsJson({ok:false,message:"Save both the public-record and criminal-court searches before final approval."},{status:400});
         }
 
         if (hasNewsletterSpecial && data.newsletter_special_approved !== true) {
-          return Response.json(
+          return bookingCorsJson(
             {
               ok: false,
               message: "Approve the attached newsletter special before final approval."
@@ -8574,7 +8603,7 @@ const existingConfirmationDraft = await env.DB.prepare("SELECT id,status FROM em
 const confirmationSubject = "Your date is confirmed";
 const confirmationBody = "Hi "+approvedRequest.first_name+"\n\nEverything is confirmed on my end for our date.\n\nDate: "+approvedRequest.requested_date+"\nTime: "+approvedRequest.requested_time+"\n"+(approvedRequest.location_name ? "Location: "+approvedRequest.location_name+"\n" : "")+(approvedRequest.location_address ? "Address: "+approvedRequest.location_address+"\n" : "")+"\nI am looking forward to seeing you and spending some lovely time together. Thank you for taking care of the details. I think we are going to have a really nice time. 💋\n\nSee you soon,\nKendra";
 if(existingConfirmationDraft?.status === "draft") await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(confirmationSubject,confirmationBody,existingConfirmationDraft.id).run();
-else if(!existingConfirmationDraft) await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(approvedRequest.client_id,requestId,"date_confirmed",confirmationSubject,confirmationBody).run();        return Response.json({
+else if(!existingConfirmationDraft) await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(approvedRequest.client_id,requestId,"date_confirmed",confirmationSubject,confirmationBody).run();        return bookingCorsJson({
           ok: true,
           message: "Final approval complete.",
           status: "approved"
@@ -8586,7 +8615,7 @@ else if(!existingConfirmationDraft) await env.DB.prepare("INSERT INTO email_draf
           error
         );
 
-        return Response.json(
+        return bookingCorsJson(
           {
             ok: false,
             message: "Unable to complete final approval."
@@ -8612,7 +8641,7 @@ if (
     const body = String(data.body || "").trim();
 
     if (!Number.isInteger(draftId) || draftId < 1) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Invalid email draft ID."
@@ -8622,7 +8651,7 @@ if (
     }
 
     if (!subject || !body) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Subject and email body are required."
@@ -8641,7 +8670,7 @@ if (
       .first();
 
     if (!existingDraft) {
-      return Response.json(
+      return bookingCorsJson(
         {
           ok: false,
           message: "Email draft not found."
@@ -8665,7 +8694,7 @@ if (
       )
       .run();
 
-    return Response.json({
+    return bookingCorsJson({
       ok: true,
       message: "Email draft saved."
     });
@@ -8676,7 +8705,7 @@ if (
       error
     );
 
-    return Response.json(
+    return bookingCorsJson(
       {
         ok: false,
         message: "Unable to save email draft."
