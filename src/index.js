@@ -1406,7 +1406,7 @@ async function siteAvailableSlots(env, date, requestedDuration, excludeRequestId
 }
 
 function standaloneBookingPage() {
-  return \`<!doctype html>
+  return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1503,7 +1503,7 @@ f.addEventListener("submit",async e=>{e.preventDefault();status.className="statu
 })();
 </script>
 </body>
-</html>\`;
+</html>`;
 }
 
 
