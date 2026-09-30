@@ -1462,32 +1462,7 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 <option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option><option>CO</option><option>CT</option><option>DE</option><option>DC</option><option>FL</option><option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option><option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option><option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option><option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option><option>NJ</option><option>NM</option><option>NY</option><option>NC</option><option>ND</option><option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option><option>SC</option><option>SD</option><option>TN</option><option>TX</option><option>UT</option><option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option><option>WY</option>
 </select></div>
 
-<div class="section"><h2>Our Time Together</h2><div class="small">Choose the experience and amount of time that feels right.</div></div>
 
-<div class="full"><label for="experience">Experience *</label><select id="experience" name="date_type" required>
-<option value="">Choose an experience</option>
-<option value="private-introduction">Private Introduction · 20 minutes · $250</option>
-<option value="signature-brief-introduction">Signature Brief Introduction · 30 minutes · $300</option>
-<option value="greek-princess-brief-introduction">Greek Princess Brief Introduction · 30 minutes · $400</option>
-<option value="signature-girlfriend-experience">Signature Girlfriend Experience</option>
-<option value="greek-princess-experience">Greek Princess Experience</option>
-</select></div>
-
-<div><label for="duration">Duration *</label><select id="duration" name="duration" required disabled><option value="">Choose an experience first</option></select></div>
-<div><label for="appointment">Location *</label><select id="appointment" name="appointment_type" required>
-<option value="">Choose one</option><option value="incall">Incall</option><option value="outcall">Outcall · +$100</option>
-</select></div>
-
-<div id="outcall" class="outcall">
-<div><label for="out1">Hotel, property, or address *</label><input id="out1" name="outcall_address_line_1"></div>
-<div><label for="out2">Suite / room / additional details</label><input id="out2" name="outcall_address_line_2"></div>
-<div><label for="city">City *</label><input id="city" name="outcall_city"></div>
-<div><label for="state">State</label><input id="state" name="outcall_state" maxlength="2"></div>
-<div><label for="zip">ZIP</label><input id="zip" name="outcall_postal_code" inputmode="numeric"></div>
-</div>
-
-<div><label for="date">Preferred date *</label><input id="date" name="requested_date" type="date" required></div>
-<div><label for="time">Available start time *</label><select id="time" name="requested_time" required disabled><option value="">Choose date and duration first</option></select><div class="small">Times are pulled from my live availability.</div></div>
 </div>
 
 <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -1496,21 +1471,9 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 </div>
 </main>
 <script>
-(()=>{const f=document.getElementById("booking"),experience=document.getElementById("experience"),duration=document.getElementById("duration"),appointment=document.getElementById("appointment"),outcall=document.getElementById("outcall"),date=document.getElementById("date"),time=document.getElementById("time"),status=document.getElementById("status"),submit=document.getElementById("submit");
-const options={
-"private-introduction":[["20-minutes","20 minutes · $250"]],
-"signature-brief-introduction":[["30-minutes","30 minutes · $300"]],
-"greek-princess-brief-introduction":[["30-minutes","30 minutes · $400"]],
-"signature-girlfriend-experience":[["1-hour","1 hour · $500"],["1.5-hours","1½ hours · $750"],["2-hours","2 hours · $1,000"],["4-hours","4 hours · $2,300"]],
-"greek-princess-experience":[["1-hour","1 hour · $700"],["1.5-hours","1½ hours · $1,000"],["2-hours","2 hours · $1,300"],["4-hours","4 hours · $2,800"]]
-};
+(()=>{const f=document.getElementById("booking"),status=document.getElementById("status"),submit=document.getElementById("submit");
 function message(text,type){status.textContent=text;status.className="status show "+type}
-function setDurations(){const rows=options[experience.value]||[];duration.innerHTML=rows.length?rows.map(r=>'<option value="'+r[0]+'">'+r[1]+'</option>').join(""):'<option value="">Choose an experience first</option>';duration.disabled=!rows.length;loadTimes()}
-async function loadTimes(){if(!date.value||!duration.value){time.disabled=true;time.innerHTML='<option value="">Choose date and duration first</option>';return}time.disabled=true;time.innerHTML='<option value="">Checking availability…</option>';try{const res=await fetch("/api/public/availability?date="+encodeURIComponent(date.value)+"&duration="+encodeURIComponent(duration.value));const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to load availability.");if(!data.slots.length){time.innerHTML='<option value="">No times available</option>';return}time.innerHTML='<option value="">Choose a start time</option>'+data.slots.map(v=>{const p=v.split(":").map(Number),h=p[0],m=p[1],amp=h>=12?"PM":"AM",hh=((h+11)%12)+1;return '<option value="'+v+'">'+hh+":"+String(m).padStart(2,"0")+" "+amp+"</option>"}).join("");time.disabled=false}catch(err){time.innerHTML='<option value="">Availability unavailable</option>';message(err.message||"Unable to load availability.","error")}}
-experience.addEventListener("change",setDurations);duration.addEventListener("change",loadTimes);date.addEventListener("change",loadTimes);
-appointment.addEventListener("change",()=>{const show=appointment.value==="outcall";outcall.classList.toggle("show",show);document.getElementById("out1").required=show;document.getElementById("city").required=show});
-const min=new Date();min.setDate(min.getDate()+1);date.min=min.toISOString().slice(0,10);
-f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload=Object.fromEntries(new FormData(f).entries());try{const res=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");f.innerHTML='<div style="text-align:center;padding:34px 10px"><p class="eyebrow" style="color:#6B173F">YOUR REQUEST IS IN</p><h2 style="font-family:Georgia,serif;font-weight:400;font-size:38px;margin:0 0 14px">Thank you.</h2><p>Your private request has been received for review. If I would like to move forward, the next step will arrive privately.</p></div>'}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Send My Request"}});
+f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload={...Object.fromEntries(new FormData(f).entries()),screening_only:true};try{const res=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");f.innerHTML='<div style="text-align:center;padding:34px 10px"><p class="eyebrow" style="color:#6B173F">YOUR REQUEST IS IN</p><h2 style="font-family:Georgia,serif;font-weight:400;font-size:38px;margin:0 0 14px">Thank you.</h2><p>Your private request has been received for review. If I would like to move forward, the next step will arrive privately.</p></div>'}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Send My Request"}});
 })();
 </script>
 </body>
@@ -4302,20 +4265,22 @@ My journal will continue to be a place where I share a little more of that side 
         const baseState =
           String(data.base_state || "").trim().toUpperCase();
 
+        const screeningOnly = data.screening_only === true;
+
         const requestedDate =
-          String(data.requested_date || "").trim();
+          screeningOnly ? "" : String(data.requested_date || "").trim();
 
         const requestedTime =
-          String(data.requested_time || "").trim();
+          screeningOnly ? "" : String(data.requested_time || "").trim();
 
         const dateType =
-          String(data.date_type || "").trim();
+          screeningOnly ? "" : String(data.date_type || "").trim();
 
         const appointmentType =
-          String(data.appointment_type || "").trim();
+          screeningOnly ? "" : String(data.appointment_type || "").trim();
 
         const duration =
-          String(data.duration || "").trim();
+          screeningOnly ? "" : String(data.duration || "").trim();
 
         const outcallAddressLine1 =
           String(data.outcall_address_line_1 || "").trim();
@@ -4347,8 +4312,8 @@ My journal will continue to be a place where I share a little more of that side 
           siteZonedDateTime(requestedDate, requestedTime);
 
         if (
-          !Number.isFinite(requestedStart.getTime()) ||
-          requestedStart.getTime() < Date.now() + 2 * 60 * 60 * 1000
+          !screeningOnly && (!Number.isFinite(requestedStart.getTime()) ||
+          requestedStart.getTime() < Date.now() + 2 * 60 * 60 * 1000)
         ) {
           return bookingCorsJson(
             {
@@ -4421,11 +4386,7 @@ My journal will continue to be a place where I share a little more of that side 
           !phone ||
           !occupation ||
           !baseState ||
-          !requestedDate ||
-          !requestedTime ||
-          !dateType ||
-          !appointmentType ||
-          !duration
+          (!screeningOnly && (!requestedDate || !requestedTime || !dateType || !appointmentType || !duration))
         ) {
           return bookingCorsJson(
             {
@@ -4466,9 +4427,9 @@ My journal will continue to be a place where I share a little more of that side 
         const allowedAppointmentTypes = ["incall", "outcall"];
         const allowedDurations = ["20-minutes", "30-minutes", "1-hour", "1.5-hours", "2-hours", "4-hours"];
         if (
-          !allowedDateTypes.includes(dateType) ||
+          !screeningOnly && (!allowedDateTypes.includes(dateType) ||
           !allowedAppointmentTypes.includes(appointmentType) ||
-          !allowedDurations.includes(duration)
+          !allowedDurations.includes(duration))
         ) {
           return bookingCorsJson(
             { ok: false, message: "Please choose valid booking options." },
@@ -4485,7 +4446,7 @@ My journal will continue to be a place where I share a little more of that side 
           "greek-princess-experience": ["1-hour", "1.5-hours", "2-hours", "4-hours"]
         };
 
-        if (!allowedDurationsByExperience[dateType]?.includes(duration)) {
+        if (!screeningOnly && !allowedDurationsByExperience[dateType]?.includes(duration)) {
           return bookingCorsJson(
             { ok: false, message: "Please choose a duration available for the selected experience." },
             { status: 400 }
@@ -4503,12 +4464,12 @@ My journal will continue to be a place where I share a little more of that side 
           );
         }
 
-        const availability = await siteAvailableSlots(
+        const availability = screeningOnly ? { slots: [] } : await siteAvailableSlots(
           env,
           requestedDate,
           siteDurationMinutes(duration)
         );
-        if (!availability.slots.includes(requestedTime.slice(0, 5))) {
+        if (!screeningOnly && !availability.slots.includes(requestedTime.slice(0, 5))) {
           return bookingCorsJson(
             { ok: false, message: "That start time is no longer available. Please choose another opening." },
             { status: 409 }
@@ -4577,7 +4538,7 @@ My journal will continue to be a place where I share a little more of that side 
             flaggedClientId,
             requestedDate,
             requestedTime,
-            appointmentType === "outcall" ? "Outcall" : "Incall",
+            screeningOnly ? "" : appointmentType === "outcall" ? "Outcall" : "Incall",
             appointmentType === "outcall" ? outcallAddress : null,
             flagNotes
           ).run();
@@ -4741,7 +4702,7 @@ My journal will continue to be a place where I share a little more of that side 
               clientId,
               requestedDate,
               requestedTime,
-              appointmentType === "outcall" ? "Outcall" : "Incall",
+              screeningOnly ? "" : appointmentType === "outcall" ? "Outcall" : "Incall",
               appointmentType === "outcall" ? outcallAddress : null,
               notes
             )
