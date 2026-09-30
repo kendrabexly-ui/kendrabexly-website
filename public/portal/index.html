@@ -1337,6 +1337,7 @@
           <div style="padding:20px;display:grid;gap:14px;">
             <label for="email-generate-type">Draft email
               <select id="email-generate-type" style="display:block;width:100%;margin-top:6px;padding:11px;border:1px solid var(--line);">
+                <option value="id_deposit_request">ID &amp; Deposit Request</option>
                 <option value="request_acknowledgment">Thank You for Your Request</option>
                 <option value="pre_date_note">A Little Note Before Our Date</option>
                 <option value="appointment_reminder">Our Date Is Almost Here</option>
@@ -7958,6 +7959,7 @@ function escapeHtml(value) {
 
 
     const emailGeneratorDescriptions = {
+      id_deposit_request: "Request ID screening and explain the deposit step through the client\u2019s private page.",
       request_acknowledgment: "A warm thank-you for getting in touch.",
       pre_date_note: "A personal note to build a little anticipation before a confirmed date.",
       appointment_reminder: "A gentle reminder of the confirmed date and time.",
