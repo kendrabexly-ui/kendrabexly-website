@@ -106,7 +106,7 @@ function screeningDraftHtml(body,emailType) {
   const before = text.slice(0,match.index + match[1].length);
   const after = text.slice(match.index + match[0].length);
   return esc(before).replace(/\n/g,"<br>") +
-    '<a href="'+esc(url.href)+'" style="display:inline-block;padding:13px 20px;background:#29282d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">Complete My Private Page</a>' +
+    '<a href="'+esc(url.href)+'" style="display:inline-block;padding:13px 20px;background:#29282d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">A Little Closer to Our Date</a>' +
     esc(after).replace(/\n/g,"<br>");
 }
 const VALID_BOOKING_STATE_CODES = new Set([
