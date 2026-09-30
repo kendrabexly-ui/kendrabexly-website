@@ -6062,6 +6062,49 @@ if (
     // ADMIN EMAIL DRAFTS
     // =========================================================
 
+
+    if (url.pathname === "/api/admin/email-drafts/generate" && request.method === "POST") {
+      try {
+        const input = await request.json();
+        const requestId = Number(input.request_id);
+        const type = String(input.type || "");
+        const allowed = new Set(["request_acknowledgment","pre_date_note","appointment_reminder","after_date_thank_you","reconnect_note"]);
+        if (!Number.isInteger(requestId) || requestId < 1 || !allowed.has(type)) {
+          return bookingCorsJson({ok:false,message:"Choose a valid email type and client request."},{status:400});
+        }
+        const row = await env.DB.prepare("SELECT dr.id, dr.client_id, dr.status, dr.requested_date, dr.requested_time, c.first_name, c.email FROM date_requests dr JOIN clients c ON c.id=dr.client_id WHERE dr.id=? LIMIT 1").bind(requestId).first();
+        if (!row) return bookingCorsJson({ok:false,message:"Client request not found."},{status:404});
+        if (!row.email) return bookingCorsJson({ok:false,message:"This client needs an email address before a draft can be created."},{status:400});
+        if (["pre_date_note","appointment_reminder"].includes(type) && row.status !== "approved") {
+          return bookingCorsJson({ok:false,message:"Choose a confirmed date for this email."},{status:400});
+        }
+        if (type === "after_date_thank_you" && row.status !== "completed") {
+          return bookingCorsJson({ok:false,message:"Choose a completed date for the after-date thank-you."},{status:400});
+        }
+        const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(row.requested_date || ""));
+        const date = dateParts ? dateParts[2]+"/"+dateParts[3]+"/"+dateParts[1] : "";
+        const timeParts = /^(\d{1,2}):(\d{2})/.exec(String(row.requested_time || ""));
+        const hour = timeParts ? Number(timeParts[1]) : 0;
+        const time = timeParts ? (hour % 12 || 12)+":"+timeParts[2]+" "+(hour >= 12 ? "PM" : "AM") : "";
+        const when = [date,time].filter(Boolean).join(" at ");
+        const templates = {
+          request_acknowledgment: ["A sweet little thank-you", "Thank you for reaching out and letting me know a little about yourself. I'm looking forward to reading your request and seeing what we might have to look forward to together. I'll be in touch once I've had a chance to review your details."],
+          pre_date_note: ["A little anticipation, just for you", "I've been looking forward to our time together"+(when ? " on "+when : "")+". A little anticipation is part of the fun, isn't it? If there's anything thoughtful you'd like me to know before our date, you're welcome to reply. Until then, save a little of that excitement for me."],
+          appointment_reminder: ["Our date is almost here", "A little reminder that our date"+(when ? " is set for "+when : " is coming up")+". I'm looking forward to seeing you. Please reply if you have any questions or need to let me know about a change before we meet."],
+          after_date_thank_you: ["I enjoyed our time together", "Thank you for spending a little of your day with me. I enjoyed our time together, and I hope you left with a smile. When you're ready for another little escape, I'd love to hear from you."],
+          reconnect_note: ["Shall we make a little time for each other?", "It's been a little while, and I thought I'd leave something sweet in your inbox. If you've been thinking about a little time together, I'd love to hear what you have in mind. Tell me when you'd like to see me, and we can take it from there."]
+        };
+        const [subject,copy] = templates[type];
+        const esc = value => String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+        const body = '<p>Hi '+esc(row.first_name || "there")+',</p><p>'+esc(copy)+'</p><p>With a little anticipation,<br>Kendra</p>';
+        const result = await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(row.client_id,requestId,type,subject,body).run();
+        return bookingCorsJson({ok:true,draft_id:result.meta?.last_row_id});
+      } catch (error) {
+        console.error("Generate email draft error:",error);
+        return bookingCorsJson({ok:false,message:"Unable to generate your email draft."},{status:500});
+      }
+    }
+
     if (
       url.pathname === "/api/admin/email-drafts" &&
       request.method === "GET"
