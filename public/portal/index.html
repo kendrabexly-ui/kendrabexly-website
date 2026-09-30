@@ -8080,7 +8080,7 @@ function escapeHtml(value) {
             bodyText.append(document.createTextNode(body.slice(0,linkMatch.index + linkMatch[1].length)));
             const link = document.createElement("a");
             link.href = privateUrl;
-            link.textContent = "Complete My Private Page";
+            link.textContent = "A Little Closer to Our Date";
             link.style.cssText = "display:inline-block;padding:12px 18px;background:#29282d;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;";
             bodyText.append(link,document.createTextNode(body.slice(linkMatch.index + linkMatch[0].length)));
           } else bodyText.textContent = body;
