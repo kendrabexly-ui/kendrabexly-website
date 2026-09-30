@@ -1419,7 +1419,7 @@ function standaloneBookingPage() {
 .hero{background:var(--blush);color:var(--ink);padding:72px 20px 56px;text-align:center}
 .eyebrow{color:var(--gold);font-size:12px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 14px}
 h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(38px,7vw,64px);margin:0 0 14px}
-.hero p{max-width:680px;margin:0 auto;color:var(--ink);font-size:18px}.booking-photo{max-width:920px;margin:36px auto 0;padding:0 20px}.booking-photo img{display:block;width:100%;height:min(58vw,520px);object-fit:cover;object-position:center 58%;border-radius:22px;box-shadow:0 12px 34px rgba(102,84,93,.12)}
+.hero p{max-width:680px;margin:0 auto;color:var(--ink);font-size:18px}.booking-photo{max-width:920px;margin:36px auto 0;padding:0 20px}.booking-photo img{display:block;width:100%;height:auto;object-fit:contain;border-radius:22px;box-shadow:0 12px 34px rgba(102,84,93,.12)}
 .wrap{max-width:920px;margin:0 auto;padding:46px 20px 80px}
 .card{background:#fffdfb;border:1px solid #eadfd5;border-radius:22px;padding:28px;box-shadow:0 10px 30px rgba(102,84,93,.08)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{grid-column:1/-1}
@@ -1430,7 +1430,7 @@ input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
 .outcall{display:none;grid-column:1/-1;background:var(--blush);border-radius:16px;padding:20px}.outcall.show{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);padding:15px 28px;font:inherit;font-weight:700;cursor:pointer;margin-top:26px}
 button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:20px;padding:15px;border-radius:12px}.status.show{display:block}.status.error{background:#f8e7ea;color:var(--wine)}.status.success{background:#e9f3eb;color:#225b31}
-@media(max-width:700px){.grid,.outcall.show{grid-template-columns:1fr}.full,.section,.outcall{grid-column:auto}.card{padding:20px}.hero{padding-top:56px}.booking-photo{margin-top:24px;padding:0 16px}.booking-photo img{height:430px;object-position:center 56%;border-radius:18px}}
+@media(max-width:700px){.grid,.outcall.show{grid-template-columns:1fr}.full,.section,.outcall{grid-column:auto}.card{padding:20px}.hero{padding-top:56px}.booking-photo{margin-top:24px;padding:0 16px}.booking-photo img{height:auto;border-radius:18px}}
 </style>
 </head>
 <body>
