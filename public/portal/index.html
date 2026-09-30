@@ -1331,6 +1331,28 @@
           <p>Your review queue for client emails created throughout the booking and follow-up workflow.</p>
         </div>
 
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-header"><div><div class="panel-title">Generate an Email Draft</div><div class="panel-subtitle">Choose a message and a client request, then review your draft below.</div></div></div>
+          <div style="padding:20px;display:grid;gap:14px;">
+            <label for="email-generate-type">Draft email
+              <select id="email-generate-type" style="display:block;width:100%;margin-top:6px;padding:11px;border:1px solid var(--line);">
+                <option value="request_acknowledgment">Thank You for Your Request</option>
+                <option value="pre_date_note">A Little Note Before Our Date</option>
+                <option value="appointment_reminder">Our Date Is Almost Here</option>
+                <option value="after_date_thank_you">Thank You for Our Time Together</option>
+                <option value="reconnect_note">I've Been Thinking of You</option>
+              </select>
+            </label>
+            <p id="email-generate-description" style="font-size:13px;color:var(--muted);margin:0;"></p>
+            <label for="email-generate-request">Client / request
+              <select id="email-generate-request" style="display:block;width:100%;margin-top:6px;padding:11px;border:1px solid var(--line);"><option value="">Choose a client request</option></select>
+            </label>
+            <div><button id="email-generate-button" type="button" class="primary" style="padding:11px 18px;border:0;background:var(--accent);color:var(--white);cursor:pointer;">Generate Draft</button></div>
+            <div id="email-generate-status" role="status" style="font-size:13px;color:var(--muted);"></div>
+          </div>
+        </div>
+
         <div id="email-drafts-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
           <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-unsent">—</strong><div style="font-size:12px;margin-top:2px;">Needs Review</div></div>
           <div style="padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:white;"><strong id="email-drafts-sent">—</strong><div style="font-size:12px;margin-top:2px;">Sent</div></div>
@@ -7934,6 +7956,59 @@ function escapeHtml(value) {
     renderRateServices();
     loadRateServicesRemote();
 
+
+    const emailGeneratorDescriptions = {
+      request_acknowledgment: "A warm thank-you for getting in touch.",
+      pre_date_note: "A personal note to build a little anticipation before a confirmed date.",
+      appointment_reminder: "A gentle reminder of the confirmed date and time.",
+      after_date_thank_you: "A sweet thank-you after a completed date.",
+      reconnect_note: "A warm invitation to reconnect."
+    };
+    const emailGenerateType = document.getElementById("email-generate-type");
+    const emailGenerateRequest = document.getElementById("email-generate-request");
+    const emailGenerateStatus = document.getElementById("email-generate-status");
+    const describeEmailGenerator = () => {
+      const description = document.getElementById("email-generate-description");
+      if (description && emailGenerateType) description.textContent = emailGeneratorDescriptions[emailGenerateType.value] || "";
+    };
+    emailGenerateType?.addEventListener("change", describeEmailGenerator);
+    describeEmailGenerator();
+    async function loadEmailGeneratorRequests() {
+      if (!emailGenerateRequest) return;
+      try {
+        const data = await fetchAdminJson("/api/admin/requests");
+        const selected = emailGenerateRequest.value;
+        emailGenerateRequest.innerHTML = '<option value="">Choose a client request</option>' + (data.requests || []).map(item => {
+          const name = [item.first_name,item.last_name].filter(Boolean).join(" ") || "Client";
+          const label = name + " · " + (item.requested_date || "Date pending") + " · #" + item.id;
+          return '<option value="' + Number(item.id) + '">' + escapeHtml(label) + '</option>';
+        }).join("");
+        emailGenerateRequest.value = selected;
+        emailGenerateStatus.textContent = "";
+      } catch (error) { emailGenerateStatus.textContent = "Unable to load client requests. " + error.message; }
+    }
+    document.getElementById("email-generate-button")?.addEventListener("click", async event => {
+      if (!emailGenerateRequest.value) { emailGenerateStatus.textContent = "Choose a client request first."; return; }
+      const button = event.currentTarget;
+      button.disabled = true;
+      emailGenerateStatus.textContent = "Creating your draft...";
+      try {
+        const response = await fetch("/api/admin/email-drafts/generate", {
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({request_id:Number(emailGenerateRequest.value),type:emailGenerateType.value})
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Unable to create draft.");
+        await loadEmailDrafts();
+        const filter = document.getElementById("email-drafts-status-filter");
+        const search = document.getElementById("email-drafts-search");
+        if (search) { search.value = ""; search.dispatchEvent(new Event("input")); }
+        if (filter) { filter.value = "draft"; filter.dispatchEvent(new Event("change")); }
+        emailGenerateStatus.textContent = "Draft created. Review and edit it below before sending.";
+      } catch (error) { emailGenerateStatus.textContent = error.message; }
+      finally { button.disabled = false; }
+    });
+
     async function loadEmailDrafts() {
       const box = document.getElementById("email-draft-records");
       if (!box) return;
@@ -8095,7 +8170,7 @@ function escapeHtml(value) {
             const r=await fetch("/api/admin/email-drafts/"+button.dataset.respondedEmail+"/responded",{method:"POST"});
             const d=await r.json();
             if(!r.ok||!d.ok) throw new Error(d.message||"Unable to update email.");
-            await loadEmailDrafts();
+            await Promise.all([loadEmailDrafts(), loadEmailGeneratorRequests()]);
           }catch(e){button.disabled=false;alert(e.message||"Unable to update email.");}
         }));
         box.querySelectorAll("[data-delete-email]").forEach((button) => button.addEventListener("click", async () => {
