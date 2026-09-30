@@ -1,4 +1,4 @@
-// deployment-refresh: 2026-09-25
+// deployment-refresh: 2026-09-30 — include private request styling and email draft regeneration fix
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kendrabexly",
