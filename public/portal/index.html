@@ -4920,6 +4920,17 @@ async function loadRequests(options = {}) {
         }catch(_error){}
       };
       const savePublicRecordCheck=async(section)=>{
+        clearTimeout(section._publicRecordSaveTimer);
+        if(section._publicRecordSavePromise){
+          await section._publicRecordSavePromise;
+          return savePublicRecordCheck(section);
+        }
+        const pending=performPublicRecordCheckSave(section);
+        section._publicRecordSavePromise=pending;
+        try{return await pending;}
+        finally{if(section._publicRecordSavePromise===pending)section._publicRecordSavePromise=null;}
+      };
+      const performPublicRecordCheckSave=async(section)=>{
         const button=section.querySelector(".client-public-record-save"),status=section.querySelector(".client-public-record-save-status");
         const card=section.querySelector(".client-public-record-card");if(card)setCardSaveState(card,"Saving…","var(--muted)");
         if(button)button.disabled=true;
@@ -5918,10 +5929,13 @@ async function loadRequests(options = {}) {
         section.querySelector(".client-address-check-county")?.addEventListener("change",()=>{renderAddressLookupLinks(section);const prCounty=section.querySelector(".client-public-record-county");const prState=section.querySelector(".client-public-record-state")?.value||"";const addressState=section.querySelector(".client-address-check-state")?.value||"";if(prCounty&&prState===addressState&&!prCounty.value)prCounty.value=section.querySelector(".client-address-check-county")?.value||"";renderPublicRecordLookups(section);});
         syncAddressCheckFromVerification(section);
         section.querySelector(".client-sex-offender-save")?.addEventListener("click",()=>saveSexOffenderRegistryCheck(section));
-        section.querySelectorAll(".client-public-records-reviewed,.client-criminal-records-reviewed").forEach(input=>input.addEventListener("change",async()=>{
+        const publicRecordCard=section.querySelector(".client-public-record-card");
+        publicRecordCard?.addEventListener("change",event=>{
+          if(!event.target.matches(".client-public-records-reviewed,.client-criminal-records-reviewed,.client-public-record-state,.client-public-record-county,.client-public-record-scope,.client-public-record-status,.client-public-record-source-name,.client-public-record-source-url,.client-public-record-case-reference,.client-public-record-disposition,.client-public-record-evidence"))return;
           updateCompletionControls();
-          await savePublicRecordCheck(section);
-        }));
+          clearTimeout(section._publicRecordSaveTimer);
+          section._publicRecordSaveTimer=setTimeout(()=>savePublicRecordCheck(section),400);
+        });
 
         const syncPublicRecordCountyVisibility=()=>{
           const state=section.querySelector(".client-public-record-state")?.value||"";
@@ -6161,6 +6175,15 @@ async function loadRequests(options = {}) {
           if(completedChanged){
             decisionChangeReason=window.prompt("This verification was already completed. Enter the reason for changing the completed decision:")||"";
             if(!decisionChangeReason){if(saveStatus)saveStatus.textContent="A reason is required to change a completed decision.";return;}
+          }
+          if(decision==="verified" || section.querySelector(".client-public-record-card")?.dataset.dirty==="1"){
+            if(saveStatus)saveStatus.textContent="Saving public and criminal record checks…";
+            const recordsSaved=await savePublicRecordCheck(section);
+            if(!recordsSaved){
+              if(saveStatus)saveStatus.textContent="Record checks could not be saved. See the message in Public Records.";
+              section.querySelector(".client-public-record-save-status")?.scrollIntoView({behavior:"smooth",block:"center"});
+              return;
+            }
           }
           await saveVerificationDraft(section);
           button.disabled=true;if(saveStatus)saveStatus.textContent="Saving…";
