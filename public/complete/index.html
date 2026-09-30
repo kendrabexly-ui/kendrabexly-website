@@ -41,11 +41,6 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       <p>Loading your private request…</p>
     </section>
 
-    <section id="continuation-summary-card" class="booking-summary" hidden>
-      <div class="eyebrow">YOUR REQUEST</div>
-      <h2>Request Summary</h2>
-      <dl id="continuation-summary"></dl>
-    </section>
 
     <form id="screening-form" hidden>
       <section class="form-section" id="our-time-together">
@@ -208,7 +203,6 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
     let requestId = null;
     let baseDepositAmount = 0;
     const loading = document.getElementById("continuation-loading");
-    const summaryCard = document.getElementById("continuation-summary-card");
     const screeningForm = document.getElementById("screening-form");
     const screeningReview = document.getElementById("screening-review");
     const combinedReview = document.getElementById("combined-review");
@@ -224,16 +218,6 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       fetch("/api/public/funnel",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({event:eventName,session_id:analyticsSession,request_id:requestId,path:location.pathname})}).catch(()=>{});
     }
 
-    function renderSummary(data) {
-      const rows = [
-        ["Name", data.client_name],
-        ["Date", data.requested_date],
-        ["Time", data.requested_time],
-        ["Location", data.location_name]
-      ];
-      document.getElementById("continuation-summary").innerHTML = rows.map(row => "<div><dt>"+escapeHtml(row[0])+"</dt><dd>"+escapeHtml(row[1])+"</dd></div>").join("");
-      summaryCard.hidden = false;
-    }
 
     function updatePaymentMethodLabels() {
       const select = document.getElementById("continuation-payment-method");
@@ -351,7 +335,6 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       }
       requestId = Number(data.request_id || 0) || null;
       track("continuation_opened");
-      renderSummary(data);
       loading.hidden = true;
 
       if (data.combined_step) {
