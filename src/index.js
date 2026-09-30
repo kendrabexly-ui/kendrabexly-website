@@ -1405,6 +1405,14 @@ async function siteAvailableSlots(env, date, requestedDuration, excludeRequestId
   };
 }
 
+const WEBSITE_BUTTON_CSS = "/* Shared website button palette */\n:root{--website-button-plum:#673B59;--website-button-plum-hover:#512D46}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"],.button,.btn,a[role=\"button\"],.wp-block-button__link,.wp-element-button){\nbackground:var(--website-button-plum)!important;color:#fff!important;border-color:var(--website-button-plum)!important}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"],.button,.btn,a[role=\"button\"],.wp-block-button__link,.wp-element-button):hover{\nbackground:var(--website-button-plum-hover)!important;color:#fff!important;border-color:var(--website-button-plum-hover)!important}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"],.button,.btn,a[role=\"button\"],.wp-block-button__link,.wp-element-button):focus-visible{outline:2px solid var(--website-button-plum)!important;outline-offset:3px}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"]):disabled{opacity:.55;cursor:not-allowed}\n";
+function withWebsiteButtonStyles(response) {
+  if (!(response.headers.get("Content-Type") || "").toLowerCase().includes("text/html")) return response;
+  return new HTMLRewriter().on("head", {
+    element(head) { head.append("<style>" + WEBSITE_BUTTON_CSS + "</style>", { html: true }); }
+  }).transform(response);
+}
+
 function standaloneBookingPage() {
   return `<!doctype html>
 <html lang="en">
@@ -1412,6 +1420,7 @@ function standaloneBookingPage() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Meet Kendra | Private Booking</title>
+<style>${WEBSITE_BUTTON_CSS}</style>
 <meta name="robots" content="noindex,nofollow">
 <style>
 :root{--ivory:#FBF7F2;--ink:#66545D;--blush:#F3E8E3;--wine:#8A5B70;--gold:#CDB79E}
@@ -8956,16 +8965,18 @@ if (
       headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
       headers.set("Pragma", "no-cache");
       headers.set("Expires", "0");
-      return new Response(assetResponse.body, {
+      const response = new Response(assetResponse.body, {
         status: assetResponse.status,
         statusText: assetResponse.statusText,
         headers
       });
+      return url.pathname.startsWith("/portal") || url.pathname.startsWith("/admin")
+        ? response : withWebsiteButtonStyles(response);
     }
 
     // On a Workers Route, fetch(request) continues to the application
     // origin configured in Cloudflare DNS instead of serving old assets.
-    return fetch(request);
+    return withWebsiteButtonStyles(await fetch(request));
   },
 
   async scheduled(event, env, ctx) {
