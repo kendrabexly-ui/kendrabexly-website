@@ -1435,9 +1435,8 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 </head>
 <body>
 <header class="hero">
-<p class="eyebrow">Private Booking</p>
 <h1>Meet Kendra</h1>
-<p>Tell me what you have in mind. I review every request personally.</p>
+<p>Tell me what you have in mind.</p>
 </header>
 <main class="booking-layout">
 <div class="booking-photo"><img src="https://kendrabexly.wordpress.com/wp-content/uploads/2026/09/kendra-booking.jpg" alt="Kendra"></div>
