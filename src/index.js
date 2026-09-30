@@ -3454,6 +3454,7 @@ export default {
           },
           body: JSON.stringify({
             from: "Kendra Bexly <newsletter@kendrabexly.com>",
+            reply_to: "kendrabexly@gmail.com",
             to: [subscriber.email],
             subject: draft.subject,
             html
@@ -5825,7 +5826,7 @@ if (
         const client=await env.DB.prepare("SELECT id,first_name,email FROM clients WHERE id=? LIMIT 1").bind(clientId).first();
         if(!client?.email)return bookingCorsJson({ok:false,message:"This client does not have an email address."},{status:400});
         body=body.replace(/\n\s*Kendra\s*$/i,"").trim()+"\n\nKendra";
-        const resendResponse=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.EMAIL_FROM||"Kendra Bexly <hello@kendrabexly.com>",to:[client.email],subject,text:body})});
+        const resendResponse=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:env.EMAIL_FROM||"Kendra Bexly <hello@kendrabexly.com>",reply_to:"kendrabexly@gmail.com",to:[client.email],subject,text:body})});
         const resendData=await resendbookingCorsJson().catch(()=>({}));
         if(!resendResponse.ok)throw new Error(resendData?.message||"Email provider rejected the message.");
         const existing=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='after_date_follow_up' LIMIT 1").bind(requestId).first();
@@ -6355,6 +6356,7 @@ if (
           headers:{"Authorization":"Bearer " + env.RESEND_API_KEY,"Content-Type":"application/json"},
           body:JSON.stringify({
             from:"Kendra Bexly <hello@kendrabexly.com>",
+            reply_to:"kendrabexly@gmail.com",
             to:[draft.email],
             subject:draft.subject,
             html,
