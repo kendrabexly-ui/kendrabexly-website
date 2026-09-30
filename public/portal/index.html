@@ -7976,6 +7976,7 @@ function escapeHtml(value) {
     async function loadEmailGeneratorRequests() {
       if (!emailGenerateRequest) return;
       try {
+        emailGenerateStatus.textContent = "Loading client requests...";
         const data = await fetchAdminJson("/api/admin/requests");
         const selected = emailGenerateRequest.value;
         emailGenerateRequest.innerHTML = '<option value="">Choose a client request</option>' + (data.requests || []).map(item => {
@@ -7984,7 +7985,7 @@ function escapeHtml(value) {
           return '<option value="' + Number(item.id) + '">' + escapeHtml(label) + '</option>';
         }).join("");
         emailGenerateRequest.value = selected;
-        emailGenerateStatus.textContent = "";
+        emailGenerateStatus.textContent = (data.requests || []).length ? "" : "No client requests are available yet.";
       } catch (error) { emailGenerateStatus.textContent = "Unable to load client requests. " + error.message; }
     }
     document.getElementById("email-generate-button")?.addEventListener("click", async event => {
@@ -8676,7 +8677,7 @@ function escapeHtml(value) {
     }
     const adminSectionLoadState = new Map();
     const loadAdminSectionData = async (sectionName, force = false) => {
-      if (!force && !["dashboard", "requests", "clients"].includes(sectionName) && adminSectionLoadState.get(sectionName) === "loaded") return;
+      if (!force && !["dashboard", "requests", "clients", "emails"].includes(sectionName) && adminSectionLoadState.get(sectionName) === "loaded") return;
       if (adminSectionLoadState.get(sectionName) === "loading") return;
       adminSectionLoadState.set(sectionName, "loading");
       try {
@@ -8691,7 +8692,7 @@ function escapeHtml(value) {
         } else if (sectionName === "blacklist") {
           await loadBlacklist();
         } else if (sectionName === "emails") {
-          await loadEmailDrafts();
+          await Promise.all([loadEmailDrafts(), loadEmailGeneratorRequests()]);
         } else if (sectionName === "calendar") {
           await loadCalendarAvailabilityRemote();
           await Promise.all([loadCalendarUpcomingDates(), loadCalendarCompletedDates()]);
