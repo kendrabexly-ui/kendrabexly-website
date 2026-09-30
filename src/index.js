@@ -6061,7 +6061,7 @@ if (
         const input = await request.json();
         const requestId = Number(input.request_id);
         const type = String(input.type || "");
-        const allowed = new Set(["id_deposit_request","request_acknowledgment","pre_date_note","appointment_reminder","after_date_thank_you","reconnect_note"]);
+        const allowed = new Set(["new_screening_invitation","id_deposit_request","request_acknowledgment","pre_date_note","appointment_reminder","after_date_thank_you","reconnect_note"]);
         if (!Number.isInteger(requestId) || requestId < 1 || !allowed.has(type)) {
           return bookingCorsJson({ok:false,message:"Choose a valid email type and client request."},{status:400});
         }
@@ -6073,6 +6073,27 @@ if (
         }
         if (type === "after_date_thank_you" && row.status !== "completed") {
           return bookingCorsJson({ok:false,message:"Choose a completed date for the after-date thank-you."},{status:400});
+        }
+
+        if (type === "new_screening_invitation") {
+          await ensureSiteContentTables(env);
+          if (row.status !== "screening_pending") return bookingCorsJson({ok:false,message:"Proceed to private screening from request review first. New invitations are available while screening is pending."},{status:409});
+          const blocked = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? OR (email <> '' AND LOWER(email)=LOWER(?)) LIMIT 1").bind(row.client_id,row.email).first();
+          if (blocked) return bookingCorsJson({ok:false,message:"This client is blacklisted. A screening invitation cannot be created."},{status:409});
+          const existing = await env.DB.prepare("SELECT completed_at,deposit_step_acknowledged,combined_step FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
+          if (existing?.completed_at || Number(existing?.deposit_step_acknowledged || 0) === 1) return bookingCorsJson({ok:false,message:"This private step has already been completed. Review the submitted details in Requests."},{status:409});
+          const token = crypto.randomUUID().replaceAll("-","") + crypto.randomUUID().replaceAll("-","");
+          const expiresAt = new Date(Date.now()+7*24*60*60*1000).toISOString();
+          const link = new URL("/complete/?token="+encodeURIComponent(token),request.url).toString();
+          const results = await env.DB.batch([
+            env.DB.prepare(`INSERT INTO booking_continuations (date_request_id,token_hash,expires_at,completed_at,deposit_step_acknowledged,combined_step,updated_at)
+              VALUES (?,?,?,NULL,0,?,CURRENT_TIMESTAMP)
+              ON CONFLICT(date_request_id) DO UPDATE SET token_hash=excluded.token_hash,expires_at=excluded.expires_at,updated_at=CURRENT_TIMESTAMP`)
+              .bind(requestId,await sha256Hex(token),expiresAt,Number(existing?.combined_step ?? 1)),
+            env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')")
+              .bind(row.client_id,requestId,"pending_final_approval","A few details before our date",privateScreeningEmailBody(row.first_name,row.requested_date,row.requested_time,link))
+          ]);
+          return bookingCorsJson({ok:true,draft_id:results[1].meta?.last_row_id,message:"New screening invitation created. The previous private link has been replaced."});
         }
 
         if (type === "id_deposit_request") {
