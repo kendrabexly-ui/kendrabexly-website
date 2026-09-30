@@ -1466,14 +1466,14 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 </div>
 
 <div id="status" class="status" role="status" aria-live="polite"></div>
-<button id="submit" type="submit">Send My Request</button>
+<button id="submit" type="submit">Introduce Myself</button>
 </form>
 </div>
 </main>
 <script>
 (()=>{const f=document.getElementById("booking"),status=document.getElementById("status"),submit=document.getElementById("submit");
 function message(text,type){status.textContent=text;status.className="status show "+type}
-f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload={...Object.fromEntries(new FormData(f).entries()),screening_only:true};try{const res=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");f.innerHTML='<div style="text-align:center;padding:34px 10px"><p class="eyebrow" style="color:#6B173F">YOUR REQUEST IS IN</p><h2 style="font-family:Georgia,serif;font-weight:400;font-size:38px;margin:0 0 14px">Thank you.</h2><p>Your private request has been received for review. If I would like to move forward, the next step will arrive privately.</p></div>'}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Send My Request"}});
+f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload={...Object.fromEntries(new FormData(f).entries()),screening_only:true};try{const res=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");f.innerHTML='<div style="text-align:center;padding:34px 10px"><p class="eyebrow" style="color:#6B173F">YOUR REQUEST IS IN</p><h2 style="font-family:Georgia,serif;font-weight:400;font-size:38px;margin:0 0 14px">Thank you.</h2><p>Your private request has been received for review. If I would like to move forward, the next step will arrive privately.</p></div>'}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Introduce Myself"}});
 })();
 </script>
 </body>
