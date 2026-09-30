@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 229009)
-Total output lines: 8928
+Warning: truncated output (original token count: 229352)
+Total output lines: 8955
 
 <!DOCTYPE html>
 <html lang="en">
@@ -1966,10 +1966,42 @@ Total output lines: 8928
 
   <script>
 
+    async function fetchAdminJson(path, timeoutMs = 15000) {
+      const controller = new AbortController();
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error("The server took too long to respond. Please retry."));
+          controller.abort();
+        }, timeoutMs);
+      });
+      try {
+        return await Promise.race([timeout, (async () => {
+          const response = await fetch(path, {signal: controller.signal, cache: "no-store", credentials: "same-origin"});
+          const contentType = response.headers.get("content-type") || "";
+          if (response.status === 401 || response.status === 403 || !contentType.includes("application/json")) {
+            throw new Error("Your portal session may have expired. Reload the page and sign in again.");
+          }
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.message || "Request failed (" + response.status + ").");
+          return data;
+        })()]);
+      } finally { clearTimeout(timer); }
+    }
+
         async function loadDashboard() {
       try {
-        const response = await fetch("/api/admin/dashboard");
-        const data = await response.json();
+        let status = document.getElementById("dashboard-load-status");
+        if (!status) {
+          status = document.createElement("div");
+          status.id = "dashboard-load-status";
+          status.className = "empty";
+          status.setAttribute("role", "status");
+          document.getElementById("dashboard").prepend(status);
+        }
+        status.hidden = false;
+        status.textContent = "Loading dashboard...";
+        const data = await fetchAdminJson("/api/admin/dashboard");
 
         if (!response.ok || !data.ok) {
           throw new Error(
@@ -2056,8 +2088,12 @@ Total output lines: 8928
           }));
         }
 
+        status.hidden = true;
       } catch (error) {
         console.error("Dashboard loading error:", error);
+        const status = document.getElementById("dashboard-load-status");
+        if (status) status.textContent = "Unable to load dashboard. " + error.message + " Select Dashboard to retry.";
+        throw error;
       }
     }
 
@@ -2196,16 +2232,7 @@ document.getElementById("clear-booking-submissions")?.addEventListener("click", 
 
 async function loadRequests(options = {}) {
   const renderClientProfiles = options.renderClients !== false;
-  const fetchRequestData = async (path, timeoutMs = 10000) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(path, { signal: controller.signal, cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.message || "Request failed (" + response.status + ").");
-      return data;
-    } finally { clearTimeout(timer); }
-  };
+  const fetchRequestData = (path, timeoutMs = 10000) => fetchAdminJson(path, timeoutMs);
   const recentContainer =
     document.getElementById("recent-requests");
   const recordsContainer =
@@ -3338,8 +3365,7 @@ async function loadRequests(options = {}) {
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Persona receives only supported fields from this section. Your uploaded ID image remains private in this dashboard. The DL/State ID number is encrypted after save and is never shown in full again.</div>
                     <div class="client-persona-simple-summary" style="margin-top:8px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;"><strong>Database:</strong> Not run · <strong>Inquiry:</strong> Not submitted · <strong>Last checked:</strong> —</div>
                     <div class="verification-grid client-id-fallback-fields" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
-                      <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="80" placeholder="${escapeHtml(personaDraft.id_details?.id_number_masked || "Enter ID number")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note client-persona-id-number-note">${personaDraft.id_details?.has_id_number ? "Saved securely · "+escapeHtml(personaDraft.id_details.id_number_masked) : "Required only when address is unavailable."}</span><span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-id-number-replace" style="padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:11px;cursor:pointer;">Replace ID Number</button><button type="button" class="client-id-number-delete" ${personaDraft.id_details?.has_id_number ? "" : "hidden"} style="padding:5px 7px;border:1px solid #9f3030;border-radius:7px;background:#fff7f7;color:#8a2424;font:inherit;font-size:11px;cursor:pointer;">Delete Saved ID Number</button></span></label>
-                      <label style="font-size:12px;font-weight:700;">Issuing State<select class="client-persona-issuing-state" autocomplete="off" style="display:block;width:100%;max-width:100%;box-sizing:border-box;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose issuing state</option><option value="AL"${["AL","ALABAMA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Alabama (AL)</option><option value="AK"${["AK","ALASKA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Alaska (AK)</option><option value="AZ"${["AZ","ARIZONA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Arizona (AZ)</option><option value="AR"${["…79009 tokens truncated…t(e.message);
+                      <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="80" placeholder="${escapeHtml(personaDraft.id_details?.id_number_masked || "Enter ID number")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note client-persona-id-number-note">${personaDraft.id_details?.has_id_number ? "Saved securely · "+escapeHtml(personaDraft.id_details.id_number_masked) : "Required only when address is unavailable."}</span><span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><button type="button" class="cli…79352 tokens truncated…
                 } finally {
                   button.disabled = false;
                 }
@@ -4984,7 +5010,7 @@ async function loadRequests(options = {}) {
     }
     const adminSectionLoadState = new Map();
     const loadAdminSectionData = async (sectionName, force = false) => {
-      if (!force && !["requests", "clients"].includes(sectionName) && adminSectionLoadState.get(sectionName) === "loaded") return;
+      if (!force && !["dashboard", "requests", "clients"].includes(sectionName) && adminSectionLoadState.get(sectionName) === "loaded") return;
       if (adminSectionLoadState.get(sectionName) === "loading") return;
       adminSectionLoadState.set(sectionName, "loading");
       try {
