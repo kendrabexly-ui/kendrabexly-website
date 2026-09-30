@@ -1,16 +1,18 @@
+@import url("https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;500;600;700&family=Spectral:wght@300;400;500;600&display=swap");
+
 /* Portal visual system. The existing section and mobile navigation rules stay intact. */
 :root {
-  --cream: #f6f2ec;
-  --cream-dark: #ece5dc;
-  --ink: #251f1c;
-  --muted: #625a53;
-  --line: #dcd2c7;
-  --white: #fffefa;
+  --cream: #FBF7F2;
+  --cream-dark: #F3E8E3;
+  --ink: #66545D;
+  --muted: #66545D;
+  --line: #E6D8D0;
+  --white: #FFFFFF;
   --green: #315d3a;
   --red: #8a3434;
-  --paper: #fffdfa;
-  --line-dark: #cdbfb1;
-  --accent: #795b49;
+  --paper: #FBF7F2;
+  --line-dark: #CDB79E;
+  --accent: #8A5B70;
   --portal-accent: var(--accent);
 }
 
@@ -68,7 +70,7 @@ body { background: var(--cream); -webkit-font-smoothing: antialiased; }
 .main :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]) { accent-color: var(--accent); }
 .main :is(input, select, textarea):focus-visible,
 .main button:focus-visible,
-.sidebar .nav button:focus-visible { outline: 3px solid #8b6656; outline-offset: 2px; }
+.sidebar .nav button:focus-visible { outline: 3px solid #8A5B70; outline-offset: 2px; }
 .main :is(button, select, summary) { touch-action: manipulation; }
 .main :is(button, input, select, textarea) { font-family: "DM Sans", sans-serif; }
 .main table th { color: var(--muted); font-weight: 700; letter-spacing: .075em; background: var(--paper); }
@@ -202,3 +204,35 @@ body { color: var(--ink); background: var(--cream); }
   background-color: var(--ink) !important;
 }
 .main :is(input, button) { accent-color: var(--accent); }
+
+/* New WordPress brand: ivory, blush, mauve and champagne. */
+:root { --portal-heading-font: "Spectral", Georgia, serif; --portal-body-font: "Rethink Sans", Arial, sans-serif; }
+body { font-family: var(--portal-body-font); }
+.sidebar { background: var(--cream-dark); color: var(--ink); border-right: 1px solid var(--line-dark); }
+.sidebar .brand { font-family: var(--portal-heading-font); color: var(--accent); font-weight: 400; }
+.sidebar .admin-label { color: var(--muted); }
+.sidebar .nav button { color: var(--ink); font-family: var(--portal-body-font); border-radius: 3px; }
+.sidebar .nav button:hover { color: var(--accent); background: var(--cream); }
+.sidebar .nav button.active, .sidebar .nav button[aria-selected="true"] {
+  background: var(--accent) !important; color: var(--white) !important; border-color: var(--accent); 
+}
+.sidebar .back-site { color: var(--ink); border-color: var(--line-dark); }
+.sidebar .back-site:hover { color: var(--accent); }
+.main :is(h1,h2,h3,h4,h5,h6), .main .panel-title {
+  font-family: var(--portal-heading-font); font-weight: 400; color: var(--accent); letter-spacing: -.025em;
+}
+.main :is(button,input,select,textarea), .stat-number { font-family: var(--portal-body-font); }
+.main .eyebrow { color: var(--accent); }
+.topbar .secure { border-color: var(--line-dark); background: var(--cream-dark); color: var(--ink); border-radius: 3px; }
+.stat, .panel, .photo-editor-card {
+  border-radius: 4px; border-color: var(--line); background: var(--white);
+  box-shadow: 0 8px 24px rgba(138,91,112,.035);
+}
+.panel-header, .main table th { background: var(--cream); }
+.main :is(button,input,select,textarea):not([type="range"]):not([type="checkbox"]):not([type="radio"]) { border-radius: 3px !important; }
+.main :is(button,div,span)[style*="background:#f7f2e9"],
+.main :is(button,div,span)[style*="background: #f7f2e9"] { background-color: var(--cream-dark) !important; }
+.main a { color: var(--accent); text-underline-offset: 3px; }
+.main a:hover { color: var(--ink); }
+.main .status { background: var(--cream-dark); color: var(--accent); }
+.sidebar { box-shadow: none; }
