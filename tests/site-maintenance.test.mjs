@@ -23,7 +23,7 @@ test('all inline scripts parse after markup cleanup', () => {
 });
 
 test('public and portal styles load without interrupting dashboard startup', () => {
-  assert.match(portal,/href="\/portal\/polish\.css"/);
+  assert.match(portal,/href="\/portal\/polish\.css(?:\?[^"]+)?"/);
   assert.match(portal,/window\.__loadAdminSectionData = loadAdminSectionData/);
   assert.match(read('portal/polish.css'),/\.sidebar \.nav button\.active/);
   assert.match(read('styles.css'),/Refined public visual system/);
@@ -141,4 +141,22 @@ test('verification saves preserve newer edits and serialize concurrent requests'
   assert.equal(applied.persona_fields.name_first,'Newer');
   assert.equal(section.dataset.draftDirty,'0');
   assert.equal(maxActive,1);
+});
+
+test('portal data loads time out and detect expired sessions', async () => {
+  const helper = between(portal, '    async function fetchAdminJson', '        async function loadDashboard');
+  let mode = 'ok';
+  const context = {AbortController, setTimeout, clearTimeout, fetch: async () => {
+    if (mode === 'hang') return new Promise(() => {});
+    return {ok:true,status:200,headers:{get:()=>mode === 'html' ? 'text/html' : 'application/json'},
+      json:async()=>mode === 'body-hang' ? new Promise(() => {}) : ({ok:true,counts:{clients:2}})};
+  }};
+  vm.createContext(context);
+  vm.runInContext(helper, context);
+  assert.equal((await context.fetchAdminJson('/test')).counts.clients, 2);
+  mode = 'html';
+  await assert.rejects(context.fetchAdminJson('/test'), /sign in again/);
+  for (mode of ['hang','body-hang']) {
+    await assert.rejects(context.fetchAdminJson('/test', 20), /too long/);
+  }
 });
