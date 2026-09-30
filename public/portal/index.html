@@ -1337,6 +1337,7 @@
           <div style="padding:20px;display:grid;gap:14px;">
             <label for="email-generate-type">Draft email
               <select id="email-generate-type" style="display:block;width:100%;margin-top:6px;padding:11px;border:1px solid var(--line);">
+                <option value="new_screening_invitation">Create New Screening Invitation</option>
                 <option value="id_deposit_request">ID &amp; Deposit Request</option>
                 <option value="request_acknowledgment">Thank You for Your Request</option>
                 <option value="pre_date_note">A Little Note Before Our Date</option>
@@ -7959,6 +7960,7 @@ function escapeHtml(value) {
 
 
     const emailGeneratorDescriptions = {
+      new_screening_invitation: "Create a fresh private screening link for a request already moved forward. This replaces the previous link and saves an email draft for your review.",
       id_deposit_request: "Request ID screening and explain the deposit step through the client\u2019s private page.",
       request_acknowledgment: "A warm thank-you for getting in touch.",
       pre_date_note: "A personal note to build a little anticipation before a confirmed date.",
@@ -8007,7 +8009,7 @@ function escapeHtml(value) {
         const search = document.getElementById("email-drafts-search");
         if (search) { search.value = ""; search.dispatchEvent(new Event("input")); }
         if (filter) { filter.value = "draft"; filter.dispatchEvent(new Event("change")); }
-        emailGenerateStatus.textContent = "Draft created. Review and edit it below before sending.";
+        emailGenerateStatus.textContent = data.message ? data.message + " Review the draft below before sending." : "Draft created. Review and edit it below before sending.";
       } catch (error) { emailGenerateStatus.textContent = error.message; }
       finally { button.disabled = false; }
     });
