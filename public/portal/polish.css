@@ -164,3 +164,41 @@ body { background: var(--cream); -webkit-font-smoothing: antialiased; }
     justify-content: flex-start !important;
   }
 }
+
+/* Match legacy inline dashboard controls to the public website palette. */
+body { color: var(--ink); background: var(--cream); }
+.sidebar { background: var(--ink); }
+.main :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  background-color: var(--white) !important;
+  color: var(--ink) !important;
+  border-color: var(--line-dark) !important;
+}
+.main :is(button, div, span, table, th, td)[style*="background:white"],
+.main :is(button, div, span, table, th, td)[style*="background: white"],
+.main :is(button, div, span)[style*="background:#fff"],
+.main :is(button, div, span)[style*="background: #fff"] {
+  background-color: var(--white) !important;
+}
+.main :is(div, span, button)[style*="background:#f7f2e9"],
+.main :is(div, span, button)[style*="background:#f6f1e8"],
+.main :is(div, span, button)[style*="background:#eee7dc"] {
+  background-color: var(--cream-dark) !important;
+}
+.main :is(button, div, input, select, textarea)[style*="border:1px solid #ddd6ca"],
+.main :is(button, div, input, select, textarea)[style*="border:1px solid #eee7dc"],
+.main :is(button, div)[style*="border-bottom:1px solid #ddd6ca"] {
+  border-color: var(--line) !important;
+}
+.main button.primary,
+.main .button:not(.secondary),
+.main button[style*="background:var(--ink)"],
+.main button[style*="background: var(--ink)"] {
+  background-color: var(--accent) !important;
+  color: var(--white) !important;
+  border-color: var(--accent) !important;
+}
+.main button.primary:hover,
+.main .button:not(.secondary):hover {
+  background-color: var(--ink) !important;
+}
+.main :is(input, button) { accent-color: var(--accent); }
