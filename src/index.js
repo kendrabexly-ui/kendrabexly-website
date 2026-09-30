@@ -6068,7 +6068,7 @@ if (
         const input = await request.json();
         const requestId = Number(input.request_id);
         const type = String(input.type || "");
-        const allowed = new Set(["request_acknowledgment","pre_date_note","appointment_reminder","after_date_thank_you","reconnect_note"]);
+        const allowed = new Set(["id_deposit_request","request_acknowledgment","pre_date_note","appointment_reminder","after_date_thank_you","reconnect_note"]);
         if (!Number.isInteger(requestId) || requestId < 1 || !allowed.has(type)) {
           return bookingCorsJson({ok:false,message:"Choose a valid email type and client request."},{status:400});
         }
@@ -6080,6 +6080,21 @@ if (
         }
         if (type === "after_date_thank_you" && row.status !== "completed") {
           return bookingCorsJson({ok:false,message:"Choose a completed date for the after-date thank-you."},{status:400});
+        }
+
+        if (type === "id_deposit_request") {
+          const continuation = await env.DB.prepare("SELECT expires_at,completed_at FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
+          if (!continuation || continuation.completed_at || !Number.isFinite(Date.parse(continuation.expires_at)) || Date.parse(continuation.expires_at) <= Date.now()) {
+            return bookingCorsJson({ok:false,message:"Open this request and proceed to private screening first to create an active private page."},{status:400});
+          }
+          const invitation = await env.DB.prepare("SELECT body FROM email_drafts WHERE date_request_id=? AND email_type='pending_final_approval' ORDER BY id DESC LIMIT 1").bind(requestId).first();
+          const match = String(invitation?.body || "").match(/href=["']([^"']*\/complete\/\?token=[^"']+)["']/i);
+          if (!match) return bookingCorsJson({ok:false,message:"Create the private screening invitation from request review before generating this draft."},{status:400});
+          const link = match[1];
+          const esc = value => String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+          const body = '<p>Hi '+esc(row.first_name || "there")+',</p><p>I\'m looking forward to getting a little closer to our date. Before we meet, I need your ID for screening. Please complete the available details on your private page and reply to this email for my ID submission instructions.</p><p>Once I have reviewed and verified your screening, your private page will guide you through the 25% deposit to confirm our time together. Please wait for that step before making a payment.</p><p><a href="'+link+'" style="display:inline-block;padding:13px 20px;background:#8A5B70;color:#ffffff;text-decoration:none;">A Little Closer to Our Date</a></p><p>With a little anticipation,<br>Kendra</p>';
+          const result = await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(row.client_id,requestId,type,"A few details before our date",body).run();
+          return bookingCorsJson({ok:true,draft_id:result.meta?.last_row_id});
         }
         const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(row.requested_date || ""));
         const date = dateParts ? dateParts[2]+"/"+dateParts[3]+"/"+dateParts[1] : "";
