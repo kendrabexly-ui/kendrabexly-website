@@ -4781,6 +4781,55 @@ My journal will continue to be a place where I share a little more of that side 
     // =========================================================
     // PRIVATE BOOKING CONTINUATION
     // =========================================================
+
+    if (["/api/booking/continuation/booking", "/api/booking/continuation/availability"].includes(url.pathname)) {
+      try {
+        const isAvailability = url.pathname.endsWith("/availability");
+        if (request.method !== (isAvailability ? "GET" : "POST")) return bookingCorsJson({ok:false,message:"Method not allowed."},{status:405});
+        await ensureSiteContentTables(env);
+        const data = isAvailability ? Object.fromEntries(url.searchParams) : await request.json();
+        const token = String(data.token || "");
+        if (!/^[a-f0-9]{64}$/i.test(token)) return bookingCorsJson({ok:false,message:"Invalid private link."},{status:403});
+        const row = await env.DB.prepare(`
+          SELECT bc.date_request_id,bc.expires_at,bc.completed_at,dr.status,dr.notes
+          FROM booking_continuations bc JOIN date_requests dr ON dr.id=bc.date_request_id
+          WHERE bc.token_hash=? LIMIT 1
+        `).bind(await sha256Hex(token)).first();
+        if (!row || new Date(row.expires_at).getTime() < Date.now()) return bookingCorsJson({ok:false,message:"This private link is invalid or expired."},{status:403});
+        if (row.completed_at || row.status !== "screening_pending") return bookingCorsJson({ok:false,message:"This request is no longer open for date selection."},{status:409});
+        const prices = {
+          "private-introduction":{"20-minutes":250},
+          "signature-brief-introduction":{"30-minutes":300},
+          "greek-princess-brief-introduction":{"30-minutes":400},
+          "signature-girlfriend-experience":{"1-hour":500,"1.5-hours":750,"2-hours":1000,"4-hours":2300},
+          "greek-princess-experience":{"1-hour":700,"1.5-hours":1000,"2-hours":1300,"4-hours":2800}
+        };
+        const durations = ["20-minutes","30-minutes","1-hour","1.5-hours","2-hours","4-hours"];
+        const date = String(isAvailability ? data.date : data.requested_date || "");
+        const duration = String(data.duration || "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !durations.includes(duration)) return bookingCorsJson({ok:false,message:"Choose a valid date and duration."},{status:400});
+        const availability = await siteAvailableSlots(env,date,siteDurationMinutes(duration));
+        if (isAvailability) return bookingCorsJson({ok:true,...availability});
+        const experience = String(data.date_type || "");
+        const location = String(data.appointment_type || "");
+        const time = String(data.requested_time || "");
+        const price = Object.hasOwn(prices,experience) && Object.hasOwn(prices[experience],duration) ? prices[experience][duration] : 0;
+        if (!price || !["incall","outcall"].includes(location)) return bookingCorsJson({ok:false,message:"Choose valid experience and location options."},{status:400});
+        if (!availability.slots.includes(time)) return bookingCorsJson({ok:false,message:"That start time is no longer available. Please choose another opening."},{status:409});
+        const start = siteZonedDateTime(date,time).getTime();
+        if (!Number.isFinite(start) || start < Date.now()+4*60*60*1000) return bookingCorsJson({ok:false,message:"Choose a date at least four hours away to allow time for your deposit."},{status:400});
+        const baseDepositAmount = (price + (location === "outcall" ? 100 : 0)) * .25;
+        let notes = String(row.notes || "").replace(/^(Date type|Appointment type|Duration):.*$/gmi,"").trim();
+        notes += (notes ? "\n" : "")+"Date type: "+experience+"\nAppointment type: "+location+"\nDuration: "+duration;
+        await env.DB.prepare("UPDATE date_requests SET requested_date=?,requested_time=?,location_name=?,deposit_amount=?,notes=? WHERE id=? AND status='screening_pending'")
+          .bind(date,time,location==="outcall"?"Outcall":"Incall",baseDepositAmount,notes,row.date_request_id).run();
+        return bookingCorsJson({ok:true,base_deposit_amount:baseDepositAmount});
+      } catch(error) {
+        console.error("Private date selection error:",error);
+        return bookingCorsJson({ok:false,message:"Unable to save date details. Please try again."},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/booking/continuation" && request.method === "GET") {
       try {
         await ensureSiteContentTables(env);
