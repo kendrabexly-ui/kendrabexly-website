@@ -1462,7 +1462,7 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 <div><label for="first">First name *</label><input id="first" name="first_name" autocomplete="given-name" required></div>
 <div><label for="last">Last name *</label><input id="last" name="last_name" autocomplete="family-name" required></div>
 <div><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" required></div>
-<div><label for="phone">Mobile number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" required><div class="small">Please use a standard mobile number.</div></div>
+<div><label for="phone">Mobile number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" required><div class="small">Please use a standard mobile number. Do not use app-based or VoIP numbers.</div></div>
 <div><label for="occupation">Occupation *</label><input id="occupation" name="occupation" required></div>
 <div><label for="base">Base state *</label><select id="base" name="base_state" required>
 <option value="">Choose a state</option>
