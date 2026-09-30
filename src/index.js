@@ -1455,8 +1455,8 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 <section class="first-impression" aria-labelledby="first-impression-title">
 <h2 id="first-impression-title">First Impression</h2>
 <p>I’ve caught your eye… now it’s your turn to catch mine.</p>
-<p>Introduce yourself, and I’ll be in touch so we can plan our time together.</p>
 <p>I’d love to put a name to the gentleman whose attention I’ve stolen.</p>
+<p>Introduce yourself, and I’ll be in touch so we can plan our time together.</p>
 </section>
 <div class="grid">
 <div><label for="first">First name *</label><input id="first" name="first_name" autocomplete="given-name" required></div>
