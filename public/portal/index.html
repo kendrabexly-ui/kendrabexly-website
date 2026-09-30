@@ -3220,7 +3220,7 @@ async function loadRequests(options = {}) {
 
                   <section class="verification-card client-public-record-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">7. Public &amp; Criminal Court Record Search <span style="font-weight:500;color:var(--muted);">· Required before Verified</span></strong>
+                      <strong style="font-size:13px;">7. Public &amp; Criminal Court Record Search <span style="font-weight:500;color:var(--muted);">· Optional</span></strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-public-record-badge">Public records: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-public-record-card">Expand</button><button type="button" class="client-optional-clear" data-section-key="public_records" style="padding:4px 7px;border:1px solid var(--line);border-radius:7px;background:white;cursor:pointer;font:inherit;font-size:10px;">Clear Public Record Check</button></span>
                     </div>
                     <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">
@@ -5199,7 +5199,6 @@ async function loadRequests(options = {}) {
         const warnings=[];
         if(section.dataset.hasDocument!=="1")warnings.push("ID document has not been uploaded.");
         if(String(publicRecords)==="potential_match")warnings.push("Public-record search contains a potential identity match.");
-        if(!Boolean(section.querySelector(".client-public-records-reviewed")?.checked)||!Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked))warnings.push("Both public-record and criminal-court searches must be marked reviewed before verification.");
         if(String(publicRecords)==="confirmed_match")warnings.push("A confirmed public-record match is recorded.");
         if(["potential_match","confirmed_match"].includes(String(sexOffender)))warnings.push("Sex offender registry result requires review.");
         if(String(address)==="mismatch")warnings.push("Address verification shows a mismatch.");
@@ -5229,7 +5228,7 @@ async function loadRequests(options = {}) {
           ' · <strong>Checklist:</strong> '+escapeHtml(checklist+" of 2")+
           ' · <strong>Final decision:</strong> '+escapeHtml(verificationPretty(decision))+
           '<div style="margin-top:6px;">Final decision remains manual. Automated and optional checks provide evidence only and never approve or decline the client automatically.</div>';
-        const finalReady=basicScreening==="confirmed"&&checklist===2&&age!==null&&age>=verificationMinimumAge&&Boolean(section.querySelector(".client-public-records-reviewed")?.checked)&&Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked);
+        const finalReady=basicScreening==="confirmed"&&checklist===2&&age!==null&&age>=verificationMinimumAge;
         const completeState=["verified","unable_to_verify","declined"].includes(decision)?"complete":"not_checked";
         updateVerificationProgress(section,{
           basic_screening:basicScreening,
@@ -6107,7 +6106,7 @@ async function loadRequests(options = {}) {
           const age=verificationAge(section.querySelector(".client-persona-birthdate")?.value);
           const isFinal=["verified","unable_to_verify","declined"].includes(decision);
           let ready=isFinal;
-          if(decision==="verified")ready=ready&&(section.dataset.basicScreeningState||"pending_review")==="confirmed"&&!missing.length&&age!==null&&age>=verificationMinimumAge&&Boolean(section.querySelector(".client-public-records-reviewed")?.checked)&&Boolean(section.querySelector(".client-criminal-records-reviewed")?.checked);
+          if(decision==="verified")ready=ready&&(section.dataset.basicScreeningState||"pending_review")==="confirmed"&&!missing.length&&age!==null&&age>=verificationMinimumAge;
           if(decision==="unable_to_verify")ready=ready&&Boolean(reasonInput?.value);
           if(decision==="declined")ready=ready&&Boolean(reasonInput?.value||decisionNotes?.value.trim());
           if(completeButton){completeButton.disabled=!ready;completeButton.style.opacity=ready?"1":".5";completeButton.style.cursor=ready?"pointer":"not-allowed";}
@@ -6175,15 +6174,6 @@ async function loadRequests(options = {}) {
           if(completedChanged){
             decisionChangeReason=window.prompt("This verification was already completed. Enter the reason for changing the completed decision:")||"";
             if(!decisionChangeReason){if(saveStatus)saveStatus.textContent="A reason is required to change a completed decision.";return;}
-          }
-          if(decision==="verified" || section.querySelector(".client-public-record-card")?.dataset.dirty==="1"){
-            if(saveStatus)saveStatus.textContent="Saving public and criminal record checks…";
-            const recordsSaved=await savePublicRecordCheck(section);
-            if(!recordsSaved){
-              if(saveStatus)saveStatus.textContent="Record checks could not be saved. See the message in Public Records.";
-              section.querySelector(".client-public-record-save-status")?.scrollIntoView({behavior:"smooth",block:"center"});
-              return;
-            }
           }
           await saveVerificationDraft(section);
           button.disabled=true;if(saveStatus)saveStatus.textContent="Saving…";
