@@ -6076,14 +6076,21 @@ if (
         }
 
         if (type === "id_deposit_request") {
-          const continuation = await env.DB.prepare("SELECT expires_at,completed_at FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
+          const continuation = await env.DB.prepare("SELECT token_hash,expires_at,completed_at FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
           if (!continuation || continuation.completed_at || !Number.isFinite(Date.parse(continuation.expires_at)) || Date.parse(continuation.expires_at) <= Date.now()) {
             return bookingCorsJson({ok:false,message:"Open this request and proceed to private screening first to create an active private page."},{status:400});
           }
-          const invitation = await env.DB.prepare("SELECT body FROM email_drafts WHERE date_request_id=? AND email_type='pending_final_approval' ORDER BY id DESC LIMIT 1").bind(requestId).first();
-          const match = String(invitation?.body || "").match(/href=["']([^"']*\/complete\/\?token=[^"']+)["']/i);
-          if (!match) return bookingCorsJson({ok:false,message:"Create the private screening invitation from request review before generating this draft."},{status:400});
-          const link = match[1];
+          const invitations = await env.DB.prepare("SELECT body FROM email_drafts WHERE date_request_id=? AND email_type IN ('pending_final_approval','id_deposit_request') ORDER BY id DESC").bind(requestId).all();
+          let link = "";
+          for (const invitation of invitations.results || []) {
+            const candidates = String(invitation.body || "").match(/https?:\/\/[^\s<>"']+\/complete\/\?token=[a-f0-9]{64}/gi) || [];
+            for (const candidate of candidates) {
+              const token = new URL(candidate).searchParams.get("token");
+              if (await sha256Hex(token) === continuation.token_hash) { link = candidate; break; }
+            }
+            if (link) break;
+          }
+          if (!link) return bookingCorsJson({ok:false,message:"The active private link is missing from saved drafts. Open request review to create a new screening invitation."},{status:400});
           const esc = value => String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
           const body = '<p>Hi '+esc(row.first_name || "there")+',</p><p>I\'m looking forward to getting a little closer to our date. Before we meet, I need your ID for screening. Please complete the available details on your private page and reply to this email for my ID submission instructions.</p><p>Once I have reviewed and verified your screening, your private page will guide you through the 25% deposit to confirm our time together. Please wait for that step before making a payment.</p><p><a href="'+link+'" style="display:inline-block;padding:13px 20px;background:#8A5B70;color:#ffffff;text-decoration:none;">A Little Closer to Our Date</a></p><p>With a little anticipation,<br>Kendra</p>';
           const result = await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(row.client_id,requestId,type,"A few details before our date",body).run();
