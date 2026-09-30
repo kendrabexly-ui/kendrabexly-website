@@ -1414,14 +1414,14 @@ function standaloneBookingPage() {
 <title>Meet Kendra | Private Booking</title>
 <meta name="robots" content="noindex,nofollow">
 <style>
-:root{--ivory:#F7F3EC;--ink:#180710;--blush:#EFE7DF;--wine:#6B173F;--gold:#B99A7A}
+:root{--ivory:#FBF7F2;--ink:#66545D;--blush:#F3E8E3;--wine:#8A5B70;--gold:#CDB79E}
 *{box-sizing:border-box}body{margin:0;background:var(--ivory);color:var(--ink);font-family:Arial,sans-serif;line-height:1.55}
-.hero{background:var(--ink);color:var(--ivory);padding:72px 20px 56px;text-align:center}
+.hero{background:var(--blush);color:var(--ink);padding:72px 20px 56px;text-align:center}
 .eyebrow{color:var(--gold);font-size:12px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 14px}
 h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(38px,7vw,64px);margin:0 0 14px}
-.hero p{max-width:680px;margin:0 auto;color:var(--blush);font-size:18px}
+.hero p{max-width:680px;margin:0 auto;color:var(--ink);font-size:18px}.booking-photo{max-width:920px;margin:36px auto 0;padding:0 20px}.booking-photo img{display:block;width:100%;height:min(58vw,520px);object-fit:cover;object-position:center 58%;border-radius:22px;box-shadow:0 12px 34px rgba(102,84,93,.12)}
 .wrap{max-width:920px;margin:0 auto;padding:46px 20px 80px}
-.card{background:#fff;border:1px solid #eadfd5;border-radius:22px;padding:28px;box-shadow:0 10px 30px rgba(24,7,16,.06)}
+.card{background:#fffdfb;border:1px solid #eadfd5;border-radius:22px;padding:28px;box-shadow:0 10px 30px rgba(102,84,93,.08)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{grid-column:1/-1}
 label{display:block;font-weight:600;margin-bottom:7px}input,select{width:100%;padding:14px 15px;border:1px solid #d8c8bc;border-radius:12px;background:#fff;color:var(--ink);font:inherit}
 input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
@@ -1430,7 +1430,7 @@ input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
 .outcall{display:none;grid-column:1/-1;background:var(--blush);border-radius:16px;padding:20px}.outcall.show{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);padding:15px 28px;font:inherit;font-weight:700;cursor:pointer;margin-top:26px}
 button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:20px;padding:15px;border-radius:12px}.status.show{display:block}.status.error{background:#f8e7ea;color:var(--wine)}.status.success{background:#e9f3eb;color:#225b31}
-@media(max-width:700px){.grid,.outcall.show{grid-template-columns:1fr}.full,.section,.outcall{grid-column:auto}.card{padding:20px}.hero{padding-top:56px}}
+@media(max-width:700px){.grid,.outcall.show{grid-template-columns:1fr}.full,.section,.outcall{grid-column:auto}.card{padding:20px}.hero{padding-top:56px}.booking-photo{margin-top:24px;padding:0 16px}.booking-photo img{height:430px;object-position:center 56%;border-radius:18px}}
 </style>
 </head>
 <body>
@@ -1439,6 +1439,7 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 <h1>Meet Kendra</h1>
 <p>Tell me what you have in mind. I review every request personally.</p>
 </header>
+<div class="booking-photo"><img src="https://kendrabexly.wordpress.com/wp-content/uploads/2026/09/kendra-booking.jpg" alt="Kendra"></div>
 <main class="wrap">
 <form id="booking" class="card" novalidate>
 <div class="grid">
