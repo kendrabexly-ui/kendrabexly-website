@@ -48,6 +48,17 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
     </section>
 
     <form id="screening-form" hidden>
+      <section class="form-section" id="our-time-together">
+        <h2>Our Time Together</h2>
+        <p>Choose the experience and amount of time that feels right.</p>
+        <div class="form-grid">
+          <div class="field full-width"><label for="booking-experience">Experience *</label><select id="booking-experience" name="date_type" required><option value="">Choose an experience</option><option value="private-introduction">Private Introduction · 20 minutes · $250</option><option value="signature-brief-introduction">Signature Brief Introduction · 30 minutes · $300</option><option value="greek-princess-brief-introduction">Greek Princess Brief Introduction · 30 minutes · $400</option><option value="signature-girlfriend-experience">Signature Girlfriend Experience</option><option value="greek-princess-experience">Greek Princess Experience</option></select></div>
+          <div class="field"><label for="booking-duration">Duration *</label><select id="booking-duration" name="duration" required disabled><option value="">Choose an experience first</option></select></div>
+          <div class="field"><label for="booking-location">Location *</label><select id="booking-location" name="appointment_type" required><option value="">Choose one</option><option value="incall">Incall</option><option value="outcall">Outcall · +$100</option></select></div>
+          <div class="field"><label for="booking-date">Preferred date *</label><input id="booking-date" name="requested_date" type="date" required></div>
+          <div class="field"><label for="booking-time">Available start time *</label><select id="booking-time" name="requested_time" required disabled><option value="">Choose date and duration first</option></select><small>Times are pulled from my live availability.</small></div>
+        </div>
+      </section>
       <section class="form-section">
         <div class="eyebrow">SCREENING DETAILS</div>
         <h2>A few final details.</h2>
@@ -267,6 +278,66 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       }
     }
 
+
+    const bookingExperience = document.getElementById("booking-experience");
+    const bookingDuration = document.getElementById("booking-duration");
+    const bookingDate = document.getElementById("booking-date");
+    const bookingTime = document.getElementById("booking-time");
+    const bookingLocation = document.getElementById("booking-location");
+    const bookingOptions = {
+      "private-introduction":[["20-minutes",250,"20 minutes"]],
+      "signature-brief-introduction":[["30-minutes",300,"30 minutes"]],
+      "greek-princess-brief-introduction":[["30-minutes",400,"30 minutes"]],
+      "signature-girlfriend-experience":[["1-hour",500,"1 hour"],["1.5-hours",750,"1½ hours"],["2-hours",1000,"2 hours"],["4-hours",2300,"4 hours"]],
+      "greek-princess-experience":[["1-hour",700,"1 hour"],["1.5-hours",1000,"1½ hours"],["2-hours",1300,"2 hours"],["4-hours",2800,"4 hours"]]
+    };
+    function bookingPrice() {
+      const option = (bookingOptions[bookingExperience.value] || []).find(row => row[0] === bookingDuration.value);
+      baseDepositAmount = option ? (option[1] + (bookingLocation.value === "outcall" ? 100 : 0)) * .25 : 0;
+      updateCombinedDeposit();
+    }
+    let availabilityVersion = 0;
+    async function bookingTimes() {
+      const version = ++availabilityVersion;
+      bookingTime.disabled = true;
+      bookingTime.innerHTML = '<option value="">Choose date and duration first</option>';
+      if (!bookingDate.value || !bookingDuration.value) return;
+      try {
+        const response = await fetch("/api/booking/continuation/availability?token="+encodeURIComponent(token)+"&date="+encodeURIComponent(bookingDate.value)+"&duration="+encodeURIComponent(bookingDuration.value));
+        const data = await response.json();
+        if(version !== availabilityVersion) return;
+        if(!response.ok || !data.ok) throw new Error(data.message || "Unable to load availability.");
+        bookingTime.innerHTML = '<option value="">'+(data.slots.length ? "Choose a start time" : "No times available")+'</option>' + data.slots.map(time => {
+          const [h,m] = time.split(":").map(Number);
+          return '<option value="'+time+'">'+((h+11)%12+1)+':'+String(m).padStart(2,"0")+' '+(h>=12?"PM":"AM")+'</option>';
+        }).join("");
+        bookingTime.disabled = !data.slots.length;
+      } catch(error) { screeningStatus.textContent = error.message; }
+    }
+    bookingExperience.addEventListener("change", () => {
+      const rows=bookingOptions[bookingExperience.value] || [];
+      bookingDuration.innerHTML=rows.length ? rows.map(row=>'<option value="'+row[0]+'">'+row[2]+' · '+money(row[1])+'</option>').join("") : '<option value="">Choose an experience first</option>';
+      bookingDuration.disabled=!rows.length; bookingPrice(); bookingTimes();
+    });
+    bookingDuration.addEventListener("change",()=>{bookingPrice();bookingTimes();});
+    bookingDate.addEventListener("change",bookingTimes);
+    bookingLocation.addEventListener("change",()=>{
+      const outcall=document.getElementById("screening-outcall-address");
+      const show=bookingLocation.value==="outcall";
+      outcall.hidden=!show;
+      outcall.querySelectorAll("input").forEach(input=>{input.disabled=!show;input.required=show && !input.id.endsWith("line-2");});
+      bookingPrice();
+    });
+    async function saveBooking() {
+      const body={token};
+      for(const key of ["date_type","duration","appointment_type","requested_date","requested_time"]) body[key]=new FormData(screeningForm).get(key);
+      const response=await fetch("/api/booking/continuation/booking",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await response.json();
+      if(!response.ok || !data.ok) throw new Error(data.message || "Unable to save date details.");
+      baseDepositAmount=data.base_deposit_amount;
+      updateCombinedDeposit();
+    }
+
     async function load() {
       if (!token) {
         loading.innerHTML = "<p>This private link is incomplete. Please use the complete link from your email.</p>";
@@ -353,6 +424,8 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       const button = document.getElementById("submit-screening");
       button.disabled = true;
       try {
+        if (!screeningForm.reportValidity()) return;
+        await saveBooking();
         const combined = !document.getElementById("combined-step").hidden;
         const body = new FormData(screeningForm);
         body.set("token",token);
