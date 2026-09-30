@@ -2018,10 +2018,6 @@ export default {
             return Response.json({ok:false,message:"Confirm employment or record why it is not applicable before marking this client Verified."},{status:400});
           }
           await ensureVerificationWorkspaceTables(env);
-          const requiredRecords=await env.DB.prepare("SELECT record_status,checked_at,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(clientId).first();
-          if(!requiredRecords?.checked_at || requiredRecords.record_status==="not_checked" || !requiredRecords.source_name || !requiredRecords.source_url || !requiredRecords.public_records_reviewed || !requiredRecords.criminal_records_reviewed){
-            return Response.json({ok:false,message:"Complete and save both the public-record and criminal-court searches with their official source before marking this client Verified."},{status:400});
-          }
           if (!(identityConfirmed && contactConfirmed)) {
             return Response.json({
               ok:false,
@@ -8735,10 +8731,6 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           return bookingCorsJson({ok:false,message:"A saved, reviewed ID is required before final approval."},{status:400});
         }
         await ensureVerificationWorkspaceTables(env);
-        const finalRecordChecks=await env.DB.prepare("SELECT checked_at,record_status,source_name,source_url,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();
-        if(!finalRecordChecks?.checked_at || finalRecordChecks.record_status==="not_checked" || !finalRecordChecks.source_name || !finalRecordChecks.source_url || !finalRecordChecks.public_records_reviewed || !finalRecordChecks.criminal_records_reviewed){
-          return bookingCorsJson({ok:false,message:"Save both the public-record and criminal-court searches before final approval."},{status:400});
-        }
 
         if (hasNewsletterSpecial && data.newsletter_special_approved !== true) {
           return bookingCorsJson(
