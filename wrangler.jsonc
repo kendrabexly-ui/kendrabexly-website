@@ -5,6 +5,10 @@
   "main": "src/index.js",
   "compatibility_date": "2026-09-17",
   "keep_vars": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
 
   "assets": {
     "directory": "./public",
