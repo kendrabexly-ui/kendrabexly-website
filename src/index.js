@@ -1973,30 +1973,15 @@ export default {
         }
 
         const verificationMethod = String(data.verification_method || "").trim().slice(0, 240);
-        const submittedEmployer = String(data.submitted_employer || "").trim().slice(0, 200);
-        const submittedJobTitle = String(data.submitted_job_title || "").trim().slice(0, 160);
-        const submittedIndustry = String(data.submitted_industry || "").trim().slice(0, 160);
-        const employmentStatus = String(data.employment_verification_status || "not_checked").trim().toLowerCase();
-        const allowedEmploymentStatuses = new Set(["not_checked","pending","confirmed","not_applicable","unable_to_confirm","mismatch"]);
-        if(!allowedEmploymentStatuses.has(employmentStatus)){
-          return Response.json({ok:false,message:"Choose a valid employment verification status."},{status:400});
-        }
-        const employmentMethod = String(data.employment_verification_method || "").trim().slice(0, 160);
-        const employmentWorkEmail = String(data.employment_work_email || "").trim().toLowerCase().slice(0, 254);
-        const employmentEmployerWebsite = String(data.employment_employer_website || "").trim().slice(0, 500);
-        const employmentEvidenceReference = String(data.employment_evidence_reference || "").trim().slice(0, 1200);
-        if(employmentWorkEmail && !verificationEmailValid(employmentWorkEmail)){
-          return Response.json({ok:false,message:"Enter a valid work email address or leave it blank."},{status:400});
-        }
-        if(employmentStatus==="confirmed" && !(submittedEmployer && submittedJobTitle && submittedIndustry && employmentMethod && employmentEvidenceReference)){
-          return Response.json({ok:false,message:"Employer, job title, industry, verification method, and evidence/reference are required before employment can be marked Confirmed."},{status:400});
-        }
-        if(employmentStatus==="not_applicable" && !employmentEvidenceReference){
-          return Response.json({ok:false,message:"Record why employment verification is not applicable before continuing."},{status:400});
-        }
-        if(["unable_to_confirm","mismatch"].includes(employmentStatus) && !employmentEvidenceReference){
-          return Response.json({ok:false,message:"Add an evidence/reference note for an employment result that could not be confirmed or did not match."},{status:400});
-        }
+        // Preserve historical employment data after retiring the employment check.
+        const submittedEmployer = String(previous.submitted_employer || "");
+        const submittedJobTitle = String(previous.submitted_job_title || "");
+        const submittedIndustry = String(previous.submitted_industry || "");
+        const employmentStatus = String(previous.employment_verification_status || "not_checked");
+        const employmentMethod = String(previous.employment_verification_method || "");
+        const employmentWorkEmail = String(previous.employment_work_email || "");
+        const employmentEmployerWebsite = String(previous.employment_employer_website || "");
+        const employmentEvidenceReference = String(previous.employment_evidence_reference || "");
         const identityConfirmed = data.identity_confirmed ? 1 : 0;
         const employerConfirmed = data.employer_confirmed ? 1 : 0;
         const jobTitleConfirmed = data.job_title_confirmed ? 1 : 0;
@@ -2013,9 +1998,6 @@ export default {
           const savedId=await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(clientId).first();
           if(!savedId?.object_key){
             return Response.json({ok:false,message:"Upload and review the client's private ID before marking this client Verified."},{status:400});
-          }
-          if (!(["confirmed","not_applicable"].includes(employmentStatus))) {
-            return Response.json({ok:false,message:"Confirm employment or record why it is not applicable before marking this client Verified."},{status:400});
           }
           await ensureVerificationWorkspaceTables(env);
           if (!(identityConfirmed && contactConfirmed)) {
