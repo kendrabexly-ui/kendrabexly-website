@@ -1431,6 +1431,7 @@ h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(38px,7vw,64px);marg
 .hero p{max-width:680px;margin:0 auto;color:var(--ink);font-size:18px}.booking-layout{max-width:1240px;margin:0 auto;padding:46px 20px 80px;display:grid;grid-template-columns:minmax(320px,.9fr) minmax(0,1.35fr);gap:34px;align-items:start}.booking-photo{position:sticky;top:24px}.booking-photo img{display:block;width:100%;height:auto;object-fit:contain;border-radius:22px;box-shadow:0 12px 34px rgba(102,84,93,.12)}
 .wrap{max-width:none;margin:0;padding:0}
 .card{background:#fffdfb;border:1px solid #eadfd5;border-radius:22px;padding:28px;box-shadow:0 10px 30px rgba(102,84,93,.08)}
+.first-impression{margin-bottom:28px}.first-impression h2{font-family:Georgia,serif;font-weight:400;font-size:28px;margin:0 0 14px}.first-impression p{margin:0 0 14px}.first-impression p:last-child{margin-bottom:0}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{grid-column:1/-1}
 label{display:block;font-weight:600;margin-bottom:7px}input,select{width:100%;padding:14px 15px;border:1px solid #d8c8bc;border-radius:12px;background:#fff;color:var(--ink);font:inherit}
 input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
@@ -1451,6 +1452,12 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 <div class="booking-photo"><img src="https://kendrabexly.wordpress.com/wp-content/uploads/2026/09/kendra-booking.jpg" alt="Kendra"></div>
 <div class="wrap">
 <form id="booking" class="card" novalidate>
+<section class="first-impression" aria-labelledby="first-impression-title">
+<h2 id="first-impression-title">First Impression</h2>
+<p>I’ve caught your eye… now it’s your turn to catch mine.</p>
+<p>Introduce yourself below, and I’ll be in touch privately so we can plan our time together.</p>
+<p>I’d love to put a name to the gentleman whose attention I’ve stolen.</p>
+</section>
 <div class="grid">
 <div><label for="first">First name *</label><input id="first" name="first_name" autocomplete="given-name" required></div>
 <div><label for="last">Last name *</label><input id="last" name="last_name" autocomplete="family-name" required></div>
