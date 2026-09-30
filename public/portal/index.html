@@ -3087,31 +3087,7 @@ async function loadRequests(options = {}) {
                   </section>
 
 
-                  <section class="verification-card client-employment-verification is-collapsed" hidden>
-                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">4. Employment Verification</strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-employment-badge">Employment: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-employment-verification">Expand</button></span>
-                    </div>
-                    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.55;">Record the employer, role, source, and evidence used for this check. A credential record alone does not confirm employment.</div>
-                    <div class="verification-grid" style="margin-top:10px;">
-                      <label style="font-size:12px;font-weight:700;">Employer<input class="client-verification-employer" type="text" maxlength="200" autocomplete="organization" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Job title<input class="client-verification-job-title" type="text" maxlength="160" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Industry<input class="client-verification-industry" type="text" maxlength="160" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Verification method<select class="client-employment-method" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose a method</option><option value="employer_contact">Employer contact</option><option value="official_directory">Official directory</option><option value="work_email">Work email</option><option value="other_official_source">Other official source</option></select></label>
-                      <label style="font-size:12px;font-weight:700;">Work email <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-work-email" type="email" maxlength="254" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Employer website <span style="font-weight:500;color:var(--muted);">(optional)</span><input class="client-employment-website" type="url" maxlength="500" placeholder="https://" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Official source name<input class="client-employment-source-name" type="text" maxlength="200" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Official source URL<input class="client-employment-source-url" type="url" maxlength="800" placeholder="https://" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <label style="font-size:12px;font-weight:700;">Result<select class="client-employment-status" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="not_checked">Not checked</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="not_applicable">Not applicable · retired or no employer</option><option value="unable_to_confirm">Unable to confirm</option><option value="mismatch">Mismatch</option></select></label>
-                    </div>
-                    <div class="client-employment-domain-status verification-field-note" style="margin-top:7px;"></div>
-                    <div class="client-employment-status-note verification-field-note" style="margin-top:7px;"></div>
-                    <label style="display:block;margin-top:10px;font-size:12px;font-weight:700;">Evidence / reference<textarea class="client-employment-evidence" rows="3" maxlength="1200" placeholder="Record the source and the result of your check." style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical;"></textarea></label>
-                    <div class="verification-actions"><button type="button" class="client-employment-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Employment Check</button><span class="client-employment-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span></div>
-                    <div class="client-employment-checked verification-field-note" style="margin-top:7px;">Last checked: Not checked</div>
-                    <a class="client-employment-reopen verification-source-reopen" hidden target="_blank" rel="noopener noreferrer">Open source again</a>
-                    <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;font-weight:700;">Previous Employment Checks</summary><div class="client-employment-history verification-field-note" style="margin-top:6px;">No previous checks loaded.</div></details>
-                  </section>
+
 
                   <section class="verification-card client-credential-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -6161,15 +6137,7 @@ async function loadRequests(options = {}) {
           const completedChanged=Boolean(latestBeforeSave.completed_at)&&(
             decision!==String(latestBeforeSave.verification_status||"") ||
             (reasonInput?.value||"")!==String(latestBeforeSave.decision_reason||"") ||
-            (decisionNotes?.value||"")!==String(latestBeforeSave.decision_notes||"") ||
-            (section.querySelector(".client-verification-employer")?.value||"")!==String(latestBeforeSave.submitted_employer||"") ||
-            (section.querySelector(".client-verification-job-title")?.value||"")!==String(latestBeforeSave.submitted_job_title||"") ||
-            (section.querySelector(".client-verification-industry")?.value||"")!==String(latestBeforeSave.submitted_industry||"") ||
-            (section.querySelector(".client-employment-status")?.value||"not_checked")!==String(latestBeforeSave.employment_verification_status||"not_checked") ||
-            (section.querySelector(".client-employment-method")?.value||"")!==String(latestBeforeSave.employment_verification_method||"") ||
-            (section.querySelector(".client-employment-work-email")?.value||"")!==String(latestBeforeSave.employment_work_email||"") ||
-            (section.querySelector(".client-employment-website")?.value||"")!==String(latestBeforeSave.employment_employer_website||"") ||
-            (section.querySelector(".client-employment-evidence")?.value||"")!==String(latestBeforeSave.employment_evidence_reference||"")
+            (decisionNotes?.value||"")!==String(latestBeforeSave.decision_notes||"")
           );
           if(completedChanged){
             decisionChangeReason=window.prompt("This verification was already completed. Enter the reason for changing the completed decision:")||"";
