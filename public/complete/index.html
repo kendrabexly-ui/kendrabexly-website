@@ -52,11 +52,15 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           <div class="field"><label for="booking-location">Location *</label><select id="booking-location" name="appointment_type" required><option value="">Choose one</option><option value="incall">Incall</option><option value="outcall">Outcall · +$100</option></select></div>
           <div class="field"><label for="booking-date">Preferred date *</label><input id="booking-date" name="requested_date" type="date" required></div>
           <div class="field"><label for="booking-time">Available start time *</label><select id="booking-time" name="requested_time" required disabled><option value="">Choose date and duration first</option></select><small>Times are pulled from my live availability.</small></div>
+          <div class="field full-width">
+            <label for="screening-plans-note">Anything you'd like me to know about your plans?</label>
+            <textarea id="screening-plans-note" name="plans_note" rows="3" maxlength="1200" placeholder="Optional"></textarea>
+            <small>Optional. Share anything helpful for me to know before I review your request.</small>
+          </div>
         </div>
       </section>
       <section class="form-section">
         <div class="eyebrow">SCREENING DETAILS</div>
-        <h2>A few final details.</h2>
         <p id="screening-intro">These details are used only for private screening and review. No deposit is requested at this stage. You are not required to upload an ID on this page, and you should never email an ID document.</p>
         <div class="form-grid">
           <div class="field full-width">
@@ -67,11 +71,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           
           
           
-          <div class="field full-width">
-            <label for="screening-plans-note">Anything you'd like me to know about your plans?</label>
-            <textarea id="screening-plans-note" name="plans_note" rows="3" maxlength="1200" placeholder="Optional"></textarea>
-            <small>Optional. Share anything helpful for me to know before I review your request.</small>
-          </div>
+
         </div>
 
         <fieldset id="screening-outcall-address" class="outcall-address" hidden>
