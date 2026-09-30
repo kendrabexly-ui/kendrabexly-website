@@ -6943,9 +6943,10 @@ if (
           "https://lookups.twilio.com/v2/PhoneNumbers/"+encodeURIComponent(phone)+"?Fields=line_type_intelligence",
           {headers:{Authorization:"Basic "+auth,"Accept":"application/json"}}
         );
-        const lookup=await lookupbookingCorsJson().catch(()=>({}));
+        const lookup=await lookupResponse.json().catch(()=>({}));
         if(!lookupResponse.ok){
           const detail=lookup?.message||lookup?.detail||("Twilio Lookup returned HTTP "+lookupResponse.status+".");
+          console.error("Twilio lookup failed", { status:lookupResponse.status, code:lookup?.code || null, operation:url.pathname.endsWith("phone-reverse-lookup") ? "caller_name" : "line_type_intelligence" });
           return bookingCorsJson({ok:false,code:"phone_lookup_failed",message:"Unable to verify the phone line type.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
         }
 
@@ -6984,6 +6985,7 @@ if (
         },{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Phone line-type lookup error:",error);
+        console.error("Phone line-type check failed", { error_name:error?.name || "Error" });
         return bookingCorsJson({ok:false,message:"Unable to verify the phone line type.",technical_details:String(error?.message||error)},{status:500});
       }
     }
@@ -7016,9 +7018,10 @@ if (
           "https://lookups.twilio.com/v2/PhoneNumbers/"+encodeURIComponent(phone)+"?Fields=caller_name",
           {headers:{Authorization:"Basic "+auth,"Accept":"application/json"}}
         );
-        const lookup=await lookupbookingCorsJson().catch(()=>({}));
+        const lookup=await lookupResponse.json().catch(()=>({}));
         if(!lookupResponse.ok){
           const detail=lookup?.message||lookup?.detail||("Twilio Lookup returned HTTP "+lookupResponse.status+".");
+          console.error("Twilio lookup failed", { status:lookupResponse.status, code:lookup?.code || null, operation:url.pathname.endsWith("phone-reverse-lookup") ? "caller_name" : "line_type_intelligence" });
           return bookingCorsJson({ok:false,code:"phone_reverse_lookup_failed",message:"Unable to complete reverse phone lookup.",technical_details:String(detail)},{status:lookupResponse.status===401||lookupResponse.status===403?502:lookupResponse.status});
         }
 
@@ -7057,6 +7060,7 @@ if (
         },{headers:{"Cache-Control":"private, no-store"}});
       } catch(error) {
         console.error("Reverse phone lookup error:",error);
+        console.error("Reverse phone check failed", { error_name:error?.name || "Error" });
         return bookingCorsJson({ok:false,message:"Unable to complete reverse phone lookup.",technical_details:String(error?.message||error)},{status:500});
       }
     }
