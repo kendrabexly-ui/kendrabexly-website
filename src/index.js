@@ -4925,12 +4925,9 @@ My journal will continue to be a place where I share a little more of that side 
         if (!validImage) return bookingCorsJson({ok:false,message:"That ID image could not be read. Upload a JPG, PNG, or WebP photo."},{status:400});
 
         const birthdate = idDocumentDate(form.get("birthdate"));
-        const employer = String(form.get("current_employer")||"").trim().slice(0,160);
-        const jobTitle = String(form.get("job_title")||"").trim().slice(0,160);
-        const industry = String(form.get("industry")||"").trim().slice(0,160);
         const plansNote = String(form.get("plans_note")||"").trim().replace(/\s+/g," ").slice(0,1200);
-        if (!birthdate || verificationAgeOnDate(birthdate) === null || verificationAgeOnDate(birthdate) < 0 || !employer || !jobTitle || !industry) {
-          return bookingCorsJson({ok:false,message:"Complete your birthday and screening details."},{status:400});
+        if (!birthdate || verificationAgeOnDate(birthdate) === null || verificationAgeOnDate(birthdate) < 0) {
+          return bookingCorsJson({ok:false,message:"Enter a valid birthday before submitting screening."},{status:400});
         }
         const requiresOutcallAddress = /Appointment type:\s*outcall/i.test(String(row.notes||""));
         const addressParts = ["outcall_address_line_1","outcall_address_line_2","outcall_city","outcall_state","outcall_postal_code"].map(key=>String(form.get(key)||"").trim().slice(0,200));
@@ -4938,13 +4935,13 @@ My journal will continue to be a place where I share a little more of that side 
         const method = String(form.get("deposit_payment_method")||"").trim().toLowerCase();
         const appNumber = String(form.get("app_text_number")||"").trim().slice(0,40);
         const appDigits = appNumber.replace(/\D/g,"");
-        if (!new Set(["gift-card","stripe","crypto"]).has(method) || form.get("deposit_step_acknowledged") !== "yes") {
+        if (!new Set(["gift-card","stripe"]).has(method) || form.get("deposit_step_acknowledged") !== "yes") {
           return bookingCorsJson({ok:false,message:"Choose a deposit method and acknowledge the amount."},{status:400});
         }
         if (appNumber && (appDigits.length < 7 || appDigits.length > 15)) return bookingCorsJson({ok:false,message:"Enter a valid app-based text number or leave it blank."},{status:400});
         const base = Number(row.deposit_amount||0);
         if (base <= 0) return bookingCorsJson({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
-        const fee = ["stripe","crypto"].includes(method) ? Math.round(base*10)/100 : 0;
+        const fee = ["stripe"].includes(method) ? Math.round(base*10)/100 : 0;
         const total = Math.round((base+fee)*100)/100;
         const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
         const previous = await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(row.client_id).first();
@@ -4958,8 +4955,8 @@ My journal will continue to be a place where I share a little more of that side 
         if (appNumber) notes += "\nApp-based text number: "+appNumber;
         try {
           await env.DB.batch([
-            env.DB.prepare("UPDATE client_verification_audits SET birthdate=?,submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?")
-              .bind(birthdate,employer,jobTitle,industry,row.date_request_id),
+            env.DB.prepare("UPDATE client_verification_audits SET birthdate=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?")
+              .bind(birthdate,row.date_request_id),
             env.DB.prepare(`INSERT INTO client_id_documents (client_id,object_key,file_name,mime_type,file_size,verification_status,received_at,verified_at,updated_at)
               VALUES (?,?,?,?,?,'pending_review',?,NULL,CURRENT_TIMESTAMP)
               ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,mime_type=excluded.mime_type,
@@ -5013,9 +5010,6 @@ My journal will continue to be a place where I share a little more of that side 
           if(row.screening_submitted_at) {
             return bookingCorsJson({ok:true,screening_submitted:true,request_id:Number(row.date_request_id),message:"Your screening details were already received."});
           }
-          const employer=String(data.current_employer||"").trim().slice(0,160);
-          const jobTitle=String(data.job_title||"").trim().slice(0,160);
-          const industry=String(data.industry||"").trim().slice(0,160);
           const birthdate=idDocumentDate(data.birthdate);
           const plansNote=String(data.plans_note||"").trim().replace(/\s+/g," ").slice(0,1200);
           const outcallAddressLine1=String(data.outcall_address_line_1||"").trim().slice(0,200);
@@ -5025,16 +5019,15 @@ My journal will continue to be a place where I share a little more of that side 
           const outcallPostalCode=String(data.outcall_postal_code||"").trim().slice(0,20);
           const requiresOutcallAddress=/Appointment type:\s*outcall/i.test(String(row.notes||""));
           if(!birthdate||verificationAgeOnDate(birthdate)===null||verificationAgeOnDate(birthdate)<0) return bookingCorsJson({ok:false,message:"Enter a valid birthday before submitting screening."},{status:400});
-          if(!employer||!jobTitle||!industry) return bookingCorsJson({ok:false,message:"Complete all screening details."},{status:400});
           if(requiresOutcallAddress&&(!outcallAddressLine1||!outcallCity||!outcallState||!outcallPostalCode)) {
             return bookingCorsJson({ok:false,message:"Complete the exact outcall address before submitting screening."},{status:400});
           }
           const exactOutcallAddress=[outcallAddressLine1,outcallAddressLine2,outcallCity,outcallState,outcallPostalCode].filter(Boolean).join(", ");
           await env.DB.prepare(`
             UPDATE client_verification_audits
-            SET birthdate=?,submitted_employer=?,submitted_job_title=?,submitted_industry=?,updated_at=CURRENT_TIMESTAMP
+            SET birthdate=?,updated_at=CURRENT_TIMESTAMP
             WHERE date_request_id=?
-          `).bind(birthdate,employer,jobTitle,industry,row.date_request_id).run();
+          `).bind(birthdate,row.date_request_id).run();
           let updatedNotes=String(row.notes||"").replace(/^Plans note:.*$/gmi,"").trim();
           if(plansNote) updatedNotes += (updatedNotes?"\n":"") + "Plans note: " + plansNote;
           await env.DB.prepare("UPDATE date_requests SET notes=? WHERE id=?")
@@ -5067,7 +5060,7 @@ My journal will continue to be a place where I share a little more of that side 
           const depositPaymentMethod=String(data.deposit_payment_method||"").trim().toLowerCase();
           const appTextNumber=String(data.app_text_number||"").trim().slice(0,40);
           const appTextDigits=appTextNumber.replace(/\D/g,"");
-          const allowedDepositPaymentMethods=new Set(["gift-card","stripe","crypto"]);
+          const allowedDepositPaymentMethods=new Set(["gift-card","stripe"]);
           const depositAck=data.deposit_step_acknowledged==="yes";
           if(!allowedDepositPaymentMethods.has(depositPaymentMethod)||!depositAck) {
             return bookingCorsJson({ok:false,message:"Choose a payment method and acknowledge the deposit step."},{status:400});
@@ -5077,7 +5070,7 @@ My journal will continue to be a place where I share a little more of that side 
           }
           const baseDepositAmount=Number(row.deposit_amount||0);
           if(baseDepositAmount<=0) return bookingCorsJson({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
-          const depositProcessingFee=["stripe","crypto"].includes(depositPaymentMethod)
+          const depositProcessingFee=["stripe"].includes(depositPaymentMethod)
             ? Math.round(baseDepositAmount*0.10*100)/100
             : 0;
           const finalDepositAmount=Math.round((baseDepositAmount+depositProcessingFee)*100)/100;
