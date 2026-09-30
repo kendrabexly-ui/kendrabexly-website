@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 228996)
-Total output lines: 8933
+Warning: truncated output (original token count: 229009)
+Total output lines: 8928
 
 <!DOCTYPE html>
 <html lang="en">
@@ -2215,19 +2215,11 @@ async function loadRequests(options = {}) {
   const requestSearch =
     document.getElementById("request-search");
 
-  if (statusFilter) statusFilter.value = "all";
+  if (recordsContainer) recordsContainer.innerHTML = '<div class="empty">Loading requests...</div>';
 
   try {
     if (renderClientProfiles) document.getElementById("client-records").innerHTML = '<div class="empty">Loading client profiles...</div>';
     const data = await fetchRequestData("/api/admin/requests", 20000);
-    // Secondary panels must never hold the client list open indefinitely.
-    const optionalData = {
-      profiles: fetchRequestData("/api/admin/clients").catch(() => ({ok:false})),
-      verification: fetchRequestData("/api/admin/clients/verification-overview").catch(() => ({ok:false})),
-      blacklist: fetchRequestData("/api/admin/blacklist").catch(() => ({ok:false})),
-      retention: fetchRequestData("/api/admin/retention/follow-up-status").catch(() => ({ok:false}))
-    };
-
     const requests = data.requests || [];
     const requestCount=(status)=>requests.filter(item=>String(item.status||"").toLowerCase()===status).length;
     const requestSummaryValues={
@@ -2237,6 +2229,118 @@ async function loadRequests(options = {}) {
       "request-summary-completed":requestCount("completed")
     };
     Object.entries(requestSummaryValues).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=String(value);});
+    const renderRequestCards = (items) => items.map((item) => {
+      const name = `${item.first_name || ""} ${item.last_name || ""}`.trim();
+      const status = String(item.status || "pending").toLowerCase();
+      const statusLabels={pending:"Needs Review",pending_final_approval:"Final Approval",approved:"Confirmed",completed:"Completed",canceled:"Canceled",blacklisted_submission:"Blacklisted Submission"};
+      const nextActions={pending:"Review Request",pending_final_approval:"Complete Final Approval",approved:"View Confirmed Date",completed:"View Completed Date",canceled:"View Request",blacklisted_submission:"Review Safety Record"};
+      const deposit=Number(item.deposit_paid) ? "Deposit Confirmed" : (Number(item.deposit_amount||0)>0 ? "Deposit Pending" : "Deposit Not Set");
+      const screening=Number(item.id_received) ? "ID Received" : "ID Pending";
+      const createdAt=new Date(item.created_at||"");
+      const ageDays=Number.isFinite(createdAt.getTime())?Math.max(0,Math.floor((Date.now()-createdAt.getTime())/86400000)):null;
+      const ageLabel=ageDays===null?"":ageDays===0?"Submitted today":ageDays===1?"Submitted 1 day ago":"Submitted "+ageDays+" days ago";
+      const showAge=status==="pending"||status==="pending_final_approval";
+      const isNewsletterSpecial=String(item.notes||"").includes("Newsletter special: Newsletter #");
+      return `
+        <button type="button" class="request-card" data-request-id="${item.id}" style="width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #ddd6ca;padding:20px 22px;cursor:pointer;font:inherit;">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+            <div><strong style="font-size:16px;">${escapeHtml(name || "Client")}</strong>${isNewsletterSpecial?'<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:var(--cream-dark);font-size:11px;font-weight:600;">✨ Newsletter Special</span>':""}</div>
+            <span style="padding:4px 8px;border:1px solid ${status==="blacklisted_submission"?"var(--red)":"var(--line)"};border-radius:999px;background:${status==="blacklisted_submission"?"#f3dfdf":"white"};font-size:11px;font-weight:700;">${status==="blacklisted_submission"?"🚩 ":""}${escapeHtml(statusLabels[status] || status.replaceAll("_"," "))}</span>
+          </div>
+          <div style="margin-top:9px;font-weight:600;">${escapeHtml(formatCalendarDate(item.requested_date))} · ${escapeHtml(formatCalendarTime(item.requested_time))}</div>
+          <div style="margin-top:3px;font-size:13px;color:var(--muted);">${escapeHtml(item.location_name || "Location not provided")}</div>
+          ${showAge&&ageLabel ? `<div style="margin-top:7px;font-size:11px;color:${ageDays>=3?"var(--red)":"var(--muted)"};font-weight:${ageDays>=3?"700":"500"};">${escapeHtml(ageLabel)}</div>` : ""}
+          ${status==="pending_final_approval" ? `<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;font-size:11px;"><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(deposit)}</span><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(screening)}</span></div>` : ""}
+          <div style="margin-top:11px;font-size:13px;font-weight:700;text-decoration:underline;">${escapeHtml(nextActions[status] || "View Request")} →</div>
+        </button>`;
+    }).join("");
+
+    const wireRequestCards = (container) => {
+      if (!container) return;
+      container.querySelectorAll(".request-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          window.location.href = `/portal/request?id=${encodeURIComponent(card.dataset.requestId)}`;
+        });
+      });
+    };
+
+    const renderAllRequests = () => {
+      if (!recordsContainer) return;
+      const selected = statusFilter ? statusFilter.value : "all";
+      const query = requestSearch ? requestSearch.value.trim().toLowerCase() : "";
+      const requestPriority={blacklisted_submission:0,pending:1,pending_final_approval:2,approved:3,completed:4,canceled:5};
+      let filtered = selected === "all"
+        ? [...requests].sort((a,b)=>(requestPriority[String(a.status||"")]??9)-(requestPriority[String(b.status||"")]??9))
+        : requests.filter(item => item.status === selected);
+      if (query) {
+        filtered = filtered.filter((item) => {
+          const haystack = [
+            item.first_name,
+            item.last_name,
+            item.email,
+            item.phone,
+            item.id,
+            item.requested_date,
+            item.requested_time,
+            item.location_name,
+            item.status
+          ].filter(Boolean).join(" ").toLowerCase();
+          return haystack.includes(query);
+        });
+      }
+      const resultCount=document.getElementById("request-result-count");
+      if(resultCount) resultCount.textContent=filtered.length+" result"+(filtered.length===1?"":"s");
+      const clearFilters=document.getElementById("request-clear-filters");
+      if(clearFilters) clearFilters.hidden=selected==="all"&&!query;
+      document.querySelectorAll("[data-request-summary]").forEach(button=>{
+        const active=selected===button.dataset.requestSummary;
+        button.setAttribute("aria-pressed",active?"true":"false");
+        button.style.background=active?"var(--ink)":"white";
+        button.style.color=active?"white":"var(--ink)";
+        button.style.borderColor=active?"var(--ink)":"var(--line)";
+      });
+      recordsContainer.innerHTML = filtered.length ? renderRequestCards(filtered) : '<div class="empty">No requests match your search or filter.</div>';
+      wireRequestCards(recordsContainer);
+    };
+
+    renderAllRequests();
+    document.querySelectorAll("[data-request-summary]").forEach(button=>{
+      button.onclick = ()=>{
+        if(statusFilter) statusFilter.value=button.dataset.requestSummary||"all";
+        renderAllRequests();
+        recordsContainer?.scrollIntoView({behavior:"smooth",block:"start"});
+      };
+    });
+    if (statusFilter) statusFilter.onchange = renderAllRequests;
+    if (requestSearch) requestSearch.oninput = renderAllRequests;
+    const clearRequestFilters = document.getElementById("request-clear-filters");
+    if (clearRequestFilters) clearRequestFilters.onclick = ()=>{
+      if(statusFilter) statusFilter.value="all";
+      if(requestSearch){
+        requestSearch.value="";
+        requestSearch.focus();
+      }
+      renderAllRequests();
+    };
+
+    const recentRequests =
+      requests.slice(0, 5);
+
+    recentContainer.innerHTML = recentRequests.length
+      ? renderRequestCards(recentRequests)
+      : '<div class="empty">No recent requests.</div>';
+    wireRequestCards(recentContainer);
+
+    if (!renderClientProfiles) return;
+
+    // Secondary panels must never hold the client list open indefinitely.
+    const optionalData = {
+      profiles: fetchRequestData("/api/admin/clients").catch(() => ({ok:false})),
+      verification: fetchRequestData("/api/admin/clients/verification-overview").catch(() => ({ok:false})),
+      blacklist: fetchRequestData("/api/admin/blacklist").catch(() => ({ok:false})),
+      retention: fetchRequestData("/api/admin/retention/follow-up-status").catch(() => ({ok:false}))
+    };
+
     let savedClientProfiles = new Map();
     try {
       const cpData = await optionalData.profiles;
@@ -3235,8 +3339,7 @@ async function loadRequests(options = {}) {
                     <div class="client-persona-simple-summary" style="margin-top:8px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;font-size:12px;"><strong>Database:</strong> Not run · <strong>Inquiry:</strong> Not submitted · <strong>Last checked:</strong> —</div>
                     <div class="verification-grid client-id-fallback-fields" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#faf8f4;">
                       <label style="font-size:12px;font-weight:700;">DL/State ID Number<input class="client-persona-id-number" autocomplete="off" inputmode="text" maxlength="80" placeholder="${escapeHtml(personaDraft.id_details?.id_number_masked || "Enter ID number")}" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"><span class="verification-field-note client-persona-id-number-note">${personaDraft.id_details?.has_id_number ? "Saved securely · "+escapeHtml(personaDraft.id_details.id_number_masked) : "Required only when address is unavailable."}</span><span style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><button type="button" class="client-id-number-replace" style="padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:11px;cursor:pointer;">Replace ID Number</button><button type="button" class="client-id-number-delete" ${personaDraft.id_details?.has_id_number ? "" : "hidden"} style="padding:5px 7px;border:1px solid #9f3030;border-radius:7px;background:#fff7f7;color:#8a2424;font:inherit;font-size:11px;cursor:pointer;">Delete Saved ID Number</button></span></label>
-                      <label style="font-size:12px;font-weight:700;">Issuing State<select class="client-persona-issuing-state" autocomplete="off" style="display:block;width:100%;max-width:100%;box-sizing:border-box;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose issuing state</option><option value="AL"${["AL","ALABAMA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Alabama (AL)</option><option value="AK"${["AK","ALASKA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Alaska (AK)</option><option value="AZ"${["AZ","ARIZONA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Arizona (AZ)</option><option value="AR"${["AR","ARKANSAS"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Arkansas (AR)</option><option value="CA"${["CA","CALIFORNIA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>California (CA)</option><option value="CO"${["CO","COLORADO"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Colorado (CO)</option><option value="CT"${["CT","CONNECTICUT"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Connecticut (CT)</option><option value="DE"${["DE","DELAWARE"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Delaware (DE)</option><option value="DC"${["DC","DISTRICT OF COLUMBIA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>District of Columbia (DC)</option><option value="FL"${["FL","FLORIDA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Florida (FL)</option><option value="GA"${["GA","GEORGIA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Georgia (GA)</option><option value="HI"${["HI","HAWAII"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Hawaii (HI)</option><option value="ID"${["ID","IDAHO"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Idaho (ID)</option><option value="IL"${["IL","ILLINOIS"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Illinois (IL)</option><option value="IN"${["IN","INDIANA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Indiana (IN)</option><option value="IA"${["IA","IOWA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Iowa (IA)</option><option value="KS"${["KS","KANSAS"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Kansas (KS)</option><option value="KY"${["KY","KENTUCKY"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Kentucky (KY)</option><option value="LA"${["LA","LOUISIANA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Louisiana (LA)</option><option value="ME"${["ME","MAINE"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Maine (ME)</option><option value="MD"${["MD","MARYLAND"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Maryland (MD)</option><option value="MA"${["MA","MASSACHUSETTS"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Massachusetts (MA)</option><option value="MI"${["MI","MICHIGAN"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Michigan (MI)</option><option value="MN"${["MN","MINNESOTA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Minnesota (MN)</option><option value="MS"${["MS","MISSISSIPPI"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Mississippi (MS)</option><option value="MO"${["MO","MISSOURI"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Missouri (MO)</option><option value="MT"${["MT","MONTANA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Montana (MT)</option><option value="NE"${["NE","NEBRASKA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Nebraska (NE)</option><option value="NV"${["NV","NEVADA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Nevada (NV)</option><option value="NH"${["NH","NEW HAMPSHIRE"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>New Hampshire (NH)</option><option value="NJ"${["NJ","NEW JERSEY"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>New Jersey (NJ)</option><option value="NM"${["NM","NEW MEXICO"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>New Mexico (NM)</option><option value="NY"${["NY","NEW YORK"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>New York (NY)</option><option value="NC"${["NC","NORTH CAROLINA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>North Carolina (NC)</option><option value="ND"${["ND","NORTH DAKOTA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>North Dakota (ND)</option><option value="OH"${["OH","OHIO"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Ohio (OH)</option><option value="OK"${["OK","OKLAHOMA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Oklahoma (OK)</option><option value="OR"${["OR","OREGON"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Oregon (OR)</option><option value="PA"${["PA","PENNSYLVANIA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Pennsylvania (PA)</option><option value="RI"${["RI","RHODE ISLAND"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Rhode Island (RI)</option><option value="SC"${["SC","SOUTH CAROLINA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>South Carolina (SC)</option><option value="SD"${["SD","SOUTH DAKOTA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>South Dakota (SD)</option><option value="TN"${["TN","TENNESSEE"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Tennessee (TN)</option><option value="TX"${["TX","TEXAS"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Texas (TX)</option><option value="UT"${["UT","UTAH"].includes(String(personaDraft.id_details?.issuing_state || "").…78996 tokens truncated…              } catch (e) {
-                  alert(e.message);
+                      <label style="font-size:12px;font-weight:700;">Issuing State<select class="client-persona-issuing-state" autocomplete="off" style="display:block;width:100%;max-width:100%;box-sizing:border-box;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="">Choose issuing state</option><option value="AL"${["AL","ALABAMA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Alabama (AL)</option><option value="AK"${["AK","ALASKA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Alaska (AK)</option><option value="AZ"${["AZ","ARIZONA"].includes(String(personaDraft.id_details?.issuing_state || "").trim().toUpperCase()) ? " selected" : ""}>Arizona (AZ)</option><option value="AR"${["…79009 tokens truncated…t(e.message);
                 } finally {
                   button.disabled = false;
                 }
@@ -4881,7 +4984,7 @@ async function loadRequests(options = {}) {
     }
     const adminSectionLoadState = new Map();
     const loadAdminSectionData = async (sectionName, force = false) => {
-      if (!force && adminSectionLoadState.get(sectionName) === "loaded") return;
+      if (!force && !["requests", "clients"].includes(sectionName) && adminSectionLoadState.get(sectionName) === "loaded") return;
       if (adminSectionLoadState.get(sectionName) === "loading") return;
       adminSectionLoadState.set(sectionName, "loading");
       try {
