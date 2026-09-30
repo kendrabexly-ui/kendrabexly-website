@@ -8867,17 +8867,32 @@ if (
     }
 
     // =========================================================
-    // SERVE THE EXISTING WEBSITE
+    // PRIVATE APP ASSETS + WORDPRESS PUBLIC ORIGIN
     // =========================================================
+    //
+    // kendrabexly.com is deployed as a Cloudflare Worker Route in front
+    // of the DNS origin. Private application paths stay on this Worker;
+    // every other page continues to the configured origin (WordPress).
+    // This lets the apex DNS point at WordPress while preserving the
+    // booking, portal, screening continuation, API, and admin workflows.
 
-    const assetResponse = await env.ASSETS.fetch(request);
-    if (
+    const isPrivateAssetPath =
       url.pathname === "/portal" ||
       url.pathname.startsWith("/portal/") ||
       url.pathname === "/request" ||
       url.pathname === "/request/" ||
-      url.pathname === "/request.html"
-    ) {
+      url.pathname === "/request.html" ||
+      url.pathname === "/complete" ||
+      url.pathname.startsWith("/complete/") ||
+      url.pathname === "/admin" ||
+      url.pathname === "/admin.html" ||
+      url.pathname === "/admin-request" ||
+      url.pathname === "/admin-request.html" ||
+      url.pathname === "/admin-emails" ||
+      url.pathname === "/admin-emails.html";
+
+    if (isPrivateAssetPath) {
+      const assetResponse = await env.ASSETS.fetch(request);
       const headers = new Headers(assetResponse.headers);
       headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
       headers.set("Pragma", "no-cache");
@@ -8888,7 +8903,10 @@ if (
         headers
       });
     }
-    return assetResponse;
+
+    // On a Workers Route, fetch(request) continues to the application
+    // origin configured in Cloudflare DNS instead of serving old assets.
+    return fetch(request);
   },
 
   async scheduled(event, env, ctx) {
