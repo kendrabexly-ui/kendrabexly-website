@@ -762,7 +762,7 @@ confirmDepositButton.addEventListener("click", async function () {
     depositConfirmed = true;
     const depositCheckLabel=document.getElementById("deposit-check-label");
     if(depositCheckLabel) depositCheckLabel.textContent="Confirmed";
-    depositStatus.textContent = "Deposit payment confirmed.";
+    depositStatus.textContent = "Deposit payment confirmed. Review and send the One last detail before our date draft in Email Drafts to request secure ID upload.";
     updateFinalApprovalReadiness();
   } catch (error) {
     depositStatus.textContent = error.message || "Unable to confirm deposit.";

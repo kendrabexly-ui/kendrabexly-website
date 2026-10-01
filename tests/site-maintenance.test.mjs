@@ -96,7 +96,7 @@ test('analytics identifiers survive blocked browser storage', () => {
 });
 
 test('private-page analytics never include the access token', async () => {
-  const code=between(read('complete/index.html'),'    const analyticsSession =','    function renderSummary');
+  const code=between(read('complete/index.html'),'    const analyticsSession =','    function updatePaymentMethodLabels');
   let payload;
   const context=vm.createContext({token:'secret-private-token',requestId:2,location:{pathname:'/complete'},crypto:{randomUUID:()=> 'unrelated-id'},fetch:async(_,options)=>{payload=JSON.parse(options.body);}});
   await vm.runInContext(code+'\ntrack("page_test");',context);

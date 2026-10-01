@@ -29,9 +29,9 @@ Your next step is all in one private page:
 
 ${continuationUrl}
 
-There you can provide the additional details to complete screening.
+There you can choose our date, provide the additional details, and select your deposit method. After your deposit is confirmed, I’ll ask you to complete secure ID verification before I send the final confirmation and address.
 
-Once I finish my review and confirm the deposit, I’ll send your confirmation email.
+Once I finish my review, confirm the deposit, and review your ID, I’ll send your confirmation email.
 
 Kendra`;
 }
@@ -98,7 +98,7 @@ function screeningDraftHtml(body,emailType) {
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
   const text = String(body || "");
-  if (emailType !== "pending_final_approval") return esc(text).replace(/\n/g,"<br>");
+  if (!["pending_final_approval","identity_request"].includes(emailType)) return esc(text).replace(/\n/g,"<br>");
   const match = text.match(/(^|\n)(https:\/\/[^\s]+\/complete\/\?token=[a-f0-9]{64})(?=\n|$)/i);
   if (!match) return esc(text).replace(/\n/g,"<br>");
   const url = new URL(match[2]);
@@ -4840,7 +4840,7 @@ My journal will continue to be a place where I share a little more of that side 
         const row=await env.DB.prepare(`
           SELECT bc.date_request_id,bc.expires_at,bc.completed_at AS screening_submitted_at,
                  bc.deposit_step_acknowledged,bc.combined_step,
-                 dr.requested_date,dr.requested_time,dr.location_name,dr.location_address,dr.deposit_amount,dr.notes,
+                 dr.requested_date,dr.requested_time,dr.location_name,dr.location_address,dr.deposit_amount,dr.deposit_paid,dr.id_received,dr.status,dr.notes,
                  c.first_name,c.last_name,
                  va.birthdate,va.submitted_employer,va.submitted_job_title,va.submitted_industry,
                  va.verification_status,va.completed_at AS verification_completed_at
@@ -4866,6 +4866,8 @@ My journal will continue to be a place where I share a little more of that side 
           : 0;
         return bookingCorsJson({
           ok:true,
+          identity_step:Number(row.deposit_paid)===1 && ["screening_pending","pending_final_approval"].includes(row.status),
+          identity_received:Number(row.id_received)===1,
           request_id:Number(row.date_request_id),
           client_name:[row.first_name,row.last_name].filter(Boolean).join(" "),
           requested_date:row.requested_date||"",
@@ -4897,9 +4899,7 @@ My journal will continue to be a place where I share a little more of that side 
     }
 
     if (url.pathname === "/api/booking/continuation/combined" && request.method === "POST") {
-      let newObjectKey = "";
       try {
-        if (!env.ID_DOCUMENTS) return bookingCorsJson({ok:false,message:"Private ID storage is unavailable. Please try again later."},{status:503});
         await ensureSiteContentTables(env);
         await ensureClientVerificationAuditsTable(env);
         await ensureClientIdDocumentsTable(env);
@@ -4917,17 +4917,6 @@ My journal will continue to be a place where I share a little more of that side 
         if (new Date(String(row.expires_at)).getTime() < Date.now()) return bookingCorsJson({ok:false,message:"This private link has expired."},{status:410});
         if (row.completed_at) return bookingCorsJson({ok:true,screening_submitted:true,deposit_completed:true,message:"Your details were already received."});
         if (row.status !== "screening_pending") return bookingCorsJson({ok:false,message:"This request can no longer be completed through this link."},{status:409});
-
-        const file = form.get("id_document");
-        if (!(file instanceof File) || !file.size) return bookingCorsJson({ok:false,message:"Upload a photo of your ID."},{status:400});
-        if (!new Set(["image/jpeg","image/png","image/webp"]).has(file.type) || file.size > 10*1024*1024) {
-          return bookingCorsJson({ok:false,message:"Use a JPG, PNG, or WebP image no larger than 10 MB."},{status:400});
-        }
-        const signature = new Uint8Array(await file.slice(0,12).arrayBuffer());
-        const validImage = file.type === "image/jpeg" ? signature[0]===0xff && signature[1]===0xd8 && signature[2]===0xff
-          : file.type === "image/png" ? [137,80,78,71,13,10,26,10].every((byte,index)=>signature[index]===byte)
-          : [82,73,70,70].every((byte,index)=>signature[index]===byte) && [87,69,66,80].every((byte,index)=>signature[index+8]===byte);
-        if (!validImage) return bookingCorsJson({ok:false,message:"That ID image could not be read. Upload a JPG, PNG, or WebP photo."},{status:400});
 
         const birthdate = idDocumentDate(form.get("birthdate"));
         const plansNote = String(form.get("plans_note")||"").trim().replace(/\s+/g," ").slice(0,1200);
@@ -4948,12 +4937,6 @@ My journal will continue to be a place where I share a little more of that side 
         if (base <= 0) return bookingCorsJson({ok:false,message:"Deposit amount is unavailable. Please contact Kendra."},{status:409});
         const fee = ["stripe"].includes(method) ? Math.round(base*10)/100 : 0;
         const total = Math.round((base+fee)*100)/100;
-        const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-        const previous = await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(row.client_id).first();
-        newObjectKey = "clients/"+row.client_id+"/id-documents/"+crypto.randomUUID()+"."+extension;
-        await env.ID_DOCUMENTS.put(newObjectKey,file.stream(),{
-          httpMetadata:{contentType:file.type},customMetadata:{client_id:String(row.client_id),uploaded_for:"identity_screening"}
-        });
         let notes = String(row.notes||"").replace(/^Plans note:.*$/gmi,"").replace(/^Deposit payment method:.*$/gmi,"").replace(/^App-based text number:.*$/gmi,"").trim();
         if (plansNote) notes += (notes?"\n":"")+"Plans note: "+plansNote;
         notes += (notes?"\n":"")+"Deposit payment method: "+method;
@@ -4962,30 +4945,72 @@ My journal will continue to be a place where I share a little more of that side 
           await env.DB.batch([
             env.DB.prepare("UPDATE client_verification_audits SET birthdate=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?")
               .bind(birthdate,row.date_request_id),
-            env.DB.prepare(`INSERT INTO client_id_documents (client_id,object_key,file_name,mime_type,file_size,verification_status,received_at,verified_at,updated_at)
-              VALUES (?,?,?,?,?,'pending_review',?,NULL,CURRENT_TIMESTAMP)
-              ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,mime_type=excluded.mime_type,
-                file_size=excluded.file_size,verification_status='pending_review',received_at=excluded.received_at,verified_at=NULL,updated_at=CURRENT_TIMESTAMP`)
-              .bind(row.client_id,newObjectKey,String(file.name||"id-document."+extension).slice(0,180),file.type,file.size,idDocumentToday()),
             env.DB.prepare("UPDATE date_requests SET notes=?,location_address=CASE WHEN ? THEN ? ELSE location_address END,deposit_amount=? WHERE id=?")
               .bind(notes,requiresOutcallAddress?1:0,addressParts.filter(Boolean).join(", "),total,row.date_request_id),
             env.DB.prepare("UPDATE booking_continuations SET completed_at=CURRENT_TIMESTAMP,deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=? AND completed_at IS NULL")
               .bind(row.date_request_id)
           ]);
-        } catch (databaseError) {
-          await env.ID_DOCUMENTS.delete(newObjectKey);
-          newObjectKey = "";
-          throw databaseError;
-        }
-        if (previous?.object_key && previous.object_key !== newObjectKey) {
-          try { await env.ID_DOCUMENTS.delete(previous.object_key); } catch (cleanupError) { console.error("Previous ID cleanup error:",cleanupError); }
-        }
+        } catch (databaseError) { throw databaseError; }
         try { await recordBookingFunnelEvent(env,"continuation_completed",{sessionId:"server:continuation",requestId:row.date_request_id,path:"/complete"}); }
         catch (trackingError) { console.error("Continuation tracking error:",trackingError); }
-        return bookingCorsJson({ok:true,screening_submitted:true,deposit_completed:true,request_id:Number(row.date_request_id),deposit_amount:total,message:"Your screening, ID, and deposit selection were received. Your date awaits review, payment confirmation, and final approval."});
+        return bookingCorsJson({ok:true,screening_submitted:true,deposit_completed:true,request_id:Number(row.date_request_id),deposit_amount:total,message:"Your date details and deposit selection were received. After payment is confirmed, complete secure ID verification before final confirmation and address delivery."});
       } catch (error) {
         console.error("Combined booking continuation error:",error);
         return bookingCorsJson({ok:false,message:"Unable to save this private step. Please try again."},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/booking/continuation/identity" && request.method === "POST") {
+      let newObjectKey = "";
+      try {
+        if (!env.ID_DOCUMENTS) return bookingCorsJson({ok:false,message:"Private ID storage is unavailable."},{status:503});
+        await ensureSiteContentTables(env);
+        await ensureClientIdDocumentsTable(env);
+        const form = await request.formData();
+        const token = String(form.get("token") || "");
+        if (!/^[a-f0-9]{64}$/i.test(token)) return bookingCorsJson({ok:false,message:"Invalid private link."},{status:403});
+        const row = await env.DB.prepare(`SELECT bc.date_request_id,bc.expires_at,dr.client_id,dr.status,dr.deposit_paid,dr.id_received
+          FROM booking_continuations bc JOIN date_requests dr ON dr.id=bc.date_request_id WHERE bc.token_hash=? LIMIT 1`)
+          .bind(await sha256Hex(token)).first();
+        if (!row || new Date(row.expires_at).getTime() < Date.now()) return bookingCorsJson({ok:false,message:"This private link is invalid or expired."},{status:403});
+        if (!Number(row.deposit_paid) || !["screening_pending","pending_final_approval"].includes(row.status)) return bookingCorsJson({ok:false,message:"ID upload is available after your deposit is confirmed and before final approval."},{status:409});
+        const blocked = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(row.client_id).first();
+        if (blocked) return bookingCorsJson({ok:false,message:"This request is closed."},{status:403});
+        if (Number(row.id_received)) return bookingCorsJson({ok:true,message:"Your ID has already been received for review."});
+        const file = form.get("id_document");
+        if (!(file instanceof File) || !file.size) return bookingCorsJson({ok:false,message:"Upload a photo of your ID."},{status:400});
+        if (!new Set(["image/jpeg","image/png","image/webp"]).has(file.type) || file.size > 10*1024*1024) {
+          return bookingCorsJson({ok:false,message:"Use a JPG, PNG, or WebP image no larger than 10 MB."},{status:400});
+        }
+        const signature = new Uint8Array(await file.slice(0,12).arrayBuffer());
+        const validImage = file.type === "image/jpeg" ? signature[0]===0xff && signature[1]===0xd8 && signature[2]===0xff
+          : file.type === "image/png" ? [137,80,78,71,13,10,26,10].every((byte,index)=>signature[index]===byte)
+          : [82,73,70,70].every((byte,index)=>signature[index]===byte) && [87,69,66,80].every((byte,index)=>signature[index+8]===byte);
+        if (!validImage) return bookingCorsJson({ok:false,message:"That ID image could not be read. Upload a JPG, PNG, or WebP photo."},{status:400});
+
+        const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+        const previous = await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(row.client_id).first();
+        newObjectKey = "clients/"+row.client_id+"/id-documents/"+crypto.randomUUID()+"."+extension;
+        await env.ID_DOCUMENTS.put(newObjectKey,file.stream(),{
+          httpMetadata:{contentType:file.type},customMetadata:{client_id:String(row.client_id),uploaded_for:"identity_screening"}
+        });
+        try {
+          await env.DB.batch([
+            env.DB.prepare(`INSERT INTO client_id_documents (client_id,object_key,file_name,mime_type,file_size,verification_status,received_at,verified_at,updated_at)
+              VALUES (?,?,?,?,?,'pending_review',?,NULL,CURRENT_TIMESTAMP)
+              ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,mime_type=excluded.mime_type,
+                file_size=excluded.file_size,verification_status='pending_review',received_at=excluded.received_at,verified_at=NULL,updated_at=CURRENT_TIMESTAMP`)
+              .bind(row.client_id,newObjectKey,String(file.name||"id-document."+extension).slice(0,180),file.type,file.size,idDocumentToday()),
+            env.DB.prepare("UPDATE date_requests SET id_received=1 WHERE id=? AND deposit_paid=1").bind(row.date_request_id)
+          ]);
+        } catch(error) { await env.ID_DOCUMENTS.delete(newObjectKey); newObjectKey=""; throw error; }
+        if (previous?.object_key && previous.object_key !== newObjectKey) {
+          try { await env.ID_DOCUMENTS.delete(previous.object_key); } catch(error) { console.error("Previous ID cleanup failed:",error); }
+        }
+        return bookingCorsJson({ok:true,message:"Your ID was received securely. I’ll review it before sending your final confirmation and address."});
+      } catch(error) {
+        console.error("Post-deposit ID upload failed:",error);
+        return bookingCorsJson({ok:false,message:"Unable to save your ID. Please try again."},{status:500});
       }
     }
 
@@ -6118,7 +6143,7 @@ if (
           }
           if (!link) return bookingCorsJson({ok:false,message:"The active private link is missing from saved drafts. Open request review to create a new screening invitation."},{status:400});
           const esc = value => String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
-          const body = '<p>Hi '+esc(row.first_name || "there")+',</p><p>I\'m looking forward to getting a little closer to our date. Before we meet, I need your ID for screening. Please complete the available details on your private page and reply to this email for my ID submission instructions.</p><p>Once I have reviewed and verified your screening, your private page will guide you through the 25% deposit to confirm our time together. Please wait for that step before making a payment.</p><p><a href="'+link+'" style="display:inline-block;padding:13px 20px;background:#8A5B70;color:#ffffff;text-decoration:none;">A Little Closer to Our Date</a></p><p>With a little anticipation,<br>Kendra</p>';
+          const body = '<p>Hi '+esc(row.first_name || "there")+',</p><p>I\'m looking forward to getting a little closer to our date. Before we meet, please choose our date and complete the available details on your private page.</p><p>Your private page will guide you through the deposit selection. After payment is confirmed, I will invite you to upload your ID securely. ID review is required before final confirmation and address delivery.</p><p><a href="'+link+'" style="display:inline-block;padding:13px 20px;background:#8A5B70;color:#ffffff;text-decoration:none;">A Little Closer to Our Date</a></p><p>With a little anticipation,<br>Kendra</p>';
           const result = await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(row.client_id,requestId,type,"A few details before our date",body).run();
           return bookingCorsJson({ok:true,draft_id:result.meta?.last_row_id});
         }
@@ -6375,6 +6400,11 @@ if (
             return bookingCorsJson({ ok:false, message:"This request is closed. The email was not sent." }, { status:409 });
         }
 
+        if (draft.date_request_id && ["identity_request","date_confirmed"].includes(draft.email_type)) {
+          const state=await env.DB.prepare("SELECT status,deposit_paid,id_received,final_approval FROM date_requests WHERE id=? LIMIT 1").bind(draft.date_request_id).first();
+          if (!state || !Number(state.deposit_paid) || ["declined","blacklisted_submission","canceled"].includes(state.status)) return bookingCorsJson({ok:false,message:"This request is not ready for this email."},{status:409});
+          if (draft.email_type === "date_confirmed" && (!Number(state.id_received) || !Number(state.final_approval))) return bookingCorsJson({ok:false,message:"ID review and final approval are required before sending confirmation and address."},{status:409});
+        }
         const html = '<div style="font-family:Arial,sans-serif;line-height:1.65;color:#29282d;white-space:normal;">' +
           screeningDraftHtml(draft.body,draft.email_type) + "</div>";
         const sendResponse = await fetch("https://api.resend.com/emails", {
@@ -6393,7 +6423,7 @@ if (
           console.error("Client email delivery failed:", sendResponse.status, await sendResponse.text());
           return bookingCorsJson({ ok:false, message:"Email delivery failed. The draft was not marked sent." }, { status:502 });
         }
-        const sendData = await sendbookingCorsJson().catch(() => ({}));
+        const sendData = await sendResponse.json().catch(() => ({}));
         await env.DB.prepare("UPDATE email_drafts SET status = 'sent', sent_at = CURRENT_TIMESTAMP WHERE id = ?")
           .bind(draftId).run();
         await env.DB.prepare(`
@@ -8175,7 +8205,7 @@ if (
           path:"/portal/request"
         });
 
-        if (bookingRate > 0) {
+        {
           await env.DB.prepare(`
             INSERT INTO email_drafts (
               client_id,
@@ -8373,6 +8403,7 @@ Kendra`;
         if(Number(depositStep?.deposit_step_acknowledged||0)!==1) {
           return bookingCorsJson({ok:false,message:"The client must complete the deposit selection step before payment can be confirmed."},{status:409});
         }
+        if (!["screening_pending","pending_final_approval"].includes(item.status)) return bookingCorsJson({ok:false,message:"This request is not awaiting payment confirmation."},{status:409});
         // Older/in-flight requests may have reached final approval before a
         // deposit amount was stored. Recalculate it from the same rate source used
         // by Move Forward so an already-sent request is not permanently stuck.
@@ -8442,6 +8473,19 @@ Kendra`;
         await env.DB.prepare(
           "UPDATE date_requests SET deposit_paid = 1, notes = ? WHERE id = ?"
         ).bind(notes, requestId).run();
+        await ensureSiteContentTables(env);
+        const idInvite = await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='identity_request' AND status IN ('draft','sent') LIMIT 1").bind(requestId).first();
+        if (!idInvite) {
+          const client = await env.DB.prepare("SELECT dr.client_id,c.first_name FROM date_requests dr JOIN clients c ON c.id=dr.client_id WHERE dr.id=? LIMIT 1").bind(requestId).first();
+          const identityToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
+          const expiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
+          const identityUrl=new URL("/complete/?token="+encodeURIComponent(identityToken),request.url).toString();
+          const body="Hi "+client.first_name+",\n\nWe’re a little closer to our time together. There’s just one detail for you to take care of: please upload your valid photo ID securely using the private page below.\n\n"+identityUrl+"\n\nPlease complete this before our date. Once I’ve reviewed it, I’ll send your final confirmation and arrival details. Please don’t send your ID by email.\n\nI’m looking forward to seeing you.\nKendra";
+          await env.DB.batch([
+            env.DB.prepare("UPDATE booking_continuations SET token_hash=?,expires_at=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?").bind(await sha256Hex(identityToken),expiresAt,requestId),
+            env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(client.client_id,requestId,"identity_request","One last detail before our date",body)
+          ]);
+        }
         await recordBookingFunnelEvent(env,"deposit_confirmed",{
           sessionId:"server:admin",
           requestId,
@@ -8718,6 +8762,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           );
         }
 
+        if (!Number(existingRequest.id_received)) return bookingCorsJson({ok:false,message:"The client must upload ID for this request before final approval."},{status:400});
         await ensureClientVerificationAuditsTable(env);
         const verificationRecord = await env.DB.prepare(`
           SELECT verification_status, completed_at

@@ -42,6 +42,24 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
     </section>
 
 
+    <form id="identity-form" hidden>
+      <section class="form-section">
+        <h2>One last detail before our date.</h2>
+        <p>Please upload your valid photo ID securely here. Once I’ve reviewed it, I’ll send your final confirmation and arrival details. Please never send your ID by email.</p>
+        <div class="field full-width">
+          <label for="identity-document">Photo of your valid ID *</label>
+          <input id="identity-document" name="id_document" type="file" accept="image/jpeg,image/png,image/webp" required>
+          <small>JPG, PNG, or WebP, up to 10 MB. Stored privately for my review.</small>
+        </div>
+        <button type="submit" class="button" id="submit-identity">Send My ID Securely</button>
+        <small id="identity-status" role="status" aria-live="polite"></small>
+      </section>
+    </form>
+    <section id="identity-review" class="request-success" hidden>
+      <h2>Thank you. Your ID is in review.</h2>
+      <p>I’ll send your final confirmation and arrival details after I’ve reviewed your ID.</p>
+    </section>
+
     <form id="screening-form" hidden>
       <section class="form-section" id="our-time-together">
         <h2>Our Time Together</h2>
@@ -102,14 +120,9 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
         </fieldset>
       </section>
       <section id="combined-step" class="form-section" hidden>
-        <div class="eyebrow">IDENTITY &amp; DEPOSIT</div>
+        <div class="eyebrow">OUR DATE &amp; DEPOSIT</div>
         <h2>Complete your private next step.</h2>
-        <p>Upload your ID securely here; please never send it by email. Choose your deposit method and review the amount below. Your date remains subject to Kendra’s screening review, confirmation of payment, and final approval.</p>
-        <div class="field full-width">
-          <label for="screening-id-document">Photo of your valid ID *</label>
-          <input id="screening-id-document" name="id_document" type="file" accept="image/jpeg,image/png,image/webp" disabled>
-          <small>JPG, PNG, or WebP, up to 10 MB. Stored privately for Kendra’s review; never sent to Persona.</small>
-        </div>
+        <p>Choose your deposit method and review the amount below. After your deposit is confirmed, you’ll receive a secure ID request. A valid photo ID must be reviewed before final confirmation and address delivery. If you cannot complete ID verification, contact me before paying to discuss the deposit terms.</p>
         <div class="field full-width">
           <label for="combined-payment-method">Deposit method *</label>
           <select id="combined-payment-method" name="deposit_payment_method" disabled>
@@ -147,7 +160,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
     <section id="combined-review" class="request-success" hidden>
       <div class="eyebrow">DETAILS RECEIVED</div>
       <h2>Thank you. Your request is in review.</h2>
-      <p>Your screening details, ID, and deposit selection have been received. Your date is not confirmed until Kendra verifies your details, confirms payment, and sends final approval.</p>
+      <p>Your date details and deposit selection have been received. Once payment is confirmed, I’ll invite you to upload your ID securely. Your final confirmation and address follow my ID review.</p>
       <a class="button" href="/the-details/" data-private-details-link>Review The Details</a>
     </section>
 
@@ -174,7 +187,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           <span id="deposit-base">Base deposit</span>
           <span id="deposit-fee" hidden></span>
         </div>
-        <p>Your deposit is 25% of the date total. Card checkout and Crypto add a 10% processing fee to the deposit. Choosing a method here does not mark the deposit as paid; Kendra confirms payment separately. Cash App is not accepted. Please do not attempt to send a deposit to a Cash App account.</p>
+        <p>Your deposit is 25% of the date total. Card checkout and Crypto add a 10% processing fee to the deposit. Choosing a method here does not mark the deposit as paid; Kendra confirms payment separately. After payment confirmation, a valid photo ID must be submitted securely and reviewed before final confirmation and address delivery. If you cannot complete ID verification, contact me before paying to discuss the deposit terms. Cash App is not accepted. Please do not attempt to send a deposit to a Cash App account.</p>
         <label class="checkbox-label">
           <input type="checkbox" name="deposit_step_acknowledged" value="yes" required>
           <span>I have reviewed the deposit amount, selected payment method, and payment instructions and understand that the date is not final until the deposit is confirmed and Kendra gives final approval.</span>
@@ -189,7 +202,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
     <section id="deposit-complete" class="request-success" hidden>
       <div class="eyebrow">DEPOSIT STEP COMPLETE</div>
       <h2>Your selection was received.</h2>
-      <p>Kendra will confirm the deposit separately once payment is received.</p>
+      <p>I’ll confirm your payment, then invite you to complete secure ID verification before sending your final confirmation and address.</p>
       <p>Your date is not final until the deposit is confirmed and Kendra sends final approval.</p>
       <a class="button" href="/the-details/" data-private-details-link>Review The Details</a>
     </section>
@@ -337,13 +350,18 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       track("continuation_opened");
       loading.hidden = true;
 
+      if (data.identity_step) {
+        document.getElementById(data.identity_received ? "identity-review" : "identity-form").hidden = false;
+        return;
+      }
+
       if (data.combined_step) {
         if (data.screening_submitted) {
           combinedReview.hidden = false;
           return;
         }
         baseDepositAmount = Number(data.base_deposit_amount || data.deposit_amount || 0);
-        document.getElementById("screening-intro").textContent = "Complete your screening, upload your ID securely, and choose a deposit method on this private page.";
+        document.getElementById("screening-intro").textContent = "Choose our date, complete your details, and select your deposit method. Secure ID verification follows deposit confirmation and is required before final confirmation and address delivery.";
         document.getElementById("screening-birthdate").value = data.birthdate || "";
         const outcallFieldset = document.getElementById("screening-outcall-address");
         if (data.requires_outcall_address && outcallFieldset) {
@@ -354,7 +372,6 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
         const combined = document.getElementById("combined-step");
         combined.hidden = false;
         combined.querySelectorAll("input,select").forEach(input => { input.disabled = false; });
-        document.getElementById("screening-id-document").required = true;
         document.getElementById("combined-payment-method").required = true;
         document.getElementById("combined-acknowledgment").required = true;
         document.getElementById("submit-screening").textContent = "A Little Closer to Our Date";
@@ -448,6 +465,21 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       } finally {
         button.disabled = false;
       }
+    });
+
+    document.getElementById("identity-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form=event.currentTarget,button=document.getElementById("submit-identity"),status=document.getElementById("identity-status");
+      if (!form.reportValidity()) return;
+      button.disabled=true;status.textContent="Uploading securely…";
+      try {
+        const body=new FormData(form);body.set("token",token);
+        const response=await fetch("/api/booking/continuation/identity",{method:"POST",body});
+        const data=await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Unable to save ID.");
+        form.hidden=true;document.getElementById("identity-review").hidden=false;
+      } catch(error) { status.textContent=error.message || "Unable to save ID. Please try again."; }
+      finally { button.disabled=false; }
     });
 
     load().catch(() => {
