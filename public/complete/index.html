@@ -78,8 +78,6 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
         </div>
       </section>
       <section class="form-section">
-        <div class="eyebrow">SCREENING DETAILS</div>
-        <p id="screening-intro">These details are used only for private screening and review. No deposit is requested at this stage. You are not required to upload an ID on this page, and you should never email an ID document.</p>
         <div class="form-grid">
           <div class="field full-width">
             <label for="screening-birthdate">Birthdays are special, and I love celebrating—when’s yours? *</label>
@@ -361,7 +359,6 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           return;
         }
         baseDepositAmount = Number(data.base_deposit_amount || data.deposit_amount || 0);
-        document.getElementById("screening-intro").textContent = "Choose our date, complete your details, and select your deposit method. Secure ID verification follows deposit confirmation and is required before final confirmation and address delivery.";
         document.getElementById("screening-birthdate").value = data.birthdate || "";
         const outcallFieldset = document.getElementById("screening-outcall-address");
         if (data.requires_outcall_address && outcallFieldset) {
