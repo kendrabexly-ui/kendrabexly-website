@@ -106,8 +106,8 @@ function screeningDraftHtml(body,emailType) {
   const before = text.slice(0,match.index + match[1].length);
   const after = text.slice(match.index + match[0].length);
   return esc(before).replace(/\n/g,"<br>") +
-    '<a href="'+esc(url.href)+'" style="display:inline-block;padding:13px 20px;background:#29282d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">A Little Closer to Our Date</a>' +
-    esc(after).replace(/\n/g,"<br>");
+    '<a href="'+esc(url.href)+'" style="display:inline-block;padding:13px 20px;background:#29282d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">'+(emailType === "identity_request" ? "Secure ID upload link" : "A Little Closer to Our Date")+'</a>' +
+    (emailType === "identity_request" ? esc(after).replace(/KendraBexly@gmail\.com/g,'<a href="mailto:KendraBexly@gmail.com">KendraBexly@gmail.com</a>') : esc(after)).replace(/\n/g,"<br>");
 }
 const VALID_BOOKING_STATE_CODES = new Set([
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
@@ -8480,7 +8480,7 @@ Kendra`;
           const identityToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
           const expiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
           const identityUrl=new URL("/complete/?token="+encodeURIComponent(identityToken),request.url).toString();
-          const body="Hi "+client.first_name+",\n\nWe’re a little closer to our time together. There’s just one detail for you to take care of: please upload your valid photo ID securely using the private page below.\n\n"+identityUrl+"\n\nPlease complete this before our date. Once I’ve reviewed it, I’ll send your final confirmation and arrival details. Please don’t send your ID by email.\n\nI’m looking forward to seeing you.\nKendra";
+          const body="Hello handsome,\n\nWe’re a little closer to meeting, and I’m looking forward to having you all to myself.\n\nBefore I send your final confirmation and arrival details, please upload or email a clear photo of your valid ID.\n\n"+identityUrl+"\nor send directly to KendraBexly@gmail.com\n\nOnce I’ve received it, I’ll be in touch with everything you need for our date.\n\nUntil then, enjoy the anticipation…\n\nKendra";
           await env.DB.batch([
             env.DB.prepare("UPDATE booking_continuations SET token_hash=?,expires_at=?,combined_step=2,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?").bind(await sha256Hex(identityToken),expiresAt,requestId),
             env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(client.client_id,requestId,"identity_request","One last detail before our date",body)
