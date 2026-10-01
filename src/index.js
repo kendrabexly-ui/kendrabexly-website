@@ -4866,7 +4866,7 @@ My journal will continue to be a place where I share a little more of that side 
           : 0;
         return bookingCorsJson({
           ok:true,
-          identity_step:Number(row.deposit_paid)===1 && ["screening_pending","pending_final_approval"].includes(row.status),
+          identity_step:Number(row.deposit_paid)===1 && (Number(row.combined_step)===2 || screeningSubmitted) && ["screening_pending","pending_final_approval"].includes(row.status),
           identity_received:Number(row.id_received)===1,
           request_id:Number(row.date_request_id),
           client_name:[row.first_name,row.last_name].filter(Boolean).join(" "),
@@ -6118,8 +6118,8 @@ if (
           const results = await env.DB.batch([
             env.DB.prepare(`INSERT INTO booking_continuations (date_request_id,token_hash,expires_at,completed_at,deposit_step_acknowledged,combined_step,updated_at)
               VALUES (?,?,?,NULL,0,?,CURRENT_TIMESTAMP)
-              ON CONFLICT(date_request_id) DO UPDATE SET token_hash=excluded.token_hash,expires_at=excluded.expires_at,updated_at=CURRENT_TIMESTAMP`)
-              .bind(requestId,await sha256Hex(token),expiresAt,Number(existing?.combined_step ?? 1)),
+              ON CONFLICT(date_request_id) DO UPDATE SET token_hash=excluded.token_hash,expires_at=excluded.expires_at,combined_step=1,updated_at=CURRENT_TIMESTAMP`)
+              .bind(requestId,await sha256Hex(token),expiresAt,1),
             env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')")
               .bind(row.client_id,requestId,"pending_final_approval","A few details before our date",privateScreeningEmailBody(row.first_name,row.requested_date,row.requested_time,link))
           ]);
@@ -8482,7 +8482,7 @@ Kendra`;
           const identityUrl=new URL("/complete/?token="+encodeURIComponent(identityToken),request.url).toString();
           const body="Hi "+client.first_name+",\n\nWe’re a little closer to our time together. There’s just one detail for you to take care of: please upload your valid photo ID securely using the private page below.\n\n"+identityUrl+"\n\nPlease complete this before our date. Once I’ve reviewed it, I’ll send your final confirmation and arrival details. Please don’t send your ID by email.\n\nI’m looking forward to seeing you.\nKendra";
           await env.DB.batch([
-            env.DB.prepare("UPDATE booking_continuations SET token_hash=?,expires_at=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?").bind(await sha256Hex(identityToken),expiresAt,requestId),
+            env.DB.prepare("UPDATE booking_continuations SET token_hash=?,expires_at=?,combined_step=2,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?").bind(await sha256Hex(identityToken),expiresAt,requestId),
             env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(client.client_id,requestId,"identity_request","One last detail before our date",body)
           ]);
         }
