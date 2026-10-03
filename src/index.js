@@ -9017,11 +9017,10 @@ if (
     // PRIVATE APP ASSETS + WORDPRESS PUBLIC ORIGIN
     // =========================================================
     //
-    // kendrabexly.com is deployed as a Cloudflare Worker Route in front
-    // of the DNS origin. Private application paths stay on this Worker;
-    // every other page continues to the configured origin (WordPress).
-    // This lets the apex DNS point at WordPress while preserving the
-    // booking, portal, screening continuation, API, and admin workflows.
+    // WordPress is only the public client-facing website.
+    // Screening, verification, private continuation, portal/admin, and all
+    // supporting API routes remain on this Cloudflare Worker. Public pages
+    // that are not part of those private workflows continue to WordPress.
 
     const isPrivateAssetPath =
       url.pathname === "/portal" ||
@@ -9031,6 +9030,8 @@ if (
       url.pathname === "/request.html" ||
       url.pathname === "/complete" ||
       url.pathname.startsWith("/complete/") ||
+      url.pathname === "/the-details" ||
+      url.pathname.startsWith("/the-details/") ||
       url.pathname === "/admin" ||
       url.pathname === "/admin.html" ||
       url.pathname === "/admin-request" ||
