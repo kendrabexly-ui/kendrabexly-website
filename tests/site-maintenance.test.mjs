@@ -38,6 +38,21 @@ test('WordPress public pages cannot send portal links back into WordPress', () =
   assert.match(worker,/url\.pathname\.startsWith\("\/portal\/"\)/);
 });
 
+test('screening and verification private pages stay on Cloudflare', () => {
+  const worker=fs.readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
+  const wrangler=fs.readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8');
+  assert.match(worker,/url\.pathname === "\/complete"/);
+  assert.match(worker,/url\.pathname\.startsWith\("\/complete\/"\)/);
+  assert.match(worker,/url\.pathname === "\/the-details"/);
+  assert.match(worker,/url\.pathname\.startsWith\("\/the-details\/"\)/);
+  assert.match(worker,/url\.pathname === "\/portal"/);
+  assert.match(worker,/url\.pathname\.startsWith\("\/portal\/"\)/);
+  assert.match(wrangler,/"\/api\/\*"/);
+  assert.match(wrangler,/"\/portal\*"/);
+  assert.match(wrangler,/"\/complete\*"/);
+  assert.match(wrangler,/"\/the-details\*"/);
+});
+
 test('Muse adds seven slots while preserving the existing six', () => {
   const muse=read('the-muse/index.html');
   const slots=[...muse.matchAll(/data-photo-slot="(\d+)"/g)].map(match=>Number(match[1]));
