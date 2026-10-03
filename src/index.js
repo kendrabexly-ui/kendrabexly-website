@@ -1408,9 +1408,30 @@ async function siteAvailableSlots(env, date, requestedDuration, excludeRequestId
 const WEBSITE_BUTTON_CSS = "/* Shared website button palette */\n:root{--website-button-plum:#673B59;--website-button-plum-hover:#512D46}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"],.button,.btn,a[role=\"button\"],.wp-block-button__link,.wp-element-button){\nbackground:var(--website-button-plum)!important;color:#fff!important;border-color:var(--website-button-plum)!important}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"],.button,.btn,a[role=\"button\"],.wp-block-button__link,.wp-element-button):hover{\nbackground:var(--website-button-plum-hover)!important;color:#fff!important;border-color:var(--website-button-plum-hover)!important}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"],.button,.btn,a[role=\"button\"],.wp-block-button__link,.wp-element-button):focus-visible{outline:2px solid var(--website-button-plum)!important;outline-offset:3px}\n:is(button,input[type=\"submit\"],input[type=\"button\"],input[type=\"reset\"]):disabled{opacity:.55;cursor:not-allowed}\n";
 function withWebsiteButtonStyles(response) {
   if (!(response.headers.get("Content-Type") || "").toLowerCase().includes("text/html")) return response;
-  return new HTMLRewriter().on("head", {
-    element(head) { head.append("<style>" + WEBSITE_BUTTON_CSS + "</style>", { html: true }); }
-  }).transform(response);
+  return new HTMLRewriter()
+    .on("head", {
+      element(head) { head.append("<style>" + WEBSITE_BUTTON_CSS + "</style>", { html: true }); }
+    })
+    .on("a[href]", {
+      element(anchor) {
+        const href = String(anchor.getAttribute("href") || "").trim();
+        if (!href) return;
+        try {
+          const target = new URL(href, "https://kendrabexly.com");
+          const isLegacyWordPressPortal =
+            target.hostname === "kendrabexly.wordpress.com" &&
+            (
+              target.pathname === "/portal" ||
+              target.pathname === "/portal/" ||
+              target.searchParams.get("page_id") === "5"
+            );
+          if (isLegacyWordPressPortal) {
+            anchor.setAttribute("href", "https://kendrabexly.com/portal/");
+          }
+        } catch {}
+      }
+    })
+    .transform(response);
 }
 
 function standaloneBookingPage() {
