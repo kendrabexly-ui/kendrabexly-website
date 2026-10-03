@@ -29,6 +29,15 @@ test('public and portal styles load without interrupting dashboard startup', () 
   assert.match(read('styles.css'),/Refined public visual system/);
 });
 
+test('WordPress public pages cannot send portal links back into WordPress', () => {
+  const worker=fs.readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
+  assert.match(worker,/target\.hostname === "kendrabexly\.wordpress\.com"/);
+  assert.match(worker,/target\.searchParams\.get\("page_id"\) === "5"/);
+  assert.match(worker,/anchor\.setAttribute\("href", "https:\/\/kendrabexly\.com\/portal\/"\)/);
+  assert.match(worker,/url\.pathname === "\/portal"/);
+  assert.match(worker,/url\.pathname\.startsWith\("\/portal\/"\)/);
+});
+
 test('Muse adds seven slots while preserving the existing six', () => {
   const muse=read('the-muse/index.html');
   const slots=[...muse.matchAll(/data-photo-slot="(\d+)"/g)].map(match=>Number(match[1]));
