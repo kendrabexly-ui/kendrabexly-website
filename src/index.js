@@ -9212,6 +9212,7 @@ if (
 
       const defaults = [
         {query:"Los Angeles companion",intent:"High",page:"/meet-kendra/",action:"Strengthen title, H1, internal links, and branded trust signals."},
+        {query:"Los Angeles escorts",intent:"High",page:"/meet-kendra/",action:"Monitor this high-intent search and improve compliant social-companion positioning, trust signals, and branded relevance without promoting sexual services."},
         {query:"private companion Los Angeles",intent:"High",page:"/meet-kendra/",action:"Create supporting copy around private social companionship and discretion."},
         {query:"Los Angeles date companion",intent:"High",page:"/our-time/",action:"Align page headings and description with upscale date-companion intent."},
         {query:"LA dinner companion",intent:"Medium",page:"/our-time/",action:"Create a useful LA dinner/date-night landing section or article."},
