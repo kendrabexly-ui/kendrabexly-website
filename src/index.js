@@ -9357,6 +9357,80 @@ if (
       return Response.json({ok:true,changes});
     }
 
+
+    async function ensureSeoWordPressDraftTable() {
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS seo_wordpress_drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        query TEXT NOT NULL,
+        target_page TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'prepared',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`).run();
+    }
+
+    if (url.pathname === "/api/admin/google-acquisition/wordpress-draft" && request.method === "POST") {
+      await ensureSeoWordPressDraftTable();
+      const body=await request.json().catch(()=>({}));
+      const query=String(body.query||"").trim().slice(0,300);
+      const targetPage=String(body.target_page||"").trim().slice(0,500);
+      const approved=Array.isArray(body.approved_changes)?body.approved_changes:[];
+      if(!query || !targetPage) return Response.json({ok:false,message:"SEO query and target page are required."},{status:400});
+      if(!approved.length) return Response.json({ok:false,message:"Approve at least one page change first."},{status:400});
+
+      const normalized=approved.slice(0,50).map(item=>({
+        label:String(item?.label||"Change").trim().slice(0,180),
+        value:String(item?.value||"").trim().slice(0,12000)
+      })).filter(item=>item.value);
+      if(!normalized.length) return Response.json({ok:false,message:"No approved page changes were provided."},{status:400});
+
+      const sectionValues=normalized.filter(item=>/^Section \d+:/i.test(item.label));
+      const h1=normalized.find(item=>item.label==="H1")?.value||"";
+      const cta=normalized.find(item=>item.label==="CTA")?.value||"";
+      const gutenberg=[
+        h1 ? '<!-- wp:heading {"level":1} -->\n<h1 class="wp-block-heading">'+h1.replace(/[<&]/g,ch=>ch==="<"?"&lt;":"&amp;")+'</h1>\n<!-- /wp:heading -->' : "",
+        ...sectionValues.map(item=>{
+          const parts=item.value.split(/\n\n+/);
+          const heading=String(parts.shift()||item.label.replace(/^Section \d+:\s*/i,"")).trim();
+          const bodyText=parts.join("\n\n").trim();
+          const safeHeading=heading.replace(/[<&]/g,ch=>ch==="<"?"&lt;":"&amp;");
+          const safeBody=bodyText.replace(/[<&]/g,ch=>ch==="<"?"&lt;":"&amp;").replace(/\n\n+/g,"</p>\n<p>");
+          return '<!-- wp:group -->\n<div class="wp-block-group"><!-- wp:heading {"level":2} -->\n<h2 class="wp-block-heading">'+safeHeading+'</h2>\n<!-- /wp:heading -->\n<!-- wp:paragraph -->\n<p>'+safeBody+'</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->';
+        }),
+        cta ? '<!-- wp:buttons -->\n<div class="wp-block-buttons"><!-- wp:button -->\n<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/request">'+cta.replace(/[<&]/g,ch=>ch==="<"?"&lt;":"&amp;")+'</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->' : ""
+      ].filter(Boolean).join("\n\n");
+
+      const payload={
+        query,
+        target_page:targetPage,
+        approved_changes:normalized,
+        wordpress:{
+          status:"prepared",
+          publish_status:"draft",
+          content_gutenberg:gutenberg,
+          seo_title:normalized.find(item=>item.label==="SEO title")?.value||"",
+          meta_description:normalized.find(item=>item.label==="Meta description")?.value||"",
+          schema_recommendation:normalized.find(item=>item.label==="Schema recommendation")?.value||"",
+          image_alt_text:normalized.find(item=>item.label==="Image alt text")?.value||""
+        }
+      };
+
+      const result=await env.DB.prepare("INSERT INTO seo_wordpress_drafts(query,target_page,payload_json,status) VALUES(?,?,?,'prepared')")
+        .bind(query,targetPage,JSON.stringify(payload)).run();
+      return Response.json({
+        ok:true,
+        draft:{
+          id:Number(result?.meta?.last_row_id||0),
+          target_page:targetPage,
+          status:"prepared",
+          publish_status:"draft",
+          payload
+        },
+        message:"WordPress draft package prepared. Nothing has been published or changed on the live site."
+      });
+    }
+
     // =========================================================
     // PRIVATE PORTAL ROUTING
     // =========================================================
