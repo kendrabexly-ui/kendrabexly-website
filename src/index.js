@@ -9163,7 +9163,7 @@ if (
     // =========================================================
 
     async function ensureGoogleAcquisitionTables() {
-      await env.DB.prepare(\`CREATE TABLE IF NOT EXISTS google_acquisition_visits (
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS google_acquisition_visits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         medium TEXT NOT NULL DEFAULT 'organic',
@@ -9171,15 +9171,15 @@ if (
         referrer_host TEXT,
         utm_campaign TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )\`).run();
-      await env.DB.prepare(\`CREATE TABLE IF NOT EXISTS google_acquisition_conversions (
+      )`).run();
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS google_acquisition_conversions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         conversion_type TEXT NOT NULL,
         path TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )\`).run();
-      await env.DB.prepare(\`CREATE TABLE IF NOT EXISTS seo_query_data (
+      )`).run();
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS seo_query_data (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         query TEXT NOT NULL,
         landing_page TEXT,
@@ -9189,26 +9189,26 @@ if (
         position REAL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(query, landing_page)
-      )\`).run();
+      )`).run();
     }
 
     if (url.pathname === "/api/admin/google-acquisition/overview" && request.method === "GET") {
       await ensureGoogleAcquisitionTables();
-      const visits = await env.DB.prepare(\`SELECT
+      const visits = await env.DB.prepare(`SELECT
           COUNT(*) AS visits,
           SUM(CASE WHEN source='google' THEN 1 ELSE 0 END) AS google_visits,
           SUM(CASE WHEN source='bing' THEN 1 ELSE 0 END) AS bing_visits
         FROM google_acquisition_visits
-        WHERE datetime(created_at) >= datetime('now','-30 days')\`).first();
-      const conversions = await env.DB.prepare(\`SELECT COUNT(*) AS conversions
+        WHERE datetime(created_at) >= datetime('now','-30 days')`).first();
+      const conversions = await env.DB.prepare(`SELECT COUNT(*) AS conversions
         FROM google_acquisition_conversions
-        WHERE datetime(created_at) >= datetime('now','-30 days')\`).first();
-      const pages = await env.DB.prepare(\`SELECT landing_path,COUNT(*) AS visits
+        WHERE datetime(created_at) >= datetime('now','-30 days')`).first();
+      const pages = await env.DB.prepare(`SELECT landing_path,COUNT(*) AS visits
         FROM google_acquisition_visits
         WHERE datetime(created_at) >= datetime('now','-30 days')
-        GROUP BY landing_path ORDER BY visits DESC LIMIT 12\`).all();
-      const queries = await env.DB.prepare(\`SELECT query,landing_page,clicks,impressions,ctr,position,updated_at
-        FROM seo_query_data ORDER BY impressions DESC, clicks DESC LIMIT 100\`).all();
+        GROUP BY landing_path ORDER BY visits DESC LIMIT 12`).all();
+      const queries = await env.DB.prepare(`SELECT query,landing_page,clicks,impressions,ctr,position,updated_at
+        FROM seo_query_data ORDER BY impressions DESC, clicks DESC LIMIT 100`).all();
 
       const defaults = [
         {query:"Los Angeles companion",intent:"High",page:"/meet-kendra/",action:"Strengthen title, H1, internal links, and branded trust signals."},
@@ -9267,10 +9267,10 @@ if (
         if(ctr>1)ctr=ctr/100;
         const position=row?.position===null||row?.position===undefined?null:Number(row.position);
         if(!query){skipped++;continue;}
-        await env.DB.prepare(\`INSERT INTO seo_query_data(query,landing_page,clicks,impressions,ctr,position,updated_at)
+        await env.DB.prepare(`INSERT INTO seo_query_data(query,landing_page,clicks,impressions,ctr,position,updated_at)
           VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)
           ON CONFLICT(query,landing_page) DO UPDATE SET
-            clicks=excluded.clicks,impressions=excluded.impressions,ctr=excluded.ctr,position=excluded.position,updated_at=CURRENT_TIMESTAMP\`)
+            clicks=excluded.clicks,impressions=excluded.impressions,ctr=excluded.ctr,position=excluded.position,updated_at=CURRENT_TIMESTAMP`)
           .bind(query,landing||null,Math.round(clicks),Math.round(impressions),Math.max(0,ctr),Number.isFinite(position)?position:null).run();
         imported++;
       }
@@ -9287,7 +9287,7 @@ if (
         {role:"system",content:"Create a concise organic SEO brief for Kendra Bexly, a lawful Los Angeles social companion brand. Do not promote sexual services, paid sex, or explicit acts. Focus on social companionship, upscale date experiences, business travel, dinners, events, discretion, and Los Angeles visitor intent. Avoid keyword stuffing. Return JSON only with: seo_title, meta_description, h1, supporting_headings (array), content_angle, internal_links (array), cta."},
         {role:"user",content:"Target search query: "+query+"\nCurrent/target page: "+(page||"Not assigned")+"\nBrand tagline: Your Invitation to Something More."}
       ],max_tokens:700,temperature:0.45});
-      const raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^\`\`\`json\s*/i,"").replace(/\`\`\`$/,"").trim();
+      const raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^```json\s*/i,"").replace(/```$/,"").trim();
       try{return Response.json({ok:true,brief:JSON.parse(raw)});}catch(e){return Response.json({ok:true,brief:{content_angle:raw}});}
     }
 
