@@ -9483,6 +9483,83 @@ function escapeHtml(value) {
   });
 
   document.addEventListener("click",async e=>{
+    const copyChangesBtn=e.target.closest("[data-ga-copy-approved]");
+    if(copyChangesBtn){
+      const review=copyChangesBtn.closest("[data-ga-change-review]");
+      if(!review)return;
+      const lines=[];
+      review.querySelectorAll("[data-ga-change-item]").forEach(item=>{
+        const checked=item.querySelector('input[type="checkbox"]')?.checked;
+        if(!checked)return;
+        const label=item.querySelector("[data-ga-change-label]")?.textContent||"Change";
+        const field=item.querySelector("textarea, input[type='text']");
+        const value=field?.value?.trim()||"";
+        if(value)lines.push(label+"\n"+value);
+      });
+      if(!lines.length){copyChangesBtn.textContent="Nothing approved";setTimeout(()=>copyChangesBtn.textContent="Copy Approved Changes",1600);return;}
+      try{
+        await navigator.clipboard.writeText(lines.join("\n\n"));
+        copyChangesBtn.textContent="Copied";
+      }catch(err){copyChangesBtn.textContent="Copy failed";}
+      setTimeout(()=>copyChangesBtn.textContent="Copy Approved Changes",1600);
+      return;
+    }
+
+    const prepareBtn=e.target.closest("[data-ga-prepare-changes]");
+    if(prepareBtn){
+      const out=prepareBtn.closest("[data-ga-brief-output]");
+      if(!out || !out.__seoBrief)return;
+      const reviewHost=out.querySelector("[data-ga-change-review-host]");
+      prepareBtn.disabled=true;
+      prepareBtn.textContent="Preparing…";
+      if(reviewHost){reviewHost.innerHTML='<div style="padding:12px;border:1px solid var(--line);border-radius:9px;background:white;">Preparing proposed page changes…</div>';}
+      try{
+        const r=await fetch("/api/admin/google-acquisition/page-changes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:out.__seoQuery,page:out.__seoPage,brief:out.__seoBrief})});
+        const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to prepare page changes.");
+        const p=d.changes||{};
+        const sections=Array.isArray(p.sections)?p.sections:[];
+        const internalLinks=Array.isArray(p.internal_links)?p.internal_links:[];
+        const alts=Array.isArray(p.image_alt_text)?p.image_alt_text:[];
+        const notes=Array.isArray(p.implementation_notes)?p.implementation_notes:[];
+        const item=(label,value,rows=2)=> value?'<div data-ga-change-item style="padding:12px;border:1px solid var(--line);border-radius:9px;background:white;">'+
+          '<label style="display:flex;gap:9px;align-items:flex-start;font-weight:700;"><input type="checkbox" checked style="margin-top:3px;"><span data-ga-change-label>'+esc(label)+'</span></label>'+
+          '<textarea rows="'+rows+'" style="width:100%;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;resize:vertical;">'+esc(value)+'</textarea>'+
+        '</div>':'';
+        const sectionItems=sections.map((section,i)=>item('Section '+(i+1)+': '+String(section.heading||'Supporting section'),String(section.heading||'')+"\n\n"+String(section.body||''),5)).join("");
+        const linkText=internalLinks.map(x=>String(x.anchor_text||"")+" → "+String(x.target_page||"")+(x.placement?"\nPlacement: "+x.placement:"")).join("\n\n");
+        const altText=alts.join("\n");
+        const noteText=notes.join("\n");
+        if(reviewHost){
+          reviewHost.innerHTML=
+            '<div data-ga-change-review style="margin-top:14px;">'+
+              '<div style="font-size:17px;font-weight:700;">Proposed Page Changes</div>'+
+              '<div style="margin-top:5px;font-size:13px;color:var(--muted);">Review each item. Checked items are approved for your action plan. Uncheck anything you want to skip, or edit the wording directly before copying.</div>'+
+              '<div style="display:grid;gap:10px;margin-top:12px;">'+
+                item("SEO title",p.seo_title||"",2)+
+                item("Meta description",p.meta_description||"",3)+
+                item("H1",p.h1||"",2)+
+                sectionItems+
+                item("Internal links",linkText,4)+
+                item("Image alt text",altText,4)+
+                item("Schema recommendation",p.schema_recommendation||"",4)+
+                item("CTA",p.cta_text||"",2)+
+                item("Implementation notes",noteText,4)+
+              '</div>'+
+              '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+                '<button type="button" data-ga-copy-approved>Copy Approved Changes</button>'+
+              '</div>'+
+              '<div style="margin-top:10px;font-size:12px;color:var(--muted);">This prepares the edit set for review. It does not publish anything to WordPress automatically.</div>'+
+            '</div>';
+        }
+      }catch(err){
+        if(reviewHost)reviewHost.innerHTML='<div class="empty">'+esc(err.message)+'</div>';
+      }finally{
+        prepareBtn.disabled=false;
+        prepareBtn.textContent="Prepare Page Changes";
+      }
+      return;
+    }
+
     const copyBtn=e.target.closest("[data-ga-copy-brief]");
     if(copyBtn){
       const out=copyBtn.closest("[data-ga-brief-output]");
@@ -9512,6 +9589,9 @@ function escapeHtml(value) {
       const alts=Array.isArray(b.image_alt_text)?b.image_alt_text:[];
       const headings=Array.isArray(b.supporting_headings)?b.supporting_headings:[];
       const targetPage=b.target_page||btn.dataset.page||"Choose the best matching public page";
+      out.__seoBrief=b;
+      out.__seoQuery=btn.dataset.query||"";
+      out.__seoPage=targetPage;
 
       out.innerHTML=
         '<div data-ga-brief-copy-text>'+
@@ -9530,17 +9610,19 @@ function escapeHtml(value) {
           (b.cta?'<div style="margin-top:8px;"><b>CTA:</b> '+esc(b.cta)+'</div>':'')+
           '<div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:9px;background:white;">'+
             '<div style="font-weight:700;">What should I do with this?</div>'+
-            '<div style="margin-top:6px;font-size:13px;line-height:1.55;">Use this brief as the edit checklist for <b>'+esc(targetPage)+'</b>. Make the recommended WordPress changes, preview the page before publishing, then monitor impressions, clicks, average position, Google visits, and introductions started. Avoid changing several unrelated pages for the same keyword at once.</div>'+
+            '<div style="margin-top:6px;font-size:13px;line-height:1.55;">Use this brief as the edit checklist for <b>'+esc(targetPage)+'</b>. The next step can now be prepared for you below. Review every proposed edit before publishing anything.</div>'+
             (b.next_action?'<div style="margin-top:8px;font-size:13px;"><b>Next action:</b> '+esc(b.next_action)+'</div>':'')+
           '</div>'+
         '</div>'+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+          '<button type="button" data-ga-prepare-changes>Prepare Page Changes</button>'+
           '<button type="button" data-ga-copy-brief>Copy Action Plan</button>'+
-        '</div>';
+        '</div>'+
+        '<div data-ga-change-review-host></div>';
     }catch(err){if(out)out.textContent=err.message;}finally{btn.disabled=false;}
   });
 
-    document.querySelector('[data-section="google-acquisition"]')?.addEventListener("click",()=>setTimeout(loadGoogleAcquisition,0));
+      document.querySelector('[data-section="google-acquisition"]')?.addEventListener("click",()=>setTimeout(loadGoogleAcquisition,0));
 })();
 </script>
 
