@@ -9077,16 +9077,10 @@ if (
       await runVerificationRetention(env);
 
       // X Agent automatic posting windows, Los Angeles time.
-      // Auto posts only come from the reviewed Tweet Bank items with Auto Pick enabled.
-      // Strongest cadence is Tuesday through Thursday, with lighter Monday/Friday coverage.
-      // Weekends and late nights are intentionally excluded.
-      const xAutoPostSlots = {
-        1: ["10:30"],
-        2: ["09:30", "12:30"],
-        3: ["09:15", "12:15"],
-        4: ["10:00", "13:00"],
-        5: ["10:30"]
-      };
+      // Auto posts only come from reviewed Tweet Bank items with Auto Pick enabled.
+      // Publish 3 to 5 times per day across mornings, afternoons, evenings, and late nights.
+      // Times vary by date so the cadence does not look mechanically repeated.
+      const localNow = new Date();
       const laParts = Object.fromEntries(
         new Intl.DateTimeFormat("en-US", {
           timeZone: SITE_TIME_ZONE,
@@ -9097,12 +9091,50 @@ if (
           hour: "2-digit",
           minute: "2-digit",
           hour12: false
-        }).formatToParts(new Date()).filter(p=>p.type!=="literal").map(p=>[p.type,p.value])
+        }).formatToParts(localNow).filter(p=>p.type!=="literal").map(p=>[p.type,p.value])
       );
-      const weekdayNumber = ({Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6,Sun:0})[laParts.weekday];
       const localDate = laParts.year+"-"+laParts.month+"-"+laParts.day;
       const localTime = laParts.hour+":"+laParts.minute;
-      const matchedAutoSlot = (xAutoPostSlots[weekdayNumber]||[]).find(slot=>slot===localTime);
+
+      // Deterministic daily variation: the same calendar date always produces
+      // the same slots, while tomorrow gets a different pattern.
+      const hashSeed = [...localDate].reduce((a,ch)=>((a*31)+ch.charCodeAt(0))>>>0,2166136261);
+      const seeded = n => {
+        let x=(hashSeed ^ (n*0x9e3779b9))>>>0;
+        x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+        return (x>>>0)/4294967295;
+      };
+      const postCount = 3 + Math.floor(seeded(1)*3); // 3, 4, or 5 posts
+
+      const windows = [
+        {start:480,end:690},    // 8:00 AM to 11:30 AM
+        {start:690,end:900},    // 11:30 AM to 3:00 PM
+        {start:900,end:1140},   // 3:00 PM to 7:00 PM
+        {start:1140,end:1320},  // 7:00 PM to 10:00 PM
+        {start:1320,end:1439}   // 10:00 PM to 11:59 PM
+      ];
+
+      const selectedIndexes = [];
+      // Always spread posts across the day. For 3 posts use morning/afternoon/evening,
+      // for 4 add late evening, for 5 use all windows.
+      if (postCount===3) selectedIndexes.push(0,2,4);
+      else if (postCount===4) selectedIndexes.push(0,1,3,4);
+      else selectedIndexes.push(0,1,2,3,4);
+
+      const autoSlots = selectedIndexes.map((windowIndex,idx)=>{
+        const w=windows[windowIndex];
+        const span=w.end-w.start;
+        let minute=w.start+Math.floor(seeded(10+idx)*Math.max(1,span));
+        // Avoid obvious clock patterns like exactly :00, :15, :30, :45.
+        const bad=[0,15,30,45];
+        const minutePart=minute%60;
+        if(bad.includes(minutePart)) minute=Math.min(w.end,minute+7);
+        const hh=String(Math.floor(minute/60)).padStart(2,"0");
+        const mm=String(minute%60).padStart(2,"0");
+        return hh+":"+mm;
+      });
+
+      const matchedAutoSlot = autoSlots.find(slot=>slot===localTime);
 
       if (matchedAutoSlot) {
         await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_auto_post_log (
@@ -9164,6 +9196,7 @@ if (
           }
         }
       }
+
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_scheduled_posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,draft_id INTEGER NOT NULL UNIQUE,scheduled_for TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'scheduled',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )`).run();
