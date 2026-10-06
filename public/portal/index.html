@@ -9483,6 +9483,22 @@ function escapeHtml(value) {
   });
 
   document.addEventListener("click",async e=>{
+    const copyBtn=e.target.closest("[data-ga-copy-brief]");
+    if(copyBtn){
+      const out=copyBtn.closest("[data-ga-brief-output]");
+      const text=out?.querySelector("[data-ga-brief-copy-text]")?.innerText||"";
+      if(!text)return;
+      const original=copyBtn.textContent;
+      try{
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent="Copied";
+      }catch(err){
+        copyBtn.textContent="Copy failed";
+      }
+      setTimeout(()=>{copyBtn.textContent=original;},1600);
+      return;
+    }
+
     const btn=e.target.closest("[data-ga-brief]");
     if(!btn)return;
     const out=btn.closest("article")?.querySelector("[data-ga-brief-output]");
@@ -9491,16 +9507,40 @@ function escapeHtml(value) {
       const r=await fetch("/api/admin/google-acquisition/content-brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:btn.dataset.query,page:btn.dataset.page})});
       const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to create brief.");
       const b=d.brief||{};
-      out.innerHTML='<strong>'+esc(b.seo_title||"SEO Brief")+'</strong>'+
-        (b.meta_description?'<div style="margin-top:6px;"><b>Meta:</b> '+esc(b.meta_description)+'</div>':'')+
-        (b.h1?'<div style="margin-top:6px;"><b>H1:</b> '+esc(b.h1)+'</div>':'')+
-        ((b.supporting_headings||[]).length?'<div style="margin-top:6px;"><b>Headings:</b> '+(b.supporting_headings||[]).map(esc).join(" · ")+'</div>':'')+
-        (b.content_angle?'<div style="margin-top:6px;"><b>Angle:</b> '+esc(b.content_angle)+'</div>':'')+
-        (b.cta?'<div style="margin-top:6px;"><b>CTA:</b> '+esc(b.cta)+'</div>':'');
+      const changes=Array.isArray(b.recommended_changes)?b.recommended_changes:[];
+      const links=Array.isArray(b.internal_links)?b.internal_links:[];
+      const alts=Array.isArray(b.image_alt_text)?b.image_alt_text:[];
+      const headings=Array.isArray(b.supporting_headings)?b.supporting_headings:[];
+      const targetPage=b.target_page||btn.dataset.page||"Choose the best matching public page";
+
+      out.innerHTML=
+        '<div data-ga-brief-copy-text>'+
+          '<div style="font-size:17px;font-weight:700;">SEO Brief</div>'+
+          '<div style="margin-top:10px;"><b>Target page:</b> '+esc(targetPage)+'</div>'+
+          (b.why_this_matters?'<div style="margin-top:8px;"><b>Why this matters:</b> '+esc(b.why_this_matters)+'</div>':'')+
+          (b.seo_title?'<div style="margin-top:8px;"><b>SEO title:</b> '+esc(b.seo_title)+'</div>':'')+
+          (b.meta_description?'<div style="margin-top:8px;"><b>Meta description:</b> '+esc(b.meta_description)+'</div>':'')+
+          (b.h1?'<div style="margin-top:8px;"><b>H1:</b> '+esc(b.h1)+'</div>':'')+
+          (headings.length?'<div style="margin-top:8px;"><b>Supporting headings:</b> '+headings.map(esc).join(" · ")+'</div>':'')+
+          (b.content_angle?'<div style="margin-top:8px;"><b>Content angle:</b> '+esc(b.content_angle)+'</div>':'')+
+          (changes.length?'<div style="margin-top:12px;"><b>Recommended changes:</b><ol style="margin:7px 0 0 20px;padding:0;">'+changes.map(x=>'<li style="margin:5px 0;">'+esc(x)+'</li>').join("")+'</ol></div>':'')+
+          (links.length?'<div style="margin-top:8px;"><b>Internal links:</b> '+links.map(esc).join(" · ")+'</div>':'')+
+          (alts.length?'<div style="margin-top:8px;"><b>Image alt text ideas:</b> '+alts.map(esc).join(" · ")+'</div>':'')+
+          (b.schema_recommendation?'<div style="margin-top:8px;"><b>Schema:</b> '+esc(b.schema_recommendation)+'</div>':'')+
+          (b.cta?'<div style="margin-top:8px;"><b>CTA:</b> '+esc(b.cta)+'</div>':'')+
+          '<div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:9px;background:white;">'+
+            '<div style="font-weight:700;">What should I do with this?</div>'+
+            '<div style="margin-top:6px;font-size:13px;line-height:1.55;">Use this brief as the edit checklist for <b>'+esc(targetPage)+'</b>. Make the recommended WordPress changes, preview the page before publishing, then monitor impressions, clicks, average position, Google visits, and introductions started. Avoid changing several unrelated pages for the same keyword at once.</div>'+
+            (b.next_action?'<div style="margin-top:8px;font-size:13px;"><b>Next action:</b> '+esc(b.next_action)+'</div>':'')+
+          '</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+          '<button type="button" data-ga-copy-brief>Copy Action Plan</button>'+
+        '</div>';
     }catch(err){if(out)out.textContent=err.message;}finally{btn.disabled=false;}
   });
 
-  document.querySelector('[data-section="google-acquisition"]')?.addEventListener("click",()=>setTimeout(loadGoogleAcquisition,0));
+    document.querySelector('[data-section="google-acquisition"]')?.addEventListener("click",()=>setTimeout(loadGoogleAcquisition,0));
 })();
 </script>
 
