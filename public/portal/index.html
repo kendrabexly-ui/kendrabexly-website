@@ -7003,137 +7003,6 @@ function escapeHtml(value) {
                 if (w) {
                   w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}.offer-button{display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff!important;text-decoration:none;border-radius:6px;font:14px Arial,sans-serif}.offer-note{margin:12px 0 0!important;font:12px Arial,sans-serif!important;color:#77736f}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1>${newsletterImage ? `<img src="${newsletterImage}" alt="" style="display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin:0 0 24px;">` : ""}<p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p><a class="offer-button" href="/request?newsletter_offer=${encodeURIComponent(id)}">💋 Book My Subscriber Special</a><p class="offer-note">Book through this button so your subscriber special is automatically attached to your request.</p></div></main>
 \n
-<script>
-(() => {
-  let prospectCategory="all";
-  const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
-
-  function tempLabel(score){
-    if(score>=80)return "Priority";
-    if(score>=60)return "Warm";
-    if(score>=40)return "Developing";
-    if(score>=20)return "Low Intent";
-    return "Ignore";
-  }
-
-  function setProspectTab(category){
-    prospectCategory=category||"all";
-    document.querySelectorAll("[data-prospect-category]").forEach(btn=>{
-      const active=btn.dataset.prospectCategory===prospectCategory;
-      btn.setAttribute("aria-pressed",active?"true":"false");
-      btn.style.background=active?"var(--ink)":"white";
-      btn.style.color=active?"white":"var(--ink)";
-    });
-  }
-
-  async function runProspectSearch(customQuery=""){
-    const box=document.getElementById("x-prospect-results");
-    const summary=document.getElementById("x-prospect-summary");
-    const run=document.getElementById("x-prospect-run");
-    if(!box||!summary)return;
-    run && (run.disabled=true);
-    summary.textContent="Searching public X posts and scoring matches…";
-    box.innerHTML='<div class="empty">Searching…</div>';
-    try{
-      const params=new URLSearchParams({category:prospectCategory});
-      if(customQuery)params.set("q",customQuery);
-      const r=await fetch("/api/admin/x/prospects?"+params.toString());
-      const d=await r.json();
-      if(!r.ok||!d.ok)throw new Error(d.message||"Unable to search prospects.");
-      summary.textContent=(d.prospects?.length||0)+" qualified public posts found. Highest-intent matches are shown first.";
-      if(!d.prospects?.length){
-        box.innerHTML='<div class="empty">No qualified matches were found in the recent X search window.</div>';
-        return;
-      }
-      box.innerHTML=d.prospects.map(p=>{
-        const reasons=(p.reasons||[]).map(x=>'<span style="display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:11px;background:white;">'+esc(x)+'</span>').join(" ");
-        return '<article data-prospect-card style="padding:16px 0;border-bottom:1px solid var(--line);">'+
-          '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">'+
-            '<div><strong>'+esc(p.name||("@"+p.username))+'</strong> <span style="color:var(--muted);">@'+esc(p.username)+'</span>'+
-            '<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+esc(p.category||"prospect")+'</div></div>'+
-            '<div style="text-align:right;"><strong style="font-size:18px;">'+Number(p.score||0)+'</strong><div style="font-size:11px;color:var(--muted);">'+esc(tempLabel(Number(p.score||0)))+'</div></div>'+
-          '</div>'+
-          '<div style="white-space:pre-wrap;margin:11px 0;line-height:1.55;">'+esc(p.text)+'</div>'+
-          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px;">'+reasons+'</div>'+
-          '<div style="display:flex;gap:7px;flex-wrap:wrap;">'+
-            '<a href="'+esc(p.profile_url)+'" target="_blank" rel="noopener" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);text-decoration:none;">View Profile</a>'+
-            '<a href="'+esc(p.tweet_url)+'" target="_blank" rel="noopener" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);text-decoration:none;">View Post</a>'+
-            '<button type="button" data-prospect-draft data-user="'+esc(p.username)+'" data-text="'+esc(p.text)+'">Draft Reply</button>'+
-            '<button type="button" data-prospect-related data-text="'+esc(p.text)+'">Create Related Post</button>'+
-            '<button type="button" data-prospect-media>Use Approved Photo</button>'+
-            '<button type="button" data-prospect-site>Share Website</button>'+
-          '</div>'+
-          '<div data-prospect-draft-output style="display:none;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--cream);"></div>'+
-        '</article>';
-      }).join("");
-    }catch(err){
-      summary.textContent="Prospect search unavailable.";
-      box.innerHTML='<div class="empty">'+esc(err.message)+'</div>';
-    }finally{
-      run && (run.disabled=false);
-    }
-  }
-
-  document.addEventListener("click",async e=>{
-    const tab=e.target.closest("[data-prospect-category]");
-    if(tab){setProspectTab(tab.dataset.prospectCategory);return;}
-
-    if(e.target.closest("#x-prospect-run")){runProspectSearch("");return;}
-    if(e.target.closest("#x-prospect-custom-run")){
-      runProspectSearch(document.getElementById("x-prospect-custom")?.value.trim()||"");
-      return;
-    }
-
-    const draft=e.target.closest("[data-prospect-draft]");
-    if(draft){
-      const card=draft.closest("[data-prospect-card]"),out=card?.querySelector("[data-prospect-draft-output]");
-      draft.disabled=true;if(out){out.style.display="block";out.textContent="Drafting a natural reply…";}
-      try{
-        const r=await fetch("/api/admin/x/prospect-reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:draft.dataset.user,text:draft.dataset.text,action:"reply"})});
-        const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to draft reply.");
-        out.innerHTML='<div style="white-space:pre-wrap;">'+esc(d.content)+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;"><button type="button" data-copy-prospect-reply>Copy Reply</button><span style="font-size:12px;color:var(--muted);align-self:center;">Review before posting. Nothing is sent automatically.</span></div>';
-      }catch(err){if(out)out.textContent=err.message;}finally{draft.disabled=false;}
-      return;
-    }
-
-    const copy=e.target.closest("[data-copy-prospect-reply]");
-    if(copy){
-      const text=copy.closest("[data-prospect-draft-output]")?.querySelector("div")?.textContent||"";
-      if(text)await navigator.clipboard.writeText(text);
-      copy.textContent="Copied";
-      return;
-    }
-
-    const related=e.target.closest("[data-prospect-related]");
-    if(related){
-      const idea=document.getElementById("x-ai-idea");
-      if(idea)idea.value="Create a natural Los Angeles post inspired by this public conversation without naming or quoting the person: "+related.dataset.text;
-      document.querySelector('[data-x-jump="create"]')?.click();
-      idea?.focus();
-      return;
-    }
-
-    if(e.target.closest("[data-prospect-media]")){
-      document.querySelector('[data-x-jump="library"]')?.click();
-      const filter=document.getElementById("x-library-filter");
-      if(filter){filter.value="all";filter.dispatchEvent(new Event("change",{bubbles:true}));}
-      return;
-    }
-
-    const site=e.target.closest("[data-prospect-site]");
-    if(site){
-      await navigator.clipboard.writeText("https://kendrabexly.com");
-      site.textContent="Website Copied";
-      setTimeout(()=>site.textContent="Share Website",1400);
-    }
-  });
-
-  document.getElementById("x-prospect-custom")?.addEventListener("keydown",e=>{
-    if(e.key==="Enter"){e.preventDefault();runProspectSearch(e.currentTarget.value.trim());}
-  });
-  setProspectTab("all");
-})();
-</script>
 
 </body></html>`);
                   w.document.close();
@@ -9175,5 +9044,137 @@ function escapeHtml(value) {
 
 
 
+
+<script>
+(() => {
+  let prospectCategory="all";
+  const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+
+  function tempLabel(score){
+    if(score>=80)return "Priority";
+    if(score>=60)return "Warm";
+    if(score>=40)return "Developing";
+    if(score>=20)return "Low Intent";
+    return "Ignore";
+  }
+
+  function setProspectTab(category){
+    prospectCategory=category||"all";
+    document.querySelectorAll("[data-prospect-category]").forEach(btn=>{
+      const active=btn.dataset.prospectCategory===prospectCategory;
+      btn.setAttribute("aria-pressed",active?"true":"false");
+      btn.style.background=active?"var(--ink)":"white";
+      btn.style.color=active?"white":"var(--ink)";
+    });
+  }
+
+  async function runProspectSearch(customQuery=""){
+    const box=document.getElementById("x-prospect-results");
+    const summary=document.getElementById("x-prospect-summary");
+    const run=document.getElementById("x-prospect-run");
+    if(!box||!summary)return;
+    run && (run.disabled=true);
+    summary.textContent="Searching public X posts and scoring matches…";
+    box.innerHTML='<div class="empty">Searching…</div>';
+    try{
+      const params=new URLSearchParams({category:prospectCategory});
+      if(customQuery)params.set("q",customQuery);
+      const r=await fetch("/api/admin/x/prospects?"+params.toString());
+      const d=await r.json();
+      if(!r.ok||!d.ok)throw new Error(d.message||"Unable to search prospects.");
+      summary.textContent=(d.prospects?.length||0)+" qualified public posts found. Highest-intent matches are shown first.";
+      if(!d.prospects?.length){
+        box.innerHTML='<div class="empty">No qualified matches were found in the recent X search window.</div>';
+        return;
+      }
+      box.innerHTML=d.prospects.map(p=>{
+        const reasons=(p.reasons||[]).map(x=>'<span style="display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:11px;background:white;">'+esc(x)+'</span>').join(" ");
+        return '<article data-prospect-card style="padding:16px 0;border-bottom:1px solid var(--line);">'+
+          '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">'+
+            '<div><strong>'+esc(p.name||("@"+p.username))+'</strong> <span style="color:var(--muted);">@'+esc(p.username)+'</span>'+
+            '<div style="font-size:12px;color:var(--muted);margin-top:3px;">'+esc(p.category||"prospect")+'</div></div>'+
+            '<div style="text-align:right;"><strong style="font-size:18px;">'+Number(p.score||0)+'</strong><div style="font-size:11px;color:var(--muted);">'+esc(tempLabel(Number(p.score||0)))+'</div></div>'+
+          '</div>'+
+          '<div style="white-space:pre-wrap;margin:11px 0;line-height:1.55;">'+esc(p.text)+'</div>'+
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px;">'+reasons+'</div>'+
+          '<div style="display:flex;gap:7px;flex-wrap:wrap;">'+
+            '<a href="'+esc(p.profile_url)+'" target="_blank" rel="noopener" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);text-decoration:none;">View Profile</a>'+
+            '<a href="'+esc(p.tweet_url)+'" target="_blank" rel="noopener" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);text-decoration:none;">View Post</a>'+
+            '<button type="button" data-prospect-draft data-user="'+esc(p.username)+'" data-text="'+esc(p.text)+'">Draft Reply</button>'+
+            '<button type="button" data-prospect-related data-text="'+esc(p.text)+'">Create Related Post</button>'+
+            '<button type="button" data-prospect-media>Use Approved Photo</button>'+
+            '<button type="button" data-prospect-site>Share Website</button>'+
+          '</div>'+
+          '<div data-prospect-draft-output style="display:none;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--cream);"></div>'+
+        '</article>';
+      }).join("");
+    }catch(err){
+      summary.textContent="Prospect search unavailable.";
+      box.innerHTML='<div class="empty">'+esc(err.message)+'</div>';
+    }finally{
+      run && (run.disabled=false);
+    }
+  }
+
+  document.addEventListener("click",async e=>{
+    const tab=e.target.closest("[data-prospect-category]");
+    if(tab){setProspectTab(tab.dataset.prospectCategory);return;}
+
+    if(e.target.closest("#x-prospect-run")){runProspectSearch("");return;}
+    if(e.target.closest("#x-prospect-custom-run")){
+      runProspectSearch(document.getElementById("x-prospect-custom")?.value.trim()||"");
+      return;
+    }
+
+    const draft=e.target.closest("[data-prospect-draft]");
+    if(draft){
+      const card=draft.closest("[data-prospect-card]"),out=card?.querySelector("[data-prospect-draft-output]");
+      draft.disabled=true;if(out){out.style.display="block";out.textContent="Drafting a natural reply…";}
+      try{
+        const r=await fetch("/api/admin/x/prospect-reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:draft.dataset.user,text:draft.dataset.text,action:"reply"})});
+        const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to draft reply.");
+        out.innerHTML='<div style="white-space:pre-wrap;">'+esc(d.content)+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;"><button type="button" data-copy-prospect-reply>Copy Reply</button><span style="font-size:12px;color:var(--muted);align-self:center;">Review before posting. Nothing is sent automatically.</span></div>';
+      }catch(err){if(out)out.textContent=err.message;}finally{draft.disabled=false;}
+      return;
+    }
+
+    const copy=e.target.closest("[data-copy-prospect-reply]");
+    if(copy){
+      const text=copy.closest("[data-prospect-draft-output]")?.querySelector("div")?.textContent||"";
+      if(text)await navigator.clipboard.writeText(text);
+      copy.textContent="Copied";
+      return;
+    }
+
+    const related=e.target.closest("[data-prospect-related]");
+    if(related){
+      const idea=document.getElementById("x-ai-idea");
+      if(idea)idea.value="Create a natural Los Angeles post inspired by this public conversation without naming or quoting the person: "+related.dataset.text;
+      document.querySelector('[data-x-jump="create"]')?.click();
+      idea?.focus();
+      return;
+    }
+
+    if(e.target.closest("[data-prospect-media]")){
+      document.querySelector('[data-x-jump="library"]')?.click();
+      const filter=document.getElementById("x-library-filter");
+      if(filter){filter.value="all";filter.dispatchEvent(new Event("change",{bubbles:true}));}
+      return;
+    }
+
+    const site=e.target.closest("[data-prospect-site]");
+    if(site){
+      await navigator.clipboard.writeText("https://kendrabexly.com");
+      site.textContent="Website Copied";
+      setTimeout(()=>site.textContent="Share Website",1400);
+    }
+  });
+
+  document.getElementById("x-prospect-custom")?.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){e.preventDefault();runProspectSearch(e.currentTarget.value.trim());}
+  });
+  setProspectTab("all");
+})();
+</script>
 </body>
 </html>
