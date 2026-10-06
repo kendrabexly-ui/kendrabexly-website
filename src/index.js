@@ -2723,6 +2723,131 @@ export default {
       return Response.json({ok:true,status:"sent",x_reply_id:replyId});
     }
 
+
+    // =========================================================
+    // X PROSPECT FINDER — public X search + lead scoring
+    // =========================================================
+
+    if (url.pathname === "/api/admin/x/prospects" && request.method === "GET") {
+      const token = await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id=1").first();
+      if (!token) return Response.json({ok:false,message:"X is not connected."},{status:400});
+
+      const category = String(url.searchParams.get("category") || "all").toLowerCase();
+      const custom = String(url.searchParams.get("q") || "").trim().slice(0,180);
+
+      // These searches are intentionally limited to public, self-expressed intent.
+      // Do not infer race, sexuality, income, or other sensitive traits from photos,
+      // names, follows, likes, or demographic assumptions.
+      const searchGroups = {
+        conventions: [
+          '("coming to LA" OR "coming to Los Angeles" OR "flying to LA" OR "in LA for") (convention OR conference OR expo OR summit OR "trade show") -is:retweet',
+          '("LA Convention Center" OR "Los Angeles Convention Center") (conference OR convention OR expo) -is:retweet'
+        ],
+        travelers: [
+          '("coming to LA" OR "visiting Los Angeles" OR "flying to LA" OR "business trip" OR "first time in LA" OR "solo in LA") -is:retweet',
+          '("just landed" OR "landing") (LAX OR "Los Angeles") -is:retweet'
+        ],
+        companion: [
+          '("need a plus one" OR "looking for company" OR "dinner companion" OR "looking for a date" OR "traveling alone" OR "show me around") (LA OR "Los Angeles") -is:retweet',
+          '("solo in LA" OR "alone in LA") (dinner OR plans OR tonight OR weekend) -is:retweet'
+        ],
+        preference: [
+          '("love Black women" OR "Black women are beautiful" OR "my type is Black women" OR "I date Black women" OR "looking to meet a Black woman") -is:retweet'
+        ],
+        luxury: [
+          '("Beverly Hills" OR "West Hollywood" OR "Century City" OR DTLA) ("dinner" OR "rooftop" OR "fine dining" OR "hotel" OR "business dinner" OR "what should I do tonight") -is:retweet'
+        ]
+      };
+
+      let queries = [];
+      if (custom) queries = [custom + " -is:retweet"];
+      else if (category === "all") queries = [...searchGroups.conventions, ...searchGroups.travelers, ...searchGroups.companion, ...searchGroups.preference, ...searchGroups.luxury];
+      else queries = searchGroups[category] || searchGroups.travelers;
+
+      const seen = new Set();
+      const prospects = [];
+      const maxQueries = Math.min(queries.length, category === "all" ? 6 : 3);
+
+      function scoreProspect(text, groupName) {
+        const t = String(text || "").toLowerCase();
+        let score = 0;
+        const reasons = [];
+        if (/\b(los angeles|lax|beverly hills|west hollywood|century city|dtla|\bla\b)/i.test(t)) { score += 12; reasons.push("Los Angeles signal"); }
+        if (/\b(coming|visiting|flying|landing|business trip|first time|traveling|travelling)\b/i.test(t)) { score += 12; reasons.push("Travel intent"); }
+        if (/\b(convention|conference|expo|summit|trade show)\b/i.test(t)) { score += 15; reasons.push("Convention/event"); }
+        if (/\b(plus one|looking for company|dinner companion|looking for a date|traveling alone|travelling alone|solo|show me around)\b/i.test(t)) { score += 25; reasons.push("Social companion intent"); }
+        if (/\b(love black women|black women are beautiful|my type is black women|i date black women|looking to meet a black woman)\b/i.test(t)) { score += 10; reasons.push("Self-expressed preference"); }
+        if (/\b(rooftop|fine dining|steakhouse|luxury hotel|business dinner|beverly hills|suite|tasting menu)\b/i.test(t)) { score += 8; reasons.push("Lifestyle match"); }
+        if (/\b(tonight|today|this weekend|tomorrow|this week)\b/i.test(t)) { score += 10; reasons.push("Near-term intent"); }
+        if (groupName === "conventions") score += 5;
+        if (groupName === "companion") score += 5;
+        return {score: Math.max(0, Math.min(100, score)), reasons};
+      }
+
+      for (let i=0; i<maxQueries; i++) {
+        const query = queries[i];
+        const endpoint = "https://api.x.com/2/tweets/search/recent?query=" + encodeURIComponent(query) +
+          "&max_results=20&tweet.fields=author_id,created_at,public_metrics,lang&expansions=author_id&user.fields=username,name,description,public_metrics,verified";
+        const rr = await fetch(endpoint,{headers:{Authorization:"Bearer "+token.access_token}});
+        const data = await rr.json().catch(()=>({}));
+        if (!rr.ok) {
+          if (rr.status===402 || rr.status===403) {
+            return Response.json({ok:false,message:"Your current X API access does not include recent-search access needed for Prospect Finder."},{status:rr.status});
+          }
+          continue;
+        }
+        const users = Object.fromEntries((data.includes?.users||[]).map(u=>[u.id,u]));
+        const groupName = custom ? "custom" : Object.keys(searchGroups).find(k=>searchGroups[k].includes(query)) || category;
+        for (const tweet of (data.data||[])) {
+          if (!tweet?.id || seen.has(tweet.id)) continue;
+          seen.add(tweet.id);
+          const author=users[tweet.author_id]||{};
+          const scored=scoreProspect(tweet.text,groupName);
+          if (scored.score < 20) continue;
+          prospects.push({
+            tweet_id:tweet.id,
+            text:tweet.text,
+            created_at:tweet.created_at,
+            username:author.username||"",
+            name:author.name||"",
+            description:author.description||"",
+            verified:Boolean(author.verified),
+            score:scored.score,
+            reasons:scored.reasons,
+            category:groupName,
+            profile_url:author.username ? "https://x.com/"+author.username : "",
+            tweet_url:author.username ? "https://x.com/"+author.username+"/status/"+tweet.id : "",
+            visibility_actions:["Draft Reply","Recommend Quote Post","Create Related Post","Use Approved Photo","Share Website","No Action"]
+          });
+        }
+      }
+
+      prospects.sort((a,b)=>b.score-a.score || String(b.created_at||"").localeCompare(String(a.created_at||"")));
+      return Response.json({ok:true,category,prospects:prospects.slice(0,60),rules:{
+        cold_dm:false,
+        auto_like:false,
+        auto_reply:false,
+        sensitive_inference:false,
+        human_approval_required:true
+      }});
+    }
+
+    if (url.pathname === "/api/admin/x/prospect-reply" && request.method === "POST") {
+      if (!env.AI) return Response.json({ok:false,message:"Workers AI is not connected."},{status:500});
+      const data=await request.json().catch(()=>({}));
+      const post=String(data.text||"").trim().slice(0,1200);
+      const username=String(data.username||"").trim().slice(0,80);
+      const action=String(data.action||"reply").trim().slice(0,40);
+      if(!post) return Response.json({ok:false,message:"Prospect post is missing."},{status:400});
+      const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+        {role:"system",content:KENDRA_VOICE_PROFILE+" Draft one natural, non-explicit public X response for a lawful social-companionship brand. Be useful and conversational first. Do not mention rates, deposits, sexual services, explicit acts, or imply sex for payment. Do not cold-DM. Never infer protected traits. If a preference is relevant, only acknowledge what the user explicitly stated. Return only the finished post text, under 280 characters."},
+        {role:"user",content:"Action: "+action+"\nProspect @"+username+" posted: "+post+"\nWrite a natural response that can earn a profile visit without sounding like an ad. Do not include the website unless their post explicitly asks how to contact or learn more."}
+      ],max_tokens:220,temperature:0.8});
+      const content=String(ai?.response||ai?.result?.response||"").trim().replace(/^[“"]|[”"]$/g,"").trim();
+      if(!content) return Response.json({ok:false,message:"AI returned an empty response."},{status:502});
+      return Response.json({ok:true,content:content.slice(0,280),requires_approval:true});
+    }
+
     // =========================================================
     // X AGENT DRAFTS + APPROVAL/PUBLISH
     // =========================================================
