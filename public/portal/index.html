@@ -9280,7 +9280,7 @@ function escapeHtml(value) {
       const parts=line.split(",").map(x=>x.trim());
       if(parts.length<4)continue;
       const [query,landing_page,clicks,impressions,ctr,position]=parts;
-      rows.push({query,landing_page,clicks:Number(clicks||0),impressions:Number(impressions||0),ctr:String(ctr||"0").replace("%",""),position:position===""?null:Number(position)});
+      const ctrText=String(ctr||"0").trim(); const ctrValue=ctrText.includes("%")?Number(ctrText.replace("%",""))/100:Number(ctrText||0); rows.push({query,landing_page,clicks:Number(clicks||0),impressions:Number(impressions||0),ctr:ctrValue,position:position===""?null:Number(position)});
     }
     return rows;
   }
