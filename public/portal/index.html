@@ -9483,6 +9483,54 @@ function escapeHtml(value) {
   });
 
   document.addEventListener("click",async e=>{
+    const wpDraftBtn=e.target.closest("[data-ga-wordpress-draft]");
+    if(wpDraftBtn){
+      const review=wpDraftBtn.closest("[data-ga-change-review]");
+      const out=wpDraftBtn.closest("[data-ga-brief-output]");
+      const status=review?.querySelector("[data-ga-wordpress-status]");
+      if(!review || !out)return;
+      const approved=[];
+      review.querySelectorAll("[data-ga-change-item]").forEach(item=>{
+        if(!item.querySelector('input[type="checkbox"]')?.checked)return;
+        const label=item.querySelector("[data-ga-change-label]")?.textContent||"Change";
+        const field=item.querySelector("textarea, input[type='text']");
+        const value=field?.value?.trim()||"";
+        if(value)approved.push({label,value});
+      });
+      if(!approved.length){if(status)status.textContent="Approve at least one change first.";return;}
+      wpDraftBtn.disabled=true;wpDraftBtn.textContent="Preparing WordPress Draft…";
+      if(status)status.textContent="Preparing a draft package. Nothing will be published.";
+      try{
+        const r=await fetch("/api/admin/google-acquisition/wordpress-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:out.__seoQuery,target_page:out.__seoPage,approved_changes:approved})});
+        const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to prepare WordPress draft.");
+        out.__wordpressDraft=d.draft;
+        if(status)status.innerHTML='<strong>WordPress draft package ready.</strong> Draft #'+esc(String(d.draft?.id||""))+'. Nothing has been published or changed on the live site.';
+        const copyWp=review.querySelector("[data-ga-copy-wordpress]");
+        if(copyWp)copyWp.hidden=false;
+      }catch(err){if(status)status.textContent=err.message;}
+      finally{wpDraftBtn.disabled=false;wpDraftBtn.textContent="Prepare WordPress Draft";}
+      return;
+    }
+
+    const copyWpBtn=e.target.closest("[data-ga-copy-wordpress]");
+    if(copyWpBtn){
+      const out=copyWpBtn.closest("[data-ga-brief-output]");
+      const payload=out?.__wordpressDraft?.payload;
+      if(!payload)return;
+      const text=[
+        "WORDPRESS DRAFT PACKAGE",
+        "Target page: "+String(payload.target_page||""),
+        payload.wordpress?.seo_title?"SEO title: "+payload.wordpress.seo_title:"",
+        payload.wordpress?.meta_description?"Meta description: "+payload.wordpress.meta_description:"",
+        payload.wordpress?.content_gutenberg?"Gutenberg content:\n"+payload.wordpress.content_gutenberg:"",
+        payload.wordpress?.image_alt_text?"Image alt text:\n"+payload.wordpress.image_alt_text:"",
+        payload.wordpress?.schema_recommendation?"Schema:\n"+payload.wordpress.schema_recommendation:""
+      ].filter(Boolean).join("\n\n");
+      try{await navigator.clipboard.writeText(text);copyWpBtn.textContent="Copied";}catch(err){copyWpBtn.textContent="Copy failed";}
+      setTimeout(()=>copyWpBtn.textContent="Copy WordPress Draft",1600);
+      return;
+    }
+
     const copyChangesBtn=e.target.closest("[data-ga-copy-approved]");
     if(copyChangesBtn){
       const review=copyChangesBtn.closest("[data-ga-change-review]");
@@ -9546,8 +9594,11 @@ function escapeHtml(value) {
                 item("Implementation notes",noteText,4)+
               '</div>'+
               '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+                '<button type="button" data-ga-wordpress-draft>Prepare WordPress Draft</button>'+
                 '<button type="button" data-ga-copy-approved>Copy Approved Changes</button>'+
-              '</div>'+
+                '<button type="button" data-ga-copy-wordpress hidden>Copy WordPress Draft</button>'+
+              '</div>'+ 
+              '<div data-ga-wordpress-status style="margin-top:10px;font-size:12px;color:var(--muted);">Prepare WordPress Draft creates a reviewable draft package only. It does not publish or change the live WordPress page.</div>'+
               '<div style="margin-top:10px;font-size:12px;color:var(--muted);">This prepares the edit set for review. It does not publish anything to WordPress automatically.</div>'+
             '</div>';
         }
