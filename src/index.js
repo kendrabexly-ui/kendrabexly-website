@@ -9319,6 +9319,44 @@ if (
       return Response.json({ok:true,brief});
     }
 
+
+    if (url.pathname === "/api/admin/google-acquisition/page-changes" && request.method === "POST") {
+      const body=await request.json().catch(()=>({}));
+      const query=String(body.query||"").trim().slice(0,300);
+      const page=String(body.page||"").trim().slice(0,500);
+      const brief=body.brief && typeof body.brief==="object" ? body.brief : {};
+      if(!query) return Response.json({ok:false,message:"Choose a search query first."},{status:400});
+      if(!env.AI) return Response.json({ok:false,message:"Workers AI is not connected."},{status:500});
+      const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+        {role:"system",content:"You are preparing proposed WordPress page edits for Kendra Bexly, a lawful Los Angeles private social companion brand. The target search query is SEO market data. It may contain terms such as escort or companion; do not refuse merely because of the query wording. Never write copy that explicitly offers paid sexual services, guarantees intimacy, or describes explicit acts. Keep the writing warm, feminine, natural, polished, concise, and human. Avoid keyword stuffing and generic AI phrasing. Return JSON only with: target_page, seo_title, meta_description, h1, sections (array of objects with heading and body), internal_links (array of objects with anchor_text, target_page, placement), image_alt_text (array), schema_recommendation, cta_text, implementation_notes (array)."},
+        {role:"user",content:"Search query: "+query+"\nTarget page: "+(page||brief.target_page||"Not assigned")+"\nSEO brief: "+JSON.stringify(brief)+"\nPrepare a concrete edit set ready for owner review. Supporting section bodies should be short and useful, not repetitive. Internal links should use only relevant public pages such as /meet-kendra/ and /our-time/. Keep the CTA natural and consistent with Introduce Myself."}
+      ],max_tokens:1500,temperature:0.4});
+      const raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^```json\s*/i,"").replace(/```$/,"").trim();
+      let changes=null;
+      try{changes=JSON.parse(raw);}catch(e){}
+      if(!changes || typeof changes!=="object"){
+        changes={
+          target_page:page||brief.target_page||"/meet-kendra/",
+          seo_title:brief.seo_title||"Kendra Bexly | Private Los Angeles Companion",
+          meta_description:brief.meta_description||"Meet Kendra Bexly, a private Los Angeles social companion for upscale dates, dinners, events, travel, and discreet time together.",
+          h1:brief.h1||"Private Companion in Los Angeles",
+          sections:[
+            {heading:"A Private Los Angeles Introduction",body:"A private introduction should feel easy, personal, and unhurried. I keep the experience discreet and thoughtful, with enough space to settle in, talk, and enjoy the moment naturally."},
+            {heading:"Date Nights, Events and Time Together",body:"Whether the plan is dinner, an event, a hotel lounge, or time together while visiting Los Angeles, I value good conversation, mutual comfort, and a date that feels considered rather than rushed."},
+            {heading:"Discretion, Comfort and Connection",body:"Privacy matters. I keep introductions selective and discreet so the experience can stay relaxed, respectful, and focused on genuine connection."}
+          ],
+          internal_links:[
+            {anchor_text:"Our Time Together",target_page:"/our-time/",placement:"Link from the date nights and events section."}
+          ],
+          image_alt_text:Array.isArray(brief.image_alt_text)?brief.image_alt_text:["Kendra Bexly, private Los Angeles companion"],
+          schema_recommendation:brief.schema_recommendation||"Verify Person schema and business details match visible page content.",
+          cta_text:brief.cta||"Introduce Myself",
+          implementation_notes:["Preview all changes before publishing.","Do not add the target keyword unnaturally to every section.","Monitor impressions, clicks, average position, Google visits, and introductions after publishing."]
+        };
+      }
+      return Response.json({ok:true,changes});
+    }
+
     // =========================================================
     // PRIVATE PORTAL ROUTING
     // =========================================================
