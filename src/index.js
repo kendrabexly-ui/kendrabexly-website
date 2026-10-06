@@ -9211,14 +9211,14 @@ if (
         FROM seo_query_data ORDER BY impressions DESC, clicks DESC LIMIT 100`).all();
 
       const defaults = [
-        {query:"Los Angeles companion",intent:"High",page:"/meet-kendra/",action:"Strengthen title, H1, internal links, and branded trust signals."},
-        {query:"Los Angeles escorts",intent:"High",page:"/meet-kendra/",action:"Monitor this high-intent search and improve compliant social-companion positioning, trust signals, and branded relevance without promoting sexual services."},
-        {query:"private companion Los Angeles",intent:"High",page:"/meet-kendra/",action:"Create supporting copy around private social companionship and discretion."},
+        {query:"Los Angeles companion",intent:"High",page:"/",action:"Strengthen title, H1, internal links, and branded trust signals."},
+        {query:"Los Angeles escorts",intent:"High",page:"/",action:"Monitor this high-intent search and improve compliant social-companion positioning, trust signals, and branded relevance without promoting sexual services."},
+        {query:"private companion Los Angeles",intent:"High",page:"/",action:"Create supporting copy around private social companionship and discretion."},
         {query:"Los Angeles date companion",intent:"High",page:"/our-time/",action:"Align page headings and description with upscale date-companion intent."},
         {query:"LA dinner companion",intent:"Medium",page:"/our-time/",action:"Create a useful LA dinner/date-night landing section or article."},
         {query:"Los Angeles event companion",intent:"High",page:"/our-time/",action:"Add event, gala, convention, and plus-one use cases."},
-        {query:"Los Angeles convention companion",intent:"High",page:"/meet-kendra/",action:"Publish convention-visitor content tied to downtown LA and business travel."},
-        {query:"visiting Los Angeles alone",intent:"Medium",page:"/meet-kendra/",action:"Publish a helpful visitor-focused article with a soft path to Kendra."},
+        {query:"Los Angeles convention companion",intent:"High",page:"/",action:"Publish convention-visitor content tied to downtown LA and business travel."},
+        {query:"visiting Los Angeles alone",intent:"Medium",page:"/",action:"Publish a helpful visitor-focused article with a soft path to Kendra."},
         {query:"upscale date companion Los Angeles",intent:"High",page:"/our-time/",action:"Improve luxury/date-night relevance without keyword stuffing."}
       ];
 
@@ -9301,15 +9301,15 @@ if (
           supporting_headings:["A Private Los Angeles Introduction","Date Nights, Events and Time Together","Discretion, Comfort and Connection"],
           content_angle:"Use the search phrase as an intent signal while positioning Kendra around lawful private social companionship, discretion, Los Angeles date experiences, events, dinners, and visitor needs.",
           why_this_matters:"People using “"+safeQuery+"” show strong Los Angeles commercial intent. The opportunity is to earn relevance for that search by making the best matching page clearer, more trustworthy, and more useful without turning the page into keyword-stuffed or explicit service copy.",
-          target_page:page||"/meet-kendra/",
+          target_page:page||"/",
           recommended_changes:[
             "Update the SEO title and meta description so the page clearly matches Los Angeles companion intent.",
             "Use one natural H1 that explains the page topic without repeating the keyword unnaturally.",
             "Add useful supporting copy about private social companionship, discretion, dinners, events, travel, and date-night experiences.",
-            "Add contextual internal links to Meet Kendra and Our Time Together.",
+            "Add contextual internal links to The Invitation and Our Time Together.",
             "Review relevant image alt text and structured data for consistency with the page."
           ],
-          internal_links:["Meet Kendra","Our Time Together"],
+          internal_links:["The Invitation","Our Time Together"],
           image_alt_text:["Kendra Bexly, private Los Angeles companion","Los Angeles private social companion"],
           schema_recommendation:"Use Person schema for Kendra and appropriate Organization or LocalBusiness-style business details only where accurate. Keep schema consistent with visible page content.",
           cta:"Introduce Myself",
@@ -9336,7 +9336,7 @@ if (
       try{changes=JSON.parse(raw);}catch(e){}
       if(!changes || typeof changes!=="object"){
         changes={
-          target_page:page||brief.target_page||"/meet-kendra/",
+          target_page:page||brief.target_page||"/",
           seo_title:brief.seo_title||"Kendra Bexly | Private Los Angeles Companion",
           meta_description:brief.meta_description||"Meet Kendra Bexly, a private Los Angeles social companion for upscale dates, dinners, events, travel, and discreet time together.",
           h1:brief.h1||"Private Companion in Los Angeles",
