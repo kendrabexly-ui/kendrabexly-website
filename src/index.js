@@ -9157,6 +9157,139 @@ if (
   }
 }
 
+
+    // =========================================================
+    // GOOGLE ACQUISITION AGENT — organic search visibility + attribution
+    // =========================================================
+
+    async function ensureGoogleAcquisitionTables() {
+      await env.DB.prepare(\`CREATE TABLE IF NOT EXISTS google_acquisition_visits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        medium TEXT NOT NULL DEFAULT 'organic',
+        landing_path TEXT NOT NULL,
+        referrer_host TEXT,
+        utm_campaign TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )\`).run();
+      await env.DB.prepare(\`CREATE TABLE IF NOT EXISTS google_acquisition_conversions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        conversion_type TEXT NOT NULL,
+        path TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )\`).run();
+      await env.DB.prepare(\`CREATE TABLE IF NOT EXISTS seo_query_data (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        query TEXT NOT NULL,
+        landing_page TEXT,
+        clicks INTEGER NOT NULL DEFAULT 0,
+        impressions INTEGER NOT NULL DEFAULT 0,
+        ctr REAL NOT NULL DEFAULT 0,
+        position REAL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(query, landing_page)
+      )\`).run();
+    }
+
+    if (url.pathname === "/api/admin/google-acquisition/overview" && request.method === "GET") {
+      await ensureGoogleAcquisitionTables();
+      const visits = await env.DB.prepare(\`SELECT
+          COUNT(*) AS visits,
+          SUM(CASE WHEN source='google' THEN 1 ELSE 0 END) AS google_visits,
+          SUM(CASE WHEN source='bing' THEN 1 ELSE 0 END) AS bing_visits
+        FROM google_acquisition_visits
+        WHERE datetime(created_at) >= datetime('now','-30 days')\`).first();
+      const conversions = await env.DB.prepare(\`SELECT COUNT(*) AS conversions
+        FROM google_acquisition_conversions
+        WHERE datetime(created_at) >= datetime('now','-30 days')\`).first();
+      const pages = await env.DB.prepare(\`SELECT landing_path,COUNT(*) AS visits
+        FROM google_acquisition_visits
+        WHERE datetime(created_at) >= datetime('now','-30 days')
+        GROUP BY landing_path ORDER BY visits DESC LIMIT 12\`).all();
+      const queries = await env.DB.prepare(\`SELECT query,landing_page,clicks,impressions,ctr,position,updated_at
+        FROM seo_query_data ORDER BY impressions DESC, clicks DESC LIMIT 100\`).all();
+
+      const defaults = [
+        {query:"Los Angeles companion",intent:"High",page:"/meet-kendra/",action:"Strengthen title, H1, internal links, and branded trust signals."},
+        {query:"private companion Los Angeles",intent:"High",page:"/meet-kendra/",action:"Create supporting copy around private social companionship and discretion."},
+        {query:"Los Angeles date companion",intent:"High",page:"/our-time/",action:"Align page headings and description with upscale date-companion intent."},
+        {query:"LA dinner companion",intent:"Medium",page:"/our-time/",action:"Create a useful LA dinner/date-night landing section or article."},
+        {query:"Los Angeles event companion",intent:"High",page:"/our-time/",action:"Add event, gala, convention, and plus-one use cases."},
+        {query:"Los Angeles convention companion",intent:"High",page:"/meet-kendra/",action:"Publish convention-visitor content tied to downtown LA and business travel."},
+        {query:"visiting Los Angeles alone",intent:"Medium",page:"/meet-kendra/",action:"Publish a helpful visitor-focused article with a soft path to Kendra."},
+        {query:"upscale date companion Los Angeles",intent:"High",page:"/our-time/",action:"Improve luxury/date-night relevance without keyword stuffing."}
+      ];
+
+      const derived=(queries.results||[]).map(row=>{
+        const ctr=Number(row.ctr||0);
+        const pos=Number(row.position||0);
+        const impressions=Number(row.impressions||0);
+        let score=0;
+        if(impressions>=100)score+=30;
+        else if(impressions>=25)score+=18;
+        if(pos>=4 && pos<=20)score+=30;
+        else if(pos>20)score+=15;
+        if(ctr<0.03)score+=25;
+        else if(ctr<0.06)score+=12;
+        if(Number(row.clicks||0)>0)score+=10;
+        return {...row,opportunity_score:Math.min(100,score)};
+      }).sort((a,b)=>b.opportunity_score-a.opportunity_score);
+
+      return Response.json({
+        ok:true,
+        period_days:30,
+        metrics:{
+          visits:Number(visits?.visits||0),
+          google_visits:Number(visits?.google_visits||0),
+          bing_visits:Number(visits?.bing_visits||0),
+          conversions:Number(conversions?.conversions||0)
+        },
+        top_landing_pages:pages.results||[],
+        search_console_rows:queries.results||[],
+        opportunities:derived.length?derived.slice(0,25):defaults
+      });
+    }
+
+    if (url.pathname === "/api/admin/google-acquisition/search-console/import" && request.method === "POST") {
+      await ensureGoogleAcquisitionTables();
+      const body=await request.json().catch(()=>({}));
+      const rows=Array.isArray(body.rows)?body.rows:[];
+      if(!rows.length || rows.length>500) return Response.json({ok:false,message:"Import 1–500 Search Console rows at a time."},{status:400});
+      let imported=0, skipped=0;
+      for(const row of rows){
+        const query=String(row?.query||"").trim().slice(0,300);
+        const landing=String(row?.landing_page||row?.page||"").trim().slice(0,500);
+        const clicks=Math.max(0,Number(row?.clicks||0));
+        const impressions=Math.max(0,Number(row?.impressions||0));
+        let ctr=Number(row?.ctr||0);
+        if(ctr>1)ctr=ctr/100;
+        const position=row?.position===null||row?.position===undefined?null:Number(row.position);
+        if(!query){skipped++;continue;}
+        await env.DB.prepare(\`INSERT INTO seo_query_data(query,landing_page,clicks,impressions,ctr,position,updated_at)
+          VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(query,landing_page) DO UPDATE SET
+            clicks=excluded.clicks,impressions=excluded.impressions,ctr=excluded.ctr,position=excluded.position,updated_at=CURRENT_TIMESTAMP\`)
+          .bind(query,landing||null,Math.round(clicks),Math.round(impressions),Math.max(0,ctr),Number.isFinite(position)?position:null).run();
+        imported++;
+      }
+      return Response.json({ok:true,imported,skipped});
+    }
+
+    if (url.pathname === "/api/admin/google-acquisition/content-brief" && request.method === "POST") {
+      const body=await request.json().catch(()=>({}));
+      const query=String(body.query||"").trim().slice(0,300);
+      const page=String(body.page||"").trim().slice(0,500);
+      if(!query) return Response.json({ok:false,message:"Choose a search query first."},{status:400});
+      if(!env.AI) return Response.json({ok:false,message:"Workers AI is not connected."},{status:500});
+      const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
+        {role:"system",content:"Create a concise organic SEO brief for Kendra Bexly, a lawful Los Angeles social companion brand. Do not promote sexual services, paid sex, or explicit acts. Focus on social companionship, upscale date experiences, business travel, dinners, events, discretion, and Los Angeles visitor intent. Avoid keyword stuffing. Return JSON only with: seo_title, meta_description, h1, supporting_headings (array), content_angle, internal_links (array), cta."},
+        {role:"user",content:"Target search query: "+query+"\nCurrent/target page: "+(page||"Not assigned")+"\nBrand tagline: Your Invitation to Something More."}
+      ],max_tokens:700,temperature:0.45});
+      const raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^\`\`\`json\s*/i,"").replace(/\`\`\`$/,"").trim();
+      try{return Response.json({ok:true,brief:JSON.parse(raw)});}catch(e){return Response.json({ok:true,brief:{content_angle:raw}});}
+    }
+
     // =========================================================
     // PRIVATE PORTAL ROUTING
     // =========================================================
@@ -9213,6 +9346,40 @@ if (
       url.pathname === "/admin-emails" ||
       url.pathname === "/admin-emails.html";
 
+
+    // Anonymous first-party attribution only: no IP address or search-history identity is stored.
+    // Search engines generally do not expose the user's exact query in the HTTP referrer.
+    if (request.method === "GET") {
+      try {
+        await ensureGoogleAcquisitionTables();
+        const referrer=String(request.headers.get("Referer")||"");
+        const refHost=(()=>{try{return new URL(referrer).hostname.toLowerCase();}catch(e){return "";}})();
+        const utmSource=String(url.searchParams.get("utm_source")||"").toLowerCase();
+        let acquisitionSource="";
+        if(utmSource==="google" || /(^|\.)google\./.test(refHost)) acquisitionSource="google";
+        else if(utmSource==="bing" || /(^|\.)bing\.com$/.test(refHost)) acquisitionSource="bing";
+        else if(utmSource==="duckduckgo" || /(^|\.)duckduckgo\.com$/.test(refHost)) acquisitionSource="duckduckgo";
+
+        const cookieHeader=String(request.headers.get("Cookie")||"");
+        const hadSearchAttribution=/(?:^|;\s*)kb_search_source=([^;]+)/.exec(cookieHeader);
+
+        if(acquisitionSource && !url.pathname.startsWith("/portal") && !url.pathname.startsWith("/admin") && !url.pathname.startsWith("/api/")){
+          await env.DB.prepare("INSERT INTO google_acquisition_visits(source,medium,landing_path,referrer_host,utm_campaign) VALUES(?,?,?,?,?)")
+            .bind(acquisitionSource,"organic",url.pathname,refHost||null,String(url.searchParams.get("utm_campaign")||"").slice(0,180)||null).run();
+        }
+
+        if((url.pathname==="/request" || url.pathname==="/request/" || url.pathname==="/request.html") && hadSearchAttribution){
+          const source=decodeURIComponent(hadSearchAttribution[1]||"").slice(0,40);
+          if(source) await env.DB.prepare("INSERT INTO google_acquisition_conversions(source,conversion_type,path) VALUES(?,?,?)")
+            .bind(source,"introduction_started",url.pathname).run();
+        }
+
+        url.__kbAcquisitionSource=acquisitionSource;
+      } catch (error) {
+        console.error("Google acquisition attribution error:",error);
+      }
+    }
+
     if (isPrivateAssetPath) {
       const assetResponse = await env.ASSETS.fetch(request);
       const headers = new Headers(assetResponse.headers);
@@ -9230,7 +9397,15 @@ if (
 
     // On a Workers Route, fetch(request) continues to the application
     // origin configured in Cloudflare DNS instead of serving old assets.
-    return withWebsiteButtonStyles(await fetch(request));
+
+    const publicOriginResponse = await fetch(request);
+    const publicStyledResponse = withWebsiteButtonStyles(publicOriginResponse);
+    if (url.__kbAcquisitionSource) {
+      const headers = new Headers(publicStyledResponse.headers);
+      headers.append("Set-Cookie","kb_search_source="+encodeURIComponent(url.__kbAcquisitionSource)+"; Path=/; Max-Age=2592000; SameSite=Lax; Secure");
+      return new Response(publicStyledResponse.body,{status:publicStyledResponse.status,statusText:publicStyledResponse.statusText,headers});
+    }
+    return publicStyledResponse;
   },
 
   async scheduled(event, env, ctx) {
