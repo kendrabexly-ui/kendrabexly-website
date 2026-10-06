@@ -9075,6 +9075,95 @@ if (
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       await runVerificationRetention(env);
+
+      // X Agent automatic posting windows, Los Angeles time.
+      // Auto posts only come from the reviewed Tweet Bank items with Auto Pick enabled.
+      // Strongest cadence is Tuesday through Thursday, with lighter Monday/Friday coverage.
+      // Weekends and late nights are intentionally excluded.
+      const xAutoPostSlots = {
+        1: ["10:30"],
+        2: ["09:30", "12:30"],
+        3: ["09:15", "12:15"],
+        4: ["10:00", "13:00"],
+        5: ["10:30"]
+      };
+      const laParts = Object.fromEntries(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: SITE_TIME_ZONE,
+          weekday: "short",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).formatToParts(new Date()).filter(p=>p.type!=="literal").map(p=>[p.type,p.value])
+      );
+      const weekdayNumber = ({Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6,Sun:0})[laParts.weekday];
+      const localDate = laParts.year+"-"+laParts.month+"-"+laParts.day;
+      const localTime = laParts.hour+":"+laParts.minute;
+      const matchedAutoSlot = (xAutoPostSlots[weekdayNumber]||[]).find(slot=>slot===localTime);
+
+      if (matchedAutoSlot) {
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_auto_post_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          local_date TEXT NOT NULL,
+          slot TEXT NOT NULL,
+          bank_id INTEGER,
+          x_post_id TEXT,
+          status TEXT NOT NULL DEFAULT 'published',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(local_date, slot)
+        )`).run();
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_tweet_bank (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          content TEXT NOT NULL UNIQUE,
+          auto_pick INTEGER NOT NULL DEFAULT 0,
+          last_used_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )`).run();
+
+        const alreadyRan = await env.DB.prepare("SELECT id FROM x_auto_post_log WHERE local_date=? AND slot=?").bind(localDate,matchedAutoSlot).first();
+        if (!alreadyRan) {
+          const bankPost = await env.DB.prepare(`
+            SELECT id,content FROM x_tweet_bank
+            WHERE auto_pick=1
+            ORDER BY CASE WHEN last_used_at IS NULL THEN 0 ELSE 1 END ASC, last_used_at ASC, id ASC
+            LIMIT 1
+          `).first();
+
+          if (bankPost?.content) {
+            try {
+              let row=await env.DB.prepare("SELECT access_token,refresh_token,expires_at,scope FROM x_oauth_tokens WHERE id=1").first();
+              if(!row) throw new Error("X is not connected.");
+              let accessToken=row.access_token;
+              const now=Math.floor(Date.now()/1000);
+              if(Number(row.expires_at||0)<=now+300){
+                if(!row.refresh_token) throw new Error("X reconnect required.");
+                const body=new URLSearchParams({grant_type:"refresh_token",refresh_token:row.refresh_token,client_id:env.X_CLIENT_ID});
+                const basic=btoa(String(env.X_CLIENT_ID)+":"+String(env.X_CLIENT_SECRET));
+                const rr=await fetch("https://api.x.com/2/oauth2/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
+                if(!rr.ok) throw new Error("X token refresh failed.");
+                const tokens=await rr.json();
+                accessToken=tokens.access_token;
+                await env.DB.prepare("UPDATE x_oauth_tokens SET access_token=?,refresh_token=?,expires_at=?,scope=?,updated_at=CURRENT_TIMESTAMP WHERE id=1")
+                  .bind(accessToken,tokens.refresh_token||row.refresh_token,now+Number(tokens.expires_in||7200),tokens.scope||row.scope||null).run();
+              }
+              const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({text:bankPost.content})});
+              const xd=await xr.json().catch(()=>({}));
+              if(!xr.ok) throw new Error(xd?.detail||xd?.title||"X rejected auto post.");
+              const postId=xd?.data?.id||null;
+              await env.DB.prepare("UPDATE x_tweet_bank SET last_used_at=CURRENT_TIMESTAMP WHERE id=?").bind(bankPost.id).run();
+              await env.DB.prepare("INSERT INTO x_auto_post_log(local_date,slot,bank_id,x_post_id,status) VALUES(?,?,?,?,?)")
+                .bind(localDate,matchedAutoSlot,bankPost.id,postId,"published").run();
+            } catch (error) {
+              console.error("Automatic X post failed", localDate, matchedAutoSlot, error);
+              await env.DB.prepare("INSERT OR IGNORE INTO x_auto_post_log(local_date,slot,bank_id,status) VALUES(?,?,?,?)")
+                .bind(localDate,matchedAutoSlot,bankPost.id,"failed").run();
+            }
+          }
+        }
+      }
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_scheduled_posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,draft_id INTEGER NOT NULL UNIQUE,scheduled_for TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'scheduled',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )`).run();
