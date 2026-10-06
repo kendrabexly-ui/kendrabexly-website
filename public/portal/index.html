@@ -803,6 +803,7 @@
         <button type="button" data-section="photo-editor">Photo Editor</button>
         <button type="button" data-section="newsletter">Newsletter</button>
         <button type="button" data-section="x-agent">X Agent</button>
+        <button type="button" data-section="google-acquisition">Google Acquisition</button>
         <button type="button" data-section="marketing-retention">Marketing &amp; Retention</button>
         <button type="button" data-section="ad-copy-agent">Ad Copy Agent</button>
       </nav>
@@ -1714,6 +1715,62 @@
   </div>
 </div>
 
+
+
+      <section id="google-acquisition" class="section">
+        <div class="section-heading">
+          <h2>Google Acquisition Agent</h2>
+          <p>Turn organic Google visibility into measurable site visits and introductions. This workspace tracks anonymous search-engine referrals, SEO opportunities, landing pages, and conversion paths.</p>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Organic Search Overview</div>
+              <div class="panel-subtitle">Last 30 days of first-party search referral activity.</div>
+            </div>
+            <button id="ga-refresh" type="button">Refresh</button>
+          </div>
+          <div style="padding:18px 24px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">SEARCH VISITS</div><div id="ga-visits" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
+              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">GOOGLE VISITS</div><div id="ga-google-visits" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
+              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">INTRODUCTIONS STARTED</div><div id="ga-conversions" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
+              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">CONVERSION RATE</div><div id="ga-conversion-rate" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
+            </div>
+            <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.5;">The agent stores aggregate referral and landing-page data only. It cannot see who searched Google or recover a person's private Google search history.</div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header"><div><div class="panel-title">SEO Opportunities</div><div class="panel-subtitle">Queries and topics most likely to improve Kendra's organic visibility.</div></div></div>
+          <div id="ga-opportunities" style="padding:0 24px 20px;"><div class="empty">Loading opportunities…</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div><div class="panel-title">Search Console Data</div><div class="panel-subtitle">Paste Search Console rows so the agent can prioritize impressions, click-through rate, and average position.</div></div>
+          </div>
+          <div style="padding:18px 24px;">
+            <label for="ga-search-console-input" style="display:block;font-weight:700;margin-bottom:7px;">Paste CSV-style rows</label>
+            <textarea id="ga-search-console-input" placeholder="query,landing_page,clicks,impressions,ctr,position&#10;Los Angeles companion,/meet-kendra/,12,850,1.4%,8.2" style="width:100%;min-height:130px;padding:12px;border:1px solid var(--line);border-radius:9px;font:inherit;box-sizing:border-box;"></textarea>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;"><button id="ga-import-search-console" type="button">Import Rows</button><span id="ga-import-status" style="font-size:12px;color:var(--muted);">Use the export columns: query, page, clicks, impressions, CTR, and position.</span></div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header"><div><div class="panel-title">Top Organic Landing Pages</div><div class="panel-subtitle">Pages receiving search-engine traffic through the Cloudflare edge.</div></div></div>
+          <div id="ga-landing-pages" style="padding:0 24px 20px;"><div class="empty">No organic landing-page data yet.</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header"><div><div class="panel-title">How This Agent Works</div></div></div>
+          <div style="padding:18px 24px;line-height:1.6;">
+            <strong>Google search → Kendra appears organically → visitor reaches the public WordPress site → anonymous referral is attributed → visitor starts an introduction → conversion is counted.</strong>
+            <div style="margin-top:10px;color:var(--muted);font-size:13px;">The agent focuses on lawful social-companionship, date-night, business-travel, event, convention, and Los Angeles visitor intent. It does not create paid ads for prohibited companion/escort advertising.</div>
+          </div>
+        </div>
+      </section>
 
       <!-- X AGENT: intentionally last top-level dashboard section so malformed
            legacy X markup can never capture or bleed into Newsletter/other tabs. -->
@@ -9176,5 +9233,93 @@ function escapeHtml(value) {
   setProspectTab("all");
 })();
 </script>
+
+<script>
+(() => {
+  const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+
+  async function loadGoogleAcquisition(){
+    const opp=document.getElementById("ga-opportunities");
+    if(!opp)return;
+    try{
+      const r=await fetch("/api/admin/google-acquisition/overview"),d=await r.json();
+      if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load Google Acquisition.");
+      const m=d.metrics||{};
+      document.getElementById("ga-visits").textContent=String(m.visits||0);
+      document.getElementById("ga-google-visits").textContent=String(m.google_visits||0);
+      document.getElementById("ga-conversions").textContent=String(m.conversions||0);
+      const rate=(Number(m.visits||0)>0)?((Number(m.conversions||0)/Number(m.visits||0))*100):0;
+      document.getElementById("ga-conversion-rate").textContent=rate.toFixed(rate>=10?0:1)+"%";
+
+      const opportunities=d.opportunities||[];
+      opp.innerHTML=opportunities.length?opportunities.map(item=>{
+        const isImported=Object.prototype.hasOwnProperty.call(item,"impressions");
+        return '<article style="padding:15px 0;border-bottom:1px solid var(--line);">'+
+          '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">'+
+            '<div><strong>'+esc(item.query)+'</strong>'+(item.intent?'<div style="font-size:12px;color:var(--muted);margin-top:3px;">Intent: '+esc(item.intent)+'</div>':'')+'</div>'+
+            (isImported?'<div style="font-size:12px;color:var(--muted);text-align:right;">'+Number(item.impressions||0)+' impressions · Position '+(item.position==null?'—':Number(item.position).toFixed(1))+'<br>Opportunity '+Number(item.opportunity_score||0)+'/100</div>':'')+
+          '</div>'+
+          '<div style="margin-top:8px;font-size:13px;color:var(--muted);">'+esc(item.action||item.landing_page||item.page||"")+'</div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button type="button" data-ga-brief data-query="'+esc(item.query)+'" data-page="'+esc(item.landing_page||item.page||"")+'">Create SEO Brief</button></div>'+
+          '<div data-ga-brief-output style="display:none;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--cream);"></div>'+
+        '</article>';
+      }).join(""):'<div class="empty">No SEO opportunities yet.</div>';
+
+      const pages=document.getElementById("ga-landing-pages");
+      pages.innerHTML=(d.top_landing_pages||[]).length?(d.top_landing_pages||[]).map(p=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);"><span>'+esc(p.landing_path)+'</span><strong>'+Number(p.visits||0)+'</strong></div>').join(""):'<div class="empty">No organic landing-page data yet.</div>';
+    }catch(err){
+      opp.innerHTML='<div class="empty">'+esc(err.message)+'</div>';
+    }
+  }
+
+  function parseSearchConsoleRows(text){
+    const lines=String(text||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const rows=[];
+    for(const line of lines){
+      if(/^query\s*,/i.test(line))continue;
+      const parts=line.split(",").map(x=>x.trim());
+      if(parts.length<4)continue;
+      const [query,landing_page,clicks,impressions,ctr,position]=parts;
+      rows.push({query,landing_page,clicks:Number(clicks||0),impressions:Number(impressions||0),ctr:String(ctr||"0").replace("%",""),position:position===""?null:Number(position)});
+    }
+    return rows;
+  }
+
+  document.getElementById("ga-refresh")?.addEventListener("click",loadGoogleAcquisition);
+  document.getElementById("ga-import-search-console")?.addEventListener("click",async()=>{
+    const input=document.getElementById("ga-search-console-input"),status=document.getElementById("ga-import-status"),button=document.getElementById("ga-import-search-console");
+    const rows=parseSearchConsoleRows(input?.value||"");
+    if(!rows.length){status.textContent="No valid rows found.";return;}
+    button.disabled=true;status.textContent="Importing…";
+    try{
+      const r=await fetch("/api/admin/google-acquisition/search-console/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows})});
+      const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Import failed.");
+      status.textContent=d.imported+" rows imported; "+d.skipped+" skipped.";
+      await loadGoogleAcquisition();
+    }catch(err){status.textContent=err.message;}finally{button.disabled=false;}
+  });
+
+  document.addEventListener("click",async e=>{
+    const btn=e.target.closest("[data-ga-brief]");
+    if(!btn)return;
+    const out=btn.closest("article")?.querySelector("[data-ga-brief-output]");
+    btn.disabled=true;if(out){out.style.display="block";out.textContent="Creating SEO brief…";}
+    try{
+      const r=await fetch("/api/admin/google-acquisition/content-brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:btn.dataset.query,page:btn.dataset.page})});
+      const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to create brief.");
+      const b=d.brief||{};
+      out.innerHTML='<strong>'+esc(b.seo_title||"SEO Brief")+'</strong>'+
+        (b.meta_description?'<div style="margin-top:6px;"><b>Meta:</b> '+esc(b.meta_description)+'</div>':'')+
+        (b.h1?'<div style="margin-top:6px;"><b>H1:</b> '+esc(b.h1)+'</div>':'')+
+        ((b.supporting_headings||[]).length?'<div style="margin-top:6px;"><b>Headings:</b> '+(b.supporting_headings||[]).map(esc).join(" · ")+'</div>':'')+
+        (b.content_angle?'<div style="margin-top:6px;"><b>Angle:</b> '+esc(b.content_angle)+'</div>':'')+
+        (b.cta?'<div style="margin-top:6px;"><b>CTA:</b> '+esc(b.cta)+'</div>':'');
+    }catch(err){if(out)out.textContent=err.message;}finally{btn.disabled=false;}
+  });
+
+  document.querySelector('[data-section="google-acquisition"]')?.addEventListener("click",()=>setTimeout(loadGoogleAcquisition,0));
+})();
+</script>
+
 </body>
 </html>
