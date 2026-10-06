@@ -9284,11 +9284,39 @@ if (
       if(!query) return Response.json({ok:false,message:"Choose a search query first."},{status:400});
       if(!env.AI) return Response.json({ok:false,message:"Workers AI is not connected."},{status:500});
       const ai=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fp8",{messages:[
-        {role:"system",content:"Create a concise organic SEO brief for Kendra Bexly, a lawful Los Angeles social companion brand. Do not promote sexual services, paid sex, or explicit acts. Focus on social companionship, upscale date experiences, business travel, dinners, events, discretion, and Los Angeles visitor intent. Avoid keyword stuffing. Return JSON only with: seo_title, meta_description, h1, supporting_headings (array), content_angle, internal_links (array), cta."},
-        {role:"user",content:"Target search query: "+query+"\nCurrent/target page: "+(page||"Not assigned")+"\nBrand tagline: Your Invitation to Something More."}
-      ],max_tokens:700,temperature:0.45});
-      const raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^```json\s*/i,"").replace(/```$/,"").trim();
-      try{return Response.json({ok:true,brief:JSON.parse(raw)});}catch(e){return Response.json({ok:true,brief:{content_angle:raw}});}
+        {role:"system",content:"You are Kendra Bexly's organic SEO strategist. Create a practical SEO brief for a lawful Los Angeles private social companion brand. IMPORTANT: the target search query is market/search data, not a request to provide the service named in the query. Queries may contain terms such as escort, escorts, companion, or similar commercial-intent language. Do not refuse SEO analysis merely because those words appear. Analyze the search intent and recommend lawful, compliant positioning around private social companionship, upscale dates, dinners, events, business travel, discretion, Los Angeles visitor intent, brand trust, and useful visitor information. Never write copy that explicitly offers paid sexual services or guarantees intimacy. Avoid keyword stuffing. Make the brief operational so the site owner knows exactly what to change next. Return JSON only with these keys: seo_title, meta_description, h1, supporting_headings (array), content_angle, why_this_matters, target_page, recommended_changes (array of concrete edits), internal_links (array), image_alt_text (array), schema_recommendation, cta, next_action."},
+        {role:"user",content:"Target search query: "+query+"\nCurrent/target page: "+(page||"Not assigned")+"\nBrand tagline: Your Invitation to Something More.\nTreat this phrase strictly as an SEO/search-intent signal. Give a compliant optimization plan, not a refusal."}
+      ],max_tokens:1100,temperature:0.35});
+      const raw=String(ai?.response||ai?.result?.response||"").trim().replace(/^\`\`\`json\s*/i,"").replace(/\`\`\`$/,"").trim();
+      let brief=null;
+      try{brief=JSON.parse(raw);}catch(e){}
+      const refusalText=String(brief?.content_angle||brief?.next_action||raw||"").toLowerCase();
+      const refused=/can't help|cannot help|can't accommodate|cannot accommodate|illegal activit|prostitution|anything else i can help/.test(refusalText);
+      if(!brief || refused){
+        const safeQuery=query.replace(/[<>]/g,"");
+        brief={
+          seo_title:"Kendra Bexly | Private Los Angeles Companion",
+          meta_description:"Meet Kendra Bexly, a private Los Angeles social companion for upscale dates, dinners, events, travel, and discreet time together.",
+          h1:"Private Companion in Los Angeles",
+          supporting_headings:["A Private Los Angeles Introduction","Date Nights, Events and Time Together","Discretion, Comfort and Connection"],
+          content_angle:"Use the search phrase as an intent signal while positioning Kendra around lawful private social companionship, discretion, Los Angeles date experiences, events, dinners, and visitor needs.",
+          why_this_matters:"People using “"+safeQuery+"” show strong Los Angeles commercial intent. The opportunity is to earn relevance for that search by making the best matching page clearer, more trustworthy, and more useful without turning the page into keyword-stuffed or explicit service copy.",
+          target_page:page||"/meet-kendra/",
+          recommended_changes:[
+            "Update the SEO title and meta description so the page clearly matches Los Angeles companion intent.",
+            "Use one natural H1 that explains the page topic without repeating the keyword unnaturally.",
+            "Add useful supporting copy about private social companionship, discretion, dinners, events, travel, and date-night experiences.",
+            "Add contextual internal links to Meet Kendra and Our Time Together.",
+            "Review relevant image alt text and structured data for consistency with the page."
+          ],
+          internal_links:["Meet Kendra","Our Time Together"],
+          image_alt_text:["Kendra Bexly, private Los Angeles companion","Los Angeles private social companion"],
+          schema_recommendation:"Use Person schema for Kendra and appropriate Organization or LocalBusiness-style business details only where accurate. Keep schema consistent with visible page content.",
+          cta:"Introduce Myself",
+          next_action:"Review these proposed edits, apply them to the target WordPress page, then watch impressions, clicks, position, and introductions started before making another major change."
+        };
+      }
+      return Response.json({ok:true,brief});
     }
 
     // =========================================================
