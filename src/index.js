@@ -2713,9 +2713,22 @@ export default {
       const draft=await env.DB.prepare("SELECT * FROM x_reply_drafts WHERE id=?").bind(id).first();
       if (!draft) return Response.json({ok:false,message:"Reply draft not found."},{status:404});
       if (draft.status!=="approved") return Response.json({ok:false,message:"Approve this reply before sending."},{status:400});
-      const token=await env.DB.prepare("SELECT access_token FROM x_oauth_tokens WHERE id=1").first();
+      let token=await env.DB.prepare("SELECT access_token,refresh_token,expires_at,scope FROM x_oauth_tokens WHERE id=1").first();
       if (!token) return Response.json({ok:false,message:"X is not connected."},{status:400});
-      const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+token.access_token,"Content-Type":"application/json"},body:JSON.stringify({text:draft.content,quote_tweet_id:draft.in_reply_to_tweet_id})});
+      let accessToken=token.access_token;
+      const now=Math.floor(Date.now()/1000);
+      if(Number(token.expires_at||0)<=now+300){
+        if(!token.refresh_token) return Response.json({ok:false,message:"X reconnect required."},{status:401});
+        const refreshBody=new URLSearchParams({grant_type:"refresh_token",refresh_token:token.refresh_token,client_id:env.X_CLIENT_ID});
+        const basic=btoa(String(env.X_CLIENT_ID)+":"+String(env.X_CLIENT_SECRET));
+        const refreshResponse=await fetch("https://api.x.com/2/oauth2/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:refreshBody.toString()});
+        const refreshData=await refreshResponse.json().catch(()=>({}));
+        if(!refreshResponse.ok) return Response.json({ok:false,message:refreshData?.detail||refreshData?.title||"X reconnect required."},{status:401});
+        accessToken=refreshData.access_token;
+        await env.DB.prepare("UPDATE x_oauth_tokens SET access_token=?,refresh_token=?,expires_at=?,scope=?,updated_at=CURRENT_TIMESTAMP WHERE id=1")
+          .bind(accessToken,refreshData.refresh_token||token.refresh_token,now+Number(refreshData.expires_in||7200),refreshData.scope||token.scope||null).run();
+      }
+      const xr=await fetch("https://api.x.com/2/tweets",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({text:draft.content,quote_tweet_id:draft.in_reply_to_tweet_id})});
       const xd=await xr.json().catch(()=>({}));
       if (!xr.ok) return Response.json({ok:false,message:xd?.detail||xd?.title||"X could not send the reply."},{status:xr.status});
       const replyId=xd?.data?.id||null;
