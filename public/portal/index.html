@@ -689,6 +689,28 @@
         border-radius: 8px !important;
       }
 
+      .sidebar .nav {
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+      }
+
+      .sidebar .nav button {
+        flex: 0 0 auto !important;
+      }
+
+      .sidebar .nav button[data-section="x-agent"],
+      .sidebar .nav button[data-section="google-acquisition"],
+      .sidebar .nav button[data-section="marketing-retention"],
+      .sidebar .nav button[data-section="ad-copy-agent"] {
+        order: 20;
+      }
+
+      .sidebar .nav button[data-section="google-acquisition"] {
+        background: var(--ink) !important;
+        color: white !important;
+      }
+
       .sidebar .back-site {
         display: none !important;
       }
@@ -802,8 +824,8 @@
         <button type="button" data-section="emails">Email Drafts</button>
         <button type="button" data-section="photo-editor">Photo Editor</button>
         <button type="button" data-section="newsletter">Newsletter</button>
-        <button type="button" data-section="x-agent">X Agent</button>
         <button type="button" data-section="google-acquisition">Google Acquisition</button>
+        <button type="button" data-section="x-agent">X Agent</button>
         <button type="button" data-section="marketing-retention">Marketing &amp; Retention</button>
         <button type="button" data-section="ad-copy-agent">Ad Copy Agent</button>
       </nav>
