@@ -2922,6 +2922,42 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/admin/x/auto-post/status" && request.method === "GET") {
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_tweet_bank (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL UNIQUE,
+        auto_pick INTEGER NOT NULL DEFAULT 0,
+        last_used_at TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`).run();
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_auto_post_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        local_date TEXT NOT NULL,
+        slot TEXT NOT NULL,
+        bank_id INTEGER,
+        x_post_id TEXT,
+        status TEXT NOT NULL DEFAULT 'published',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(local_date, slot)
+      )`).run();
+
+      const now=new Date();
+      const parts=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:SITE_TIME_ZONE,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now).filter(p=>p.type!=="literal").map(p=>[p.type,p.value]));
+      const localDate=parts.year+"-"+parts.month+"-"+parts.day;
+      const hashSeed=[...localDate].reduce((a,ch)=>((a*31)+ch.charCodeAt(0))>>>0,2166136261);
+      const seeded=n=>{let x=(hashSeed^(n*0x9e3779b9))>>>0;x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967295;};
+      const postCount=3+Math.floor(seeded(1)*3);
+      const windows=[{start:480,end:690},{start:690,end:900},{start:900,end:1140},{start:1140,end:1320},{start:1320,end:1439}];
+      const selectedIndexes=postCount===3?[0,2,4]:postCount===4?[0,1,3,4]:[0,1,2,3,4];
+      const slots=selectedIndexes.map((windowIndex,idx)=>{const w=windows[windowIndex],span=w.end-w.start;let minute=w.start+Math.floor(seeded(10+idx)*Math.max(1,span));if([0,15,30,45].includes(minute%60))minute=Math.min(w.end,minute+7);const h=Math.floor(minute/60),m=minute%60;const d=new Date(2000,0,1,h,m);return{value:String(h).padStart(2,"0")+":"+String(m).padStart(2,"0"),label:new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit",hour12:true}).format(d)};});
+      const countRow=await env.DB.prepare("SELECT COUNT(*) AS count FROM x_tweet_bank WHERE auto_pick=1").first();
+      const last=await env.DB.prepare(`SELECT l.x_post_id,l.created_at,l.local_date,l.slot,b.content
+        FROM x_auto_post_log l LEFT JOIN x_tweet_bank b ON b.id=l.bank_id
+        WHERE l.status='published' ORDER BY l.id DESC LIMIT 1`).first();
+      const xConnection=await env.DB.prepare("SELECT id FROM x_oauth_tokens WHERE id=1").first().catch(()=>null);
+      return Response.json({ok:true,enabled:Boolean(xConnection)&&Number(countRow?.count||0)>0,connected:Boolean(xConnection),eligible_count:Number(countRow?.count||0),local_date:localDate,post_count:postCount,slots,last_post:last||null});
+    }
+
     if (url.pathname === "/api/admin/x/tweet-bank") {
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_tweet_bank (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

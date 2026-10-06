@@ -1738,12 +1738,36 @@
         
         <div id="x-content-library-note" data-x-anchor="library" data-x-view="library" class="panel x-agent-only" style="margin-bottom:18px;">
           <div class="panel x-agent-only-header"><div><div class="panel x-agent-only-title">Content Library</div><div class="panel x-agent-only-subtitle">Keep reusable ideas and finished posts organized, then send them into your posting workflow when you need them.</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button id="x-library-add-toggle" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">+ Add Content</button><button id="x-refresh-library" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div></div><div id="x-library-summary" style="padding:12px 24px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);">Loading library summary…</div><div id="x-library-overview" style="padding:12px 24px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;"><button type="button" data-library-overview="unused" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:white;cursor:pointer;"><strong id="x-library-unused-count" style="display:block;font-size:18px;">—</strong><span style="font-size:12px;color:var(--muted);">Not used yet</span></button><button type="button" data-library-overview="recent" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:white;cursor:pointer;"><strong id="x-library-recent-count" style="display:block;font-size:18px;">—</strong><span style="font-size:12px;color:var(--muted);">Recently used</span></button></div>
+        <div id="x-auto-post-panel" class="panel x-agent-only" style="margin:16px 24px;">
+          <div class="panel x-agent-only-header">
+            <div>
+              <div class="panel x-agent-only-title">Auto Posting</div>
+              <div class="panel x-agent-only-subtitle">Automatic X publishing from posts you explicitly allow.</div>
+            </div>
+            <button id="x-auto-post-refresh" type="button">Refresh</button>
+          </div>
+          <div style="padding:16px 24px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+              <div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">STATUS</div><div id="x-auto-post-status" style="font-size:22px;font-weight:700;margin-top:4px;">Checking…</div></div>
+              <div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">TODAY</div><div id="x-auto-post-count" style="font-size:22px;font-weight:700;margin-top:4px;">—</div><div style="font-size:12px;color:var(--muted);">automatic posts</div></div>
+              <div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">READY TO AUTO POST</div><div id="x-auto-post-eligible" style="font-size:22px;font-weight:700;margin-top:4px;">—</div><div style="font-size:12px;color:var(--muted);">allowed posts</div></div>
+            </div>
+            <div style="margin-top:14px;">
+              <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:7px;">TODAY'S POSTING TIMES</div>
+              <div id="x-auto-post-times" style="display:flex;gap:7px;flex-wrap:wrap;"><span style="font-size:13px;color:var(--muted);">Loading…</span></div>
+            </div>
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+              <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;">LAST AUTO POST</div>
+              <div id="x-auto-post-last" style="font-size:13px;color:var(--muted);">No automatic post recorded yet.</div>
+            </div>
+          </div>
+        </div>
         <div id="x-tweet-bank-panel" class="panel x-agent-only" style="margin:16px 24px;">
           <div class="panel x-agent-only-header"><div><div class="panel x-agent-only-title">Tweet Bank</div><div class="panel x-agent-only-subtitle">Saved posts stay available for manual use and replacement. Generate My Day creates fresh posts from the selected day’s metrics.</div></div><button id="x-bank-refresh" type="button">Refresh</button></div>
           <div style="padding:16px 24px;">
             <label for="x-bank-input" style="display:block;font-weight:600;margin-bottom:8px;">Add posts, one per line</label>
             <textarea id="x-bank-input" placeholder="Paste your posts here…" style="width:100%;min-height:110px;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box;"></textarea>
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;"><button id="x-bank-import" type="button">Add to Bank</button><span id="x-bank-message" role="status" style="font-size:13px;color:var(--muted);">Saved posts are never inserted automatically into Generate My Day. Use them manually when they fit the selected day.</span></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;"><button id="x-bank-import" type="button">Add to Bank</button><span id="x-bank-message" role="status" style="font-size:13px;color:var(--muted);">Only posts with Allow Auto Post turned on can be published automatically. Generate My Day still creates fresh content separately.</span></div>
             <div id="x-bank-items" style="margin-top:15px;max-height:400px;overflow:auto;"></div>
           </div>
         </div>
@@ -7240,18 +7264,45 @@ function escapeHtml(value) {
         if(xDayFormatReflective)xDayFormatReflective.style.cssText="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:white;color:var(--ink);cursor:pointer;";
         xGenerateDayTheme?.addEventListener("click",async()=>{xGenerateDayTheme.disabled=true;xGenerateDayTheme.textContent="Generating...";try{const r=await fetch("/api/admin/x/topics",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:xDayPostStyle?.value||"warm-flirty-tease",include_suggestive:true})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to generate themes.");const topics=(d.topics||[]).slice(0,6);xDayThemeSuggestions.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:7px;">Choose a theme:</div>'+topics.map(t=>'<button type="button" class="x-day-theme-choice" data-theme="'+escapeHtml(t)+'" style="display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:white;padding:9px 4px;cursor:pointer;">'+escapeHtml(t)+'</button>').join("");xDayThemeSuggestions.style.display="block";xDayThemeSuggestions.querySelectorAll(".x-day-theme-choice").forEach(b=>b.onclick=()=>{xDayTheme.value=b.dataset.theme||b.textContent.trim();xDayThemeSuggestions.style.display="none";xDayTheme.focus();});}catch(err){alert(err.message);}finally{xGenerateDayTheme.disabled=false;xGenerateDayTheme.textContent="Generate Theme";}});
 
+        async function loadXAutoPostStatus(){
+          const status=document.getElementById("x-auto-post-status"),count=document.getElementById("x-auto-post-count"),eligible=document.getElementById("x-auto-post-eligible"),times=document.getElementById("x-auto-post-times"),last=document.getElementById("x-auto-post-last");
+          if(!status)return;
+          try{
+            const r=await fetch("/api/admin/x/auto-post/status"),d=await r.json();
+            if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load auto-post status.");
+            status.textContent=d.enabled?"ON":"OFF";
+            status.style.color=d.enabled?"#2f6b45":"#8b4a3a";
+            count.textContent=String(d.post_count||0);
+            eligible.textContent=String(d.eligible_count||0);
+            times.innerHTML=(d.slots||[]).map(s=>'<span style="display:inline-block;border:1px solid var(--line);border-radius:999px;padding:6px 9px;background:white;font-size:12px;">'+escapeHtml(s.label)+'</span>').join("")||'<span style="font-size:13px;color:var(--muted);">No slots today.</span>';
+            if(d.last_post?.content){
+              last.innerHTML='<div style="color:var(--ink);white-space:pre-wrap;">'+escapeHtml(d.last_post.content)+'</div><div style="margin-top:5px;font-size:12px;color:var(--muted);">'+escapeHtml(d.last_post.local_date||"")+' · '+escapeHtml(d.last_post.slot||"")+'</div>';
+            }else{
+              last.textContent="No automatic post recorded yet.";
+            }
+            if(!d.connected) status.title="Connect X before auto posting can run.";
+            else if(!d.eligible_count) status.title="Turn on Allow Auto Post for at least one Tweet Bank post.";
+            else status.title="Auto posting is active.";
+          }catch(err){
+            status.textContent="Unavailable";
+            status.style.color="";
+            if(times)times.innerHTML='<span style="font-size:13px;color:var(--muted);">'+escapeHtml(err.message)+'</span>';
+          }
+        }
+
         async function loadXTweetBank(){
           const box=document.getElementById("x-bank-items");if(!box)return;
           try{
             const r=await fetch("/api/admin/x/tweet-bank"),d=await r.json();
             if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load tweet bank.");
-            box.innerHTML=d.items.length?d.items.map(item=>'<div style="padding:10px 0;border-top:1px solid var(--line);"><div style="white-space:pre-wrap;overflow-wrap:anywhere;">'+escapeHtml(item.content)+'</div><div style="display:flex;gap:12px;align-items:center;margin-top:8px;"><label style="font-size:13px;"><input type="checkbox" data-bank-auto="'+item.id+'" '+(item.auto_pick?"checked":"")+'> Use in Generate My Day</label><button type="button" data-bank-delete="'+item.id+'">Remove</button><span style="font-size:12px;color:var(--muted);">'+(item.last_used_at?"Last suggested "+escapeHtml(item.last_used_at.slice(0,10)):"Not suggested yet")+'</span></div></div>').join(""):'<div class="empty">No saved posts yet.</div>';
-            box.querySelectorAll("[data-bank-auto]").forEach(input=>input.onchange=async()=>{const r=await fetch("/api/admin/x/tweet-bank/"+input.dataset.bankAuto,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({auto_pick:input.checked})});if(!r.ok){input.checked=!input.checked;alert("Unable to update this post.");}});
+            box.innerHTML=d.items.length?d.items.map(item=>'<div style="padding:10px 0;border-top:1px solid var(--line);"><div style="white-space:pre-wrap;overflow-wrap:anywhere;">'+escapeHtml(item.content)+'</div><div style="display:flex;gap:12px;align-items:center;margin-top:8px;"><label style="font-size:13px;"><input type="checkbox" data-bank-auto="'+item.id+'" '+(item.auto_pick?"checked":"")+'> Allow Auto Post</label><button type="button" data-bank-delete="'+item.id+'">Remove</button><span style="font-size:12px;color:var(--muted);">'+(item.last_used_at?"Last suggested "+escapeHtml(item.last_used_at.slice(0,10)):"Not suggested yet")+'</span></div></div>').join(""):'<div class="empty">No saved posts yet.</div>';
+            box.querySelectorAll("[data-bank-auto]").forEach(input=>input.onchange=async()=>{const r=await fetch("/api/admin/x/tweet-bank/"+input.dataset.bankAuto,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({auto_pick:input.checked})});if(!r.ok){input.checked=!input.checked;alert("Unable to update this post.");}else{loadXAutoPostStatus();}});
             box.querySelectorAll("[data-bank-delete]").forEach(button=>button.onclick=async()=>{if(!confirm("Remove this post from the tweet bank?"))return;const r=await fetch("/api/admin/x/tweet-bank/"+button.dataset.bankDelete,{method:"DELETE"});if(r.ok)loadXTweetBank();});
           }catch(err){box.textContent=err.message;}
         }
-        document.getElementById("x-bank-refresh")?.addEventListener("click",loadXTweetBank);
-        document.querySelector('[data-section="x-agent"]')?.addEventListener("click",loadXTweetBank);
+        document.getElementById("x-bank-refresh")?.addEventListener("click",()=>{loadXTweetBank();loadXAutoPostStatus();});
+        document.getElementById("x-auto-post-refresh")?.addEventListener("click",loadXAutoPostStatus);
+        document.querySelector('[data-section="x-agent"]')?.addEventListener("click",()=>{loadXTweetBank();loadXAutoPostStatus();});
         document.getElementById("x-bank-import")?.addEventListener("click",async()=>{
           const input=document.getElementById("x-bank-input"),message=document.getElementById("x-bank-message"),button=document.getElementById("x-bank-import");
           const timeOrPlace=/\b(today|tonight|yesterday|tomorrow|this week|this weekend|this year|this month|last night|last week|next week|monday|friday|saturday|sunday|christmas|valentine|birthday|2025|june|nyc|new york|sf|san francisco|kendrick|jazmine|cashapp)\b|@/i;
