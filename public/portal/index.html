@@ -740,6 +740,67 @@
 </style>
   <link rel="stylesheet" href="/accessibility.css">
   <link rel="stylesheet" href="/portal/polish.css?v=20260930-portal-colors">
+  <style>
+    #google-acquisition .panel-header{
+      gap:12px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+    #ga-refresh{
+      white-space:nowrap;
+      min-width:92px;
+      flex:0 0 auto;
+      padding:9px 14px;
+    }
+    #google-acquisition .ga-metric-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+      gap:10px;
+    }
+    #google-acquisition .ga-metric-value.is-loading{
+      opacity:.6;
+    }
+    #google-acquisition .ga-metric-value.is-error{
+      font-size:14px !important;
+      line-height:1.35;
+      color:var(--muted);
+    }
+    #ga-overview-status{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+    @media (max-width:640px){
+      #google-acquisition .panel-header{
+        display:grid !important;
+        grid-template-columns:minmax(0,1fr) auto;
+        align-items:start !important;
+      }
+      #ga-refresh{
+        min-width:88px;
+        width:auto !important;
+        max-width:none !important;
+        padding:9px 12px !important;
+        font-size:14px !important;
+        line-height:1.1 !important;
+      }
+      #google-acquisition .ga-metric-grid{
+        grid-template-columns:1fr 1fr;
+      }
+      #google-acquisition .ga-metric-card{
+        min-width:0;
+        padding:14px !important;
+      }
+      #google-acquisition .ga-metric-card > div:first-child{
+        font-size:10px !important;
+        line-height:1.25 !important;
+      }
+      #google-acquisition .ga-metric-value{
+        font-size:26px !important;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -1755,12 +1816,13 @@
             <button id="ga-refresh" type="button">Refresh</button>
           </div>
           <div style="padding:18px 24px;">
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">SEARCH VISITS</div><div id="ga-visits" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
-              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">GOOGLE VISITS</div><div id="ga-google-visits" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
-              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">INTRODUCTIONS STARTED</div><div id="ga-conversions" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
-              <div style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">CONVERSION RATE</div><div id="ga-conversion-rate" style="font-size:28px;font-weight:700;margin-top:4px;">—</div></div>
+            <div class="ga-metric-grid">
+              <div class="ga-metric-card" style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">SEARCH VISITS</div><div id="ga-visits" class="ga-metric-value is-loading" style="font-size:28px;font-weight:700;margin-top:4px;">Loading…</div></div>
+              <div class="ga-metric-card" style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">GOOGLE VISITS</div><div id="ga-google-visits" class="ga-metric-value is-loading" style="font-size:28px;font-weight:700;margin-top:4px;">Loading…</div></div>
+              <div class="ga-metric-card" style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">INTRODUCTIONS STARTED</div><div id="ga-conversions" class="ga-metric-value is-loading" style="font-size:28px;font-weight:700;margin-top:4px;">Loading…</div></div>
+              <div class="ga-metric-card" style="border:1px solid var(--line);border-radius:10px;padding:14px;background:white;"><div style="font-size:11px;color:var(--muted);font-weight:700;">CONVERSION RATE</div><div id="ga-conversion-rate" class="ga-metric-value is-loading" style="font-size:28px;font-weight:700;margin-top:4px;">Loading…</div></div>
             </div>
+            <div id="ga-overview-status">Loading organic-search data…</div>
             <div style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.5;">The agent stores aggregate referral and landing-page data only. It cannot see who searched Google or recover a person's private Google search history.</div>
           </div>
         </div>
@@ -9264,6 +9326,12 @@ function escapeHtml(value) {
   async function loadGoogleAcquisition(){
     const opp=document.getElementById("ga-opportunities");
     if(!opp)return;
+    const metricIds=["ga-visits","ga-google-visits","ga-conversions","ga-conversion-rate"];
+    const status=document.getElementById("ga-overview-status");
+    const refresh=document.getElementById("ga-refresh");
+    metricIds.forEach(id=>{const el=document.getElementById(id);if(el){el.textContent="Loading…";el.classList.add("is-loading");el.classList.remove("is-error");}});
+    if(status) status.textContent="Loading organic-search data…";
+    if(refresh){refresh.disabled=true;refresh.textContent="Refreshing…";}
     try{
       const r=await fetch("/api/admin/google-acquisition/overview"),d=await r.json();
       if(!r.ok||!d.ok)throw new Error(d.message||"Unable to load Google Acquisition.");
@@ -9273,6 +9341,8 @@ function escapeHtml(value) {
       document.getElementById("ga-conversions").textContent=String(m.conversions||0);
       const rate=(Number(m.visits||0)>0)?((Number(m.conversions||0)/Number(m.visits||0))*100):0;
       document.getElementById("ga-conversion-rate").textContent=rate.toFixed(rate>=10?0:1)+"%";
+      metricIds.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove("is-loading","is-error");});
+      if(status) status.textContent="Updated just now.";
 
       const opportunities=d.opportunities||[];
       opp.innerHTML=opportunities.length?opportunities.map(item=>{
@@ -9291,7 +9361,12 @@ function escapeHtml(value) {
       const pages=document.getElementById("ga-landing-pages");
       pages.innerHTML=(d.top_landing_pages||[]).length?(d.top_landing_pages||[]).map(p=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);"><span>'+esc(p.landing_path)+'</span><strong>'+Number(p.visits||0)+'</strong></div>').join(""):'<div class="empty">No organic landing-page data yet.</div>';
     }catch(err){
-      opp.innerHTML='<div class="empty">'+esc(err.message)+'</div>';
+      const message=err?.message||"Unable to load Google Acquisition data.";
+      opp.innerHTML='<div class="empty">'+esc(message)+'</div>';
+      metricIds.forEach(id=>{const el=document.getElementById(id);if(el){el.textContent="Unavailable";el.classList.remove("is-loading");el.classList.add("is-error");}});
+      if(status) status.textContent=message;
+    }finally{
+      if(refresh){refresh.disabled=false;refresh.textContent="Refresh";}
     }
   }
 
