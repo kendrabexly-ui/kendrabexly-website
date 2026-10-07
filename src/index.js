@@ -3082,8 +3082,23 @@ export default {
       const now=new Date();
       const parts=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:SITE_TIME_ZONE,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now).filter(p=>p.type!=="literal").map(p=>[p.type,p.value]));
       const localDate=parts.year+"-"+parts.month+"-"+parts.day;
-      const hashSeed=[...localDate].reduce((a,ch)=>((a*31)+ch.charCodeAt(0))>>>0,2166136261);
-      const seeded=n=>{let x=(hashSeed^(n*0x9e3779b9))>>>0;x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967295;};
+      // Strong 32-bit date mixing so adjacent calendar dates cannot inherit
+      // nearly identical pseudo-random output (the old hash made 10/06 and
+      // 10/07 resolve to the exact same posting times).
+      let hashSeed=2166136261;
+      for(const ch of localDate){
+        hashSeed^=ch.charCodeAt(0);
+        hashSeed=Math.imul(hashSeed,16777619)>>>0;
+      }
+      const seeded=n=>{
+        let x=(hashSeed+Math.imul(n+1,0x9e3779b9))>>>0;
+        x^=x>>>16;
+        x=Math.imul(x,0x7feb352d)>>>0;
+        x^=x>>>15;
+        x=Math.imul(x,0x846ca68b)>>>0;
+        x^=x>>>16;
+        return(x>>>0)/4294967296;
+      };
       const postCount=3+Math.floor(seeded(1)*3);
       const windows=[{start:480,end:690},{start:690,end:900},{start:900,end:1140},{start:1140,end:1320},{start:1320,end:1439}];
       const selectedIndexes=postCount===3?[0,2,4]:postCount===4?[0,1,3,4]:[0,1,2,3,4];
@@ -9563,11 +9578,19 @@ if (
 
       // Deterministic daily variation: the same calendar date always produces
       // the same slots, while tomorrow gets a different pattern.
-      const hashSeed = [...localDate].reduce((a,ch)=>((a*31)+ch.charCodeAt(0))>>>0,2166136261);
-      const seeded = n => {
-        let x=(hashSeed ^ (n*0x9e3779b9))>>>0;
-        x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
-        return (x>>>0)/4294967295;
+      let hashSeed=2166136261;
+      for(const ch of localDate){
+        hashSeed^=ch.charCodeAt(0);
+        hashSeed=Math.imul(hashSeed,16777619)>>>0;
+      }
+      const seeded=n=>{
+        let x=(hashSeed+Math.imul(n+1,0x9e3779b9))>>>0;
+        x^=x>>>16;
+        x=Math.imul(x,0x7feb352d)>>>0;
+        x^=x>>>15;
+        x=Math.imul(x,0x846ca68b)>>>0;
+        x^=x>>>16;
+        return(x>>>0)/4294967296;
       };
       const postCount = 3 + Math.floor(seeded(1)*3); // 3, 4, or 5 posts
 
