@@ -710,6 +710,29 @@
     #photo-editor-canvas { max-width:none; max-height:none; }
     #photo-editor[aria-busy="true"] .photo-editor-tools { opacity:.78; }
 
+    /* Mobile portal menu polish */
+    @media (max-width: 900px) {
+      .sidebar {
+        background: #f3e9e6 !important;
+        color: var(--ink) !important;
+        border-bottom: 1px solid var(--line);
+      }
+      .sidebar .brand {
+        color: #8f6377 !important;
+      }
+      .sidebar .admin-label {
+        color: var(--ink) !important;
+        opacity: .75 !important;
+      }
+      .sidebar .nav {
+        overscroll-behavior-x: contain;
+      }
+      .sidebar .nav button {
+        min-height: 42px !important;
+        font-weight: 600 !important;
+      }
+    }
+
     /* MOBILE-NAV-HARD-FIX-2026-09-21 */
     @media (max-width: 900px) {
       .admin-layout {
@@ -780,25 +803,26 @@
       }
 
       .sidebar .nav {
-        flex-wrap: wrap !important;
-        overflow-x: visible !important;
-        overflow-y: visible !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-snap-type: x proximity;
+        padding-bottom: 6px !important;
       }
 
       .sidebar .nav button {
         flex: 0 0 auto !important;
+        scroll-snap-align: start;
+        background: transparent !important;
+        color: var(--ink) !important;
+        border: 1px solid var(--line) !important;
       }
 
-      .sidebar .nav button[data-section="x-agent"],
-      .sidebar .nav button[data-section="google-acquisition"],
-      .sidebar .nav button[data-section="marketing-retention"],
-      .sidebar .nav button[data-section="ad-copy-agent"] {
-        order: 20;
-      }
-
-      .sidebar .nav button[data-section="google-acquisition"] {
-        background: var(--ink) !important;
+      .sidebar .nav button.active,
+      .sidebar .nav button[aria-selected="true"] {
+        background: #8f6377 !important;
         color: white !important;
+        border-color: #8f6377 !important;
       }
 
       .sidebar .back-site {
