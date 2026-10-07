@@ -416,6 +416,95 @@
       }
     }
   
+    /* X Agent panel structure + mobile polish */
+    #x-agent .x-agent-only-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+    #x-agent .x-agent-only-title {
+      font-family: "Playfair Display", serif;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+    #x-agent .x-agent-only-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 5px;
+    }
+    #x-agent #x-section-nav button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+    }
+    #x-agent #x-section-nav button[aria-pressed="true"],
+    #x-agent #x-section-nav button.active {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }
+
+    @media (max-width: 600px) {
+      #x-agent .x-agent-only-header {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        align-items: start !important;
+        gap: 12px !important;
+        padding: 18px !important;
+      }
+      #x-agent .x-agent-only-header > div {
+        min-width: 0 !important;
+        width: 100% !important;
+      }
+      #x-agent .x-agent-only-title {
+        font-size: 21px !important;
+      }
+      #x-agent .x-agent-only-subtitle {
+        font-size: 13px !important;
+        line-height: 1.45 !important;
+      }
+      #x-agent .x-agent-only-header > button,
+      #x-agent .x-agent-only-header > a {
+        width: 100% !important;
+        max-width: 100% !important;
+        text-align: center !important;
+      }
+      #x-agent #x-section-nav {
+        position: static !important;
+        display: grid !important;
+        grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+        gap: 8px !important;
+        padding: 8px 0 12px !important;
+        box-shadow: none !important;
+      }
+      #x-agent #x-section-nav button {
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 44px !important;
+        padding: 9px 10px !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
+      }
+      #x-agent #x-today-workflow > div:last-child {
+        padding: 16px !important;
+      }
+      #x-agent #x-flow-next {
+        padding: 14px !important;
+      }
+      #x-agent [data-x-view="drafts"] .panel-header,
+      #x-agent [data-x-view="review"] .panel-header {
+        padding: 18px !important;
+      }
+    }
+
     /* iPhone/mobile overflow hardening */
     @media (max-width: 600px) {
       *, *::before, *::after { box-sizing: border-box; }
@@ -1965,13 +2054,13 @@
           <button type="button" data-x-jump="prospects">Find Clients</button>
           <button type="button" id="x-jump-top" onclick="document.getElementById('x-agent')?.scrollIntoView({behavior:'smooth',block:'start'})">Back to Top</button>
         </div>
-        <div id="x-today-workflow" class="panel x-agent-only" style="margin-bottom:18px;"><div class="panel x-agent-only-header"><div><div class="panel x-agent-only-title">Today’s Workflow</div><div class="panel x-agent-only-subtitle">One next step based on the work already waiting in X Agent.</div></div><button type="button" onclick="document.querySelector('[data-x-jump=&quot;create&quot;]')?.click()" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Create a Post</button></div><div style="padding:16px 24px;"><button id="x-flow-next" type="button" style="width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:15px;background:var(--cream);cursor:pointer;"><small style="display:block;color:var(--muted);margin-bottom:4px;">NEXT ACTION</small><strong id="x-flow-next-title" style="display:block;font-size:16px;">Checking your workflow…</strong><span id="x-flow-next-text" style="display:block;margin-top:4px;color:var(--muted);">Loading the work that needs attention.</span></button><span id="x-flow-drafts" hidden>—</span><span id="x-flow-approval" hidden>—</span><span id="x-flow-scheduled" hidden>—</span><span id="x-flow-published" hidden>—</span></div></div>
+        <div id="x-today-workflow" class="panel x-agent-only" style="margin-bottom:18px;"><div class="panel-header x-agent-only-header"><div><div class="panel-title x-agent-only-title">Today’s Workflow</div><div class="panel-subtitle x-agent-only-subtitle">One next step based on the work already waiting in X Agent.</div></div><button type="button" onclick="document.querySelector('[data-x-jump=&quot;create&quot;]')?.click()" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Create a Post</button></div><div style="padding:16px 24px;"><button id="x-flow-next" type="button" style="width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:15px;background:var(--cream);cursor:pointer;"><small style="display:block;color:var(--muted);margin-bottom:4px;">NEXT ACTION</small><strong id="x-flow-next-title" style="display:block;font-size:16px;">Checking your workflow…</strong><span id="x-flow-next-text" style="display:block;margin-top:4px;color:var(--muted);">Loading the work that needs attention.</span></button><span id="x-flow-drafts" hidden>—</span><span id="x-flow-approval" hidden>—</span><span id="x-flow-scheduled" hidden>—</span><span id="x-flow-published" hidden>—</span></div></div>
 
         <div id="x-prospect-finder" data-x-anchor="prospects" data-x-view="prospects" class="panel x-agent-only" style="margin-bottom:18px;">
-          <div class="panel x-agent-only-header">
+          <div class="panel-header x-agent-only-header">
             <div>
-              <div class="panel x-agent-only-title">Prospect Finder</div>
-              <div class="panel x-agent-only-subtitle">Find public X posts from Los Angeles travelers, convention visitors, people explicitly looking for social company or a plus-one, self-expressed interest in Black women, and upscale LA lifestyle conversations.</div>
+              <div class="panel-title x-agent-only-title">Prospect Finder</div>
+              <div class="panel-subtitle x-agent-only-subtitle">Find public X posts from Los Angeles travelers, convention visitors, people explicitly looking for social company or a plus-one, self-expressed interest in Black women, and upscale LA lifestyle conversations.</div>
             </div>
             <button id="x-prospect-run" type="button" style="border:0;border-radius:8px;padding:10px 14px;background:var(--ink);color:white;cursor:pointer;">Run Search</button>
           </div>
@@ -1998,12 +2087,12 @@
 
         
         <div id="x-content-library-note" data-x-anchor="library" data-x-view="library" class="panel x-agent-only" style="margin-bottom:18px;">
-          <div class="panel x-agent-only-header"><div><div class="panel x-agent-only-title">Content Library</div><div class="panel x-agent-only-subtitle">Keep reusable ideas and finished posts organized, then send them into your posting workflow when you need them.</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button id="x-library-add-toggle" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">+ Add Content</button><button id="x-refresh-library" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div></div><div id="x-library-summary" style="padding:12px 24px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);">Loading library summary…</div><div id="x-library-overview" style="padding:12px 24px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;"><button type="button" data-library-overview="unused" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:white;cursor:pointer;"><strong id="x-library-unused-count" style="display:block;font-size:18px;">—</strong><span style="font-size:12px;color:var(--muted);">Not used yet</span></button><button type="button" data-library-overview="recent" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:white;cursor:pointer;"><strong id="x-library-recent-count" style="display:block;font-size:18px;">—</strong><span style="font-size:12px;color:var(--muted);">Recently used</span></button></div>
+          <div class="panel-header x-agent-only-header"><div><div class="panel-title x-agent-only-title">Content Library</div><div class="panel-subtitle x-agent-only-subtitle">Keep reusable ideas and finished posts organized, then send them into your posting workflow when you need them.</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button id="x-library-add-toggle" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">+ Add Content</button><button id="x-refresh-library" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Refresh</button></div></div><div id="x-library-summary" style="padding:12px 24px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);">Loading library summary…</div><div id="x-library-overview" style="padding:12px 24px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;"><button type="button" data-library-overview="unused" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:white;cursor:pointer;"><strong id="x-library-unused-count" style="display:block;font-size:18px;">—</strong><span style="font-size:12px;color:var(--muted);">Not used yet</span></button><button type="button" data-library-overview="recent" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:white;cursor:pointer;"><strong id="x-library-recent-count" style="display:block;font-size:18px;">—</strong><span style="font-size:12px;color:var(--muted);">Recently used</span></button></div>
         <div id="x-auto-post-panel" class="panel x-agent-only" style="margin:16px 24px;">
-          <div class="panel x-agent-only-header">
+          <div class="panel-header x-agent-only-header">
             <div>
-              <div class="panel x-agent-only-title">Auto Posting</div>
-              <div class="panel x-agent-only-subtitle">Automatic X publishing from posts you explicitly allow.</div>
+              <div class="panel-title x-agent-only-title">Auto Posting</div>
+              <div class="panel-subtitle x-agent-only-subtitle">Automatic X publishing from posts you explicitly allow.</div>
             </div>
             <button id="x-auto-post-refresh" type="button">Refresh</button>
           </div>
@@ -2024,7 +2113,7 @@
           </div>
         </div>
         <div id="x-tweet-bank-panel" class="panel x-agent-only" style="margin:16px 24px;">
-          <div class="panel x-agent-only-header"><div><div class="panel x-agent-only-title">Tweet Bank</div><div class="panel x-agent-only-subtitle">Saved posts stay available for manual use and replacement. Generate My Day creates fresh posts from the selected day’s metrics.</div></div><button id="x-bank-refresh" type="button">Refresh</button></div>
+          <div class="panel-header x-agent-only-header"><div><div class="panel-title x-agent-only-title">Tweet Bank</div><div class="panel-subtitle x-agent-only-subtitle">Saved posts stay available for manual use and replacement. Generate My Day creates fresh posts from the selected day’s metrics.</div></div><button id="x-bank-refresh" type="button">Refresh</button></div>
           <div style="padding:16px 24px;">
             <label for="x-bank-input" style="display:block;font-weight:600;margin-bottom:8px;">Add posts, one per line</label>
             <textarea id="x-bank-input" placeholder="Paste your posts here…" style="width:100%;min-height:110px;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box;"></textarea>
@@ -2037,20 +2126,20 @@
         </div>
 
         <div class="panel x-agent-only" data-x-view="create" style="margin-bottom:18px;">
-          <div class="panel x-agent-only-header">
+          <div class="panel-header x-agent-only-header">
             <div>
-              <div class="panel x-agent-only-title">X Connection</div>
-              <div class="panel x-agent-only-subtitle" id="x-status">Checking connection...</div>
+              <div class="panel-title x-agent-only-title">X Connection</div>
+              <div class="panel-subtitle x-agent-only-subtitle" id="x-status">Checking connection...</div>
             </div>
             <a href="/api/auth/x/start" style="color:var(--ink);">Reconnect X</a>
           </div>
         </div>
 
         <div class="panel x-agent-only" data-x-view="create" style="margin-bottom:18px;">
-          <div class="panel x-agent-only-header">
+          <div class="panel-header x-agent-only-header">
             <div>
-              <div class="panel x-agent-only-title" data-x-anchor="create">Create a Post</div>
-              <div class="panel x-agent-only-subtitle">Write or generate → edit → adjust settings → preview → save or schedule.</div>
+              <div class="panel-title x-agent-only-title" data-x-anchor="create">Create a Post</div>
+              <div class="panel-subtitle x-agent-only-subtitle">Write or generate → edit → adjust settings → preview → save or schedule.</div>
             </div>
           </div>
           <div style="padding:24px;">
@@ -2070,10 +2159,10 @@
         </div>
 
         <div class="panel x-agent-only" data-x-view="create" style="margin-bottom:18px;">
-          <div class="panel x-agent-only-header">
+          <div class="panel-header x-agent-only-header">
             <div>
-              <div class="panel x-agent-only-title">Create a Conversation Series</div>
-              <div class="panel x-agent-only-subtitle">Topic → generate → edit → settings → preview → save or schedule.</div>
+              <div class="panel-title x-agent-only-title">Create a Conversation Series</div>
+              <div class="panel-subtitle x-agent-only-subtitle">Topic → generate → edit → settings → preview → save or schedule.</div>
             </div>
           </div>
           <div style="padding:24px;">
@@ -2086,10 +2175,10 @@
         </div>
 
         <details class="panel x-agent-only" data-x-view="social" style="margin-bottom:18px;">
-          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
+          <summary class="panel-header x-agent-only-header" style="cursor:pointer;list-style:none;">
             <div>
-              <div class="panel x-agent-only-title" data-x-anchor="social">Conversations</div>
-              <div class="panel x-agent-only-subtitle">Browse your feed, your recent posts, and replies when you want to work on engagement.</div>
+              <div class="panel-title x-agent-only-title" data-x-anchor="social">Conversations</div>
+              <div class="panel-subtitle x-agent-only-subtitle">Browse your feed, your recent posts, and replies when you want to work on engagement.</div>
             </div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
@@ -2120,8 +2209,8 @@
         
 
         <details class="panel x-agent-only" data-x-view="create" style="margin-bottom:18px;">
-          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel x-agent-only-title">Brand Voice</div><div class="panel x-agent-only-subtitle">Set the writing style used by X draft generation.</div></div>
+          <summary class="panel-header x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel-title x-agent-only-title">Brand Voice</div><div class="panel-subtitle x-agent-only-subtitle">Set the writing style used by X draft generation.</div></div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
           <div style="padding:18px 24px;">
@@ -2137,8 +2226,8 @@
         </details>
 
         <details class="panel x-agent-only" data-x-view="planner" style="margin-bottom:18px;">
-          <summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;">
-            <div><div class="panel x-agent-only-title">Weekly Performance Insights</div><div class="panel x-agent-only-subtitle">Review recent engagement patterns and use them to inform future content.</div></div>
+          <summary class="panel-header x-agent-only-header" style="cursor:pointer;list-style:none;">
+            <div><div class="panel-title x-agent-only-title">Weekly Performance Insights</div><div class="panel-subtitle x-agent-only-subtitle">Review recent engagement patterns and use them to inform future content.</div></div>
             <button id="x-load-insights" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;" onclick="event.stopPropagation();">Refresh Insights</button>
           </summary>
           <div style="padding:14px 24px;">
@@ -2157,16 +2246,16 @@
         
 
                 <div class="panel x-agent-only" data-x-view="planner" style="margin-bottom:18px;">
-          <details class="panel x-agent-only" open style="margin-bottom:18px;"><summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;"><div><div class="panel x-agent-only-title">Generate My Day</div><div class="panel x-agent-only-subtitle">1. Choose a theme → 2. Generate → 3. Review & edit → 4. Approve → 5. Save or schedule.</div></div><span style="font-size:12px;color:var(--muted);">Open</span></summary>
+          <details class="panel x-agent-only" open style="margin-bottom:18px;"><summary class="panel-header x-agent-only-header" style="cursor:pointer;list-style:none;"><div><div class="panel-title x-agent-only-title">Generate My Day</div><div class="panel-subtitle x-agent-only-subtitle">1. Choose a theme → 2. Generate → 3. Review & edit → 4. Approve → 5. Save or schedule.</div></div><span style="font-size:12px;color:var(--muted);">Open</span></summary>
           <div style="padding:18px 24px;"><div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:9px;">1. CHOOSE TODAY’S THEME</div><div id="x-day-image-note" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div><textarea id="x-day-theme" placeholder="Theme or topic for today's posts..." style="width:100%;min-height:80px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box;"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button id="x-generate-day-theme" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Generate Theme</button></div><div id="x-day-theme-suggestions" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:8px;background:white;"></div><details id="x-day-post-settings" open style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--cream);"><summary style="cursor:pointer;font-size:13px;font-weight:700;">Post Settings <span style="font-weight:400;color:var(--muted);">— same settings as Create a Post</span></summary><div style="margin-top:12px;"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:7px;">HOW SHOULD THESE POSTS READ?</div><div id="x-day-style-buttons" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" data-day-style="warm-flirty-tease">Warm → Flirty → Chemistry → Tease</button><button type="button" data-day-style="conversational">Conversational</button><button type="button" data-day-style="playful">Playful</button><button type="button" data-day-style="direct">Direct</button><button type="button" data-day-style="fun">Fun</button><button type="button" data-day-style="funny">Funny</button><button type="button" data-day-style="sarcastic">Sarcastic</button><button type="button" data-day-style="sexual">Sexual</button></div><input id="x-day-post-style" type="hidden" value="warm-flirty-tease"><div style="margin-top:12px;"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:7px;">SEXUAL TONE</div><select id="x-day-sexual-tone" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="suggestive">Suggestive</option><option value="non-graphic-passionate">Passionate, more direct</option></select></div><div style="margin-top:12px;"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:7px;">OPTIONAL POST FORMAT</div><button type="button" id="x-day-format-reflective" aria-pressed="false">Reflective Question → Soft Scenario → Kendra Standard</button><input id="x-day-post-format" type="hidden" value=""></div><div id="x-day-style-note" style="font-size:12px;color:var(--muted);margin-top:8px;">Selected: Warm → Flirty → Chemistry → Tease.</div></div></details><div style="font-size:12px;font-weight:700;color:var(--muted);margin:16px 0 9px;">2. GENERATE POSTS</div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px;"><label style="font-size:12px;font-weight:700;color:var(--muted);">NUMBER OF POSTS<select id="x-day-post-count" style="display:block;margin-top:5px;min-width:120px;border:1px solid var(--line);border-radius:8px;padding:10px;background:white;font:inherit;color:var(--ink);"><option value="3">3 posts</option><option value="4" selected>4 posts</option><option value="5">5 posts</option><option value="6">6 posts</option></select></label><button id="x-generate-day" type="button" style="border:1px solid var(--ink);border-radius:8px;padding:10px 14px;background:white;cursor:pointer;">Generate 4 Posts</button></div><div id="x-day-bulk-actions" style="display:none;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--cream);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;"><div><strong style="font-size:13px;">Review Actions</strong><div id="x-day-selection-count" style="font-size:12px;color:var(--muted);margin-top:2px;">0 selected</div></div><div style="display:flex;gap:7px;flex-wrap:wrap;"><button id="x-day-select-all" type="button">Select All</button><button id="x-day-select-none" type="button">Clear Selection</button><button id="x-day-regen-selected" type="button">Regenerate Selected</button><button id="x-day-approve-selected" type="button">Approve Selected</button><button id="x-save-all-day" type="button" style="background:var(--ink);color:white;">Save All Drafts</button><button id="x-schedule-day" type="button">Schedule Approved</button></div></div><div id="x-schedule-day-picker" style="display:none;width:100%;margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--cream);"><label style="font-size:13px;font-weight:600;">Schedule date<input id="x-schedule-day-date" type="date" style="display:block;margin-top:5px;border:1px solid var(--line);border-radius:8px;padding:9px;background:white;"></label><div style="display:flex;gap:8px;margin-top:10px;"><button id="x-confirm-schedule-day" type="button" style="border:0;border-radius:8px;padding:9px 13px;background:var(--ink);color:white;cursor:pointer;">Continue</button><button id="x-cancel-schedule-day" type="button" style="border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:white;cursor:pointer;">Cancel</button></div></div></div><div style="font-size:12px;font-weight:700;color:var(--muted);margin:16px 0 9px;">3. REVIEW, EDIT & APPROVE</div><div id="x-day-results" style="margin-top:12px;"></div></div>
         </details></div>
         
 
         
 
-        <details class="panel x-agent-only" data-x-view="drafts" open><summary class="panel x-agent-only-header" style="cursor:pointer;list-style:none;"><div>
-              <div class="panel x-agent-only-title" data-x-anchor="drafts">Review Drafts</div>
-              <div class="panel x-agent-only-subtitle">Review, edit, approve, and schedule posts that still need attention.</div>
+        <details class="panel x-agent-only" data-x-view="drafts" open><summary class="panel-header x-agent-only-header" style="cursor:pointer;list-style:none;"><div>
+              <div class="panel-title x-agent-only-title" data-x-anchor="drafts">Review Drafts</div>
+              <div class="panel-subtitle x-agent-only-subtitle">Review, edit, approve, and schedule posts that still need attention.</div>
             </div>
             <span style="font-size:12px;color:var(--muted);">Open</span>
           </summary>
