@@ -710,6 +710,28 @@
     #photo-editor-canvas { max-width:none; max-height:none; }
     #photo-editor[aria-busy="true"] .photo-editor-tools { opacity:.78; }
 
+    @media (max-width:600px){
+      #dashboard-command-center .panel-header,
+      #dashboard-growth-opportunities .panel-header{
+        align-items:flex-start;
+        gap:10px;
+        flex-wrap:wrap;
+        padding:18px !important;
+      }
+      #dashboard-command-center .panel-header > div,
+      #dashboard-growth-opportunities .panel-header > div{
+        min-width:0;
+        flex:1 1 220px;
+      }
+      #dashboard-command-center #dashboard-priority-refresh{
+        width:auto !important;
+        min-height:42px;
+      }
+      #dashboard-next-action{
+        padding:14px !important;
+      }
+    }
+
     /* Mobile portal menu polish */
     @media (max-width: 900px) {
       .sidebar {
@@ -1159,6 +1181,54 @@
       <!-- DASHBOARD -->
 
       <section id="dashboard" class="section active">
+
+        <div class="panel" id="dashboard-command-center" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Today’s Priorities</div>
+              <div class="panel-subtitle">One place to see what needs your attention across Kendra’s agents.</div>
+            </div>
+            <button type="button" id="dashboard-priority-refresh">Refresh</button>
+          </div>
+          <div style="padding:18px 22px;">
+            <button type="button" id="dashboard-next-action" style="width:100%;text-align:left;border:1px solid var(--line);border-radius:11px;padding:16px;background:var(--cream);cursor:pointer;">
+              <small style="display:block;color:var(--muted);font-weight:700;letter-spacing:.06em;margin-bottom:5px;">NEXT BEST ACTION</small>
+              <strong id="dashboard-next-action-title" style="display:block;font-size:18px;">Checking your agents…</strong>
+              <span id="dashboard-next-action-text" style="display:block;margin-top:5px;color:var(--muted);line-height:1.45;">Loading the work that needs attention.</span>
+            </button>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px;">
+              <button type="button" data-dashboard-jump="requests" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:14px;background:white;cursor:pointer;">
+                <span style="display:block;font-size:11px;color:var(--muted);font-weight:700;">REQUESTS TO REVIEW</span>
+                <strong id="dashboard-priority-requests" style="display:block;font-size:24px;margin-top:4px;">—</strong>
+              </button>
+              <button type="button" data-dashboard-jump="emails" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:14px;background:white;cursor:pointer;">
+                <span style="display:block;font-size:11px;color:var(--muted);font-weight:700;">EMAIL DRAFTS</span>
+                <strong id="dashboard-priority-emails" style="display:block;font-size:24px;margin-top:4px;">—</strong>
+              </button>
+              <button type="button" data-dashboard-jump="x-agent" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:14px;background:white;cursor:pointer;">
+                <span style="display:block;font-size:11px;color:var(--muted);font-weight:700;">X NEEDS REVIEW</span>
+                <strong id="dashboard-priority-x-review" style="display:block;font-size:24px;margin-top:4px;">—</strong>
+              </button>
+              <button type="button" data-dashboard-jump="x-agent" style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:14px;background:white;cursor:pointer;">
+                <span style="display:block;font-size:11px;color:var(--muted);font-weight:700;">X READY TO SCHEDULE</span>
+                <strong id="dashboard-priority-x-approved" style="display:block;font-size:24px;margin-top:4px;">—</strong>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" id="dashboard-growth-opportunities" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Revenue &amp; Growth Opportunities</div>
+              <div class="panel-subtitle">Signals from your agents that may be worth acting on next.</div>
+            </div>
+          </div>
+          <div id="dashboard-growth-list" style="padding:16px 22px;">
+            <div class="empty" style="padding:28px 12px;">Checking growth opportunities…</div>
+          </div>
+        </div>
 
         <div class="stats">
 
@@ -2356,6 +2426,65 @@
       } finally { clearTimeout(timer); }
     }
 
+    function switchDashboardSection(sectionName){
+      if(typeof window.__switchAdminSection==="function") window.__switchAdminSection(sectionName);
+      const nextUrl=new URL(window.location.href);
+      nextUrl.searchParams.set("section",sectionName);
+      window.history.replaceState({},"",nextUrl);
+      if(typeof window.__loadAdminSectionData==="function") requestAnimationFrame(()=>window.__loadAdminSectionData(sectionName));
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+
+    async function loadDashboardAgentBrief(baseData){
+      const requestCount=Number(baseData?.counts?.pending_requests||0);
+      const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=String(value);};
+      setText("dashboard-priority-requests",requestCount);
+
+      const [emailsResult,xResult,seoResult]=await Promise.allSettled([
+        fetchAdminJson("/api/admin/email-drafts"),
+        fetchAdminJson("/api/admin/x/drafts"),
+        fetchAdminJson("/api/admin/google-acquisition/overview")
+      ]);
+
+      const emails=emailsResult.status==="fulfilled"?(emailsResult.value.email_drafts||[]):[];
+      const xDrafts=xResult.status==="fulfilled"?(xResult.value.drafts||[]):[];
+      const seo=seoResult.status==="fulfilled"?seoResult.value:null;
+
+      const emailReview=emails.filter(item=>String(item.status||"draft").toLowerCase()!=="sent").length;
+      const xReview=xDrafts.filter(item=>String(item.status||"").toLowerCase()==="draft").length;
+      const xApproved=xDrafts.filter(item=>String(item.status||"").toLowerCase()==="approved"&&!Number(item.is_scheduled||0)).length;
+      setText("dashboard-priority-emails",emailReview);
+      setText("dashboard-priority-x-review",xReview);
+      setText("dashboard-priority-x-approved",xApproved);
+
+      const nextBtn=document.getElementById("dashboard-next-action");
+      const nextTitle=document.getElementById("dashboard-next-action-title");
+      const nextText=document.getElementById("dashboard-next-action-text");
+      let next={section:"dashboard",title:"You’re caught up",text:"Nothing urgent is waiting for approval right now. Check growth opportunities or create your next piece of content."};
+      if(requestCount>0) next={section:"requests",title:"Review "+requestCount+" private request"+(requestCount===1?"":"s"),text:"Private requests are the highest-priority item because they may require a time-sensitive response."};
+      else if(emailReview>0) next={section:"emails",title:"Review "+emailReview+" email draft"+(emailReview===1?"":"s"),text:"Client emails are waiting for your review before they are sent."};
+      else if(xReview>0) next={section:"x-agent",title:"Review "+xReview+" X draft"+(xReview===1?"":"s"),text:"Edit or approve these posts so they can move into the scheduling queue."};
+      else if(xApproved>0) next={section:"x-agent",title:"Schedule "+xApproved+" approved X post"+(xApproved===1?"":"s"),text:"These posts have already been approved and are ready for a posting time."};
+      else if((seo?.opportunities||[]).length) next={section:"google-acquisition",title:"Review your next SEO opportunity",text:"The Google Acquisition Agent has an organic-search opportunity ready for review."};
+      if(nextTitle)nextTitle.textContent=next.title;
+      if(nextText)nextText.textContent=next.text;
+      if(nextBtn)nextBtn.onclick=()=>switchDashboardSection(next.section);
+
+      const growth=document.getElementById("dashboard-growth-list");
+      if(growth){
+        const items=[];
+        if(xApproved>0) items.push({section:"x-agent",title:xApproved+" approved X post"+(xApproved===1?" is":"s are")+" ready to schedule",text:"Keep approved content moving so the posting queue does not stall."});
+        const topSeo=(seo?.opportunities||[])[0];
+        if(topSeo) items.push({section:"google-acquisition",title:"SEO: "+String(topSeo.query||"Organic search opportunity"),text:topSeo.action||("Position "+(topSeo.position==null?"—":Number(topSeo.position).toFixed(1))+" · "+Number(topSeo.impressions||0)+" impressions")});
+        const googleVisits=Number(seo?.metrics?.google_visits||0),conversions=Number(seo?.metrics?.conversions||0);
+        if(googleVisits>0) items.push({section:"google-acquisition",title:googleVisits+" Google visit"+(googleVisits===1?"":"s")+" in the last 30 days",text:conversions+" introduction"+(conversions===1?"":"s")+" started from tracked organic-search activity."});
+        if(requestCount>0) items.push({section:"requests",title:requestCount+" active request"+(requestCount===1?"":"s")+" waiting",text:"Reviewing new requests quickly can reduce drop-off in the booking funnel."});
+        if(!items.length) items.push({section:"google-acquisition",title:"Build the next growth signal",text:"No urgent growth signal is waiting. Continue collecting Google performance data and keeping X content scheduled."});
+        growth.innerHTML=items.slice(0,4).map(item=>'<button type="button" data-dashboard-growth-jump="'+escapeHtml(item.section)+'" style="display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:14px 2px;cursor:pointer;"><strong style="display:block;">'+escapeHtml(item.title)+'</strong><span style="display:block;margin-top:4px;font-size:13px;color:var(--muted);line-height:1.45;">'+escapeHtml(item.text)+'</span></button>').join("");
+        growth.querySelectorAll("[data-dashboard-growth-jump]").forEach(button=>button.addEventListener("click",()=>switchDashboardSection(button.dataset.dashboardGrowthJump)));
+      }
+    }
+
         async function loadDashboard() {
       try {
         let status = document.getElementById("dashboard-load-status");
@@ -2369,12 +2498,6 @@
         status.hidden = false;
         status.textContent = "Loading dashboard...";
         const data = await fetchAdminJson("/api/admin/dashboard");
-
-        if (!response.ok || !data.ok) {
-          throw new Error(
-            data.message || "Unable to load dashboard."
-          );
-        }
 
         document.getElementById("pending-count").textContent =
           data.counts.pending_requests ?? 0;
@@ -2455,6 +2578,7 @@
           }));
         }
 
+        await loadDashboardAgentBrief(data);
         status.hidden = true;
       } catch (error) {
         console.error("Dashboard loading error:", error);
@@ -2463,6 +2587,16 @@
         throw error;
       }
     }
+
+    document.addEventListener("click",e=>{
+      const jump=e.target.closest?.("[data-dashboard-jump]");
+      if(jump) switchDashboardSection(jump.dataset.dashboardJump);
+    });
+    document.getElementById("dashboard-priority-refresh")?.addEventListener("click",async e=>{
+      const button=e.currentTarget;
+      button.disabled=true;button.textContent="Refreshing…";
+      try{await loadDashboard();}catch(err){}finally{button.disabled=false;button.textContent="Refresh";}
+    });
 
     async function loadBlacklist() {
   const container = document.getElementById("blacklist-records");
