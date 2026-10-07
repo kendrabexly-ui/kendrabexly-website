@@ -5369,83 +5369,66 @@ My journal will continue to be a place where I share a little more of that side 
     ) {
       try {
         await ensureSiteContentTables(env);
-        const [
-          pendingRequests,
-          clients,
-          approvedDates,
-          recordedPayments,
-          recentRequests
-        ] = await Promise.all([
-          env.DB
-            .prepare(
-              `
-              SELECT COUNT(*) AS count
-              FROM date_requests
-              WHERE status = 'pending'
-              `
-            )
-            .first(),
 
-          env.DB
-            .prepare(
-              `
-              SELECT COUNT(*) AS count
-              FROM clients
-              `
-            )
-            .first(),
+        const safeFirst = async (sql, fallback={count:0}) => {
+          try { return await env.DB.prepare(sql).first() || fallback; }
+          catch (error) { console.error("Dashboard query failed:", error); return fallback; }
+        };
+        const safeAll = async (sql) => {
+          try { return await env.DB.prepare(sql).all(); }
+          catch (error) { console.error("Dashboard list query failed:", error); return {results:[]}; }
+        };
 
-          env.DB
-            .prepare(
-              `
-              SELECT COUNT(*) AS count
-              FROM date_requests
-              WHERE
-                status = 'approved'
-                OR final_approval = 1
-              `
-            )
-            .first(),
-
-          env.DB
-            .prepare(
-              `
-              SELECT COUNT(*) AS count
-              FROM payments
-              WHERE payment_status = 'paid'
-              `
-            )
-            .first(),
-
-          env.DB
-            .prepare(
-              `
-              SELECT id, first_name, last_name, status, requested_date, requested_time, created_at
-              FROM date_requests
-              ORDER BY datetime(created_at) DESC, id DESC
-              LIMIT 6
-              `
-            )
-            .all()
+        const [pendingRequests,clients,approvedDates,recordedPayments,recentRequests] = await Promise.all([
+          safeFirst(`
+            SELECT COUNT(*) AS count
+            FROM date_requests
+            WHERE status = 'pending'
+          `),
+          safeFirst(`
+            SELECT COUNT(*) AS count
+            FROM clients
+          `),
+          safeFirst(`
+            SELECT COUNT(*) AS count
+            FROM date_requests
+            WHERE status = 'approved' OR final_approval = 1
+          `),
+          safeFirst(`
+            SELECT COUNT(*) AS count
+            FROM payments
+            WHERE payment_status = 'paid'
+          `),
+          safeAll(`
+            SELECT id, first_name, last_name, status, requested_date, requested_time, created_at
+            FROM date_requests
+            ORDER BY datetime(created_at) DESC, id DESC
+            LIMIT 6
+          `)
         ]);
 
-
-        const funnelRows=await env.DB.prepare(`
-          SELECT event_name,
-                 COUNT(DISTINCT CASE
-                   WHEN request_id IS NOT NULL THEN 'request:' || request_id
-                   WHEN session_id <> '' THEN 'session:' || session_id
-                   ELSE 'event:' || id
-                 END) AS count
-          FROM booking_funnel_events
-          WHERE datetime(created_at) >= datetime('now','-30 days')
-          GROUP BY event_name
-        `).all();
-        const funnel=Object.fromEntries((funnelRows.results||[]).map(row=>[row.event_name,Number(row.count||0)]));
+        let funnel={};
+        try {
+          const funnelRows=await env.DB.prepare(`
+            SELECT event_name,
+                   COUNT(DISTINCT CASE
+                     WHEN request_id IS NOT NULL THEN 'request:' || request_id
+                     WHEN session_id <> '' THEN 'session:' || session_id
+                     ELSE 'event:' || id
+                   END) AS count
+            FROM booking_funnel_events
+            WHERE datetime(created_at) >= datetime('now','-30 days')
+            GROUP BY event_name
+          `).all();
+          funnel=Object.fromEntries((funnelRows.results||[]).map(row=>[row.event_name,Number(row.count||0)]));
+        } catch (error) {
+          console.error("Dashboard funnel query failed:", error);
+          funnel={};
+        }
 
         return bookingCorsJson({
           ok: true,
-
+          partial: false,
           funnel: {
             period_days: 30,
             request_page_view: funnel.request_page_view || 0,
@@ -5468,42 +5451,26 @@ My journal will continue to be a place where I share a little more of that side 
             deposit_confirmed: funnel.deposit_confirmed || 0,
             final_approved: funnel.final_approved || 0
           },
-
           counts: {
-            pending_requests:
-              pendingRequests?.count ?? 0,
-
-            clients:
-              clients?.count ?? 0,
-
-            approved_dates:
-              approvedDates?.count ?? 0,
-
-            recorded_payments:
-              recordedPayments?.count ?? 0
+            pending_requests: Number(pendingRequests?.count || 0),
+            clients: Number(clients?.count || 0),
+            approved_dates: Number(approvedDates?.count || 0),
+            recorded_payments: Number(recordedPayments?.count || 0)
           },
-
-          recent_requests:
-            recentRequests?.results ?? []
+          recent_requests: recentRequests?.results || []
         });
-
       } catch (error) {
-        console.error(
-          "Admin dashboard error:",
-          error
-        );
-
-        return bookingCorsJson(
-          {
-            ok: false,
-            message:
-              "Unable to load dashboard information."
-          },
-          { status: 500 }
-        );
+        console.error("Admin dashboard initialization error:", error);
+        return bookingCorsJson({
+          ok: true,
+          partial: true,
+          message: "Some dashboard data is temporarily unavailable.",
+          funnel: {period_days:30},
+          counts: {pending_requests:0,clients:0,approved_dates:0,recorded_payments:0},
+          recent_requests: []
+        });
       }
     }
-
 
     // =========================================================
     // RESCHEDULE BOOKING — available for current booking requests
