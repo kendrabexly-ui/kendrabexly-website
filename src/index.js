@@ -9506,9 +9506,15 @@ if (
     if (isPrivateAssetPath) {
       const assetResponse = await env.ASSETS.fetch(request);
       const headers = new Headers(assetResponse.headers);
-      headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
-      headers.set("Pragma", "no-cache");
-      headers.set("Expires", "0");
+      const isPhotoCraftAsset = url.pathname.startsWith("/portal/photocraft-app/");
+      const isHashedPhotoCraftAsset = isPhotoCraftAsset && /\.(?:wasm|js)$/i.test(url.pathname);
+      if (isHashedPhotoCraftAsset) {
+        headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      } else {
+        headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        headers.set("Pragma", "no-cache");
+        headers.set("Expires", "0");
+      }
       const response = new Response(assetResponse.body, {
         status: assetResponse.status,
         statusText: assetResponse.statusText,
