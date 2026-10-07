@@ -236,3 +236,87 @@ body { font-family: var(--portal-body-font); }
 .main a:hover { color: var(--ink); }
 .main .status { background: var(--cream-dark); color: var(--accent); }
 .sidebar { box-shadow: none; }
+
+
+/* X Agent conversation series: mobile cleanup */
+@media (max-width: 640px) {
+  [data-x-view="create"] .x-agent-only-header {
+    padding: 18px 16px !important;
+  }
+
+  #x-series-topic-select,
+  #x-series-topic,
+  #x-series-action,
+  #x-series-schedule-at,
+  #x-series-spacing,
+  #x-series-sexual-tone {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 16px !important;
+  }
+
+  #x-series-topic {
+    min-height: 92px !important;
+  }
+
+  #x-generate-series {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-height: 48px !important;
+  }
+
+  #x-generate-series + details {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  #x-generate-series + details > summary {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #x-series-writing-style,
+  #x-series-settings,
+  #x-series-full-preview {
+    padding: 14px !important;
+  }
+
+  #x-series-writing-style > summary,
+  #x-series-settings > summary,
+  #x-series-full-preview > summary {
+    line-height: 1.4 !important;
+    min-height: 28px !important;
+  }
+
+  #x-series-settings label {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #x-series-batch-actions > div[style*="display:flex"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+  }
+
+  #x-series-batch-actions button {
+    width: 100% !important;
+    min-height: 48px !important;
+  }
+
+  #x-series-results textarea,
+  #x-series-results input,
+  #x-series-results select,
+  #x-series-results button {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
