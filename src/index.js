@@ -181,15 +181,15 @@ const DEFAULT_SITE_RATES = [
   {
     name: "Brief Experiences",
     description: "A brief experience when you want a little more time to settle in and enjoy the moment.",
-    rates: [["Signature Brief Introduction — 30 minutes", 300], ["Greek Princess Brief Introduction — 30 minutes", 400]]
+    rates: [["The Signature Experience — 30 minutes", 300], ["The Grecian Experience — 30 minutes", 400]]
   },
   {
-    name: "Signature Girlfriend Experience",
+    name: "The Signature Experience",
     description: "My signature experience is romantic, flirtatious, and intentionally unhurried, with genuine chemistry, affectionate company, playful conversation, and my complete attention.",
     rates: [["1 hour", 500], ["1½ hours", 750], ["Up to 2 hours", 1000], ["Up to 4 hours", 2300]]
   },
   {
-    name: "Greek Princess Experience",
+    name: "The Grecian Experience",
     description: "My more adventurous and elevated experience, with the same warmth and attentive companionship and a more daring, playful energy.",
     rates: [["1 hour", 700], ["1½ hours", 1000], ["Up to 2 hours", 1300], ["Up to 4 hours", 2800]]
   },
@@ -3537,6 +3537,29 @@ export default {
         sent_at TEXT
       )
     `).run();
+
+    // Rename legacy experience labels in unsent newsletter drafts so current drafts,
+    // previews, and approved-but-unsent newsletters stay aligned with the site.
+    await env.DB.prepare(`
+      UPDATE newsletter_drafts
+      SET
+        subject = REPLACE(REPLACE(REPLACE(REPLACE(subject,
+          'Signature Girlfriend Experience','The Signature Experience'),
+          'Greek Princess Experience','The Grecian Experience'),
+          'Signature Brief Introduction','The Signature Experience'),
+          'Greek Princess Brief Introduction','The Grecian Experience'),
+        content = REPLACE(REPLACE(REPLACE(REPLACE(content,
+          'Signature Girlfriend Experience','The Signature Experience'),
+          'Greek Princess Experience','The Grecian Experience'),
+          'Signature Brief Introduction','The Signature Experience'),
+          'Greek Princess Brief Introduction','The Grecian Experience'),
+        special_offer = REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(special_offer,''),
+          'Signature Girlfriend Experience','The Signature Experience'),
+          'Greek Princess Experience','The Grecian Experience'),
+          'Signature Brief Introduction','The Signature Experience'),
+          'Greek Princess Brief Introduction','The Grecian Experience')
+      WHERE status IN ('draft','approved')
+    `).run();
   }
 
   async function ensureNewsletterSubscribersTable() {
@@ -3718,8 +3741,8 @@ export default {
       created.getUTCMonth() !== now.getUTCMonth();
 
     const monthly_specials = [
-      { id:"signature-girlfriend-experience", experience:"Signature Girlfriend Experience", duration:"1.5 hours", price:750, label:"Signature Girlfriend Experience — 1.5 hours at $750" },
-      { id:"greek-princess-experience", experience:"Greek Princess Experience", duration:"1.5 hours", price:1000, label:"Greek Princess Experience — 1.5 hours at $1,000" }
+      { id:"signature-girlfriend-experience", experience:"The Signature Experience", duration:"1.5 hours", price:750, label:"The Signature Experience — 1.5 hours at $750" },
+      { id:"greek-princess-experience", experience:"The Grecian Experience", duration:"1.5 hours", price:1000, label:"The Grecian Experience — 1.5 hours at $1,000" }
     ];
 
     return Response.json({
@@ -3806,14 +3829,14 @@ My journal will continue to be a place where I share a little more of that side 
       ).trim();
 
     const monthlySubscriberOffers = [
-      { experience: "Signature Girlfriend Experience", duration: "1 hour", regular: 500, incentive: "30 extra minutes" },
-      { experience: "Signature Girlfriend Experience", duration: "1.5 hours", regular: 750, incentive: "30 extra minutes" },
-      { experience: "Signature Girlfriend Experience", duration: "2 hours", regular: 1000, incentive: "30 extra minutes" },
-      { experience: "Signature Girlfriend Experience", duration: "4 hours", regular: 2300, incentive: "30 extra minutes" },
-      { experience: "Greek Princess Experience", duration: "1 hour", regular: 700, incentive: "30 extra minutes" },
-      { experience: "Greek Princess Experience", duration: "1.5 hours", regular: 1000, incentive: "30 extra minutes" },
-      { experience: "Greek Princess Experience", duration: "2 hours", regular: 1300, incentive: "30 extra minutes" },
-      { experience: "Greek Princess Experience", duration: "4 hours", regular: 2800, incentive: "30 extra minutes" }
+      { experience: "The Signature Experience", duration: "1 hour", regular: 500, incentive: "30 extra minutes" },
+      { experience: "The Signature Experience", duration: "1.5 hours", regular: 750, incentive: "30 extra minutes" },
+      { experience: "The Signature Experience", duration: "2 hours", regular: 1000, incentive: "30 extra minutes" },
+      { experience: "The Signature Experience", duration: "4 hours", regular: 2300, incentive: "30 extra minutes" },
+      { experience: "The Grecian Experience", duration: "1 hour", regular: 700, incentive: "30 extra minutes" },
+      { experience: "The Grecian Experience", duration: "1.5 hours", regular: 1000, incentive: "30 extra minutes" },
+      { experience: "The Grecian Experience", duration: "2 hours", regular: 1300, incentive: "30 extra minutes" },
+      { experience: "The Grecian Experience", duration: "4 hours", regular: 2800, incentive: "30 extra minutes" }
     ];
     // The experiences stay fixed; the monthly incentive rotates.
     // Each month selects a base duration from 1–4 hours and adds 30 bonus minutes,
@@ -3860,7 +3883,7 @@ My journal will continue to be a place where I share a little more of that side 
     const specialOffer =
       String(
         data.special_offer ||
-        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experiences:\n\nSignature Girlfriend Experience — book ${classicMonthlySpecial.base} at ${money(classicMonthlySpecial.price)} and enjoy ${classicMonthlySpecial.special}.\n\nGreek Princess Experience — book ${greekMonthlySpecial.base} at ${money(greekMonthlySpecial.price)} and enjoy ${greekMonthlySpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`
+        `${flirtyOfferIntros[flirtyIndex]}\n\nThis month's featured experiences:\n\nThe Signature Experience — book ${classicMonthlySpecial.base} at ${money(classicMonthlySpecial.price)} and enjoy ${classicMonthlySpecial.special}.\n\nThe Grecian Experience — book ${greekMonthlySpecial.base} at ${money(greekMonthlySpecial.price)} and enjoy ${greekMonthlySpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${flirtyOfferClosers[flirtyIndex]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`
       ).trim();
 
     const result = await env.DB.prepare(`
@@ -3946,7 +3969,7 @@ My journal will continue to be a place where I share a little more of that side 
       : x.type === "Price + Extra Time"
         ? `${name} — book ${x.base} at ${dollars(x.price)} and enjoy ${x.special} with me.`
         : `${name} — book ${x.base} at ${dollars(x.price)} and enjoy ${x.special}.`;
-    const specialsBlock = `This month's featured experiences:\n\n${offerCopy("Signature Girlfriend Experience",classic)}\n\n${offerCopy("Greek Princess Experience",greek)}\n\nChoose the experience that catches your eye when you're ready to make plans with me.`;
+    const specialsBlock = `This month's featured experiences:\n\n${offerCopy("The Signature Experience",classic)}\n\n${offerCopy("The Grecian Experience",greek)}\n\nChoose the experience that catches your eye when you're ready to make plans with me.`;
 
     let specialOffer = current;
     const start = specialOffer.search(/This month's featured experience(?:s)?:/i);
@@ -4008,7 +4031,7 @@ My journal will continue to be a place where I share a little more of that side 
     ];
     const currentIntroIndex = intros.findIndex(x => offer.startsWith(x));
     const seed = currentIntroIndex >= 0 ? (currentIntroIndex + 1) % intros.length : id % intros.length;
-    const specialOffer = `${intros[seed]}\n\nThis month's featured experiences:\n\nSignature Girlfriend Experience — book ${classicSpecial.base} at ${classicSpecial.price} and enjoy ${classicSpecial.special}.\n\nGreek Princess Experience — book ${greekSpecial.base} at ${greekSpecial.price} and enjoy ${greekSpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`;
+    const specialOffer = `${intros[seed]}\n\nThis month's featured experiences:\n\nThe Signature Experience — book ${classicSpecial.base} at ${classicSpecial.price} and enjoy ${classicSpecial.special}.\n\nThe Grecian Experience — book ${greekSpecial.base} at ${greekSpecial.price} and enjoy ${greekSpecial.special}.\n\nThe experiences stay the same; the little extra changes each month. Choose the one that catches your eye when you're ready to make plans with me.\n\n${closers[seed]} This little invitation is only around for ${month} and, of course, depends on my availability. 💋`;
 
     await env.DB.prepare("UPDATE newsletter_drafts SET special_offer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(specialOffer,id).run();
     return Response.json({ok:true,special_offer:specialOffer});
@@ -4562,8 +4585,8 @@ My journal will continue to be a place where I share a little more of that side 
         const subscriberSpecial =
           String(data.subscriber_special || "").trim();
         const monthlySpecials = {
-          "signature-girlfriend-experience": { experience:"Signature Girlfriend Experience", duration:"1.5 hours", price:750 },
-          "greek-princess-experience": { experience:"Greek Princess Experience", duration:"1.5 hours", price:1000 }
+          "signature-girlfriend-experience": { experience:"The Signature Experience", duration:"1.5 hours", price:750 },
+          "greek-princess-experience": { experience:"The Grecian Experience", duration:"1.5 hours", price:1000 }
         };
         // The current request form uses date_type as the experience selector and no
         // longer posts the legacy subscriber_special field. For newsletter-linked
@@ -4604,7 +4627,7 @@ My journal will continue to be a place where I share a little more of that side 
 
         if (newsletterOffer && !selectedSubscriberSpecial) {
           return bookingCorsJson(
-            { ok:false, message:"Please choose either the Signature Girlfriend Experience or Greek Princess Experience monthly special." },
+            { ok:false, message:"Please choose either the The Signature Experience or The Grecian Experience monthly special." },
             { status:400 }
           );
         }
@@ -8335,8 +8358,8 @@ if (
           "private-uncovered-introduction": "private introductions",
           "signature-brief-introduction": "brief experiences",
           "greek-princess-brief-introduction": "brief experiences",
-          "signature-girlfriend-experience": "signature girlfriend experience",
-          "greek-princess-experience": "greek princess experience"
+          "signature-girlfriend-experience": "the signature experience",
+          "greek-princess-experience": "the grecian experience"
         };
         const selectedService = configuredServices.find(service =>
           String(service.name || "").trim().toLowerCase() === serviceNameByDateType[dateTypeKey]
@@ -8345,8 +8368,8 @@ if (
           const label = String(rate?.[0] || "").trim().toLowerCase();
           if (dateTypeKey === "private-introduction") return label.startsWith("private introduction");
           if (dateTypeKey === "private-uncovered-introduction") return label.includes("private uncovered introduction");
-          if (dateTypeKey === "signature-brief-introduction") return label.includes("signature brief introduction");
-          if (dateTypeKey === "greek-princess-brief-introduction") return label.includes("greek princess brief introduction");
+          if (dateTypeKey === "signature-brief-introduction") return label.includes("the signature experience");
+          if (dateTypeKey === "greek-princess-brief-introduction") return label.includes("the grecian experience");
           return siteDurationMinutes(label) === siteDurationMinutes(durationKey);
         });
         const standardBookingRate = Number(configuredRate?.[1]) || 0;
@@ -8542,17 +8565,17 @@ Kendra`;
         const aliases={
           "private-introduction":"private introductions","private-uncovered-introduction":"private introductions",
           "signature-brief-introduction":"brief experiences","greek-princess-brief-introduction":"brief experiences",
-          "signature-girlfriend-experience":"signature girlfriend experience","signature-private-companionship":"signature girlfriend experience",
-          "signature-experience":"signature girlfriend experience","greek-princess-experience":"greek princess experience",
-          "greek-private-companionship":"greek princess experience"
+          "signature-girlfriend-experience":"the signature experience","signature-private-companionship":"the signature experience",
+          "signature-experience":"the signature experience","greek-princess-experience":"the grecian experience",
+          "greek-private-companionship":"the grecian experience"
         };
         const selectedService=configuredServices.find(service=>String(service.name||"").trim().toLowerCase()===aliases[dateTypeKey]);
         const configuredRate=selectedService?.rates?.find(rate=>{
           const label=String(rate?.[0]||"").trim().toLowerCase();
           if(dateTypeKey==="private-introduction")return label.startsWith("private introduction");
           if(dateTypeKey==="private-uncovered-introduction")return label.includes("private uncovered introduction");
-          if(dateTypeKey==="signature-brief-introduction")return label.includes("signature brief introduction");
-          if(dateTypeKey==="greek-princess-brief-introduction")return label.includes("greek princess brief introduction");
+          if(dateTypeKey==="signature-brief-introduction")return label.includes("the signature experience");
+          if(dateTypeKey==="greek-princess-brief-introduction")return label.includes("the grecian experience");
           return siteDurationMinutes(label)===siteDurationMinutes(durationKey);
         });
         const standardRate=Number(configuredRate?.[1])||0;
@@ -8609,11 +8632,11 @@ Kendra`;
             "private-uncovered-introduction": "private introductions",
             "signature-brief-introduction": "brief experiences",
             "greek-princess-brief-introduction": "brief experiences",
-            "signature-girlfriend-experience": "signature girlfriend experience",
-            "signature-private-companionship": "signature girlfriend experience",
-            "signature-experience": "signature girlfriend experience",
-            "greek-princess-experience": "greek princess experience",
-            "greek-private-companionship": "greek princess experience"
+            "signature-girlfriend-experience": "the signature experience",
+            "signature-private-companionship": "the signature experience",
+            "signature-experience": "the signature experience",
+            "greek-princess-experience": "the grecian experience",
+            "greek-private-companionship": "the grecian experience"
           };
           const selectedService = configuredServices.find(service =>
             String(service.name || "").trim().toLowerCase() === serviceNameByDateType[dateTypeKey]
@@ -8622,8 +8645,8 @@ Kendra`;
             const label = String(rate?.[0] || "").trim().toLowerCase();
             if (dateTypeKey === "private-introduction") return label.startsWith("private introduction");
             if (dateTypeKey === "private-uncovered-introduction") return label.includes("private uncovered introduction");
-            if (dateTypeKey === "signature-brief-introduction") return label.includes("signature brief introduction");
-            if (dateTypeKey === "greek-princess-brief-introduction") return label.includes("greek princess brief introduction");
+            if (dateTypeKey === "signature-brief-introduction") return label.includes("the signature experience");
+            if (dateTypeKey === "greek-princess-brief-introduction") return label.includes("the grecian experience");
             return siteDurationMinutes(label) === siteDurationMinutes(durationKey);
           });
           const standardBookingRate = Number(configuredRate?.[1]) || 0;
