@@ -9482,6 +9482,15 @@ function escapeHtml(value) {
     }catch(err){status.textContent=err.message;}finally{button.disabled=false;}
   });
 
+  function resizeSeoReviewTextarea(el){
+    if(!el)return;
+    el.style.height="auto";
+    el.style.height=Math.min(Math.max(el.scrollHeight,88),420)+"px";
+  }
+  document.addEventListener("input",e=>{
+    if(e.target?.matches?.("[data-ga-change-item] textarea")) resizeSeoReviewTextarea(e.target);
+  });
+
   document.addEventListener("click",async e=>{
     const wpDraftBtn=e.target.closest("[data-ga-wordpress-draft]");
     if(wpDraftBtn){
@@ -9498,17 +9507,31 @@ function escapeHtml(value) {
         if(value)approved.push({label,value});
       });
       if(!approved.length){if(status)status.textContent="Approve at least one change first.";return;}
-      wpDraftBtn.disabled=true;wpDraftBtn.textContent="Preparing WordPress Draft…";
-      if(status)status.textContent="Preparing a draft package. Nothing will be published.";
+      wpDraftBtn.disabled=true;wpDraftBtn.textContent="Preparing WordPress Package…";
+      if(status)status.textContent="Preparing a WordPress-ready package. Nothing will be published.";
       try{
         const r=await fetch("/api/admin/google-acquisition/wordpress-draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:out.__seoQuery,target_page:out.__seoPage,approved_changes:approved})});
         const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Unable to prepare WordPress draft.");
         out.__wordpressDraft=d.draft;
-        if(status)status.innerHTML='<strong>WordPress draft package ready.</strong> Draft #'+esc(String(d.draft?.id||""))+'. Nothing has been published or changed on the live site.';
+        if(status){
+          const pageMap={
+            "/":{id:5,live:"https://kendrabexly.com/"},
+            "/the-muse/":{id:6,live:"https://kendrabexly.com/the-muse/"},
+            "/our-time/":{id:7,live:"https://kendrabexly.com/our-time/"}
+          };
+          const target=pageMap[String(out.__seoPage||"")]||null;
+          const editUrl=target?"https://kendrabexly.wordpress.com/wp-admin/post.php?post="+target.id+"&action=edit":"https://kendrabexly.wordpress.com/wp-admin/edit.php?post_type=page";
+          const liveUrl=target?.live||"https://kendrabexly.com/";
+          status.innerHTML='<strong>WordPress-ready package created.</strong> Package #'+esc(String(d.draft?.id||""))+'. Nothing has been published or changed on the live site.'+
+            '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px;">'+
+              '<a href="'+editUrl+'" target="_blank" rel="noopener" style="display:block;text-align:center;border:1px solid var(--ink);border-radius:9px;padding:10px 12px;background:white;color:var(--ink);text-decoration:none;font-weight:700;">Open WordPress Editor</a>'+
+              '<a href="'+liveUrl+'" target="_blank" rel="noopener" style="display:block;text-align:center;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:white;color:var(--ink);text-decoration:none;font-weight:700;">Open Live Page</a>'+
+            '</div>';
+        }
         const copyWp=review.querySelector("[data-ga-copy-wordpress]");
         if(copyWp)copyWp.hidden=false;
       }catch(err){if(status)status.textContent=err.message;}
-      finally{wpDraftBtn.disabled=false;wpDraftBtn.textContent="Prepare WordPress Draft";}
+      finally{wpDraftBtn.disabled=false;wpDraftBtn.textContent="Prepare WordPress Package";}
       return;
     }
 
@@ -9518,7 +9541,7 @@ function escapeHtml(value) {
       const payload=out?.__wordpressDraft?.payload;
       if(!payload)return;
       const text=[
-        "WORDPRESS DRAFT PACKAGE",
+        "WORDPRESS READY PACKAGE",
         "Target page: "+String(payload.target_page||""),
         payload.wordpress?.seo_title?"SEO title: "+payload.wordpress.seo_title:"",
         payload.wordpress?.meta_description?"Meta description: "+payload.wordpress.meta_description:"",
@@ -9527,7 +9550,7 @@ function escapeHtml(value) {
         payload.wordpress?.schema_recommendation?"Schema:\n"+payload.wordpress.schema_recommendation:""
       ].filter(Boolean).join("\n\n");
       try{await navigator.clipboard.writeText(text);copyWpBtn.textContent="Copied";}catch(err){copyWpBtn.textContent="Copy failed";}
-      setTimeout(()=>copyWpBtn.textContent="Copy WordPress Draft",1600);
+      setTimeout(()=>copyWpBtn.textContent="Copy WordPress Package",1600);
       return;
     }
 
@@ -9594,13 +9617,14 @@ function escapeHtml(value) {
                 item("Implementation notes",noteText,4)+
               '</div>'+
               '<div class="ga-review-actions" style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px;">'+
-                '<button type="button" data-ga-wordpress-draft style="width:100%;min-height:48px;border:0;border-radius:10px;padding:12px 16px;background:var(--ink);color:white;font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Prepare WordPress Draft</button>'+
+                '<button type="button" data-ga-wordpress-draft style="width:100%;min-height:48px;border:0;border-radius:10px;padding:12px 16px;background:var(--ink);color:white;font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Prepare WordPress Package</button>'+
                 '<button type="button" data-ga-copy-approved style="width:100%;min-height:48px;border:1px solid var(--ink);border-radius:10px;padding:12px 16px;background:white;color:var(--ink);font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Copy Approved Changes</button>'+
-                '<button type="button" data-ga-copy-wordpress hidden style="width:100%;min-height:48px;border:1px solid var(--ink);border-radius:10px;padding:12px 16px;background:white;color:var(--ink);font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Copy WordPress Draft</button>'+
+                '<button type="button" data-ga-copy-wordpress hidden style="width:100%;min-height:48px;border:1px solid var(--ink);border-radius:10px;padding:12px 16px;background:white;color:var(--ink);font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Copy WordPress Package</button>'+
               '</div>'+ 
-              '<div data-ga-wordpress-status style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--cream);font-size:12px;line-height:1.5;color:var(--muted);">Prepare WordPress Draft creates a reviewable draft package only. It does not publish or change the live WordPress page.</div>'+
+              '<div data-ga-wordpress-status style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--cream);font-size:12px;line-height:1.5;color:var(--muted);">Prepare WordPress Package creates a reviewable WordPress-ready package only. It does not publish or change the live WordPress page.</div>'+
               '<div style="margin-top:10px;font-size:12px;color:var(--muted);">This prepares the edit set for review. It does not publish anything to WordPress automatically.</div>'+
             '</div>';
+          requestAnimationFrame(()=>reviewHost.querySelectorAll("[data-ga-change-item] textarea").forEach(resizeSeoReviewTextarea));
         }
       }catch(err){
         if(reviewHost)reviewHost.innerHTML='<div class="empty">'+esc(err.message)+'</div>';
