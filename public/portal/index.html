@@ -1919,18 +1919,21 @@
 
         <div class="panel" style="margin-bottom:18px;">
           <div class="panel-header">
-            <div><div class="panel-title">Search Console Data</div><div class="panel-subtitle">Paste Search Console rows so the agent can prioritize impressions, click-through rate, and average position.</div></div>
+            <div><div class="panel-title">Google Search Performance</div><div class="panel-subtitle">Shows what people search for, which page Google displays, how often Kendra appears, how many clicks she gets, and her average ranking position.</div></div>
           </div>
           <div style="padding:18px 24px;">
-            <label for="ga-search-console-input" style="display:block;font-weight:700;margin-bottom:7px;">Paste CSV-style rows</label>
-            <textarea id="ga-search-console-input" placeholder="query,landing_page,clicks,impressions,ctr,position&#10;Los Angeles companion,/meet-kendra/,12,850,1.4%,8.2" style="width:100%;min-height:130px;padding:12px;border:1px solid var(--line);border-radius:9px;font:inherit;box-sizing:border-box;"></textarea>
+            <div style="padding:12px 13px;border:1px solid var(--line);border-radius:9px;background:var(--cream);margin-bottom:14px;font-size:13px;line-height:1.55;"><strong style="display:block;color:var(--ink);margin-bottom:4px;">What this is used for</strong>Import Google Search Console data here so the agent can identify keywords that are already getting impressions, spot pages sitting close to page one, find low click-through rates, and decide which SEO changes should be prioritized first.</div><label for="ga-search-console-input" style="display:block;font-weight:700;margin-bottom:7px;">Paste Google Search Console CSV rows</label>
+            <textarea id="ga-search-console-input" placeholder="query,landing_page,clicks,impressions,ctr,position&#10;Los Angeles companion,/,12,850,1.4%,8.2" style="width:100%;min-height:130px;padding:12px;border:1px solid var(--line);border-radius:9px;font:inherit;box-sizing:border-box;"></textarea>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;"><button id="ga-import-search-console" type="button">Import Rows</button><span id="ga-import-status" style="font-size:12px;color:var(--muted);">Use the export columns: query, page, clicks, impressions, CTR, and position.</span></div>
           </div>
         </div>
 
         <div class="panel" style="margin-bottom:18px;">
-          <div class="panel-header"><div><div class="panel-title">Top Organic Landing Pages</div><div class="panel-subtitle">Pages receiving search-engine traffic through the Cloudflare edge.</div></div></div>
-          <div id="ga-landing-pages" style="padding:0 24px 20px;"><div class="empty">No organic landing-page data yet.</div></div>
+          <div class="panel-header"><div><div class="panel-title">Pages Getting Google Traffic</div><div class="panel-subtitle">Shows which public pages visitors land on after finding Kendra through search engines.</div></div></div>
+          <div style="padding:16px 24px 0;">
+            <div style="padding:12px 13px;border:1px solid var(--line);border-radius:9px;background:var(--cream);font-size:13px;line-height:1.55;"><strong style="display:block;color:var(--ink);margin-bottom:4px;">What this is used for</strong>Use this to see which pages are actually earning organic visits. Strong pages can be improved and used as models; pages getting traffic but few introductions may need clearer copy, stronger trust signals, or a better CTA.</div>
+          </div>
+          <div id="ga-landing-pages" style="padding:10px 24px 20px;"><div class="empty">No Google landing-page traffic has been recorded yet.</div></div>
         </div>
 
         <div class="panel" style="margin-bottom:18px;">
