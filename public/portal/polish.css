@@ -442,3 +442,160 @@ body { font-family: var(--portal-body-font); }
     overflow-x: hidden !important;
   }
 }
+
+
+/* Photo Editor layout fix — 2026-10-07
+   Keep the workspace wide, prevent the tools column from being squeezed,
+   and switch to a stacked layout before the sidebar makes the editor cramped. */
+#photo-editor {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+#photo-editor .section-heading {
+  margin-bottom: 18px;
+}
+
+#photo-editor .photo-editor-topbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  margin-bottom: 14px !important;
+}
+
+#photo-editor .photo-editor-shell {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 320px !important;
+  gap: 20px !important;
+  align-items: start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+#photo-editor .photo-editor-shell > div:first-child {
+  min-width: 0 !important;
+}
+
+#photo-editor .photo-editor-canvas-wrap {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: clamp(430px, 56vh, 680px) !important;
+  max-height: 72vh !important;
+  overflow: auto !important;
+}
+
+#photo-editor .photo-editor-tools {
+  width: 320px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+#photo-editor .photo-editor-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 16px !important;
+  overflow: hidden !important;
+}
+
+#photo-editor .photo-editor-card h3 {
+  margin-bottom: 12px !important;
+}
+
+#photo-editor .photo-editor-field,
+#photo-editor .photo-editor-field label,
+#photo-editor .photo-editor-field input[type="range"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+#photo-editor .photo-editor-row {
+  align-items: center !important;
+}
+
+#photo-editor .photo-editor-row button,
+#photo-editor .photo-editor-row select,
+#photo-editor .photo-editor-upload-label,
+#photo-editor .photo-editor-topbar button {
+  min-height: 40px !important;
+}
+
+#photo-editor .photo-editor-meta {
+  overflow-wrap: anywhere;
+}
+
+/* The portal sidebar reduces usable width on desktop, so stack earlier than
+   the old 980px viewport breakpoint. */
+@media (max-width: 1280px) {
+  #photo-editor .photo-editor-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  #photo-editor .photo-editor-tools {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  #photo-editor .photo-editor-canvas-wrap {
+    min-height: clamp(400px, 52vh, 620px) !important;
+    max-height: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  #photo-editor .photo-editor-tools {
+    grid-template-columns: 1fr !important;
+  }
+
+  #photo-editor .photo-editor-topbar > * {
+    flex: 1 1 auto;
+  }
+
+  #photo-editor .photo-editor-topbar button,
+  #photo-editor .photo-editor-topbar .photo-editor-upload-label {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  #photo-editor .photo-editor-canvas-wrap {
+    min-height: 340px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #photo-editor .photo-editor-topbar {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  #photo-editor .photo-editor-topbar > * {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #photo-editor #photo-editor-unsaved {
+    grid-column: 1 / -1;
+    width: auto !important;
+    justify-self: start;
+  }
+
+  #photo-editor .photo-editor-canvas-wrap {
+    min-height: 300px !important;
+    border-radius: 4px !important;
+  }
+
+  #photo-editor .photo-editor-card {
+    padding: 14px !important;
+  }
+
+  #photo-editor .photo-editor-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
