@@ -665,6 +665,7 @@
     body[data-admin-section="gallery"] main.main > #gallery,
     body[data-admin-section="photo-controls"] main.main > #photo-controls,
     body[data-admin-section="photo-editor"] main.main > #photo-editor,
+    body[data-admin-section="photocraft"] main.main > #photocraft,
     body[data-admin-section="newsletter"] main.main > #newsletter,
     body[data-admin-section="google-acquisition"] main.main > #google-acquisition,
     body[data-admin-section="x-agent"] main.main > #x-agent,
@@ -672,6 +673,21 @@
     body[data-admin-section="ad-copy-agent"] main.main > #ad-copy-agent { display:block !important; }
     body[data-admin-section="newsletter"] #x-agent,
     body[data-admin-section="newsletter"] #x-agent-boundary { display:none !important; }
+
+    /* PhotoCraft advanced editor */
+    .photocraft-shell { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr); gap:18px; align-items:start; }
+    .photocraft-card { border:1px solid var(--line); background:var(--white); border-radius:12px; padding:22px; }
+    .photocraft-card h3 { font-family:"Playfair Display",serif; font-size:22px; font-weight:500; margin-bottom:8px; }
+    .photocraft-card p { color:var(--muted); line-height:1.55; }
+    .photocraft-badge { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border-radius:999px; background:#f2e7ec; color:#6f4459; font-size:12px; font-weight:700; margin-bottom:14px; }
+    .photocraft-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .photocraft-actions a { display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:10px 14px; border-radius:8px; border:1px solid var(--line); text-decoration:none; color:var(--ink); background:white; font-weight:600; }
+    .photocraft-actions a.primary { background:#8f6377; border-color:#8f6377; color:white; }
+    .photocraft-feature-list { display:grid; gap:10px; margin-top:14px; }
+    .photocraft-feature { padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+    .photocraft-feature strong { display:block; margin-bottom:3px; }
+    .photocraft-note { margin-top:16px; padding:13px 14px; border-radius:10px; background:#fff8e8; border:1px solid #ead9b6; font-size:13px; line-height:1.5; }
+    @media (max-width: 900px) { .photocraft-shell { grid-template-columns:1fr; } }
 
     /* Photo Editor */
     .photo-editor-shell { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:18px; align-items:start; }
@@ -1091,6 +1107,7 @@
         <button type="button" data-section="blacklist">Blacklist</button>
         <button type="button" data-section="emails">Email Drafts</button>
         <button type="button" data-section="photo-editor">Photo Editor</button>
+        <button type="button" data-section="photocraft">PhotoCraft</button>
         <button type="button" data-section="newsletter">Newsletter</button>
         <button type="button" data-section="google-acquisition">Google Acquisition</button>
         <button type="button" data-section="x-agent">X Agent</button>
@@ -1114,6 +1131,39 @@
           Private workspace
         </div>
       </div>
+
+      <section id="photocraft" class="section" aria-labelledby="photocraft-title">
+        <div class="section-heading">
+          <h2 id="photocraft-title">PhotoCraft Studio</h2>
+          <p>Advanced image editing for layered work, masks, selections, filters, type, vectors, PSD files, and agent-driven workflows.</p>
+        </div>
+
+        <div class="photocraft-shell">
+          <div class="photocraft-card">
+            <span class="photocraft-badge">Advanced editor · Early alpha</span>
+            <h3>PhotoCraft for Kendra</h3>
+            <p>Use PhotoCraft when the built-in Photo Editor is not enough. It supports layered editing, adjustment layers, masks, object and subject selections, filters, type, vectors, brushes, PSD/PSB files, and non-destructive editing.</p>
+            <div class="photocraft-actions">
+              <a class="primary" href="https://getartcraft.com/apps/photocraft" target="_blank" rel="noopener noreferrer">Open PhotoCraft</a>
+              <a href="https://github.com/storytold/photocraft/releases/latest" target="_blank" rel="noopener noreferrer">Get Web Build</a>
+              <a href="https://github.com/storytold/photocraft" target="_blank" rel="noopener noreferrer">View Source</a>
+            </div>
+            <div class="photocraft-note">
+              PhotoCraft's browser edition is distributed as a self-hosted WebAssembly build. This portal keeps the existing Photo Editor available for quick edits while PhotoCraft handles advanced work. The PhotoCraft project is currently early alpha, so keep originals before editing.
+            </div>
+          </div>
+
+          <div class="photocraft-card">
+            <h3>Best uses in this portal</h3>
+            <div class="photocraft-feature-list">
+              <div class="photocraft-feature"><strong>Retouch &amp; polish</strong><span>Work with selections, masks, brushes, healing tools, blur, sharpen, and filters.</span></div>
+              <div class="photocraft-feature"><strong>Layered designs</strong><span>Create editable compositions with text, vectors, effects, and adjustment layers.</span></div>
+              <div class="photocraft-feature"><strong>PSD workflows</strong><span>Open and save layered Photoshop-compatible documents instead of flattening every edit.</span></div>
+              <div class="photocraft-feature"><strong>Agent-ready</strong><span>PhotoCraft exposes commands through CLI, JSON control, and MCP for future portal automation.</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section id="photo-editor" class="section" aria-labelledby="photo-editor-title">
         <div class="section-heading">
