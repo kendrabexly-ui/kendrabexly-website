@@ -18,7 +18,7 @@
         throw new Error(data.message || "Unable to load rates.");
       }
       menu.innerHTML = data.services.map((service, index) => {
-        const labels = ["PRIVATE INTRODUCTIONS", "BRIEF EXPERIENCES", "SIGNATURE EXPERIENCE", "ELEVATED EXPERIENCE"];
+        const labels = ["PRIVATE INTRODUCTIONS", "BRIEF EXPERIENCES", "THE SIGNATURE EXPERIENCE", "THE GRECIAN EXPERIENCE"];
         const label = service.add_on ? "ADD-ON • UPSCALE LOCATIONS ONLY" : (labels[index] || "EXPERIENCE");
         const description = String(service.description || "");
         const paragraphs = description
