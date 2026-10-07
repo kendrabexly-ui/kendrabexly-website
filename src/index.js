@@ -3289,7 +3289,9 @@ export default {
       if (!Number.isInteger(id) || id < 1) return Response.json({ ok: false, message: "Invalid draft ID." }, { status: 400 });
       const row = await env.DB.prepare("SELECT id, status FROM x_post_drafts WHERE id = ?").bind(id).first();
       if (!row) return Response.json({ ok: false, message: "Draft not found." }, { status: 404 });
-      // Deleting a published item only removes it from this dashboard history.\n      // It does not delete the already-published post from X.\n      await env.DB.prepare("DELETE FROM x_post_drafts WHERE id = ?").bind(id).run();
+      // Deleting a published item only removes it from this dashboard history.
+      // It does not delete the already-published post from X.
+      await env.DB.prepare("DELETE FROM x_post_drafts WHERE id = ?").bind(id).run();
       return Response.json({ ok: true });
     }
 
