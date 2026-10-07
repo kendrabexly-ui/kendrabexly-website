@@ -4005,13 +4005,13 @@ My journal will continue to be a place where I share a little more of that side 
       {base:"1 hour",special:"1.5 hours",price:500},
       {base:"1.5 hours",special:"2 hours",price:750},
       {base:"2 hours",special:"2.5 hours",price:1000},
-      {base:"4 hours",special:"4.5 hours",price:2600}
+      {base:"4 hours",special:"4.5 hours",price:2300}
     ];
     const greekOptions = [
       {base:"1 hour",special:"1.5 hours",price:700},
       {base:"1.5 hours",special:"2 hours",price:1000},
       {base:"2 hours",special:"2.5 hours",price:1300},
-      {base:"4 hours",special:"4.5 hours",price:3000}
+      {base:"4 hours",special:"4.5 hours",price:2800}
     ];
     const classicSpecial = classicOptions[offerMonthIndex % classicOptions.length];
     const greekSpecial = greekOptions[offerMonthIndex % greekOptions.length];
@@ -4627,7 +4627,7 @@ My journal will continue to be a place where I share a little more of that side 
 
         if (newsletterOffer && !selectedSubscriberSpecial) {
           return bookingCorsJson(
-            { ok:false, message:"Please choose either the The Signature Experience or The Grecian Experience monthly special." },
+            { ok:false, message:"Please choose either The Signature Experience or The Grecian Experience monthly special." },
             { status:400 }
           );
         }
