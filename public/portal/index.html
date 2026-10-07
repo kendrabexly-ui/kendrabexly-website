@@ -936,6 +936,77 @@
       }
     }
   </style>
+
+    <style id="x-draft-mobile-layout-fix">
+      /* Keep X draft cards inside the mobile viewport and make draft actions compact. */
+      @media (max-width: 600px) {
+        #x-agent [data-x-draft] {
+          box-sizing: border-box !important;
+          width: auto !important;
+          max-width: none !important;
+          min-width: 0 !important;
+          margin: 12px 0 !important;
+          padding: 14px !important;
+          overflow: hidden !important;
+        }
+
+        #x-agent [data-x-draft] > div {
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        #x-agent [data-x-draft] textarea {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          font-size: 16px !important;
+          line-height: 1.45 !important;
+        }
+
+        #x-agent [data-x-draft] [data-draft-more],
+        #x-agent [data-x-draft] [data-draft-primary] {
+          width: 100% !important;
+          max-width: 100% !important;
+          flex: 1 1 100% !important;
+        }
+
+        #x-agent [data-x-draft] [data-draft-more][aria-expanded="false"] + [data-draft-more-actions] {
+          display: none !important;
+        }
+
+        #x-agent [data-x-draft] [data-draft-more][aria-expanded="true"] + [data-draft-more-actions] {
+          display: grid !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 8px !important;
+        }
+
+        #x-agent [data-x-draft] [data-draft-more-actions] button {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          min-height: 44px !important;
+          padding: 10px 8px !important;
+          white-space: normal !important;
+          line-height: 1.2 !important;
+        }
+
+        #x-agent #x-drafts,
+        #x-agent #x-review-drafts,
+        #x-agent [data-x-view="drafts"],
+        #x-agent [data-x-view="review"] {
+          min-width: 0 !important;
+          max-width: 100% !important;
+          overflow-x: hidden !important;
+        }
+      }
+
+      @media (max-width: 390px) {
+        #x-agent [data-x-draft] [data-draft-more][aria-expanded="true"] + [data-draft-more-actions] {
+          grid-template-columns: 1fr !important;
+        }
+      }
+    </style>
 </head>
 
 <body>
