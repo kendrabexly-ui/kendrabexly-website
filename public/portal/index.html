@@ -9593,12 +9593,12 @@ function escapeHtml(value) {
                 item("CTA",p.cta_text||"",2)+
                 item("Implementation notes",noteText,4)+
               '</div>'+
-              '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
-                '<button type="button" data-ga-wordpress-draft>Prepare WordPress Draft</button>'+
-                '<button type="button" data-ga-copy-approved>Copy Approved Changes</button>'+
-                '<button type="button" data-ga-copy-wordpress hidden>Copy WordPress Draft</button>'+
+              '<div class="ga-review-actions" style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px;">'+
+                '<button type="button" data-ga-wordpress-draft style="width:100%;min-height:48px;border:0;border-radius:10px;padding:12px 16px;background:var(--ink);color:white;font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Prepare WordPress Draft</button>'+
+                '<button type="button" data-ga-copy-approved style="width:100%;min-height:48px;border:1px solid var(--ink);border-radius:10px;padding:12px 16px;background:white;color:var(--ink);font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Copy Approved Changes</button>'+
+                '<button type="button" data-ga-copy-wordpress hidden style="width:100%;min-height:48px;border:1px solid var(--ink);border-radius:10px;padding:12px 16px;background:white;color:var(--ink);font:inherit;font-weight:700;cursor:pointer;box-shadow:none;-webkit-appearance:none;appearance:none;">Copy WordPress Draft</button>'+
               '</div>'+ 
-              '<div data-ga-wordpress-status style="margin-top:10px;font-size:12px;color:var(--muted);">Prepare WordPress Draft creates a reviewable draft package only. It does not publish or change the live WordPress page.</div>'+
+              '<div data-ga-wordpress-status style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--cream);font-size:12px;line-height:1.5;color:var(--muted);">Prepare WordPress Draft creates a reviewable draft package only. It does not publish or change the live WordPress page.</div>'+
               '<div style="margin-top:10px;font-size:12px;color:var(--muted);">This prepares the edit set for review. It does not publish anything to WordPress automatically.</div>'+
             '</div>';
         }
