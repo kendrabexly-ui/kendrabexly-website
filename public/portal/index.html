@@ -1135,33 +1135,30 @@
       <section id="photocraft" class="section" aria-labelledby="photocraft-title">
         <div class="section-heading">
           <h2 id="photocraft-title">PhotoCraft Studio</h2>
-          <p>Advanced image editing for layered work, masks, selections, filters, type, vectors, PSD files, and agent-driven workflows.</p>
+          <p>The full self-hosted PhotoCraft WebAssembly editor, running from Kendra's Cloudflare portal.</p>
         </div>
 
-        <div class="photocraft-shell">
-          <div class="photocraft-card">
-            <span class="photocraft-badge">Advanced editor · Early alpha</span>
-            <h3>PhotoCraft for Kendra</h3>
-            <p>Use PhotoCraft when the built-in Photo Editor is not enough. It supports layered editing, adjustment layers, masks, object and subject selections, filters, type, vectors, brushes, PSD/PSB files, and non-destructive editing.</p>
-            <div class="photocraft-actions">
-              <a class="primary" href="https://getartcraft.com/apps/photocraft" target="_blank" rel="noopener noreferrer">Open PhotoCraft</a>
-              <a href="https://github.com/storytold/photocraft/releases/latest" target="_blank" rel="noopener noreferrer">Get Web Build</a>
-              <a href="https://github.com/storytold/photocraft" target="_blank" rel="noopener noreferrer">View Source</a>
+        <div class="photocraft-card" style="padding:0;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line);">
+            <div>
+              <strong>PhotoCraft Web v0.3.0</strong>
+              <div style="font-size:12px;color:var(--muted);margin-top:3px;">Self-hosted · WebAssembly · files stay in your browser unless you choose to export them</div>
             </div>
-            <div class="photocraft-note">
-              PhotoCraft's browser edition is distributed as a self-hosted WebAssembly build. This portal keeps the existing Photo Editor available for quick edits while PhotoCraft handles advanced work. The PhotoCraft project is currently early alpha, so keep originals before editing.
+            <div class="photocraft-actions" style="margin-top:0;">
+              <a href="/portal/photocraft-app/" target="_blank" rel="noopener">Open Full Screen</a>
             </div>
           </div>
+          <iframe
+            src="/portal/photocraft-app/"
+            title="PhotoCraft image editor"
+            allow="fullscreen; clipboard-read; clipboard-write"
+            allowfullscreen
+            style="display:block;width:100%;height:min(78vh,920px);min-height:640px;border:0;background:#262626;"
+          ></iframe>
+        </div>
 
-          <div class="photocraft-card">
-            <h3>Best uses in this portal</h3>
-            <div class="photocraft-feature-list">
-              <div class="photocraft-feature"><strong>Retouch &amp; polish</strong><span>Work with selections, masks, brushes, healing tools, blur, sharpen, and filters.</span></div>
-              <div class="photocraft-feature"><strong>Layered designs</strong><span>Create editable compositions with text, vectors, effects, and adjustment layers.</span></div>
-              <div class="photocraft-feature"><strong>PSD workflows</strong><span>Open and save layered Photoshop-compatible documents instead of flattening every edit.</span></div>
-              <div class="photocraft-feature"><strong>Agent-ready</strong><span>PhotoCraft exposes commands through CLI, JSON control, and MCP for future portal automation.</span></div>
-            </div>
-          </div>
+        <div class="photocraft-note">
+          PhotoCraft is currently early alpha. Keep original copies of important images. The existing portal Photo Editor remains available for quick edits.
         </div>
       </section>
 
