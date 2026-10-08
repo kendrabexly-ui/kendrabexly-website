@@ -1782,12 +1782,19 @@ export default {
     }
 
     if (url.pathname === "/api/admin/clients/verification-overview" && request.method === "GET") {
+      // The screening agent is stage one of the same verification workspace.
+      // Historical screening runs remain attached to the request; final decisions
+      // continue to be owned exclusively by the existing verification workflow.
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_screening_runs (id INTEGER PRIMARY KEY AUTOINCREMENT,date_request_id INTEGER NOT NULL,client_id INTEGER NOT NULL,source TEXT NOT NULL,report_json TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
+
       try {
         await ensureVerificationWorkspaceTables(env);
         const rows = await env.DB.prepare(`
           SELECT c.id AS client_id, c.first_name, c.last_name, c.email, c.phone,
                  COALESCE(a.date_request_id, 0) AS booking_request_id,
                  COALESCE(a.verification_status, 'pending_review') AS verification_status,
+                 (SELECT sr.report_json FROM client_screening_runs sr WHERE sr.client_id=c.id ORDER BY sr.id DESC LIMIT 1) AS initial_screening_report_json,
+                 (SELECT sr.created_at FROM client_screening_runs sr WHERE sr.client_id=c.id ORDER BY sr.id DESC LIMIT 1) AS initial_screening_checked_at,
                  COALESCE(a.verification_method, '') AS verification_method,
                  COALESCE(a.persona_transaction_id, '') AS persona_transaction_id,
                  COALESCE(a.persona_transaction_status, '') AS persona_transaction_status,
@@ -1840,6 +1847,9 @@ export default {
             email:row.email || "", phone:row.phone || "",
             booking_request_id:Number(row.booking_request_id || 0),
             verification_status:status,
+            initial_screening:row.initial_screening_report_json ? JSON.parse(row.initial_screening_report_json) : null,
+            initial_screening_checked_at:row.initial_screening_checked_at || "",
+            screening_stage:row.initial_screening_report_json ? "completed_pending_manual_review" : "not_run",
             verification_method:row.verification_method || "",
             persona_transaction_id:row.persona_transaction_id || "",
             persona_transaction_status:row.persona_transaction_status || "",
