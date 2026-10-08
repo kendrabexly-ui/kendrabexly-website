@@ -26,6 +26,28 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
 .request-page .button{background:#8A5B70;color:#fff;border:1px solid #8A5B70;border-radius:3px;box-shadow:none;font-family:inherit}
 .request-page .button:hover{background:#75485D;border-color:#75485D}
 .request-page .no-payment-callout{background:#FBF7F2;border-color:#CDB79E;color:#66545D;border-radius:3px}
+
+/* Private booking form: readable, stacked mobile fields */
+.request-page .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.request-page .field{display:flex;flex-direction:column;align-items:stretch;min-width:0;gap:6px}
+.request-page .field.full-width{grid-column:1/-1}
+.request-page .field label{display:block;line-height:1.4;margin:0}
+.request-page .field input:not([type="checkbox"]),.request-page .field select,.request-page .field textarea{display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box;padding:11px 12px}
+.request-page .field small{display:block;line-height:1.5}
+.request-page .form-section{min-width:0;overflow-wrap:anywhere}
+.request-page .no-payment-callout{display:flex;flex-direction:column;gap:5px;padding:12px;line-height:1.5}
+.request-page .checkbox-label{display:flex;align-items:flex-start;gap:10px;line-height:1.5}
+.request-page .checkbox-label input{flex:0 0 auto;margin-top:5px}
+.request-page stripe-buy-button{display:block;max-width:100%;overflow:hidden}
+.request-page [hidden]{display:none!important}
+@media(max-width:700px){
+ .request-page{width:100%;max-width:100%;padding-inline:14px}
+ .request-page .form-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+ .request-page .field,.request-page .field.full-width{grid-column:1/-1}
+ .request-page .form-section{padding:18px 14px;margin-inline:0}
+ .request-page .form-section h2{font-size:clamp(27px,7vw,38px);line-height:1.15}
+ .request-page .field input,.request-page .field select,.request-page .field textarea{font-size:16px}
+}
 </style></head>
 <body class="rendezvous-page">
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -143,7 +165,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           <span id="combined-deposit-base">Base deposit</span>
           <span id="combined-deposit-fee" hidden></span>
         </div>
-        <p>Your deposit is 25% of our date total. You can use a prepaid Visa or Mastercard gift card, or pay by card through Stripe. Stripe adds a 10% processing fee to the deposit</p>
+        <p>Your deposit is 25% of our date total. You can select a prepaid Visa or Mastercard gift card, or Stripe Checkout. The embedded Stripe button charges its preset amount; review the amount shown by Stripe before paying. Payment is confirmed separately.</p>
         <label class="checkbox-label"><input id="combined-acknowledgment" type="checkbox" name="deposit_step_acknowledged" value="yes" disabled><span>I have reviewed the deposit amount and understand that the date is not final until payment is confirmed and Kendra gives final approval.</span></label>
       </section>
       <section class="form-section">
@@ -246,14 +268,14 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       const gift = select.querySelector('option[data-method="gift-card"]');
       const stripe = select.querySelector('option[data-method="stripe"]');
       if (gift) gift.textContent = "Prepaid Visa / Mastercard Gift Card — " + money(baseDepositAmount);
-      if (stripe) stripe.textContent = "Card Checkout (Stripe) — " + money(feeTotal) + " total (" + money(fee) + " fee)";
+      if (stripe) stripe.textContent = "Cash App Pay (Stripe Checkout) — " + money(feeTotal) + " total (" + money(fee) + " fee)";
     }
 
     function updateCombinedDeposit() {
       const select = document.getElementById("combined-payment-method");
       const fee = Math.round(baseDepositAmount * 10) / 100;
       const feeTotal = Math.round((baseDepositAmount + fee) * 100) / 100;
-      for (const [method,label,total] of [["gift-card","Prepaid Visa / Mastercard Gift Card",baseDepositAmount],["stripe","Card Checkout (Stripe)",feeTotal]]) {
+      for (const [method,label,total] of [["gift-card","Prepaid Visa / Mastercard Gift Card",baseDepositAmount],["stripe","Cash App Pay (Stripe Checkout)",feeTotal]]) {
         const option = select.querySelector('[data-method="'+method+'"]');
         if (option) option.textContent = label + " — " + money(total) + (method === "gift-card" ? "" : " total (" + money(fee) + " fee)");
       }
