@@ -136,6 +136,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-overview", "edit_verification"],
   ["/api/admin/clients/run-screening", "edit_verification"],
   ["/api/admin/clients/screening-notes", "edit_verification"],
+  ["/api/admin/clients/screening-checklist", "edit_verification"],
   ["/api/admin/clients/blacklist-review", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/phone-reverse-lookup", "edit_verification"],
@@ -1613,6 +1614,51 @@ export default {
         const notes=await env.DB.prepare("SELECT identity_notes,contact_notes,professional_notes,additional_notes,updated_at FROM client_screening_notes WHERE date_request_id=?").bind(requestId).first();
         return Response.json({ok:true,notes:notes||{identity_notes:"",contact_notes:"",professional_notes:"",additional_notes:"",updated_at:null}},{headers:{"Cache-Control":"private, no-store"}});
       }catch(error){console.error("Screening notes failed:",error);return Response.json({ok:false,message:"Screening notes unavailable."},{status:500});}
+    }
+
+    // Admin-only sequential screening checklist. External services remain disconnected.
+    if(url.pathname==="/api/admin/clients/screening-checklist" && ["GET","POST"].includes(request.method)){
+      try{
+        const payload=request.method==="POST"?await request.json().catch(()=>({})):Object.fromEntries(url.searchParams);
+        const id=Number(payload.request_id);
+        if(!Number.isSafeInteger(id)||id<1)return Response.json({ok:false,message:"Valid request_id required."},{status:400});
+        if(!await env.DB.prepare("SELECT id FROM date_requests WHERE id=?").bind(id).first())return Response.json({ok:false,message:"Request not found."},{status:404});
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_screening_checklists (
+          date_request_id INTEGER PRIMARY KEY,
+          blacklist_status TEXT NOT NULL DEFAULT 'pending',
+          phone_status TEXT NOT NULL DEFAULT 'pending',
+          identity_status TEXT NOT NULL DEFAULT 'pending',
+          background_status TEXT NOT NULL DEFAULT 'pending',
+          decision TEXT NOT NULL DEFAULT 'pending',
+          notes_json TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )`).run();
+        if(request.method==="POST"){
+          const fields=["blacklist_status","phone_status","identity_status","background_status","decision"];
+          const allowed=[
+            ["pending","clear","possible_match","confirmed_match"],
+            ["pending","non_voip","voip","uncertain"],
+            ["pending","supported","conflicting","unverified"],
+            ["pending","reviewed","needs_follow_up"],
+            ["pending","move_forward","needs_information","decline"]
+          ];
+          const values=fields.map((key,i)=>String(payload[key]||"pending"));
+          if(values.some((v,i)=>!allowed[i].includes(v)))return Response.json({ok:false,message:"Invalid screening status."},{status:400});
+          if(values[4]==="move_forward" && !(values[0]==="clear"&&values[1]==="non_voip"&&values[2]==="supported"&&values[3]==="reviewed"))
+            return Response.json({ok:false,message:"Complete blacklist, non-VoIP phone, identity, and background review before moving forward."},{status:400});
+          const notes={};
+          for(const key of ["blacklist","phone","identity","background"])notes[key]=String(payload.notes?.[key]||"").trim().slice(0,1500);
+          await env.DB.prepare(`INSERT INTO client_screening_checklists
+          (date_request_id,blacklist_status,phone_status,identity_status,background_status,decision,notes_json,updated_at)
+          VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+          ON CONFLICT(date_request_id) DO UPDATE SET blacklist_status=excluded.blacklist_status,
+          phone_status=excluded.phone_status,identity_status=excluded.identity_status,
+          background_status=excluded.background_status,decision=excluded.decision,
+          notes_json=excluded.notes_json,updated_at=CURRENT_TIMESTAMP`).bind(id,...values,JSON.stringify(notes)).run();
+        }
+        const row=await env.DB.prepare("SELECT * FROM client_screening_checklists WHERE date_request_id=?").bind(id).first();
+        return Response.json({ok:true,checklist:row?{...row,notes:JSON.parse(row.notes_json||"{}")}:null},{headers:{"Cache-Control":"private, no-store"}});
+      }catch(error){console.error("Screening checklist failed",error);return Response.json({ok:false,message:"Screening checklist unavailable."},{status:500});}
     }
 
     // =========================================================
