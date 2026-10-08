@@ -134,6 +134,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-draft", "edit_verification"],
   ["/api/admin/clients/verification-activity", "edit_verification"],
   ["/api/admin/clients/verification-overview", "edit_verification"],
+  ["/api/admin/clients/run-screening", "edit_verification"],
   ["/api/admin/clients/blacklist-review", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/phone-reverse-lookup", "edit_verification"],
@@ -1561,6 +1562,24 @@ export default {
       if(!authorization.ok)return verificationForbidden(authorization);
     }
 
+
+    if (url.pathname === "/api/admin/clients/run-screening" && ["GET","POST"].includes(request.method)) {
+      try {
+        const payload = request.method === "POST" ? await request.json().catch(() => ({})) : Object.fromEntries(url.searchParams);
+        const id = Number(payload.request_id);
+        if (!Number.isSafeInteger(id) || id < 1) return Response.json({ok:false,message:"Valid request_id required."},{status:400});
+        if (request.method === "POST") {
+          const report = await runInitialScreening(env,id,"manual");
+          return Response.json({ok:true,report},{headers:{"Cache-Control":"private, no-store"}});
+        }
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_screening_runs (id INTEGER PRIMARY KEY AUTOINCREMENT,date_request_id INTEGER NOT NULL,client_id INTEGER NOT NULL,source TEXT NOT NULL,report_json TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
+        const row = await env.DB.prepare("SELECT source,report_json,created_at FROM client_screening_runs WHERE date_request_id=? ORDER BY id DESC LIMIT 1").bind(id).first();
+        return Response.json({ok:true,report:row?JSON.parse(row.report_json):null},{headers:{"Cache-Control":"private, no-store"}});
+      } catch (error) {
+        console.error("Screening endpoint failed:",error);
+        return Response.json({ok:false,message:"Screening unavailable."},{status:500});
+      }
+    }
 
     // =========================================================
     // PRIVATE CLIENT VERIFICATION AUDIT
