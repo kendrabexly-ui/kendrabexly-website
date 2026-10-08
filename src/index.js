@@ -1,3 +1,4 @@
+import { runInitialScreening } from "./client-screening.js";
 import { accessIdentity, authorizeVerificationRequest, verificationForbidden, sanitizeVerificationActivity, retentionDate, enforceVerificationRateLimit, personaFetchState } from "./verification-security.js";
 async function ensureXDraftMedia(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_draft_media (draft_id INTEGER PRIMARY KEY,mime_type TEXT NOT NULL,file_name TEXT,image_base64 TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`).run();}
 async function uploadXImage(env,draftId,accessToken){await ensureXDraftMedia(env);const m=await env.DB.prepare("SELECT mime_type,image_base64 FROM x_draft_media WHERE draft_id=?").bind(draftId).first();if(!m)return null;const rr=await fetch("https://api.x.com/2/media/upload",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({media:m.image_base64,media_category:"tweet_image"})});const d=await rr.json().catch(()=>({}));if(!rr.ok)throw new Error(d?.detail||d?.title||d?.message||"X rejected the image upload.");return d?.data?.id||d?.data?.media_id_string||d?.media_id_string||null;}
@@ -4966,6 +4967,10 @@ My journal will continue to be a place where I share a little more of that side 
 
         const requestId =
           requestResult.meta.last_row_id;
+
+        // Screening is advisory and must not delay or approve a submission.
+        try { await runInitialScreening(env, requestId, "automatic"); }
+        catch (screeningError) { console.error("Automatic screening failed:", screeningError); }
 
         // Create the verification audit record without recording acceptance of
         // wording that is no longer shown on the public booking form.
