@@ -10134,7 +10134,10 @@ function escapeHtml(value) {
       ["Occupation",report.occupation?.status],["Employment",report.occupation?.employer],
       ["Internal blacklist",report.internal_blacklist?.status],["Previous requests",report.previous_requests]
     ];
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">'+fields.map(([k,v])=>'<div style="padding:9px;border:1px solid #ded5d1;border-radius:8px;"><strong>'+esc(k)+'</strong><div>'+esc(v??"Not checked")+'</div></div>').join("")+'</div><p style="font-size:12px;margin-top:10px;">'+esc(report.source||"")+' · '+esc(report.checked_at||"")+' · Manual review required</p>';
+    const external=report.external_sources||{};
+    const sources=[["Government records",external.government_records],["Professional licenses",external.professional_licenses],["Business registration",external.business_registration],["Public professional profiles",external.public_professional_profiles],["Public social profiles",external.public_social_profiles],["Social email registration",external.social_email_registration]];
+    const externalHtml='<div style="margin-top:12px;"><strong>External verification sources</strong><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:8px;">'+sources.map(([name,entry])=>'<div style="padding:9px;border:1px solid #ded5d1;border-radius:8px;"><strong>'+esc(name)+'</strong><div>'+esc(entry?.status||"not_checked")+'</div></div>').join("")+'</div><p style="font-size:12px;">'+esc(external.explanation||"External provider not connected.")+'</p></div>';
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">'+fields.map(([k,v])=>'<div style="padding:9px;border:1px solid #ded5d1;border-radius:8px;"><strong>'+esc(k)+'</strong><div>'+esc(v??"Not checked")+'</div></div>').join("")+'</div>'+externalHtml+'<p style="font-size:12px;margin-top:10px;">'+esc(report.source||"")+' · '+esc(report.checked_at||"")+' · Manual review required</p>';
   }
   async function screeningFetch(id,method){
     const options={method,credentials:"same-origin",headers:{"Accept":"application/json"}};
