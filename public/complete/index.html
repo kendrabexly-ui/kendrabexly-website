@@ -126,8 +126,12 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           <select id="combined-payment-method" name="deposit_payment_method" disabled>
             <option value="">Choose a method</option>
             <option value="gift-card" data-method="gift-card">Prepaid Visa / Mastercard Gift Card</option>
-            <option value="stripe" data-method="stripe">Card Checkout (Stripe)</option>
+            <option value="stripe" data-method="stripe">Cash App Pay (Stripe Checkout)</option>
           </select>
+        </div>
+<div class="field full-width" id="combined-cash-app-stripe-payment" hidden>
+          <p>Complete payment securely through Stripe. The amount is set by the payment button and is not calculated from your booking selection.</p>
+          <stripe-buy-button buy-button-id="buy_btn_1UOOrJK7rscZou9boioca8oh" publishable-key="pk_live_51UCo6wK7rscZou9b922y2ycPd4k4tbQVMyBv6h6Ets4U9EqCBrMipELth8MbOwgh6Q7QwYTzk35H7LOW4fXFLsLW00fjehB2W6"></stripe-buy-button>
         </div>
         <div class="field full-width">
           <label for="combined-app-text-number">App-based number for text communication</label>
@@ -172,8 +176,12 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           <select id="continuation-payment-method" name="deposit_payment_method" required>
             <option value="">Choose a payment method</option>
             <option value="gift-card" data-method="gift-card">Prepaid Visa / Mastercard Gift Card</option>
-            <option value="stripe" data-method="stripe">Card Checkout (Stripe)</option>
+            <option value="stripe" data-method="stripe">Cash App Pay (Stripe Checkout)</option>
           </select>
+        </div>
+<div class="field full-width" id="cash-app-stripe-payment" hidden>
+          <p>Complete payment securely through Stripe. The amount is set by the payment button and is not calculated from your booking selection.</p>
+          <stripe-buy-button buy-button-id="buy_btn_1UOOrJK7rscZou9boioca8oh" publishable-key="pk_live_51UCo6wK7rscZou9b922y2ycPd4k4tbQVMyBv6h6Ets4U9EqCBrMipELth8MbOwgh6Q7QwYTzk35H7LOW4fXFLsLW00fjehB2W6"></stripe-buy-button>
         </div>
         <div class="field full-width">
           <label for="continuation-app-text-number">App-based number for text communication</label>
@@ -484,5 +492,19 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       loading.textContent = "This page could not load. Check your connection and reload the page. If the link has expired, request a new private link from the sender.";
     });
   </script>
+<script async src="https://js.stripe.com/v3/buy-button.js"></script>
+<script>
+(function(){
+  function sync(){
+    for(const [selectId,boxId] of [["combined-payment-method","combined-cash-app-stripe-payment"],["continuation-payment-method","cash-app-stripe-payment"]]){
+      const select=document.getElementById(selectId),box=document.getElementById(boxId);
+      if(box) box.hidden=!select||select.value!=="stripe"||select.disabled;
+    }
+  }
+  document.addEventListener("change",sync);
+  new MutationObserver(sync).observe(document.body,{attributes:true,subtree:true,attributeFilter:["disabled","hidden"]});
+  sync();
+})();
+</script>
 </body>
 </html>
