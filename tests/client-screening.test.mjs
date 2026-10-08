@@ -30,3 +30,15 @@ test("screening does not mutate final approval",async()=>{
   assert.equal(report.occupation.employer,"not_verified");
   assert.equal(calls.some(sql=>/UPDATE\s+date_requests|UPDATE\s+clients/i.test(sql)),false);
 });
+
+test("Move Forward and deposit endpoints enforce the saved screening decision",()=>{
+  assert.match(source,/async function requireScreeningMoveForward\(env,requestId\)/);
+  const move=source.indexOf('url.pathname === "/api/admin/request/move-forward"');
+  const deposit=source.indexOf('url.pathname === "/api/admin/request/request-deposit"');
+  assert.ok(move>0&&deposit>move);
+  assert.match(source.slice(move,move+1100),/requireScreeningMoveForward\(env,requestId\)/);
+  assert.match(source.slice(deposit,deposit+950),/requireScreeningMoveForward\(env,requestId\)/);
+  for(const status of ['blacklist_status==="clear"','phone_status==="non_voip"','identity_status==="supported"','background_status==="reviewed"','decision==="move_forward"']){
+    assert.ok(source.includes(status),status);
+  }
+});
