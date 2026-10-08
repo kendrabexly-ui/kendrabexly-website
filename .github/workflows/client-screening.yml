@@ -1,0 +1,21 @@
+name: Client Screening Integration
+on:
+  push:
+    paths:
+      - 'src/client-screening.js'
+      - 'src/index.js'
+      - 'public/portal/index.html'
+      - 'tests/client-screening.test.mjs'
+      - '.github/workflows/client-screening.yml'
+  workflow_dispatch:
+jobs:
+  screening-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check src/index.js
+      - run: node --check src/client-screening.js
+      - run: node --test tests/client-screening.test.mjs
