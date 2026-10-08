@@ -3642,15 +3642,18 @@ async function loadRequests(options = {}) {
                         <strong>Stage 1 · Automated Initial Screening</strong>
                         <button type="button" class="run-client-screening" data-screening-request-id="${Number(latest?.id||0)}" style="background:#69405e;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;">Run Screening</button>
                       </div>
-                      <div class="beenverified-review" style="padding:12px;border:1px solid #ddd;border-radius:8px;margin-top:10px;">
-                        <strong>BeenVerified · Manual match review</strong>
-                        <p style="font-size:12px;">No automated BeenVerified access. Save only permitted summary findings; do not copy complete reports.</p>
-                        <select class="bv-status" aria-label="BeenVerified match status"><option value="pending">Pending</option><option value="possible_match">Possible match</option><option value="supported">Information supported</option><option value="conflicting">Conflicting information</option><option value="no_match">No reliable match</option></select>
-                        <textarea class="bv-notes" maxlength="1500" rows="3" placeholder="Summary and discrepancies (no sensitive record details)" style="display:block;width:100%;margin:8px 0;"></textarea>
-                        <button type="button" class="bv-save">Save BeenVerified review</button> <span class="bv-feedback" role="status"></span><div class="bv-history" style="margin-top:8px;font-size:12px;"></div>
+                      <div class="screening-notes" style="margin-top:12px;padding:14px;border:1px solid #ded5d1;border-radius:10px;">
+                        <strong>Additional Client Information (Optional)</strong>
+                        <p style="font-size:12px;margin:6px 0 12px;">Add your own observations or details provided by the client. These notes do not change screening results or final approval.</p>
+                        <label>Identity and name details<textarea class="screening-note-input" data-note-field="identity_notes" rows="2" placeholder="Name variations or details to clarify"></textarea></label>
+                        <label>Phone and email details<textarea class="screening-note-input" data-note-field="contact_notes" rows="2" placeholder="Contact information or follow-up notes"></textarea></label>
+                        <label>Occupation and professional details<textarea class="screening-note-input" data-note-field="professional_notes" rows="2" placeholder="Employment or business information"></textarea></label>
+                        <label>Other screening notes<textarea class="screening-note-input" data-note-field="additional_notes" rows="3" placeholder="Additional context or follow-up questions"></textarea></label>
+                        <button type="button" class="screening-notes-save">Save Notes</button>
+                        <span class="screening-notes-feedback" role="status"></span>
                       </div>
                       <div class="client-screening-report" role="status" aria-live="polite" style="margin-top:12px;overflow-wrap:anywhere;">Loading latest report…</div>
-                      <p style="font-size:12px;color:var(--muted);margin-top:8px;">Stage 1 results are saved to the existing Verification workspace. Previously completed checks should be reviewed rather than repeated. Identity, phone ownership and occupation are not independently verified; final approval remains manual.</p>
+                      <p style="font-size:12px;color:var(--muted);margin-top:8px;">Stage 1 results are saved to the existing Verification workspace. Previously completed checks can be reviewed. Optional notes are saved separately; final approval remains manual.</p>
                     </section>
                     <section class="verification-card client-verification-overview">
                       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -10136,18 +10139,12 @@ function escapeHtml(value) {
   const screeningStyle=document.createElement("style");
   screeningStyle.textContent=`
     .client-screening-agent{min-width:0;max-width:100%;overflow:hidden}
-    .client-screening-agent .beenverified-review{box-sizing:border-box;min-width:0;width:100%;background:var(--card,#fff)}
-    .client-screening-agent .beenverified-review select,
-    .client-screening-agent .beenverified-review textarea{box-sizing:border-box;width:100%;max-width:100%;min-width:0;display:block;border:1px solid #cdbfb7;border-radius:8px;padding:10px;font:inherit;font-size:14px;color:inherit;background:#fff}
-    .client-screening-agent .beenverified-review .bv-save{display:inline-flex;align-items:center;justify-content:center;max-width:100%;white-space:normal;text-align:center;background:#69405e;color:#fff;border:0;border-radius:8px;padding:10px 14px;font:inherit;font-size:14px;cursor:pointer}
-    .client-screening-agent .bv-feedback{display:block;margin-top:8px;overflow-wrap:anywhere;font-size:12px}
-    .client-screening-agent .bv-history{overflow-wrap:anywhere}
-    .client-screening-agent .screening-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+    .client-screening-agent .screening-notes{box-sizing:border-box;min-width:0;width:100%}\n    .client-screening-agent .screening-notes label{display:block;margin:10px 0;font-size:13px;font-weight:600}\n    .client-screening-agent .screening-note-input{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;margin-top:5px;padding:10px;border:1px solid #cdbfb7;border-radius:8px;font:inherit;font-weight:400;font-size:14px;background:#fff;color:#29282d}\n    .client-screening-agent .screening-notes-save{background:#69405e;color:#fff;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}\n    .client-screening-agent .screening-notes-feedback{display:block;margin-top:8px;font-size:12px}\n    .client-screening-agent .screening-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
     .client-screening-agent .screening-check{box-sizing:border-box;min-width:0;border:1px solid #ded5d1;border-radius:9px;padding:12px;background:#fff;overflow-wrap:anywhere}
     .client-screening-agent .screening-check strong{display:block;font-size:13px;margin-bottom:5px}
     .client-screening-agent .screening-check span{font-size:14px;line-height:1.4}
     .client-screening-agent .run-client-screening{max-width:100%;white-space:normal;font-size:14px!important}
-    @media(max-width:600px){.client-screening-agent{padding:14px!important}.client-screening-agent .screening-checks{grid-template-columns:minmax(0,1fr)}.client-screening-agent .beenverified-review{padding:12px!important}.client-screening-agent .run-client-screening{width:100%}}
+    @media(max-width:600px){.client-screening-agent{padding:14px!important}.client-screening-agent .screening-checks{grid-template-columns:minmax(0,1fr)}.client-screening-agent .screening-notes{padding:12px!important}.client-screening-agent .run-client-screening{width:100%}}
   `;
   document.head.appendChild(screeningStyle);
   function reportHtml(report){
@@ -10187,40 +10184,38 @@ function escapeHtml(value) {
     const button=event.target.closest?.(".run-client-screening");
     if(button){event.preventDefault();event.stopPropagation();const panel=button.closest(".client-screening-agent");if(panel)loadPanel(panel,true);}
   });
-  async function loadBv(panel){
+  async function loadScreeningNotes(panel){
     const id=Number(panel.dataset.screeningRequestId);if(!Number.isSafeInteger(id)||id<1)return;
+    const feedback=panel.querySelector(".screening-notes-feedback");
     try{
-      const r=await fetch("/api/admin/clients/beenverified-review?request_id="+encodeURIComponent(id),{credentials:"same-origin"});
-      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unavailable");
-      panel.querySelector(".bv-status").value=d.review.match_status||"pending";
-      panel.querySelector(".bv-notes").value=d.review.notes||"";
-      panel.querySelector(".bv-feedback").textContent=d.review.checked_at?"Reviewed "+d.review.checked_at:"Not yet reviewed";
-      const previous=(d.history||[]).filter(item=>Number(item.date_request_id)!==id);
-      const historyEl=panel.querySelector(".bv-history");
-      if(historyEl)historyEl.innerHTML=previous.length
-        ? '<strong>Previous reviews on this client profile</strong><ul>'+previous.map(item=>'<li>'+esc(item.checked_at||"")+" · "+esc(item.match_status||"pending")+'</li>').join("")+'</ul><small>Historical reviews are not proof that a new request belongs to the same person. Confirm identity before relying on them.</small>'
-        : '<small>No previous BeenVerified reviews saved for this client profile.</small>';
-    }catch(e){panel.querySelector(".bv-feedback").textContent=e.message;}
+      const r=await fetch("/api/admin/clients/screening-notes?request_id="+encodeURIComponent(id),{credentials:"same-origin"});
+      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unable to load notes");
+      panel.querySelectorAll(".screening-note-input").forEach(input=>{input.value=d.notes[input.dataset.noteField]||"";});
+      feedback.textContent=d.notes.updated_at?"Last saved: "+d.notes.updated_at:"";
+    }catch(e){feedback.textContent=e.message;}
   }
-  document.addEventListener("click",async e=>{
-    const button=e.target.closest?.(".bv-save");if(!button)return;
-    e.preventDefault();const panel=button.closest(".client-screening-agent");if(!panel)return;
-    button.disabled=true;const feedback=panel.querySelector(".bv-feedback");feedback.textContent="Saving…";
+  document.addEventListener("click",async event=>{
+    const button=event.target.closest?.(".screening-notes-save");if(!button)return;
+    event.preventDefault();const panel=button.closest(".client-screening-agent");if(!panel)return;
+    const feedback=panel.querySelector(".screening-notes-feedback");
+    const payload={request_id:Number(panel.dataset.screeningRequestId)};
+    panel.querySelectorAll(".screening-note-input").forEach(input=>{payload[input.dataset.noteField]=input.value;});
+    button.disabled=true;feedback.textContent="Saving…";
     try{
-      const r=await fetch("/api/admin/clients/beenverified-review",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({request_id:Number(panel.dataset.screeningRequestId),match_status:panel.querySelector(".bv-status").value,notes:panel.querySelector(".bv-notes").value})});
+      const r=await fetch("/api/admin/clients/screening-notes",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unable to save");
-      feedback.textContent="Saved · "+d.review.checked_at;
-    }catch(err){feedback.textContent=err.message;}finally{button.disabled=false;}
+      feedback.textContent="Notes saved";
+    }catch(e){feedback.textContent=e.message;}finally{button.disabled=false;}
   });
   const observer=new MutationObserver(()=>{
     document.querySelectorAll(".client-screening-agent").forEach(panel=>{
       if(panel.dataset.screeningLoaded==="1")return;
       panel.dataset.screeningLoaded="1";
-      loadPanel(panel,false);loadBv(panel);
+      loadPanel(panel,false);loadScreeningNotes(panel);
     });
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadBv(panel);});
+  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningNotes(panel);});
 })();
 </script>
 </body>
