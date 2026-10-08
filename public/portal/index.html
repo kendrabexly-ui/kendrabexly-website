@@ -3637,6 +3637,14 @@ async function loadRequests(options = {}) {
                       <div class="verification-progress-step" data-progress-step="manual">Final Verification</div>
                       <div class="verification-progress-step" data-progress-step="complete">Complete</div>
                     </div>
+                    <section class="verification-card client-screening-agent" data-screening-request-id="${Number(latest?.id||0)}">
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                        <strong>Client Screening Agent</strong>
+                        <button type="button" class="run-client-screening" data-screening-request-id="${Number(latest?.id||0)}" style="background:#69405e;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;">Run Screening</button>
+                      </div>
+                      <div class="client-screening-report" role="status" aria-live="polite" style="margin-top:12px;overflow-wrap:anywhere;">Loading latest report…</div>
+                      <p style="font-size:12px;color:var(--muted);margin-top:8px;">Informational checks only. Identity, phone ownership and occupation are not independently verified. Final approval remains manual.</p>
+                    </section>
                     <section class="verification-card client-verification-overview">
                       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
                         <strong style="font-size:13px;">Verification Summary</strong>
@@ -10115,5 +10123,53 @@ function escapeHtml(value) {
 })();
 </script>
 
+<script>
+(function(){
+  function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function reportHtml(report){
+    if(!report)return "No report yet. Select Run Screening.";
+    const fields=[
+      ["Name",report.name?.status],["Email",report.email?.status],["Email ownership",report.email?.ownership],
+      ["Phone",report.phone?.status],["Phone ownership",report.phone?.ownership],
+      ["Occupation",report.occupation?.status],["Employment",report.occupation?.employer],
+      ["Internal blacklist",report.internal_blacklist?.status],["Previous requests",report.previous_requests]
+    ];
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;">'+fields.map(([k,v])=>'<div style="padding:9px;border:1px solid #ded5d1;border-radius:8px;"><strong>'+esc(k)+'</strong><div>'+esc(v??"Not checked")+'</div></div>').join("")+'</div><p style="font-size:12px;margin-top:10px;">'+esc(report.source||"")+' · '+esc(report.checked_at||"")+' · Manual review required</p>';
+  }
+  async function screeningFetch(id,method){
+    const options={method,credentials:"same-origin",headers:{"Accept":"application/json"}};
+    if(method==="POST"){options.headers["Content-Type"]="application/json";options.body=JSON.stringify({request_id:id});}
+    const response=await fetch("/api/admin/clients/run-screening"+(method==="GET"?"?request_id="+encodeURIComponent(id):""),options);
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.message||"Screening unavailable");
+    return data.report;
+  }
+  async function loadPanel(panel,manual){
+    const id=Number(panel.dataset.screeningRequestId);
+    if(!Number.isSafeInteger(id)||id<1)return;
+    const output=panel.querySelector(".client-screening-report");
+    const button=panel.querySelector(".run-client-screening");
+    if(!output)return;
+    if(button)button.disabled=true;
+    output.textContent=manual?"Running screening…":"Loading latest report…";
+    try{output.innerHTML=reportHtml(await screeningFetch(id,manual?"POST":"GET"));}
+    catch(e){output.textContent=e.message||"Screening unavailable";}
+    finally{if(button)button.disabled=false;}
+  }
+  document.addEventListener("click",event=>{
+    const button=event.target.closest?.(".run-client-screening");
+    if(button){event.preventDefault();event.stopPropagation();const panel=button.closest(".client-screening-agent");if(panel)loadPanel(panel,true);}
+  });
+  const observer=new MutationObserver(()=>{
+    document.querySelectorAll(".client-screening-agent").forEach(panel=>{
+      if(panel.dataset.screeningLoaded==="1")return;
+      panel.dataset.screeningLoaded="1";
+      loadPanel(panel,false);
+    });
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);});
+})();
+</script>
 </body>
 </html>
