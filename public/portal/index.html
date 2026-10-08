@@ -3647,7 +3647,7 @@ async function loadRequests(options = {}) {
                         <p style="font-size:12px;">No automated BeenVerified access. Save only permitted summary findings; do not copy complete reports.</p>
                         <select class="bv-status" aria-label="BeenVerified match status"><option value="pending">Pending</option><option value="possible_match">Possible match</option><option value="supported">Information supported</option><option value="conflicting">Conflicting information</option><option value="no_match">No reliable match</option></select>
                         <textarea class="bv-notes" maxlength="1500" rows="3" placeholder="Summary and discrepancies (no sensitive record details)" style="display:block;width:100%;margin:8px 0;"></textarea>
-                        <button type="button" class="bv-save">Save BeenVerified review</button> <span class="bv-feedback" role="status"></span>
+                        <button type="button" class="bv-save">Save BeenVerified review</button> <span class="bv-feedback" role="status"></span><div class="bv-history" style="margin-top:8px;font-size:12px;"></div>
                       </div>
                       <div class="client-screening-report" role="status" aria-live="polite" style="margin-top:12px;overflow-wrap:anywhere;">Loading latest report…</div>
                       <p style="font-size:12px;color:var(--muted);margin-top:8px;">Stage 1 results are saved to the existing Verification workspace. Previously completed checks should be reviewed rather than repeated. Identity, phone ownership and occupation are not independently verified; final approval remains manual.</p>
@@ -10178,6 +10178,11 @@ function escapeHtml(value) {
       panel.querySelector(".bv-status").value=d.review.match_status||"pending";
       panel.querySelector(".bv-notes").value=d.review.notes||"";
       panel.querySelector(".bv-feedback").textContent=d.review.checked_at?"Reviewed "+d.review.checked_at:"Not yet reviewed";
+      const previous=(d.history||[]).filter(item=>Number(item.date_request_id)!==id);
+      const historyEl=panel.querySelector(".bv-history");
+      if(historyEl)historyEl.innerHTML=previous.length
+        ? '<strong>Previous reviews on this client profile</strong><ul>'+previous.map(item=>'<li>'+esc(item.checked_at||"")+" · "+esc(item.match_status||"pending")+'</li>').join("")+'</ul><small>Historical reviews are not proof that a new request belongs to the same person. Confirm identity before relying on them.</small>'
+        : '<small>No previous BeenVerified reviews saved for this client profile.</small>';
     }catch(e){panel.querySelector(".bv-feedback").textContent=e.message;}
   }
   document.addEventListener("click",async e=>{
