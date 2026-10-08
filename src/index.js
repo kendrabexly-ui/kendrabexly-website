@@ -1588,7 +1588,7 @@ export default {
         const payload=request.method==="POST" ? await request.json().catch(()=>({})) : Object.fromEntries(url.searchParams);
         const requestId=Number(payload.request_id);
         if(!Number.isSafeInteger(requestId)||requestId<1)return Response.json({ok:false,message:"Valid request_id required."},{status:400});
-        const linked=await env.DB.prepare("SELECT id FROM date_requests WHERE id=?").bind(requestId).first();
+        const linked=await env.DB.prepare("SELECT id,client_id FROM date_requests WHERE id=?").bind(requestId).first();
         if(!linked)return Response.json({ok:false,message:"Request not found."},{status:404});
         await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_beenverified_reviews (
           date_request_id INTEGER PRIMARY KEY,
@@ -1608,7 +1608,10 @@ export default {
             .bind(requestId,status,notes).run();
         }
         const review=await env.DB.prepare("SELECT match_status,checked_at,notes FROM client_beenverified_reviews WHERE date_request_id=?").bind(requestId).first();
-        return Response.json({ok:true,review:review||{match_status:"pending",checked_at:null,notes:""}},{headers:{"Cache-Control":"private, no-store"}});
+        const history=await env.DB.prepare(`SELECT br.date_request_id,br.match_status,br.checked_at,br.notes
+          FROM client_beenverified_reviews br JOIN date_requests dr ON dr.id=br.date_request_id
+          WHERE dr.client_id=? ORDER BY br.checked_at DESC LIMIT 20`).bind(linked.client_id).all();
+        return Response.json({ok:true,review:review||{match_status:"pending",checked_at:null,notes:""},history:history.results||[]},{headers:{"Cache-Control":"private, no-store"}});
       }catch(error){console.error("BeenVerified review failed:",error);return Response.json({ok:false,message:"Review unavailable."},{status:500});}
     }
 
