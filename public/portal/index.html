@@ -3642,6 +3642,21 @@ async function loadRequests(options = {}) {
                         <strong>Stage 1 · Automated Initial Screening</strong>
                         <button type="button" class="run-client-screening" data-screening-request-id="${Number(latest?.id||0)}" style="background:#69405e;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;">Run Screening</button>
                       </div>
+                      <div class="screening-checklist" style="padding:14px;border:1px solid #ded5d1;border-radius:10px;margin-top:12px;">
+                        <strong>Screening Steps · Manual Review</strong>
+                        <p style="font-size:12px;">Blacklist and background research are performed outside the portal. Record your findings here. Phone status should reflect the existing Twilio check.</p>
+                        <label>1 · External blacklist review<select data-check-field="blacklist_status"><option value="pending">Pending</option><option value="clear">No match found</option><option value="possible_match">Possible match · review</option><option value="confirmed_match">Confirmed match</option></select></label>
+                        <textarea data-check-note="blacklist" placeholder="Optional blacklist review notes" rows="2"></textarea>
+                        <label>2 · Phone line check<select data-check-field="phone_status"><option value="pending">Pending</option><option value="non_voip">Non-VoIP confirmed</option><option value="voip">VoIP</option><option value="uncertain">Uncertain</option></select></label>
+                        <textarea data-check-note="phone" placeholder="Optional phone check notes" rows="2"></textarea>
+                        <label>3 · Identity and information review<select data-check-field="identity_status"><option value="pending">Pending</option><option value="supported">Information supported</option><option value="conflicting">Conflicting information</option><option value="unverified">Unable to verify</option></select></label>
+                        <textarea data-check-note="identity" placeholder="Optional identity research notes" rows="2"></textarea>
+                        <label>4 · Background review<select data-check-field="background_status"><option value="pending">Pending</option><option value="reviewed">Reviewed</option><option value="needs_follow_up">Needs follow-up</option></select></label>
+                        <textarea data-check-note="background" placeholder="Optional background review notes; do not copy sensitive reports" rows="2"></textarea>
+                        <label>5 · Screening decision<select data-check-field="decision"><option value="pending">Pending</option><option value="move_forward">Move forward to deposit</option><option value="needs_information">Needs more information</option><option value="decline">Decline</option></select></label>
+                        <button type="button" class="screening-checklist-save">Save Screening Steps</button>
+                        <span class="screening-checklist-feedback" role="status"></span>
+                      </div>
                       <div class="screening-notes" style="margin-top:12px;padding:14px;border:1px solid #ded5d1;border-radius:10px;">
                         <strong>Additional Client Information (Optional)</strong>
                         <p style="font-size:12px;margin:6px 0 12px;">Add your own observations or details provided by the client. These notes do not change screening results or final approval.</p>
@@ -10139,6 +10154,11 @@ function escapeHtml(value) {
   const screeningStyle=document.createElement("style");
   screeningStyle.textContent=`
     .client-screening-agent{min-width:0;max-width:100%;overflow:hidden}
+    .client-screening-agent .screening-checklist{box-sizing:border-box;width:100%;min-width:0}
+    .client-screening-agent .screening-checklist label{display:block;margin-top:12px;font-weight:600;font-size:13px}
+    .client-screening-agent .screening-checklist select,.client-screening-agent .screening-checklist textarea{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;margin:6px 0;padding:10px;border:1px solid #cdbfb7;border-radius:8px;font:inherit;font-size:14px;background:#fff}
+    .client-screening-agent .screening-checklist-save{background:#69405e;color:#fff;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
+    .client-screening-agent .screening-checklist-feedback{display:block;font-size:12px;margin-top:8px}
     .client-screening-agent .screening-notes{box-sizing:border-box;min-width:0;width:100%}\n    .client-screening-agent .screening-notes label{display:block;margin:10px 0;font-size:13px;font-weight:600}\n    .client-screening-agent .screening-note-input{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;margin-top:5px;padding:10px;border:1px solid #cdbfb7;border-radius:8px;font:inherit;font-weight:400;font-size:14px;background:#fff;color:#29282d}\n    .client-screening-agent .screening-notes-save{background:#69405e;color:#fff;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}\n    .client-screening-agent .screening-notes-feedback{display:block;margin-top:8px;font-size:12px}\n    .client-screening-agent .screening-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
     .client-screening-agent .screening-check{box-sizing:border-box;min-width:0;border:1px solid #ded5d1;border-radius:9px;padding:12px;background:#fff;overflow-wrap:anywhere}
     .client-screening-agent .screening-check strong{display:block;font-size:13px;margin-bottom:5px}
@@ -10184,6 +10204,31 @@ function escapeHtml(value) {
     const button=event.target.closest?.(".run-client-screening");
     if(button){event.preventDefault();event.stopPropagation();const panel=button.closest(".client-screening-agent");if(panel)loadPanel(panel,true);}
   });
+  async function loadScreeningChecklist(panel){
+    const id=Number(panel.dataset.screeningRequestId);if(!Number.isSafeInteger(id)||id<1)return;
+    const feedback=panel.querySelector(".screening-checklist-feedback");
+    try{
+      const r=await fetch("/api/admin/clients/screening-checklist?request_id="+encodeURIComponent(id),{credentials:"same-origin"});
+      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unable to load checklist");
+      const row=d.checklist||{};
+      panel.querySelectorAll("[data-check-field]").forEach(el=>{el.value=row[el.dataset.checkField]||"pending";});
+      panel.querySelectorAll("[data-check-note]").forEach(el=>{el.value=row.notes?.[el.dataset.checkNote]||"";});
+      feedback.textContent=row.updated_at?"Last saved: "+row.updated_at:"";
+    }catch(e){feedback.textContent=e.message;}
+  }
+  document.addEventListener("click",async event=>{
+    const button=event.target.closest?.(".screening-checklist-save");if(!button)return;
+    event.preventDefault();const panel=button.closest(".client-screening-agent");if(!panel)return;
+    const payload={request_id:Number(panel.dataset.screeningRequestId),notes:{}};
+    panel.querySelectorAll("[data-check-field]").forEach(el=>{payload[el.dataset.checkField]=el.value;});
+    panel.querySelectorAll("[data-check-note]").forEach(el=>{payload.notes[el.dataset.checkNote]=el.value;});
+    const feedback=panel.querySelector(".screening-checklist-feedback");button.disabled=true;feedback.textContent="Saving…";
+    try{
+      const r=await fetch("/api/admin/clients/screening-checklist",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unable to save");
+      feedback.textContent="Screening steps saved";
+    }catch(e){feedback.textContent=e.message;}finally{button.disabled=false;}
+  });
   async function loadScreeningNotes(panel){
     const id=Number(panel.dataset.screeningRequestId);if(!Number.isSafeInteger(id)||id<1)return;
     const feedback=panel.querySelector(".screening-notes-feedback");
@@ -10211,11 +10256,11 @@ function escapeHtml(value) {
     document.querySelectorAll(".client-screening-agent").forEach(panel=>{
       if(panel.dataset.screeningLoaded==="1")return;
       panel.dataset.screeningLoaded="1";
-      loadPanel(panel,false);loadScreeningNotes(panel);
+      loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);
     });
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningNotes(panel);});
+  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);});
 })();
 </script>
 </body>
