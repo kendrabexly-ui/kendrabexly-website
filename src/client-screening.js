@@ -32,6 +32,17 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
     occupation:{status:occupation.trim()?"self_reported":"not_provided", employer:"not_verified"},
     previous_requests:Number(duplicates?.count||0),
     internal_blacklist:{status:blocked?"potential_match":"no_match"},
+    external_sources:{
+      status:"not_connected",
+      explanation:"No authorized external records provider is configured. Public profile discovery is not proof of identity.",
+      government_records:{status:"not_checked",source_url:null},
+      professional_licenses:{status:"not_checked",source_url:null},
+      business_registration:{status:"not_checked",source_url:null},
+      public_professional_profiles:{status:"not_checked",source_url:null},
+      public_social_profiles:{status:"not_checked",source_url:null},
+      social_email_registration:{status:"not_verifiable",explanation:"Social platforms do not provide a reliable authorized public email-account registration lookup."}
+    },
+    required_follow_up:["Confirm email ownership using a one-time link","Confirm phone ownership using a one-time code","Review relevant official registry or professional license sources when applicable"],
     recommendation:"manual_review_required",
     final_approval:"unchanged"
   };
