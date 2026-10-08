@@ -10149,7 +10149,6 @@ function escapeHtml(value) {
     .client-screening-agent .screening-checklist select,.client-screening-agent .screening-checklist textarea{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;margin:6px 0;padding:10px;border:1px solid #cdbfb7;border-radius:8px;font:inherit;font-size:14px;background:#fff}
     .client-screening-agent .screening-checklist-save{background:#69405e;color:#fff;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
     .client-screening-agent .screening-checklist-feedback{display:block;font-size:12px;margin-top:8px}
-    .client-screening-agent .screening-notes{box-sizing:border-box;min-width:0;width:100%}\n    .client-screening-agent .screening-notes label{display:block;margin:10px 0;font-size:13px;font-weight:600}\n    .client-screening-agent .screening-note-input{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;margin-top:5px;padding:10px;border:1px solid #cdbfb7;border-radius:8px;font:inherit;font-weight:400;font-size:14px;background:#fff;color:#29282d}\n    .client-screening-agent .screening-notes-save{background:#69405e;color:#fff;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}\n    .client-screening-agent .screening-notes-feedback{display:block;margin-top:8px;font-size:12px}\n    .client-screening-agent .screening-checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
     .client-screening-agent .screening-check{box-sizing:border-box;min-width:0;border:1px solid #ded5d1;border-radius:9px;padding:12px;background:#fff;overflow-wrap:anywhere}
     .client-screening-agent .screening-check strong{display:block;font-size:13px;margin-bottom:5px}
     .client-screening-agent .screening-check span{font-size:14px;line-height:1.4}
@@ -10210,38 +10209,15 @@ function escapeHtml(value) {
       feedback.textContent="Screening steps saved";
     }catch(e){feedback.textContent=e.message;}finally{button.disabled=false;}
   });
-  async function loadScreeningNotes(panel){
-    const id=Number(panel.dataset.screeningRequestId);if(!Number.isSafeInteger(id)||id<1)return;
-    const feedback=panel.querySelector(".screening-notes-feedback");
-    try{
-      const r=await fetch("/api/admin/clients/screening-notes?request_id="+encodeURIComponent(id),{credentials:"same-origin"});
-      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unable to load notes");
-      panel.querySelectorAll(".screening-note-input").forEach(input=>{input.value=d.notes[input.dataset.noteField]||"";});
-      feedback.textContent=d.notes.updated_at?"Last saved: "+d.notes.updated_at:"";
-    }catch(e){feedback.textContent=e.message;}
-  }
-  document.addEventListener("click",async event=>{
-    const button=event.target.closest?.(".screening-notes-save");if(!button)return;
-    event.preventDefault();const panel=button.closest(".client-screening-agent");if(!panel)return;
-    const feedback=panel.querySelector(".screening-notes-feedback");
-    const payload={request_id:Number(panel.dataset.screeningRequestId)};
-    panel.querySelectorAll(".screening-note-input").forEach(input=>{payload[input.dataset.noteField]=input.value;});
-    button.disabled=true;feedback.textContent="Saving…";
-    try{
-      const r=await fetch("/api/admin/clients/screening-notes",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unable to save");
-      feedback.textContent="Notes saved";
-    }catch(e){feedback.textContent=e.message;}finally{button.disabled=false;}
-  });
   const observer=new MutationObserver(()=>{
     document.querySelectorAll(".client-screening-agent").forEach(panel=>{
       if(panel.dataset.screeningLoaded==="1")return;
       panel.dataset.screeningLoaded="1";
-      loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);
+      loadPanel(panel,false);loadScreeningChecklist(panel);
     });
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);});
+  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningChecklist(panel);});
 })();
 </script>
 </body>
