@@ -1,3 +1,17 @@
+async function requireScreeningMoveForward(env,requestId){
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_screening_checklists (
+    date_request_id INTEGER PRIMARY KEY,
+    blacklist_status TEXT NOT NULL DEFAULT 'pending',
+    phone_status TEXT NOT NULL DEFAULT 'pending',
+    identity_status TEXT NOT NULL DEFAULT 'pending',
+    background_status TEXT NOT NULL DEFAULT 'pending',
+    decision TEXT NOT NULL DEFAULT 'pending',
+    notes_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+  const row=await env.DB.prepare("SELECT blacklist_status,phone_status,identity_status,background_status,decision FROM client_screening_checklists WHERE date_request_id=?").bind(requestId).first();
+  return !!row&&row.blacklist_status==="clear"&&row.phone_status==="non_voip"&&row.identity_status==="supported"&&row.background_status==="reviewed"&&row.decision==="move_forward";
+}
 import { runInitialScreening } from "./client-screening.js";
 import { accessIdentity, authorizeVerificationRequest, verificationForbidden, sanitizeVerificationActivity, retentionDate, enforceVerificationRateLimit, personaFetchState } from "./verification-security.js";
 async function ensureXDraftMedia(env){await env.DB.prepare(`CREATE TABLE IF NOT EXISTS x_draft_media (draft_id INTEGER PRIMARY KEY,mime_type TEXT NOT NULL,file_name TEXT,image_base64 TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`).run();}
@@ -8415,6 +8429,7 @@ if (
           );
         }
 
+        if(!await requireScreeningMoveForward(env,requestId))return bookingCorsJson({ok:false,message:"Complete the screening checklist and save Move Forward before continuing."},{status:409});
         const existingRequest = await env.DB
           .prepare(`
             SELECT
@@ -8585,6 +8600,7 @@ if (
         const data=await request.json().catch(()=>({}));
         const requestId=Number(data.id);
         if(!Number.isInteger(requestId)||requestId<1) return bookingCorsJson({ok:false,message:"Invalid request ID."},{status:400});
+        if(!await requireScreeningMoveForward(env,requestId))return bookingCorsJson({ok:false,message:"Complete the screening checklist and save Move Forward before continuing."},{status:409});
         await ensureSiteContentTables(env);
         await ensureClientVerificationAuditsTable(env);
         const row=await env.DB.prepare(`
