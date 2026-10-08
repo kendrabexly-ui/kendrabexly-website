@@ -135,6 +135,7 @@ const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/clients/verification-activity", "edit_verification"],
   ["/api/admin/clients/verification-overview", "edit_verification"],
   ["/api/admin/clients/run-screening", "edit_verification"],
+  ["/api/admin/clients/beenverified-review", "edit_verification"],
   ["/api/admin/clients/blacklist-review", "edit_verification"],
   ["/api/admin/clients/phone-line-type", "edit_verification"],
   ["/api/admin/clients/phone-reverse-lookup", "edit_verification"],
@@ -1579,6 +1580,36 @@ export default {
         console.error("Screening endpoint failed:",error);
         return Response.json({ok:false,message:"Screening unavailable."},{status:500});
       }
+    }
+
+    // BeenVerified is manual-only: never fetch, scrape, or infer its results.
+    if (url.pathname === "/api/admin/clients/beenverified-review" && ["GET","POST"].includes(request.method)) {
+      try {
+        const payload=request.method==="POST" ? await request.json().catch(()=>({})) : Object.fromEntries(url.searchParams);
+        const requestId=Number(payload.request_id);
+        if(!Number.isSafeInteger(requestId)||requestId<1)return Response.json({ok:false,message:"Valid request_id required."},{status:400});
+        const linked=await env.DB.prepare("SELECT id FROM date_requests WHERE id=?").bind(requestId).first();
+        if(!linked)return Response.json({ok:false,message:"Request not found."},{status:404});
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_beenverified_reviews (
+          date_request_id INTEGER PRIMARY KEY,
+          match_status TEXT NOT NULL,
+          checked_at TEXT NOT NULL,
+          notes TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )`).run();
+        if(request.method==="POST"){
+          const status=String(payload.match_status||"");
+          if(!["pending","possible_match","supported","conflicting","no_match"].includes(status))
+            return Response.json({ok:false,message:"Invalid match status."},{status:400});
+          const notes=String(payload.notes||"").trim().slice(0,1500);
+          await env.DB.prepare(`INSERT INTO client_beenverified_reviews(date_request_id,match_status,checked_at,notes,updated_at)
+            VALUES(?,?,CURRENT_TIMESTAMP,?,CURRENT_TIMESTAMP)
+            ON CONFLICT(date_request_id) DO UPDATE SET match_status=excluded.match_status,checked_at=excluded.checked_at,notes=excluded.notes,updated_at=CURRENT_TIMESTAMP`)
+            .bind(requestId,status,notes).run();
+        }
+        const review=await env.DB.prepare("SELECT match_status,checked_at,notes FROM client_beenverified_reviews WHERE date_request_id=?").bind(requestId).first();
+        return Response.json({ok:true,review:review||{match_status:"pending",checked_at:null,notes:""}},{headers:{"Cache-Control":"private, no-store"}});
+      }catch(error){console.error("BeenVerified review failed:",error);return Response.json({ok:false,message:"Review unavailable."},{status:500});}
     }
 
     // =========================================================
