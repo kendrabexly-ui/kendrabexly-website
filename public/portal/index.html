@@ -3657,18 +3657,8 @@ async function loadRequests(options = {}) {
                         <button type="button" class="screening-checklist-save">Save Screening Steps</button>
                         <span class="screening-checklist-feedback" role="status"></span>
                       </div>
-                      <div class="screening-notes" style="margin-top:12px;padding:14px;border:1px solid #ded5d1;border-radius:10px;">
-                        <strong>Additional Client Information (Optional)</strong>
-                        <p style="font-size:12px;margin:6px 0 12px;">Add your own observations or details provided by the client. These notes do not change screening results or final approval.</p>
-                        <label>Identity and name details<textarea class="screening-note-input" data-note-field="identity_notes" rows="2" placeholder="Name variations or details to clarify"></textarea></label>
-                        <label>Phone and email details<textarea class="screening-note-input" data-note-field="contact_notes" rows="2" placeholder="Contact information or follow-up notes"></textarea></label>
-                        <label>Occupation and professional details<textarea class="screening-note-input" data-note-field="professional_notes" rows="2" placeholder="Employment or business information"></textarea></label>
-                        <label>Other screening notes<textarea class="screening-note-input" data-note-field="additional_notes" rows="3" placeholder="Additional context or follow-up questions"></textarea></label>
-                        <button type="button" class="screening-notes-save">Save Notes</button>
-                        <span class="screening-notes-feedback" role="status"></span>
-                      </div>
                       <div class="client-screening-report" role="status" aria-live="polite" style="margin-top:12px;overflow-wrap:anywhere;">Loading latest report…</div>
-                      <p style="font-size:12px;color:var(--muted);margin-top:8px;">Stage 1 results are saved to the existing Verification workspace. Previously completed checks can be reviewed. Optional notes are saved separately; final approval remains manual.</p>
+                      <p style="font-size:12px;color:var(--muted);margin-top:8px;">Screening decisions remain manual. Review the checklist before moving forward.</p>
                     </section>
                     <section class="verification-card client-verification-overview">
                       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -10168,17 +10158,8 @@ function escapeHtml(value) {
   `;
   document.head.appendChild(screeningStyle);
   function reportHtml(report){
-    if(!report)return "No report yet. Select Run Screening.";
-    const fields=[
-      ["Name",report.name?.status],["Email",report.email?.status],["Email ownership",report.email?.ownership],
-      ["Phone",report.phone?.status],["Phone ownership",report.phone?.ownership],
-      ["Occupation",report.occupation?.status],["Employment",report.occupation?.employer],
-      ["Internal blacklist",report.internal_blacklist?.status],["Previous requests",report.previous_requests]
-    ];
-    const external=report.external_sources||{};
-    const sources=[["Government records",external.government_records],["Professional licenses",external.professional_licenses],["Business registration",external.business_registration],["Public professional profiles",external.public_professional_profiles],["Public social profiles",external.public_social_profiles],["Social email registration",external.social_email_registration]];
-    const externalHtml='<div style="margin-top:12px;"><strong>External verification sources</strong><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:8px;">'+sources.map(([name,entry])=>'<div class="screening-check"><strong>'+esc(name)+'</strong><div>'+esc(entry?.status||"not_checked")+'</div></div>').join("")+'</div><p style="font-size:12px;">'+esc(external.explanation||"External provider not connected.")+'</p></div>';
-    return '<div class="screening-checks">'+fields.map(([k,v])=>'<div class="screening-check"><strong>'+esc(k)+'</strong><div>'+esc(v??"Not checked")+'</div></div>').join("")+'</div>'+externalHtml+'<p style="font-size:12px;margin-top:10px;">'+esc(report.source||"")+' · '+esc(report.checked_at||"")+' · Manual review required</p>';
+    if(!report)return "No screening report yet.";
+    return '<p style="font-size:13px;margin:0;">Screening report saved. Complete the manual checklist and record your decision before moving forward.</p>';
   }
   async function screeningFetch(id,method){
     const options={method,credentials:"same-origin",headers:{"Accept":"application/json"}};
