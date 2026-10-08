@@ -3642,6 +3642,13 @@ async function loadRequests(options = {}) {
                         <strong>Stage 1 · Automated Initial Screening</strong>
                         <button type="button" class="run-client-screening" data-screening-request-id="${Number(latest?.id||0)}" style="background:#69405e;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer;">Run Screening</button>
                       </div>
+                      <div class="beenverified-review" style="padding:12px;border:1px solid #ddd;border-radius:8px;margin-top:10px;">
+                        <strong>BeenVerified · Manual match review</strong>
+                        <p style="font-size:12px;">No automated BeenVerified access. Save only permitted summary findings; do not copy complete reports.</p>
+                        <select class="bv-status" aria-label="BeenVerified match status"><option value="pending">Pending</option><option value="possible_match">Possible match</option><option value="supported">Information supported</option><option value="conflicting">Conflicting information</option><option value="no_match">No reliable match</option></select>
+                        <textarea class="bv-notes" maxlength="1500" rows="3" placeholder="Summary and discrepancies (no sensitive record details)" style="display:block;width:100%;margin:8px 0;"></textarea>
+                        <button type="button" class="bv-save">Save BeenVerified review</button> <span class="bv-feedback" role="status"></span>
+                      </div>
                       <div class="client-screening-report" role="status" aria-live="polite" style="margin-top:12px;overflow-wrap:anywhere;">Loading latest report…</div>
                       <p style="font-size:12px;color:var(--muted);margin-top:8px;">Stage 1 results are saved to the existing Verification workspace. Previously completed checks should be reviewed rather than repeated. Identity, phone ownership and occupation are not independently verified; final approval remains manual.</p>
                     </section>
@@ -10163,15 +10170,35 @@ function escapeHtml(value) {
     const button=event.target.closest?.(".run-client-screening");
     if(button){event.preventDefault();event.stopPropagation();const panel=button.closest(".client-screening-agent");if(panel)loadPanel(panel,true);}
   });
+  async function loadBv(panel){
+    const id=Number(panel.dataset.screeningRequestId);if(!Number.isSafeInteger(id)||id<1)return;
+    try{
+      const r=await fetch("/api/admin/clients/beenverified-review?request_id="+encodeURIComponent(id),{credentials:"same-origin"});
+      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unavailable");
+      panel.querySelector(".bv-status").value=d.review.match_status||"pending";
+      panel.querySelector(".bv-notes").value=d.review.notes||"";
+      panel.querySelector(".bv-feedback").textContent=d.review.checked_at?"Reviewed "+d.review.checked_at:"Not yet reviewed";
+    }catch(e){panel.querySelector(".bv-feedback").textContent=e.message;}
+  }
+  document.addEventListener("click",async e=>{
+    const button=e.target.closest?.(".bv-save");if(!button)return;
+    e.preventDefault();const panel=button.closest(".client-screening-agent");if(!panel)return;
+    button.disabled=true;const feedback=panel.querySelector(".bv-feedback");feedback.textContent="Saving…";
+    try{
+      const r=await fetch("/api/admin/clients/beenverified-review",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({request_id:Number(panel.dataset.screeningRequestId),match_status:panel.querySelector(".bv-status").value,notes:panel.querySelector(".bv-notes").value})});
+      const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Unable to save");
+      feedback.textContent="Saved · "+d.review.checked_at;
+    }catch(err){feedback.textContent=err.message;}finally{button.disabled=false;}
+  });
   const observer=new MutationObserver(()=>{
     document.querySelectorAll(".client-screening-agent").forEach(panel=>{
       if(panel.dataset.screeningLoaded==="1")return;
       panel.dataset.screeningLoaded="1";
-      loadPanel(panel,false);
+      loadPanel(panel,false);loadBv(panel);
     });
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);});
+  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadBv(panel);});
 })();
 </script>
 </body>
