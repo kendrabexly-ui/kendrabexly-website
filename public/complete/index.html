@@ -502,7 +502,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
     }
   }
   document.addEventListener("change",sync);
-  new MutationObserver(sync).observe(document.body,{attributes:true,subtree:true,attributeFilter:["disabled","hidden"]});
+  new MutationObserver(sync).observe(document.body,{attributes:true,subtree:true,attributeFilter:["disabled"]});
   sync();
 })();
 </script>
