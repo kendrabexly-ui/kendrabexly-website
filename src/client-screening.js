@@ -25,10 +25,10 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
     env.DB.prepare(`SELECT COUNT(*) AS count FROM date_requests WHERE client_id=? AND id<>?`).bind(client.client_id,id).first()
   ]);
   const report = {
-    version:1, source, checked_at:new Date().toISOString(),
+    version:2, source, checked_at:new Date().toISOString(),
     name:{status:client.first_name && client.last_name?"provided":"incomplete"},
     email:{status:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?"format_valid":"invalid", ownership:"not_verified"},
-    phone:{status:phone.length>=10 && phone.length<=15?"format_plausible":"needs_review", ownership:"not_verified", carrier:"not_checked"},
+    phone:{status:phone.length>=10 && phone.length<=15?"format_plausible":"needs_review", ownership:"not_verified", carrier:"not_checked", twilio:{status:"not_configured", line_type:"not_checked", voip:"not_checked", lookup_at:null, provider:"Twilio Lookup"}},
     occupation:{status:occupation.trim()?"self_reported":"not_provided", employer:"not_verified"},
     previous_requests:Number(duplicates?.count||0),
     internal_blacklist:{status:blocked?"potential_match":"no_match"},
@@ -36,13 +36,18 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
       status:"not_connected",
       explanation:"No authorized external records provider is configured. Public profile discovery is not proof of identity.",
       government_records:{status:"not_checked",source_url:null},
+      id_records:{status:"not_checked",source_url:null,provider:"none",note:"ID document review does not establish a government database match."},
+      public_records:{status:"not_checked",source_url:null,provider:"none"},
+      criminal_records:{status:"not_checked",source_url:null,provider:"none",note:"Requires lawful access, applicable notice/consent and individual review; do not infer guilt from record hits."},
+      court_and_docket_indexes:{status:"not_checked",source_url:null,provider:"none"},
       professional_licenses:{status:"not_checked",source_url:null},
+      professional_credentials:{status:"not_checked",source_url:null,provider:"none",note:"Check directly with the relevant issuing institution or authoritative registry."},
       business_registration:{status:"not_checked",source_url:null},
       public_professional_profiles:{status:"not_checked",source_url:null},
       public_social_profiles:{status:"not_checked",source_url:null},
       social_email_registration:{status:"not_verifiable",explanation:"Social platforms do not provide a reliable authorized public email-account registration lookup."}
     },
-    required_follow_up:["Confirm email ownership using a one-time link","Confirm phone ownership using a one-time code","Review relevant official registry or professional license sources when applicable"],
+    required_follow_up:["Confirm email ownership using a one-time link","Confirm phone ownership using a one-time code","Review official issuing-agency license and credential registries when applicable","Review public and court index sources only when legally appropriate and authorized"],
     recommendation:"manual_review_required",
     final_approval:"unchanged"
   };
