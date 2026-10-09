@@ -1734,6 +1734,13 @@ export default {
           phone_status=excluded.phone_status,identity_status=excluded.identity_status,
           background_status=excluded.background_status,decision=excluded.decision,
           notes_json=excluded.notes_json,updated_at=CURRENT_TIMESTAMP`).bind(id,...values,JSON.stringify(notes)).run();
+          // A declined screening revokes an active request; scheduling checks status too.
+          if(values[4]==="decline"){
+            await env.DB.prepare("UPDATE date_requests SET status='declined',final_approval=0 WHERE id=? AND status NOT IN ('completed','canceled','blacklisted_submission')").bind(id).run();
+          }
+          if(values[4]==="needs_information"){
+            await env.DB.prepare("UPDATE date_requests SET final_approval=0,status=CASE WHEN status='approved' THEN 'screening_pending' ELSE status END WHERE id=? AND status NOT IN ('completed','declined','canceled','blacklisted_submission')").bind(id).run();
+          }
         }
         const row=await env.DB.prepare("SELECT * FROM client_screening_checklists WHERE date_request_id=?").bind(id).first();
         return Response.json({ok:true,checklist:row?{...row,notes:JSON.parse(row.notes_json||"{}"),screening_status:screeningReady(row)?"approved":row.decision==="decline"?"declined":row.decision==="needs_information"?"needs_information":"pending"}:null},{headers:{"Cache-Control":"private, no-store"}});
