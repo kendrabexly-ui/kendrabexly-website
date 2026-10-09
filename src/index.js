@@ -197,6 +197,11 @@ const DEFAULT_SITE_RATES = [
     rates: [["The Signature Experience — 30 minutes", 300], ["The Grecian Experience — 30 minutes", 400]]
   },
   {
+    name: "The Sensual Touch",
+    description: "A private, personalized experience centered on attentive touch and a relaxed atmosphere.",
+    rates: [["30 minutes", 255], ["1 hour", 425], ["1½ hours", 640], ["Up to 2 hours", 850]]
+  },
+  {
     name: "The Signature Experience",
     description: "My signature experience is romantic, flirtatious, and intentionally unhurried, with genuine chemistry, affectionate company, playful conversation, and my complete attention.",
     rates: [["1 hour", 500], ["1½ hours", 750], ["Up to 2 hours", 1000], ["Up to 4 hours", 2300]]
@@ -205,11 +210,6 @@ const DEFAULT_SITE_RATES = [
     name: "The Grecian Experience",
     description: "My more adventurous and elevated experience, with the same warmth and attentive companionship and a more daring, playful energy.",
     rates: [["1 hour", 700], ["1½ hours", 1000], ["Up to 2 hours", 1300], ["Up to 4 hours", 2800]]
-  },
-  {
-    name: "The Sensual Touch",
-    description: "A private, personalized experience centered on attentive touch and a relaxed atmosphere.",
-    rates: [["30 minutes", 255], ["1 hour", 425], ["1½ hours", 640], ["Up to 2 hours", 850]]
   },
   {
     name: "Outcall",
@@ -1540,8 +1540,9 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <p>Now, handsome, let's plan a little time together. Tell me what you have in mind.</p>
 <div class="note-progress"><span id="note-progress-bar"></span></div><p id="note-step-label" class="small">A little about our time · 1 of 4</p>
 <div class="note-step" data-step="0"><h3>Which experience catches your eye?</h3><div class="note-choices">
+<button type="button" class="note-choice" data-field="intro-experience" data-value="sensual-touch"><span class="note-choice-icon">♡</span><strong>The Sensual Touch</strong><small>A personalized experience focused on attentive touch.</small></button>
 <button type="button" class="note-choice" data-field="intro-experience" data-value="signature"><span class="note-choice-icon">♡</span><strong>The Signature Experience</strong><small>Sweet, charming, and effortlessly lovely.</small></button>
-<button type="button" class="note-choice" data-field="intro-experience" data-value="grecian"><span class="note-choice-icon">✧</span><strong>The Grecian Experience</strong><small>A more adventurous kind of connection.</small></button> <button type="button" class="note-choice" data-field="intro-experience" data-value="sensual-touch"><span class="note-choice-icon">♡</span><strong>The Sensual Touch</strong><small>A personalized experience focused on attentive touch.</small></button></div></div>
+<button type="button" class="note-choice" data-field="intro-experience" data-value="grecian"><span class="note-choice-icon">✧</span><strong>The Grecian Experience</strong><small>A more adventurous kind of connection.</small></button> </div></div>
 <div class="note-step" data-step="1" hidden><h3>How much time shall we set aside?</h3><div class="note-choices note-times" id="note-duration-choices"></div></div>
 <div class="note-step" data-step="2" hidden><h3>Where shall we meet?</h3><div class="note-choices"><button type="button" class="note-choice" data-field="intro-location" data-value="incall"><span class="note-choice-icon">⌂</span><strong>A cozy spot with Kendra</strong><small>Incall preference</small></button><button type="button" class="note-choice" data-field="intro-location" data-value="outcall"><span class="note-choice-icon">✧</span><strong>I'll come to you</strong><small>Outcall preference</small></button></div></div>
 <div class="note-step" data-step="3" hidden><h3>When were you hoping to see me?</h3><p class="small">Choose a preferred date and time, not a confirmed opening.</p><div class="grid"><div><label for="intro-date">Preferred date</label><input id="intro-date" name="intro_preferred_date" type="date"></div><div><label for="intro-time">Preferred time</label><input id="intro-time" name="intro_preferred_time" type="time"></div></div></div>
