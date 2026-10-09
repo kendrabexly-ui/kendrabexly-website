@@ -25,7 +25,7 @@ export async function sendDueLocationEmails(env, now=Date.now()) {
   )`).run();
   // Only approved incall bookings with paid deposits and an actual saved address.
   const result=await env.DB.prepare(`SELECT dr.id,dr.requested_date,dr.requested_time,dr.location_address,
-    c.email,c.first_name,dr.final_approval,
+    c.email,c.first_name,dr.status,dr.deposit_paid,dr.final_approval,
     sc.blacklist_status,sc.phone_status,sc.identity_status,sc.background_status,sc.decision
     FROM date_requests dr JOIN clients c ON c.id=dr.client_id
     LEFT JOIN client_screening_checklists sc ON sc.date_request_id=dr.id
