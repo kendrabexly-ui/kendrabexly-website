@@ -3695,6 +3695,14 @@ async function loadRequests(options = {}) {
                         <div><strong>Itinerary</strong><span>${escapeHtml(requestNoteValue("Introduction itinerary")||"Not provided")}</span></div>
                         <div><strong>Deposit preference</strong><span>${escapeHtml(requestNoteValue("Deposit preference")||"Not provided")}</span></div>
                       </div>
+                      <section class="screening-evidence-panel" style="margin:16px 0;padding:14px;border:1px solid #e4d8d0;border-radius:12px;background:#fff;">
+                        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
+                          <strong>Verification tools & saved results</strong>
+                          <button type="button" class="run-client-screening" style="padding:10px 14px;min-height:42px;">Refresh saved results</button>
+                        </div>
+                        <p class="unified-review-caption">Twilio phone type, Persona inquiry/database results, professional licenses, public records and criminal record review. These are evidence statuses, not automatic approval. Refresh does not initiate external searches.</p>
+                        <div class="client-screening-report" role="status" aria-live="polite" style="margin-top:12px;">Loading saved verification results…</div>
+                      </section>
                       <div class="screening-checklist">
                         <div class="unified-check-grid">
                           <label>External blacklist check
