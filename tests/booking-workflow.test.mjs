@@ -88,3 +88,50 @@ test("location email is sent only in two-hour window, once per appointment, afte
     assert.equal(attemptCount,2);
   }finally{globalThis.fetch=originalFetch;}
 });
+
+test("end-to-end booking simulation sends only deposit then scheduled address",async()=>{
+  const record={id:31,client_id:19,status:"pending_final_approval",deposit_paid:0,final_approval:0,deposit_amount:125,
+    requested_date:"2027-07-12",requested_time:"17:00",location_address:"",first_name:"Client",
+    email:"client@example.com",phone:"2135550100",notes:"Deposit preference: gift-card",...ready};
+  let depositClaimed=false,locationClaimed=null;
+  const emails=[];const oldFetch=globalThis.fetch;
+  const DB={prepare(sql){return {args:[],bind(...args){this.args=args;return this;},
+    async first(){
+      if(sql.includes("FROM date_requests dr JOIN clients"))return {...record};
+      if(sql.includes("FROM blacklist"))return null;
+      if(sql.includes("FROM location_email_delivery"))return locationClaimed?{appointment_key:locationClaimed,status:"sent"}:null;
+      if(sql.includes("FROM date_requests dr LEFT JOIN"))return {...record};
+      return null;
+    },async all(){return {results:record.status==="approved"?[{...record}]:[]};},
+    async run(){
+      if(sql.includes("INSERT INTO booking_email_delivery")){
+        if(depositClaimed)return {meta:{changes:0}};depositClaimed=true;
+      }
+      if(sql.includes("INSERT INTO location_email_delivery"))locationClaimed=this.args[1];
+      return {meta:{changes:1}};
+    }};}};
+  globalThis.fetch=async(_url,opts)=>{const mail=JSON.parse(opts.body);emails.push(mail);
+    return {ok:true,json:async()=>({id:"accepted"})};};
+  try{
+    const env={DB,RESEND_API_KEY:"fake"};
+    assert.equal((await sendDepositRequestEmail(env,record.id)).status,"sent");
+    assert.equal(emails.length,1);
+    assert.match(emails[0].subject,/deposit/i);
+    assert.doesNotMatch(emails[0].text,/Address:/);
+    // No final approval, no deposit, no address.
+    await sendDueLocationEmails(env,appointmentUtcMs(record.requested_date,record.requested_time)-2*3600000+30000);
+    assert.equal(emails.length,1);
+    record.deposit_paid=1;record.final_approval=1;record.status="approved";
+    record.location_address="Private location, Los Angeles";
+    const dispatch=appointmentUtcMs(record.requested_date,record.requested_time)-2*3600000+30000;
+    await sendDueLocationEmails(env,dispatch);
+    assert.equal(emails.length,2);
+    assert.match(emails[1].subject,/location/i);
+    assert.match(emails[1].text,/Private location/);
+    await sendDueLocationEmails(env,dispatch+15000);
+    assert.equal(emails.length,2,"same appointment never sends a second copy");
+    record.status="canceled";
+    await sendDueLocationEmails(env,dispatch+30000);
+    assert.equal(emails.length,2);
+  }finally{globalThis.fetch=oldFetch;}
+});
