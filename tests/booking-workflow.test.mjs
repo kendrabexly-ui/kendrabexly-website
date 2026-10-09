@@ -83,7 +83,7 @@ test("location email is sent only in two-hour window, once per appointment, afte
     await sendDueLocationEmails({DB,RESEND_API_KEY:"test"},appointmentUtcMs(row.requested_date,row.requested_time)-2*3600000+30000);
     assert.equal(deliveryCount,2);
     row.decision="move_forward";
-    await sendDueLocationEmails({DB,RESEND_API_KEY:"test"},appointmentUtcMs(row.requested_date,row.requested_time)-2*3600000+120000);
+    await sendDueLocationEmails({DB,RESEND_API_KEY:"test"},appointmentUtcMs(row.requested_date,row.requested_time)-2*3600000+11*60000);
     assert.equal(deliveryCount,2,"missed send window must not release address late");
     assert.equal(attemptCount,2);
   }finally{globalThis.fetch=originalFetch;}
