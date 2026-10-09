@@ -1479,6 +1479,7 @@ function standaloneBookingPage() {
 <style>${WEBSITE_BUTTON_CSS}</style>
 <meta name="robots" content="noindex,nofollow">
 <style>
+.intro-terms{grid-column:1/-1;width:100%;min-width:0;margin:22px 0 8px}.intro-terms h2{font:400 clamp(25px,5vw,34px) Georgia,serif;line-height:1.25;margin:0 0 14px}.intro-terms-subtitle{margin:0 0 12px}.intro-terms-text{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #ded7cd;padding:16px;border-radius:12px;font:inherit;line-height:1.6}.intro-terms-agreement{display:flex!important;align-items:flex-start!important;justify-content:flex-start!important;gap:12px!important;margin:18px 0 10px!important;font-weight:600;line-height:1.5;cursor:pointer;max-width:100%;width:100%;text-align:left}.intro-terms-agreement input[type="checkbox"]{appearance:auto!important;-webkit-appearance:checkbox!important;flex:0 0 22px!important;width:22px!important;min-width:22px!important;height:22px!important;min-height:22px!important;padding:0!important;margin:2px 0 0!important;border-radius:5px!important}.intro-terms-agreement span{flex:1 1 auto;min-width:0;overflow-wrap:break-word}.intro-terms-text:focus-visible{outline:2px solid var(--wine);outline-offset:2px}@media(max-width:600px){.intro-terms{margin-top:18px}.intro-terms-text{padding:14px}.intro-terms-agreement{gap:10px!important}}
 :root{--ivory:#FBF7F2;--ink:#66545D;--blush:#F3E8E3;--wine:#8A5B70;--gold:#CDB79E}
 *{box-sizing:border-box}body{margin:0;background:var(--ivory);color:var(--ink);font-family:Arial,sans-serif;line-height:1.55}
 .hero{background:var(--blush);color:var(--ink);padding:72px 20px 56px;text-align:center}
@@ -1553,14 +1554,13 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <input type="hidden" id="intro-experience" name="intro_experience"><input type="hidden" id="intro-duration" name="intro_duration"><input type="hidden" id="intro-location" name="intro_location">
 <div class="note-navigation"><button type="button" id="note-back" class="note-back" disabled>← Back</button><button type="button" id="note-next">Continue →</button></div>
 <div class="note-deposit"><label for="deposit-preference">How would you like to send a deposit? *</label><select id="deposit-preference" name="deposit_preference" required><option value="">Choose a method</option><option value="cash-app">Cash App</option><option value="gift-card">Gift Card</option><option value="crypto">Crypto</option></select><p class="small">This is only your preference. No payment is collected before screening approval.</p></div><div class="note-recap itinerary-summary-card"><p class="eyebrow">ITINERARY SUMMARY</p><h3>Your Current Selections ♡</h3><div id="intro-summary" aria-live="polite" class="itinerary-summary-rows"><div class="itinerary-row"><span>Experience</span><strong id="sum-experience">Not selected</strong></div><div class="itinerary-row"><span>Duration</span><strong id="sum-duration">Not selected</strong></div><div class="itinerary-row"><span>Meeting preference</span><strong id="sum-location">Not selected</strong></div><div class="itinerary-row"><span>Preferred date</span><strong id="sum-date">To be discussed</strong></div><div class="itinerary-row"><span>Preferred time</span><strong id="sum-time">To be discussed</strong></div><div class="itinerary-row itinerary-rate"><span>Estimated rate</span><strong id="sum-rate">To be determined</strong></div></div><p class="small">Your selections are preferences only. Screening approval comes first; actual availability and booking confirmation remain private.</p></div>
-<p class="small">Your selections are preferences only. Screening approval comes first; actual availability, deposit instructions and booking confirmation remain private.</p>
 </section>
 <div id="status" class="status" role="status" aria-live="polite"></div>
-<section aria-label="Terms and Conditions" style="margin:20px 0">
+<section class="intro-terms" aria-label="Terms and Conditions">
 <h2>A Few Things to Know Before We Meet</h2>
-<p>Terms &amp; Conditions</p>
-<div id="introduction-terms-text" style="white-space:pre-wrap;max-height:260px;overflow:auto;border:1px solid #ded7cd;padding:16px;border-radius:10px" role="region" aria-label="Terms and Conditions text">Loading terms…</div>
-<label style="display:flex;gap:10px;align-items:flex-start;margin-top:14px"><input id="terms-accepted" name="terms_accepted" type="checkbox" value="yes" required disabled> I have read and agree to the Terms &amp; Conditions.</label>
+<p class="intro-terms-subtitle">Terms &amp; Conditions</p>
+<div id="introduction-terms-text" class="intro-terms-text" role="region" tabindex="0" aria-label="Terms and Conditions text">Loading terms…</div>
+<label class="intro-terms-agreement" for="terms-accepted"><input id="terms-accepted" name="terms_accepted" type="checkbox" value="yes" required disabled><span>I have read and agree to the Terms &amp; Conditions.</span></label>
 <input id="terms-version" name="terms_version" type="hidden">
 <p id="terms-error" role="status"></p>
 </section>
