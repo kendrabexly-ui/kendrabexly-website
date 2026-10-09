@@ -4685,6 +4685,11 @@ My journal will continue to be a place where I share a little more of that side 
         const businessWebsite = String(data.business_website || "").trim().slice(0,500);
         const companyEmail = String(data.company_email || "").trim().slice(0,200);
         const companyPhone = String(data.company_phone || "").trim().slice(0,40);
+        const introExperience = String(data.intro_experience || "").trim().slice(0,40);
+        const introDuration = String(data.intro_duration || "").trim().slice(0,40);
+        const introLocation = String(data.intro_location || "").trim().slice(0,40);
+        const introPreferredDate = String(data.intro_preferred_date || "").trim().slice(0,20);
+        const introPreferredTime = String(data.intro_preferred_time || "").trim().slice(0,20);
         const screeningOnly = data.screening_only === true;
 
         const requestedDate =
@@ -5076,7 +5081,7 @@ My journal will continue to be a place where I share a little more of that side 
           occupation
             ? `Occupation: ${occupation}`
             : null,
-          screeningOnly ? `Age: ${age}\nScreening method: ${screeningMethod}\nLinkedIn: ${screeningMethod==="linkedin"?linkedinUrl:""}\nBusiness website: ${screeningMethod==="employment"?businessWebsite:""}\nCompany email: ${screeningMethod==="employment"?companyEmail:""}\nCompany phone: ${screeningMethod==="employment"?companyPhone:""}\nDeposit preference: ${depositPreference}\nPreferred contact: ${contactMethod}\nText number: ${contactMethod==="text"?contactTextNumber:""}` : null,
+          screeningOnly ? `Age: ${age}\nScreening method: ${screeningMethod}\nLinkedIn: ${screeningMethod==="linkedin"?linkedinUrl:""}\nBusiness website: ${screeningMethod==="employment"?businessWebsite:""}\nCompany email: ${screeningMethod==="employment"?companyEmail:""}\nCompany phone: ${screeningMethod==="employment"?companyPhone:""}\nIntroduction itinerary: ${introExperience || "undecided"} | ${introDuration || "undecided"} | ${introLocation || "undecided"} | ${introPreferredDate || "undecided"} | ${introPreferredTime || "undecided"}\nDeposit preference: ${depositPreference}\nPreferred contact: ${contactMethod}\nText number: ${contactMethod==="text"?contactTextNumber:""}` : null,
 
 
           baseState
