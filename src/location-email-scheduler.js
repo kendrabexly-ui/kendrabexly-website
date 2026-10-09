@@ -2,7 +2,7 @@
 // The appointment must be approved and the deposit confirmed before any address is released.
 const ZONE = "America/Los_Angeles";
 export function appointmentUtcMs(date, time) {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(date)) || !/^\\d{2}:\\d{2}/.test(String(time))) return NaN;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || !/^\d{2}:\d{2}/.test(String(time))) return NaN;
   const target = String(date)+"T"+String(time).slice(0,5);
   const naive = Date.parse(target+":00Z");
   if (!Number.isFinite(naive)) return NaN;
