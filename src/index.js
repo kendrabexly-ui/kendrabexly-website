@@ -1537,7 +1537,7 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 </div></div><div id="screening-details" class="grid" hidden>
 <div class="full"><h3 class="screening-heading">A Little Peace of Mind ♡</h3><p class="small">Choose how you'd like to introduce yourself for private screening.</p></div>
 <div class="full"><label for="screening-method">Your preferred verification method *</label><select id="screening-method" name="screening_method" required><option value="">Choose a method</option><option value="government-id">Valid state/government-issued ID</option><option value="linkedin">LinkedIn profile</option><option value="employment">Business website / employment details</option></select></div>
-<div class="full" id="id-fields" hidden><label for="id-file">Please upload a photo of your valid State/Govt-issued ID</label><input id="id-file" name="id_document" type="file" accept="image/jpeg,image/png,image/webp"><p class="small">Upload a clear image of your valid ID (JPG, PNG, or WebP, maximum 10 MB). Stored securely for private screening.</p></div>
+
 <div class="full" id="linkedin-fields" hidden><label for="linkedin-url">LinkedIn profile URL *</label><input id="linkedin-url" name="linkedin_url" type="url" placeholder="https://www.linkedin.com/in/..."></div>
 <div class="full" id="employment-fields" hidden><label for="business-website">Business website *</label><input id="business-website" name="business_website" type="url" placeholder="https://..."><label for="company-email">Company email *</label><input id="company-email" name="company_email" type="email"><label for="company-phone">Company phone number *</label><input id="company-phone" name="company_phone" type="tel"></div>
 <div class="full screening-privacy">I will not follow you or contact your employer. It's only for a light screening. I just want to be sure I know who you are. 💕</div>
@@ -1575,7 +1575,7 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <script>
 (()=>{const f=document.getElementById("booking"),status=document.getElementById("status"),submit=document.getElementById("submit");
 fetch("/api/public/introduction-terms",{cache:"no-store"}).then(async r=>{if(!r.ok)throw Error("Terms unavailable");const d=await r.json();if(!d.terms||!d.version)throw Error("Terms not configured");document.getElementById("introduction-terms-text").textContent=d.terms;document.getElementById("terms-version").value=d.version;document.getElementById("terms-accepted").disabled=false;}).catch(()=>{document.getElementById("terms-error").textContent="Terms are currently unavailable. Please try again later.";submit.disabled=true;});
-const conditional=[["screening-method","linkedin-fields","linkedin"],["screening-method","employment-fields","employment"],["screening-method","id-fields","government-id"],["contact-method","contact-text-fields","text"]];
+const conditional=[["screening-method","linkedin-fields","linkedin"],["screening-method","employment-fields","employment"],["contact-method","contact-text-fields","text"]];
 function syncConditional(){for(const [selectId,boxId,value] of conditional){const box=document.getElementById(boxId),active=document.getElementById(selectId).value===value;box.hidden=!active;box.querySelectorAll("input").forEach(input=>{input.disabled=!active;input.required=active;});}}
 const flipPersonal=document.getElementById("flip-personal"),flipContact=document.getElementById("flip-contact"),flipPhoto=document.getElementById("flip-photo"),screeningDetails=document.getElementById("screening-details");let flipSide=0;function showFlip(side){flipSide=side;flipPersonal.hidden=side!==0;flipContact.hidden=side!==1;flipPhoto.hidden=side!==2;document.getElementById("flip-count").textContent="Card "+(side+1)+" of 3";}document.getElementById("flip-next").addEventListener("click",()=>{const inputs=flipPersonal.querySelectorAll("input");for(const input of inputs){if(!input.reportValidity())return;}showFlip(1);});document.getElementById("flip-back").addEventListener("click",()=>showFlip(0));document.getElementById("flip-done").addEventListener("click",()=>{for(const input of flipContact.querySelectorAll("input,select")){if(input.required&&!input.reportValidity())return;}showFlip(2);});document.getElementById("flip-photo-back").addEventListener("click",()=>showFlip(1));document.getElementById("flip-photo-done").addEventListener("click",()=>{if(!document.getElementById("intro-photo").reportValidity())return;screeningDetails.hidden=false;screeningDetails.scrollIntoView({behavior:"smooth",block:"start"});});showFlip(0);
 const itineraryIds=["intro-experience","intro-duration","intro-location","intro-date","intro-time"];
@@ -4703,7 +4703,7 @@ My journal will continue to be a place where I share a little more of that side 
           ? Object.fromEntries((await request.formData()).entries())
           : await request.json();
         if (isSecureMultipart) data.screening_only = data.screening_only === "true";
-        const initialIdFile = isSecureMultipart ? data.id_document : null;
+        const initialIdFile = null; // The public introduction collects one photo on Card 3; no separate ID upload.
         const introductionPhoto = isSecureMultipart ? data.intro_photo : null;
         if (data.screening_only === true) {
           if (!(introductionPhoto instanceof File) || !introductionPhoto.size) return bookingCorsJson({ok:false,message:"Please upload your recent unedited photo."},{status:400});
@@ -4712,14 +4712,6 @@ My journal will continue to be a place where I share a little more of that side 
           const sig=new Uint8Array(await introductionPhoto.slice(0,12).arrayBuffer());
           const valid=introductionPhoto.type==="image/jpeg" ? sig[0]===255&&sig[1]===216&&sig[2]===255 : introductionPhoto.type==="image/png" ? [137,80,78,71,13,10,26,10].every((v,i)=>sig[i]===v) : [82,73,70,70].every((v,i)=>sig[i]===v)&&[87,69,66,80].every((v,i)=>sig[i+8]===v);
           if(!valid)return bookingCorsJson({ok:false,message:"Please select a valid photo image."},{status:400});
-        }
-        if (data.screening_method === "government-id") {
-          if (!(initialIdFile instanceof File) || !initialIdFile.size) return bookingCorsJson({ok:false,message:"Please upload your government-issued photo ID."},{status:400});
-          if (!env.ID_DOCUMENTS) return bookingCorsJson({ok:false,message:"Secure ID storage is temporarily unavailable."},{status:503});
-          if (!["image/jpeg","image/png","image/webp"].includes(initialIdFile.type) || initialIdFile.size>10*1024*1024) return bookingCorsJson({ok:false,message:"Use a JPG, PNG, or WebP image up to 10 MB."},{status:400});
-          const sig=new Uint8Array(await initialIdFile.slice(0,12).arrayBuffer());
-          const valid=initialIdFile.type==="image/jpeg" ? sig[0]===255&&sig[1]===216&&sig[2]===255 : initialIdFile.type==="image/png" ? [137,80,78,71,13,10,26,10].every((v,i)=>sig[i]===v) : [82,73,70,70].every((v,i)=>sig[i]===v)&&[87,69,66,80].every((v,i)=>sig[i+8]===v);
-          if(!valid)return bookingCorsJson({ok:false,message:"The uploaded ID image is invalid."},{status:400});
         }
 
         await ensureSiteContentTables(env);
@@ -5256,24 +5248,6 @@ My journal will continue to be a place where I share a little more of that side 
           ""
         ).run();
 
-
-        if (data.screening_method === "government-id" && initialIdFile) {
-          await ensureClientIdDocumentsTable(env);
-          const extension=initialIdFile.type==="image/png"?"png":initialIdFile.type==="image/webp"?"webp":"jpg";
-          const previous=await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(clientId).first();
-          const objectKey="clients/"+clientId+"/id-documents/"+crypto.randomUUID()+"."+extension;
-          await env.ID_DOCUMENTS.put(objectKey,initialIdFile.stream(),{httpMetadata:{contentType:initialIdFile.type},customMetadata:{client_id:String(clientId),uploaded_for:"initial_introduction"}});
-          try {
-            await env.DB.batch([
-              env.DB.prepare(`INSERT INTO client_id_documents (client_id,object_key,file_name,mime_type,file_size,verification_status,received_at,verified_at,updated_at)
-              VALUES (?,?,?,?,?,'pending_review',?,NULL,CURRENT_TIMESTAMP)
-              ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,mime_type=excluded.mime_type,file_size=excluded.file_size,verification_status='pending_review',received_at=excluded.received_at,verified_at=NULL,updated_at=CURRENT_TIMESTAMP`)
-                .bind(clientId,objectKey,String(initialIdFile.name||"id-document."+extension).slice(0,180),initialIdFile.type,initialIdFile.size,idDocumentToday()),
-              env.DB.prepare("UPDATE date_requests SET id_received=1 WHERE id=?").bind(requestId)
-            ]);
-          }catch(uploadError){await env.ID_DOCUMENTS.delete(objectKey);throw uploadError;}
-          if(previous?.object_key && previous.object_key!==objectKey)try{await env.ID_DOCUMENTS.delete(previous.object_key);}catch(err){console.error("Old ID cleanup error",err);}
-        }
 
         if (data.screening_only === true && introductionPhoto) {
           await env.DB.prepare("CREATE TABLE IF NOT EXISTS client_introduction_photos (client_id INTEGER PRIMARY KEY,object_key TEXT NOT NULL,mime_type TEXT NOT NULL,file_name TEXT NOT NULL,uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
