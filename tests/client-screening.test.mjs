@@ -26,7 +26,8 @@ test("original numbered verification cards are displayed alongside one decision"
   assert.match(portal,/client-public-record-card is-collapsed/);
   assert.match(portal,/client-persona-card is-collapsed/);
   assert.match(portal,/client-verification-editor\{display:none!important\}/);
-  assert.match(portal,/flow\.parentElement\.appendChild\(panel\)/);
+  assert.doesNotMatch(portal,/flow\.parentElement\.appendChild\(panel\)/);
+  assert.match(portal,/client-basic-screening is-collapsed" hidden/);
 });
 
 test("portal report displays optional verification evidence sources",()=>{
