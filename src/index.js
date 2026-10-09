@@ -1,3 +1,4 @@
+import { validateIntroductionTermsAcceptance } from "./introduction-terms-validation.js";
 import { handleIntroductionTermsAdmin } from "./introduction-terms-admin-api.js";
 import { handlePublicIntroductionTerms } from "./introduction-terms-public-api.js";
 async function requireScreeningMoveForward(env,requestId){
@@ -1555,12 +1556,21 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <p class="small">Your selections are preferences only. Screening approval comes first; actual availability, deposit instructions and booking confirmation remain private.</p>
 </section>
 <div id="status" class="status" role="status" aria-live="polite"></div>
+<section aria-label="Terms and Conditions" style="margin:20px 0">
+<h2>A Few Things to Know Before We Meet</h2>
+<p>Terms &amp; Conditions</p>
+<div id="introduction-terms-text" style="white-space:pre-wrap;max-height:260px;overflow:auto;border:1px solid #ded7cd;padding:16px;border-radius:10px" role="region" aria-label="Terms and Conditions text">Loading terms…</div>
+<label style="display:flex;gap:10px;align-items:flex-start;margin-top:14px"><input id="terms-accepted" name="terms_accepted" type="checkbox" value="yes" required disabled> I have read and agree to the Terms &amp; Conditions.</label>
+<input id="terms-version" name="terms_version" type="hidden">
+<p id="terms-error" role="status"></p>
+</section>
 <button id="submit" type="submit">Introduce Myself</button>
 </form>
 </div>
 </main>
 <script>
 (()=>{const f=document.getElementById("booking"),status=document.getElementById("status"),submit=document.getElementById("submit");
+fetch("/api/public/introduction-terms",{cache:"no-store"}).then(async r=>{if(!r.ok)throw Error("Terms unavailable");const d=await r.json();if(!d.terms||!d.version)throw Error("Terms not configured");document.getElementById("introduction-terms-text").textContent=d.terms;document.getElementById("terms-version").value=d.version;document.getElementById("terms-accepted").disabled=false;}).catch(()=>{document.getElementById("terms-error").textContent="Terms are currently unavailable. Please try again later.";submit.disabled=true;});
 const conditional=[["screening-method","linkedin-fields","linkedin"],["screening-method","employment-fields","employment"],["screening-method","id-fields","government-id"],["contact-method","contact-text-fields","text"]];
 function syncConditional(){for(const [selectId,boxId,value] of conditional){const box=document.getElementById(boxId),active=document.getElementById(selectId).value===value;box.hidden=!active;box.querySelectorAll("input").forEach(input=>{input.disabled=!active;input.required=active;});}}
 const flipPersonal=document.getElementById("flip-personal"),flipContact=document.getElementById("flip-contact"),screeningDetails=document.getElementById("screening-details");let flipSide=0;function showFlip(side){flipSide=side;flipPersonal.hidden=side!==0;flipContact.hidden=side!==1;document.getElementById("flip-count").textContent="Card "+(side+1)+" of 2";}document.getElementById("flip-next").addEventListener("click",()=>{const inputs=flipPersonal.querySelectorAll("input");for(const input of inputs){if(!input.reportValidity())return;}showFlip(1);});document.getElementById("flip-back").addEventListener("click",()=>showFlip(0));document.getElementById("flip-done").addEventListener("click",()=>{for(const input of flipContact.querySelectorAll("input,select")){if(input.required&&!input.reportValidity())return;}screeningDetails.hidden=false;screeningDetails.scrollIntoView({behavior:"smooth",block:"start"});});showFlip(0);
@@ -4670,6 +4680,10 @@ My journal will continue to be a place where I share a little more of that side 
         const data = isWordPressBookingForm
           ? Object.fromEntries((await request.formData()).entries())
           : await request.json();
+
+        await ensureSiteContentTables(env);
+        const termsAcceptance = await validateIntroductionTermsAcceptance(env.DB, data);
+        if (!termsAcceptance.ok) return bookingCorsJson({ok:false,message:termsAcceptance.message},{status:termsAcceptance.status});
 
         if (data.booking_option && (!data.date_type || !data.duration)) {
           const [optionType, optionDuration] = String(data.booking_option).split("|");
