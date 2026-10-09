@@ -12,9 +12,12 @@ test("manual screening endpoint is permission protected",()=>{
   assert.match(source,/\["\/api\/admin\/clients\/run-screening", "edit_verification"\]/);
   assert.match(source,/runInitialScreening\(env,id,"manual"\)/);
 });
-test("portal has manual screening button and report panel",()=>{
-  assert.match(portal,/class="run-client-screening"/);
-  assert.match(portal,/class="client-screening-report"/);
+test("portal consolidates screening into one review panel",()=>{
+  assert.match(portal,/Client screening · One review/);
+  assert.match(portal,/class="unified-submitted-grid"/);
+  assert.match(portal,/data-check-note="summary"/);
+  assert.match(portal,/Approve · Send deposit request/);
+  assert.match(portal,/class="screening-checklist-save"/);
 });
 test("screening does not mutate final approval",async()=>{
   const calls=[];
@@ -37,7 +40,7 @@ test("Move Forward and deposit endpoints enforce the saved screening decision",(
   const deposit=source.indexOf('url.pathname === "/api/admin/request/request-deposit"');
   assert.ok(move>0&&deposit>move);
   assert.match(source.slice(move,move+1100),/requireScreeningMoveForward\(env,requestId\)/);
-  assert.match(source.slice(deposit,deposit+950),/requireScreeningMoveForward\(env,requestId\)/);
+  assert.match(source.slice(deposit,deposit+950),/sendDepositRequestEmail\(env,requestId\)/);
   for(const status of ['blacklist_status==="clear"','phone_status==="non_voip"','identity_status==="supported"','background_status==="reviewed"','decision==="move_forward"']){
     assert.ok(source.includes(status),status);
   }
