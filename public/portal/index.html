@@ -4311,7 +4311,7 @@ async function loadRequests(options = {}) {
           if (opening) {
             const verificationSection = controls.querySelector(".client-id-documents");
             if (verificationSection) {
-              loadIdDocument(verificationSection, false);
+              loadIdDocument(verificationSection, true);
               loadVerificationAudits(verificationSection);
               loadPersonaStatus(verificationSection);
               normalizePersonaFields(verificationSection);
@@ -6465,6 +6465,14 @@ async function loadRequests(options = {}) {
           if (status) status.textContent = error.message || "Unable to load ID document.";
         }
       };
+      // A client may upload their ID after this profile was previously opened.
+      // Refresh on every expansion so the private R2 document appears without a full reload.
+      clientRecords.addEventListener("toggle", (event) => {
+        const section=event.target;
+        if (section?.matches?.(".client-id-documents") && section.open) {
+          loadIdDocument(section,true);
+        }
+      },true);
       clientRecords.querySelectorAll(".client-id-documents").forEach((section) => {
         const personaInputs=section.querySelectorAll(".client-persona-name-first,.client-persona-name-middle,.client-persona-name-last,.client-persona-birthdate,.client-persona-address-1,.client-persona-address-2,.client-persona-city,.client-persona-state,.client-persona-postal,.client-persona-country,.client-persona-email,.client-persona-phone,.client-persona-id-number,.client-persona-issuing-state,.client-persona-id-expiration,.client-persona-id-class");
         personaInputs.forEach(input=>{
