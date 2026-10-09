@@ -45,7 +45,9 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
     (verifiedDigits.length===10 && submittedDigits==="1"+verifiedDigits)
   ));
   const mismatch=Boolean(lineCheck?.checked_at && !samePhone);
-  const checkedDate=lineCheck?.checked_at ? Date.parse(String(lineCheck.checked_at).replace(" ","T")+"Z") : NaN;
+  const rawChecked=String(lineCheck?.checked_at||"").trim();
+  const isoChecked=rawChecked.replace(" ","T");
+  const checkedDate=rawChecked ? Date.parse(/(?:Z|[+-]\\d{2}:?\\d{2})$/i.test(isoChecked)?isoChecked:isoChecked+"Z") : NaN;
   const stale=Number.isFinite(checkedDate) && Date.now()-checkedDate>30*86400000;
   const savedLine=samePhone && lineCheck?.checked_at ? lineCheck : null;
   const savedLicense=credentialCheck?.checked_at && credentialCheck?.source_name ? credentialCheck : null;
