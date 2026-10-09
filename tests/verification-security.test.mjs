@@ -53,24 +53,18 @@ test("booking submission shows the server response instead of hiding it behind a
   assert.match(requestPage,/no longer available\|choose another opening/);
 });
 
-test("dashboard verification starts with request-based basic screening",()=>{
-  assert.match(portal,/data-progress-step="basic_screening">Basic Screening/);
-  assert.match(portal,/class="verification-card client-basic-screening is-collapsed"/);
-  assert.match(portal,/>1\. Initial review &amp; screening invitation</);
-  assert.match(portal,/latestOccupation = requestNoteValue\("Occupation"\)/);
-  assert.match(portal,/latestBaseState = requestNoteValue\("Base state"\)/);
-  assert.match(portal,/<strong>Base state<\/strong><div>\$\{escapeHtml\(latestBaseState \|\| "Not provided"\)\}<\/div>/);
-  assert.match(portal,/client-basic-screening-open-request/);
-  assert.match(portal,/client-basic-screening-open-request"\)\.forEach\(\(button\)=>button\.addEventListener\("click",\(\)=>\{[\s\S]*\/portal\/request\?id=\$\{encodeURIComponent\(requestId\)\}/);
-  assert.match(portal,/>2\. Phone Check</);
-  assert.match(portal,/>3\. ID Record</);
-  assert.match(portal,/>4\. Employment Verification</);
-  assert.match(portal,/>5\. License &amp; Credential Verification/);
-  assert.match(portal,/>9\. Final Verification &amp; Decision</);
-  assert.match(portal,/>10\. Audit History</);
-  assert.match(portal,/finalReady=basicScreening==="confirmed"/);
+test("dashboard verification renders one submitted-information review",()=>{
+  assert.match(portal,/Client screening · One review/);
+  assert.match(portal,/class="unified-submitted-grid"/);
+  assert.match(portal,/requestNoteValue\("Screening method"\)/);
+  assert.match(portal,/requestNoteValue\("Deposit preference"\)/);
+  assert.match(portal,/data-check-field="blacklist_status"/);
+  assert.match(portal,/data-check-field="phone_status"/);
+  assert.match(portal,/data-check-field="identity_status"/);
+  assert.match(portal,/data-check-field="background_status"/);
+  assert.match(portal,/data-check-field="decision"/);
+  assert.match(portal,/data-check-note="summary"/);
 });
-
 test("client profile shows one verification summary",()=>{
   assert.equal((portal.match(/>Verification Summary</g)||[]).length,1);
   assert.doesNotMatch(portal,/client-verification-summary/);
@@ -82,15 +76,14 @@ test("client profile shows one verification summary",()=>{
   assert.doesNotMatch(portal,/basicScreening\.insertAdjacentElement\("beforebegin",safety\)/);
 });
 
-test("basic screening tracks approval and private form delivery separately",()=>{
-  assert.match(worker,/AS private_screening_email_sent_at/g);
-  assert.match(portal,/<strong>Screening invitation<\/strong>/);
-  assert.match(portal,/<strong>Private form email sent<\/strong>/);
-  assert.match(portal,/Boolean\(latest\?\.private_screening_email_sent_at\)/);
-  assert.match(requestAdmin,/renderBasicScreeningMilestones\(true,false\)/);
-  assert.match(requestAdmin,/Proceed to private screening/);
+test("bookings no longer create a second screening email on Move Forward",()=>{
+  const start=worker.indexOf('url.pathname === "/api/admin/request/move-forward"');
+  const end=worker.indexOf('// REQUEST DEPOSIT',start);
+  const route=worker.slice(start,end);
+  assert.match(route,/sendDepositRequestEmail\(env,requestId\)/);
+  assert.doesNotMatch(route,/privateScreeningEmailBody\(/);
+  assert.match(portal,/Approve · Send deposit request/);
 });
-
 test("verification field cards start collapsed and navigation expands them",()=>{
   for(const cardClass of [
     "client-basic-screening",
@@ -429,13 +422,13 @@ test("employment verification requires evidence before Confirmed",()=>{
   assert.match(portal,/<option value="not_applicable">Not applicable · retired or no employer<\/option>/);
 });
 
-test("saved ID is required at verification and checked again at final approval",()=>{
+test("historical private IDs remain protected but unified identity decision is authoritative for new approvals",()=>{
   assert.match(worker,/SELECT object_key FROM client_id_documents WHERE client_id=\? LIMIT 1/);
-  assert.match(worker,/Upload and review the client's private ID before marking this client Verified/);
-  assert.match(worker,/SELECT object_key,verification_status,verified_at FROM client_id_documents WHERE client_id=\? LIMIT 1/);
-  assert.match(worker,/A saved, reviewed ID is required before final approval/);
+  assert.match(worker,/client_screening_checklists/);
+  const route=worker.slice(worker.indexOf('url.pathname === "/api/admin/request/final-approve"'));
+  assert.match(route,/requireScreeningMoveForward\(env,requestId\)/);
+  assert.doesNotMatch(route.slice(0,6500),/A saved, reviewed ID is required before final approval/);
 });
-
 test("blacklist-clear review checks the live list and opens the next verification card",()=>{
   assert.match(worker,/\["\/api\/admin\/clients\/blacklist-review", "edit_verification"\]/);
   assert.match(worker,/if\(blocked\)return Response\.json\(\{ok:false,blocked:true/);
@@ -504,19 +497,15 @@ test("NPI is treated as supporting provider data instead of licensure proof",()=
 });
 
 
-test("booking final approval stays a separate admin decision",()=>{
+test("booking final approval requires paid deposit and one approved screening decision",()=>{
   const route=worker.slice(worker.indexOf('url.pathname === "/api/admin/request/final-approve"'));
   assert.match(route,/Deposit must be confirmed before final approval/);
-  assert.match(route,/Screening must be marked Verified and completed before final approval/);
+  assert.match(route,/requireScreeningMoveForward\(env,requestId\)/);
   assert.match(route,/status = 'approved'/);
   assert.match(route,/final_approval = 1/);
-  const continuationStart=worker.indexOf('url.pathname === "/api/booking/continuation"');
-  const continuationEnd=worker.indexOf("// Reject unsupported methods to request API",continuationStart);
-  const continuation=worker.slice(continuationStart,continuationEnd);
-  assert.doesNotMatch(continuation,/SET[\s\S]{0,300}status = 'approved'/);
+  const continuation=worker.slice(worker.indexOf('url.pathname === "/api/booking/continuation"'),worker.indexOf("// Reject unsupported methods to request API"));
   assert.doesNotMatch(continuation,/final_approval = 1/);
 });
-
 test("booking availability keeps duration-aware lookup and minimum notice",()=>{
   assert.match(worker,/siteAvailableSlots\(env, date, duration\)/);
   assert.match(worker,/requestedStart\.getTime\(\) < Date\.now\(\) \+ 2 \* 60 \* 60 \* 1000/);
@@ -598,28 +587,20 @@ test("older continuations keep their verified-screening deposit step",()=>{
   assert.match(route,/Deposit selection is not available until screening is completed and verified/);
 });
 
-test("request deposit admin action requires verified screening",()=>{
+test("request-deposit action is handled by guarded one-time email sender",()=>{
   assert.match(worker,/\/api\/admin\/request\/request-deposit/);
-  assert.match(worker,/The client must submit screening details before a deposit can be requested/);
-  assert.match(worker,/Mark screening Verified before requesting a deposit/);
-  assert.match(worker,/email_type='deposit_request'/);
-  assert.match(worker,/UPDATE date_requests SET status='pending_final_approval'/);
-  assert.match(requestAdmin,/id="request-deposit-button"/);
-  assert.match(requestAdmin,/screeningReadyForDeposit/);
+  assert.match(worker,/sendDepositRequestEmail\(env,requestId\)/);
+  assert.match(worker,/deposit_email_status:depositDelivery\.status/);
 });
-
-test("move forward email explains booking and post-deposit ID review",()=>{
+test("move forward uses introduction itinerary without sending another screening form",()=>{
   const start=worker.indexOf('url.pathname === "/api/admin/request/move-forward"');
-  const end=worker.indexOf("// CALCULATE / REPAIR DEPOSIT",start);
+  const end=worker.indexOf("// REQUEST DEPOSIT",start);
   const route=worker.slice(start,end);
-  assert.match(route,/SET status = 'screening_pending'/);
-  assert.match(route,/combined_step=1/);
-  assert.match(route,/privateScreeningEmailBody\(existingRequest\.first_name,existingRequest\.requested_date,existingRequest\.requested_time,continuationUrl\)/);
-  assert.match(worker,/There you can choose our date, provide the additional details, and select your deposit method/);
-  assert.match(worker,/Once I finish my review, confirm the deposit, and review your ID, I’ll send your confirmation email/);
-  assert.doesNotMatch(route.slice(0,route.indexOf('REQUEST DEPOSIT')),/No deposit is requested at this stage/);
+  assert.match(route,/Introduction itinerary:/);
+  assert.match(route,/siteAvailableSlots\(env,bookingDate/);
+  assert.match(route,/sendDepositRequestEmail\(env,requestId\)/);
+  assert.doesNotMatch(route,/combined_step=1|privateScreeningEmailBody\(/);
 });
-
 test("combined and older deposit emails link to the unlisted details page",()=>{
   assert.match(worker,/const detailsUrl=new URL\("\/the-details\/#token="\+encodeURIComponent\(continuationToken\),request\.url\)\.toString\(\)/);
   assert.match(worker,/The Details are available in the private page menu/);
@@ -664,15 +645,13 @@ test("screening email renders a safe private-page button",()=>{
   assert.doesNotMatch(vm.runInContext("screeningDraftHtml",context)(body.replace(url,unsafe),"pending_final_approval"),/<a href=/);
 });
 
-test("deposit confirmation requires client deposit-step completion",()=>{
+test("deposit confirmation relies on screening approval rather than a redundant client step",()=>{
   const start=worker.indexOf('url.pathname === "/api/admin/request/confirm-deposit"');
   const end=worker.indexOf('url.pathname === "/api/admin/request/complete"',start);
   const route=worker.slice(start,end);
-  assert.match(route,/deposit_step_acknowledged/);
-  assert.match(route,/client must complete the deposit selection step before payment can be confirmed/);
+  assert.match(route,/requireScreeningMoveForward\(env,requestId\)/);
+  assert.doesNotMatch(route,/depositStep\?\.deposit_step_acknowledged/);
 });
-
-
 test("initial booking request stays non-transactional",()=>{
   assert.doesNotMatch(requestPage,/BOOKING SUMMARY/);
   assert.doesNotMatch(requestPage,/early-price-estimate/);
