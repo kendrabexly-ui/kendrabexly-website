@@ -192,11 +192,6 @@ function normalizePhoneForLookup(value) {
 const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v4";
 const DEFAULT_SITE_RATES = [
   {
-    name: "Private Introductions",
-    description: "A discreet introduction for a shorter first meeting.",
-    rates: [["Private Introduction — 20 minutes", 200], ["Private Uncovered Introduction — 20 minutes", 250]]
-  },
-  {
     name: "Brief Experiences",
     description: "A brief experience when you want a little more time to settle in and enjoy the moment.",
     rates: [["The Signature Experience — 30 minutes", 300], ["The Grecian Experience — 30 minutes", 400]]
