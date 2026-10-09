@@ -5456,7 +5456,7 @@ My journal will continue to be a place where I share a little more of that side 
           FROM booking_continuations bc JOIN date_requests dr ON dr.id=bc.date_request_id WHERE bc.token_hash=? LIMIT 1`)
           .bind(await sha256Hex(token)).first();
         if (!row || new Date(row.expires_at).getTime() < Date.now()) return bookingCorsJson({ok:false,message:"This private link is invalid or expired."},{status:403});
-        if (!Number(row.deposit_paid) || !["screening_pending","pending_final_approval"].includes(row.status)) return bookingCorsJson({ok:false,message:"ID upload is available after your deposit is confirmed and before final approval."},{status:409});
+        if (!["screening_pending","pending_final_approval"].includes(row.status)) return bookingCorsJson({ok:false,message:"ID upload is only available for an active booking under review."},{status:409});
         const blocked = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(row.client_id).first();
         if (blocked) return bookingCorsJson({ok:false,message:"This request is closed."},{status:403});
         if (Number(row.id_received)) return bookingCorsJson({ok:true,message:"Your ID has already been received for review."});
@@ -5484,7 +5484,7 @@ My journal will continue to be a place where I share a little more of that side 
               ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,mime_type=excluded.mime_type,
                 file_size=excluded.file_size,verification_status='pending_review',received_at=excluded.received_at,verified_at=NULL,updated_at=CURRENT_TIMESTAMP`)
               .bind(row.client_id,newObjectKey,String(file.name||"id-document."+extension).slice(0,180),file.type,file.size,idDocumentToday()),
-            env.DB.prepare("UPDATE date_requests SET id_received=1 WHERE id=? AND deposit_paid=1").bind(row.date_request_id)
+            env.DB.prepare("UPDATE date_requests SET id_received=1 WHERE id=? AND status IN (\'screening_pending\',\'pending_final_approval\')").bind(row.date_request_id)
           ]);
         } catch(error) { await env.ID_DOCUMENTS.delete(newObjectKey); newObjectKey=""; throw error; }
         if (previous?.object_key && previous.object_key !== newObjectKey) {
@@ -6555,6 +6555,7 @@ if (
           return bookingCorsJson({ok:false,message:"Choose a completed date for the after-date thank-you."},{status:400});
         }
 
+        if (type === "new_screening_invitation") return bookingCorsJson({ok:false,message:"Legacy screening invitations are disabled. Use the single screening review."},{status:409});
         if (type === "new_screening_invitation") {
           await ensureSiteContentTables(env);
           if (row.status !== "screening_pending") return bookingCorsJson({ok:false,message:"Proceed to private screening from request review first. New invitations are available while screening is pending."},{status:409});
@@ -6576,6 +6577,7 @@ if (
           return bookingCorsJson({ok:true,draft_id:results[1].meta?.last_row_id,message:"New screening invitation created. The previous private link has been replaced."});
         }
 
+        if (["identity_request","id_deposit_request"].includes(type)) return bookingCorsJson({ok:false,message:"ID is collected with the initial booking form; separate ID requests are disabled."},{status:409});
         if (["identity_request","id_deposit_request"].includes(type)) {
           await ensureSiteContentTables(env);
           if (Number(row.deposit_paid) !== 1 || !["screening_pending","pending_final_approval"].includes(row.status)) return bookingCorsJson({ok:false,message:"Confirm the deposit in request review before creating an ID request."},{status:409});
