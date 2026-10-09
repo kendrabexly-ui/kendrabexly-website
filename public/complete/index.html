@@ -102,7 +102,8 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       <section class="form-section">
         <div class="form-grid">
           <div class="field full-width">
-            <label for="screening-birthdate">I’d love an excuse to spoil you… when’s your birthday? *</label>
+            <div class="field full-width"><label for="screening-id-document">Upload your valid government-issued photo ID *</label><input id="screening-id-document" name="id_document" type="file" accept="image/jpeg,image/png,image/webp" required><small>Secure upload, up to 10 MB. Your ID is stored privately for screening, not sent by email.</small></div>
+          <label for="screening-birthdate">I’d love an excuse to spoil you… when’s your birthday? *</label>
             <input id="screening-birthdate" name="birthdate" type="date" autocomplete="bday" required>
             
           </div>
@@ -184,7 +185,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
     <section id="combined-review" class="request-success" hidden>
       <div class="eyebrow">DETAILS RECEIVED</div>
       <h2>Thank you. Your request is in review.</h2>
-      <p>Your date details and deposit selection have been received. Once payment is confirmed, I’ll invite you to upload your ID securely. Your final confirmation and address follow my ID review.</p>
+      <p>Your date details and deposit selection have been received. Your ID was submitted with your booking information. Your final confirmation and address follow deposit confirmation and ID review.</p>
       <a class="button" href="/the-details/" data-private-details-link>Review The Details</a>
     </section>
 
@@ -456,6 +457,12 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
         const combined = !document.getElementById("combined-step").hidden;
         const body = new FormData(screeningForm);
         body.set("token",token);
+        const idUpload = new FormData();
+        idUpload.set("token",token);
+        idUpload.set("id_document",document.getElementById("screening-id-document").files[0]);
+        const idResponse = await fetch("/api/booking/continuation/identity",{method:"POST",body:idUpload});
+        const idResult = await idResponse.json();
+        if (!idResponse.ok || !idResult.ok) throw new Error(idResult.message || "Unable to save your ID securely.");
         const response = combined
           ? await fetch("/api/booking/continuation/combined",{method:"POST",body})
           : await fetch("/api/booking/continuation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...Object.fromEntries(body.entries()),step:"screening"})});
