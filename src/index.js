@@ -9678,8 +9678,11 @@ if (
 
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
-      await runVerificationRetention(env);
-      await sendDueLocationEmails(env);
+      // Keep appointment address delivery independent of retention maintenance.
+      try { await runVerificationRetention(env); }
+      catch (error) { console.error("Verification retention task failed:", error); }
+      try { await sendDueLocationEmails(env); }
+      catch (error) { console.error("Two-hour location email task failed:", error); }
 
       // X Agent automatic posting windows, Los Angeles time.
       // Auto posts only come from reviewed Tweet Bank items with Auto Pick enabled.
