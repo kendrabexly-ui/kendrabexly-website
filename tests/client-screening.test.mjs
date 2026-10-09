@@ -31,6 +31,10 @@ test("screening does not mutate final approval",async()=>{
   assert.equal(report.final_approval,"unchanged");
   assert.equal(report.email.ownership,"not_verified");
   assert.equal(report.occupation.employer,"not_verified");
+  assert.equal(report.phone.twilio.status,"not_configured");
+  for (const key of ["id_records","professional_licenses","professional_credentials","public_records","criminal_records","court_and_docket_indexes"]) {
+    assert.equal(report.external_sources[key].status,"not_checked", key);
+  }
   assert.equal(calls.some(sql=>/UPDATE\s+date_requests|UPDATE\s+clients/i.test(sql)),false);
 });
 
