@@ -26,23 +26,27 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
   ]);
   // Reuse evidence already saved by the protected verification workspace.
   // Never initiate billable or legally restricted third-party searches here.
-  let lineCheck=null, credentialCheck=null, recordCheck=null;
+  let lineCheck=null, credentialCheck=null, recordCheck=null, personaCheck=null;
   try {
-    [lineCheck,credentialCheck,recordCheck]=await Promise.all([
+    [lineCheck,credentialCheck,recordCheck,personaCheck]=await Promise.all([
       env.DB.prepare("SELECT phone_e164,valid,line_type,carrier_name,is_voip,checked_at FROM client_phone_line_checks WHERE client_id=? LIMIT 1").bind(client.client_id).first(),
       env.DB.prepare("SELECT credential_status,source_name,source_url,checked_at FROM client_credential_verifications WHERE client_id=? LIMIT 1").bind(client.client_id).first(),
-      env.DB.prepare("SELECT record_status,source_name,source_url,checked_at,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(client.client_id).first()
+      env.DB.prepare("SELECT record_status,source_name,source_url,checked_at,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(client.client_id).first(),
+      env.DB.prepare("SELECT persona_transaction_status,persona_database_status,persona_database_checked_at,persona_updated_at,persona_submitted_at FROM client_verification_audits WHERE client_id=? ORDER BY id DESC LIMIT 1").bind(client.client_id).first()
     ]);
   } catch {
     // Existing deployments without the optional workspace tables stay manual-review only.
   }
-  const submittedDigits=phone.replace(/\\D/g,"");
-  const verifiedDigits=String(lineCheck?.phone_e164||"").replace(/\\D/g,"");
+  const submittedDigits=phone.replace(/\D/g,"");
+  const verifiedDigits=String(lineCheck?.phone_e164||"").replace(/\D/g,"");
   const samePhone=Boolean(submittedDigits && verifiedDigits && (
     submittedDigits===verifiedDigits ||
     (submittedDigits.length===10 && verifiedDigits==="1"+submittedDigits) ||
     (verifiedDigits.length===10 && submittedDigits==="1"+verifiedDigits)
   ));
+  const mismatch=Boolean(lineCheck?.checked_at && !samePhone);
+  const checkedDate=lineCheck?.checked_at ? Date.parse(String(lineCheck.checked_at).replace(" ","T")+"Z") : NaN;
+  const stale=Number.isFinite(checkedDate) && Date.now()-checkedDate>30*86400000;
   const savedLine=samePhone && lineCheck?.checked_at ? lineCheck : null;
   const savedLicense=credentialCheck?.checked_at && credentialCheck?.source_name ? credentialCheck : null;
   const savedRecords=recordCheck?.checked_at && recordCheck?.source_name ? recordCheck : null;
@@ -50,10 +54,11 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
     ? {status:"reviewed",source_url:savedRecords.source_url||null,provider:savedRecords.source_name,checked_at:savedRecords.checked_at,result:savedRecords.record_status||"needs_review"}
     : {status:"not_checked",source_url:null,provider:"none"};
   const report = {
-    version:2, source, checked_at:new Date().toISOString(),
+    version:3, source, checked_at:new Date().toISOString(),
     name:{status:client.first_name && client.last_name?"provided":"incomplete"},
     email:{status:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?"format_valid":"invalid", ownership:"not_verified"},
-    phone:{status:phone.length>=10 && phone.length<=15?"format_plausible":"needs_review", ownership:"not_verified", carrier:"not_checked", twilio:{status:savedLine?(Number(savedLine.valid)===1 && savedLine.line_type && savedLine.line_type!=="unknown"?"checked":"inconclusive"):"not_configured", line_type:savedLine?.line_type||"not_checked", voip:savedLine?(Number(savedLine.is_voip)===1?"yes":"no_or_unknown"):"not_checked", lookup_at:savedLine?.checked_at||null, provider:"Twilio Lookup"}},
+    phone:{status:phone.length>=10 && phone.length<=15?"format_plausible":"needs_review", ownership:"not_verified", carrier:"not_checked", twilio:{status:mismatch?"number_mismatch":savedLine?(stale?"stale":Number(savedLine.valid)===1 && savedLine.line_type && savedLine.line_type!=="unknown"?"checked":"inconclusive"):"not_checked", number_mismatch:mismatch, stale, carrier_name:savedLine?.carrier_name||"", line_type:savedLine?.line_type||"not_checked", voip:savedLine?(Number(savedLine.is_voip)===1?"yes":"no_or_unknown"):"not_checked", lookup_at:savedLine?.checked_at||null, provider:"Twilio Lookup"}},
+    persona:{status:personaCheck?.persona_transaction_status||"not_checked", identity_status:personaCheck?.persona_transaction_status||"not_checked", database_status:personaCheck?.persona_database_status||"not_checked", checked_at:personaCheck?.persona_database_checked_at||personaCheck?.persona_updated_at||personaCheck?.persona_submitted_at||null},
     occupation:{status:occupation.trim()?"self_reported":"not_provided", employer:"not_verified"},
     previous_requests:Number(duplicates?.count||0),
     internal_blacklist:{status:blocked?"potential_match":"no_match"},
