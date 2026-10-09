@@ -38,19 +38,19 @@ test('booking and deposit selection succeeds without ID or private storage',asyn
   assert.ok(DB.writes.some(write=>write.sql.includes('deposit_step_acknowledged=1')));
   assert.ok(!DB.writes.some(write=>write.sql.includes('INSERT INTO client_id_documents')));
 });
-test('ID cannot be uploaded before deposit confirmation',async()=>{
+test('initial ID upload requires an actual image file',async()=>{
   let put=false;const DB=database({...row});
   const response=await identity(request('/api/booking/continuation/identity'),{DB,ID_DOCUMENTS:{put:async()=>{put=true;}}});
-  assert.equal(response.status,409);assert.equal(put,false);assert.equal(DB.writes.length,0);
+  assert.equal(response.status,400);assert.equal(put,false);assert.equal(DB.writes.length,0);
 });
-test('post-deposit upload rejects disguised image bytes',async()=>{
+test('initial upload rejects disguised image bytes',async()=>{
   let put=false;const DB=database({...row,deposit_paid:1});
   const file=new File(['invalid image'],'id.png',{type:'image/png'});
   const response=await identity(request('/api/booking/continuation/identity',{id_document:file}),{DB,ID_DOCUMENTS:{put:async()=>{put=true;}}});
   assert.equal(response.status,400);assert.equal(put,false);
 });
-test('paid client ID upload saves privately for review without final approval',async()=>{
-  const DB=database({...row,deposit_paid:1});let objectKey;
+test('initial client ID upload saves privately for review without final approval',async()=>{
+  const DB=database({...row});let objectKey;
   const file=new File([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])],'id.png',{type:'image/png'});
   const response=await identity(request('/api/booking/continuation/identity',{id_document:file}),{DB,ID_DOCUMENTS:{put:async key=>{objectKey=key;},delete:async()=>{}}});
   assert.equal(response.status,200);assert.match(objectKey,/^clients\/2\/id-documents\//);
