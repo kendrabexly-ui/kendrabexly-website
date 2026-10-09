@@ -19,6 +19,16 @@ test("portal consolidates screening into one review panel",()=>{
   assert.match(portal,/Approve · Send deposit request/);
   assert.match(portal,/class="screening-checklist-save"/);
 });
+test("original numbered verification cards are displayed alongside one decision",()=>{
+  assert.match(portal,/client-phone-checks is-collapsed/);
+  assert.match(portal,/client-id-record is-collapsed/);
+  assert.match(portal,/client-credential-card is-collapsed/);
+  assert.match(portal,/client-public-record-card is-collapsed/);
+  assert.match(portal,/client-persona-card is-collapsed/);
+  assert.match(portal,/client-verification-editor\{display:none!important\}/);
+  assert.match(portal,/flow\.parentElement\.appendChild\(panel\)/);
+});
+
 test("portal report displays optional verification evidence sources",()=>{
   for (const key of ["twilio","persona","id_records","professional_licenses","professional_credentials","public_records","criminal_records","court_and_docket_indexes"]) {
     assert.ok(portal.includes(key), "Expected source "+key+" in portal");
