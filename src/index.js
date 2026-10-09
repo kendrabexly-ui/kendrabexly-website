@@ -1515,6 +1515,15 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 <div><label for="last">Last name *</label><input id="last" name="last_name" autocomplete="family-name" required></div>
 <div><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" required></div>
 <div><label for="phone">Mobile number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" required><div class="small">Please use a standard mobile number. Do not use app-based or VoIP numbers.</div></div>
+<div><label for="age">How old are you? *</label><input id="age" name="age" type="number" min="21" max="120" required></div>
+<div><label for="screening-method">Preferred screening method? *</label><select id="screening-method" name="screening_method" required><option value="">Choose a method</option><option value="government-id">Valid state/government-issued ID</option><option value="linkedin">LinkedIn with 200+ connections and a photo</option><option value="employment">Employment verification</option></select></div>
+<div class="full" id="linkedin-fields" hidden><label for="linkedin-url">LinkedIn profile URL *</label><input id="linkedin-url" name="linkedin_url" type="url" placeholder="https://www.linkedin.com/in/..."></div>
+<div class="full" id="employment-fields" hidden><label for="business-website">Business website *</label><input id="business-website" name="business_website" type="url" placeholder="https://..."><label for="company-email">Company email *</label><input id="company-email" name="company_email" type="email"><label for="company-phone">Company phone number *</label><input id="company-phone" name="company_phone" type="tel"></div>
+<div class="full" id="id-fields" hidden><p class="small">Government ID screening requires a secure private upload. Please do not send your ID through email or an ordinary WordPress upload.</p></div>
+<div class="full small">I will not follow you or contact your employer. This information is only used for light screening, so I can feel comfortable knowing who I'm connecting with.</div>
+<div><label for="deposit-preference">How would you like to send a deposit? *</label><select id="deposit-preference" name="deposit_preference" required><option value="">Choose a method</option><option value="cash-app">Cash App</option><option value="gift-card">Gift Card</option><option value="crypto">Crypto</option></select></div>
+<div><label for="contact-method">Preferred method of contact *</label><select id="contact-method" name="contact_method" required><option value="">Choose a method</option><option value="email">Email</option><option value="text">Text (app-based numbers accepted)</option></select></div>
+<div class="full" id="contact-text-fields" hidden><label for="contact-text-number">Text contact phone number *</label><input id="contact-text-number" name="contact_text_number" type="tel" placeholder="App-based numbers accepted"></div>
 <div><label for="occupation">Occupation *</label><input id="occupation" name="occupation" required></div>
 <div><label for="base">Base state *</label><select id="base" name="base_state" required>
 <option value="">Choose a state</option>
@@ -1531,6 +1540,10 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 </main>
 <script>
 (()=>{const f=document.getElementById("booking"),status=document.getElementById("status"),submit=document.getElementById("submit");
+const conditional=[["screening-method","linkedin-fields","linkedin"],["screening-method","employment-fields","employment"],["screening-method","id-fields","government-id"],["contact-method","contact-text-fields","text"]];
+function syncConditional(){for(const [selectId,boxId,value] of conditional){const box=document.getElementById(boxId),active=document.getElementById(selectId).value===value;box.hidden=!active;box.querySelectorAll("input").forEach(input=>{input.disabled=!active;input.required=active;});}}
+document.getElementById("screening-method").addEventListener("change",syncConditional);document.getElementById("contact-method").addEventListener("change",syncConditional);syncConditional();
+
 function message(text,type){status.textContent=text;status.className="status show "+type}
 f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload={...Object.fromEntries(new FormData(f).entries()),screening_only:true};try{const res=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");f.innerHTML='<div style="text-align:center;padding:34px 10px"><p class="eyebrow" style="color:#6B173F">YOUR REQUEST IS IN</p><h2 style="font-family:Georgia,serif;font-weight:400;font-size:38px;margin:0 0 14px">Thank you.</h2><p>Your private request has been received for review. If I would like to move forward, the next step will arrive privately.</p></div>'}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Introduce Myself"}});
 })();
@@ -4644,6 +4657,15 @@ My journal will continue to be a place where I share a little more of that side 
         const baseState =
           String(data.base_state || "").trim().toUpperCase();
 
+        const age = Number(data.age);
+        const screeningMethod = String(data.screening_method || "").trim();
+        const depositPreference = String(data.deposit_preference || "").trim();
+        const contactMethod = String(data.contact_method || "").trim();
+        const contactTextNumber = String(data.contact_text_number || "").trim().slice(0,40);
+        const linkedinUrl = String(data.linkedin_url || "").trim().slice(0,500);
+        const businessWebsite = String(data.business_website || "").trim().slice(0,500);
+        const companyEmail = String(data.company_email || "").trim().slice(0,200);
+        const companyPhone = String(data.company_phone || "").trim().slice(0,40);
         const screeningOnly = data.screening_only === true;
 
         const requestedDate =
@@ -4756,7 +4778,16 @@ My journal will continue to be a place where I share a little more of that side 
           );
         }
 
-        // Required fields
+        if (screeningOnly && (!Number.isInteger(age) || age < 21 || age > 120 ||
+          !["government-id","linkedin","employment"].includes(screeningMethod) ||
+          !["cash-app","gift-card","crypto"].includes(depositPreference) ||
+          !["email","text"].includes(contactMethod) ||
+          (contactMethod === "text" && !contactTextNumber) ||
+          (screeningMethod === "linkedin" && !/^https:\/\/(www\.)?linkedin\.com\//i.test(linkedinUrl)) ||
+          (screeningMethod === "employment" && (!/^https:\/\//i.test(businessWebsite) || !companyEmail.includes("@") || !companyPhone)))) {
+          return bookingCorsJson({ok:false,message:"Please complete your screening and contact preferences."},{status:400});
+        }
+                // Required fields
 
         if (
           !firstName ||
@@ -5026,6 +5057,8 @@ My journal will continue to be a place where I share a little more of that side 
           occupation
             ? `Occupation: ${occupation}`
             : null,
+          screeningOnly ? `Age: ${age}\nScreening method: ${screeningMethod}\nLinkedIn: ${screeningMethod==="linkedin"?linkedinUrl:""}\nBusiness website: ${screeningMethod==="employment"?businessWebsite:""}\nCompany email: ${screeningMethod==="employment"?companyEmail:""}\nCompany phone: ${screeningMethod==="employment"?companyPhone:""}\nDeposit preference: ${depositPreference}\nPreferred contact: ${contactMethod}\nText number: ${contactMethod==="text"?contactTextNumber:""}` : null,
+
 
           baseState
             ? `Base state: ${baseState}`
