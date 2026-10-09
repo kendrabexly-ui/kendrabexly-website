@@ -1484,7 +1484,7 @@ h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(38px,7vw,64px);marg
 .wrap{max-width:none;margin:0;padding:0}
 .card{background:#fffdfb;border:1px solid #eadfd5;border-radius:22px;padding:28px;box-shadow:0 10px 30px rgba(102,84,93,.08)}
 .first-impression{margin-bottom:28px}.first-impression h2{font-family:Georgia,serif;font-weight:400;font-size:28px;margin:0 0 14px}.first-impression p{margin:0 0 14px}.first-impression p:last-child{margin-bottom:0}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.full{grid-column:1/-1}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.introduction-grid{row-gap:20px}.introduction-grid input{min-height:56px;background:#fffdfc;border-color:#decfc9;transition:border-color .2s,box-shadow .2s}.introduction-grid input:focus{border-color:var(--wine);box-shadow:0 0 0 3px #8a5b7018}.introduction-grid input::placeholder{color:#a89a9e}.introduction-grid label{font-size:14px;letter-spacing:.01em}.full{grid-column:1/-1}
 label{display:block;font-weight:600;margin-bottom:7px}input,select{width:100%;padding:14px 15px;border:1px solid #d8c8bc;border-radius:12px;background:#fff;color:var(--ink);font:inherit}
 input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
 .small{font-size:13px;opacity:.72;margin-top:5px}.section{grid-column:1/-1;margin-top:12px;padding-top:24px;border-top:1px solid #eadfd5}
@@ -1512,12 +1512,12 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <p>So, tell me a little about yourself, handsome. Once I’ve had a chance to get acquainted, I’ll be in touch so we can confirm our time together.</p>
 <p>Looking forward to meeting you! 💋</p>
 </section>
-<div class="grid">
-<div><label for="first">First name *</label><input id="first" name="first_name" autocomplete="given-name" required></div>
-<div><label for="last">Last name *</label><input id="last" name="last_name" autocomplete="family-name" required></div>
-<div><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" required></div>
-<div><label for="phone">Mobile number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" required><div class="small">Please use a standard mobile number. Do not use app-based or VoIP numbers.</div></div>
-<div><label for="age">How old are you? *</label><input id="age" name="age" type="number" min="21" max="120" required></div>
+<div class="grid introduction-grid">
+<div><label for="first">First name *</label><input id="first" name="first_name" autocomplete="given-name" placeholder="Your first name" required></div>
+<div><label for="last">Last name *</label><input id="last" name="last_name" autocomplete="family-name" placeholder="Your last name" required></div>
+<div><label for="age">Age *</label><input id="age" name="age" type="number" inputmode="numeric" min="21" max="120" placeholder="Your age" required></div>
+<div><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
+<div class="full"><label for="phone">Phone number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 555-5555" required><div class="small">Please provide a standard mobile number for screening. App-based or VoIP numbers may be used separately for preferred text contact.</div></div>
 <div><label for="screening-method">Preferred screening method? *</label><select id="screening-method" name="screening_method" required><option value="">Choose a method</option><option value="government-id">Valid state/government-issued ID</option><option value="linkedin">LinkedIn with 200+ connections and a photo</option><option value="employment">Employment verification</option></select></div>
 <div class="full" id="linkedin-fields" hidden><label for="linkedin-url">LinkedIn profile URL *</label><input id="linkedin-url" name="linkedin_url" type="url" placeholder="https://www.linkedin.com/in/..."></div>
 <div class="full" id="employment-fields" hidden><label for="business-website">Business website *</label><input id="business-website" name="business_website" type="url" placeholder="https://..."><label for="company-email">Company email *</label><input id="company-email" name="company_email" type="email"><label for="company-phone">Company phone number *</label><input id="company-phone" name="company_phone" type="tel"></div>
