@@ -24,11 +24,36 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
     env.DB.prepare(`SELECT id FROM blacklist WHERE client_id=? OR LOWER(email)=? OR REPLACE(REPLACE(REPLACE(REPLACE(phone,'-',''),'(',''),')',''),' ','')=? LIMIT 1`).bind(client.client_id,email,phone).first(),
     env.DB.prepare(`SELECT COUNT(*) AS count FROM date_requests WHERE client_id=? AND id<>?`).bind(client.client_id,id).first()
   ]);
+  // Reuse evidence already saved by the protected verification workspace.
+  // Never initiate billable or legally restricted third-party searches here.
+  let lineCheck=null, credentialCheck=null, recordCheck=null;
+  try {
+    [lineCheck,credentialCheck,recordCheck]=await Promise.all([
+      env.DB.prepare("SELECT phone_e164,valid,line_type,carrier_name,is_voip,checked_at FROM client_phone_line_checks WHERE client_id=? LIMIT 1").bind(client.client_id).first(),
+      env.DB.prepare("SELECT credential_status,source_name,source_url,checked_at FROM client_credential_verifications WHERE client_id=? LIMIT 1").bind(client.client_id).first(),
+      env.DB.prepare("SELECT record_status,source_name,source_url,checked_at,public_records_reviewed,criminal_records_reviewed FROM client_public_record_checks WHERE client_id=? LIMIT 1").bind(client.client_id).first()
+    ]);
+  } catch {
+    // Existing deployments without the optional workspace tables stay manual-review only.
+  }
+  const submittedDigits=phone.replace(/\\D/g,"");
+  const verifiedDigits=String(lineCheck?.phone_e164||"").replace(/\\D/g,"");
+  const samePhone=Boolean(submittedDigits && verifiedDigits && (
+    submittedDigits===verifiedDigits ||
+    (submittedDigits.length===10 && verifiedDigits==="1"+submittedDigits) ||
+    (verifiedDigits.length===10 && submittedDigits==="1"+verifiedDigits)
+  ));
+  const savedLine=samePhone && lineCheck?.checked_at ? lineCheck : null;
+  const savedLicense=credentialCheck?.checked_at && credentialCheck?.source_name ? credentialCheck : null;
+  const savedRecords=recordCheck?.checked_at && recordCheck?.source_name ? recordCheck : null;
+  const recordEvidence=(reviewed)=>reviewed && savedRecords
+    ? {status:"reviewed",source_url:savedRecords.source_url||null,provider:savedRecords.source_name,checked_at:savedRecords.checked_at,result:savedRecords.record_status||"needs_review"}
+    : {status:"not_checked",source_url:null,provider:"none"};
   const report = {
     version:2, source, checked_at:new Date().toISOString(),
     name:{status:client.first_name && client.last_name?"provided":"incomplete"},
     email:{status:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?"format_valid":"invalid", ownership:"not_verified"},
-    phone:{status:phone.length>=10 && phone.length<=15?"format_plausible":"needs_review", ownership:"not_verified", carrier:"not_checked", twilio:{status:"not_configured", line_type:"not_checked", voip:"not_checked", lookup_at:null, provider:"Twilio Lookup"}},
+    phone:{status:phone.length>=10 && phone.length<=15?"format_plausible":"needs_review", ownership:"not_verified", carrier:"not_checked", twilio:{status:savedLine?(Number(savedLine.valid)===1 && savedLine.line_type && savedLine.line_type!=="unknown"?"checked":"inconclusive"):"not_configured", line_type:savedLine?.line_type||"not_checked", voip:savedLine?(Number(savedLine.is_voip)===1?"yes":"no_or_unknown"):"not_checked", lookup_at:savedLine?.checked_at||null, provider:"Twilio Lookup"}},
     occupation:{status:occupation.trim()?"self_reported":"not_provided", employer:"not_verified"},
     previous_requests:Number(duplicates?.count||0),
     internal_blacklist:{status:blocked?"potential_match":"no_match"},
@@ -37,10 +62,10 @@ export async function runInitialScreening(env, requestId, source = "automatic") 
       explanation:"No authorized external records provider is configured. Public profile discovery is not proof of identity.",
       government_records:{status:"not_checked",source_url:null},
       id_records:{status:"not_checked",source_url:null,provider:"none",note:"ID document review does not establish a government database match."},
-      public_records:{status:"not_checked",source_url:null,provider:"none"},
-      criminal_records:{status:"not_checked",source_url:null,provider:"none",note:"Requires lawful access, applicable notice/consent and individual review; do not infer guilt from record hits."},
+      public_records:recordEvidence(Number(savedRecords?.public_records_reviewed)===1),
+      criminal_records:{...recordEvidence(Number(savedRecords?.criminal_records_reviewed)===1),note:"Requires lawful access, applicable notice/consent and individual review; do not infer guilt from record hits."},
       court_and_docket_indexes:{status:"not_checked",source_url:null,provider:"none"},
-      professional_licenses:{status:"not_checked",source_url:null},
+      professional_licenses:{status:savedLicense?.credential_status||"not_checked",source_url:savedLicense?.source_url||null,provider:savedLicense?.source_name||"none",checked_at:savedLicense?.checked_at||null},
       professional_credentials:{status:"not_checked",source_url:null,provider:"none",note:"Check directly with the relevant issuing institution or authoritative registry."},
       business_registration:{status:"not_checked",source_url:null},
       public_professional_profiles:{status:"not_checked",source_url:null},
