@@ -1022,6 +1022,16 @@
           grid-template-columns: 1fr !important;
         }
       }
+
+    @media(max-width:900px){
+      .sidebar{min-width:0!important;max-width:100%!important}
+      .nav{overscroll-behavior-x:contain;scroll-padding-inline:16px;touch-action:pan-x;scrollbar-width:thin!important;padding:4px 12px 12px!important}
+      .nav::-webkit-scrollbar{display:block!important;height:4px}
+      .nav::-webkit-scrollbar-thumb{background:#a38a96;border-radius:4px}
+      .nav button{flex-shrink:0!important;min-height:44px;scroll-margin-inline:12px}
+      .main{min-width:0!important;max-width:100%!important}
+    }
+    body[data-admin-section="introduction-terms"] main.main > #introduction-terms{display:block!important}
     </style>
 </head>
 
@@ -1082,6 +1092,13 @@
       document.addEventListener("DOMContentLoaded", () => {
         const requested = new URLSearchParams(window.location.search).get("section");
         const initial = requested || document.querySelector(".nav button.active")?.dataset.section || "dashboard";
+        const main = document.querySelector("main.main");
+        if (main) {
+          document.querySelectorAll(".nav button[data-section]").forEach((tab) => {
+            const panel = document.getElementById(tab.dataset.section);
+            if (panel && panel.classList.contains("section") && panel.parentElement !== main) main.appendChild(panel);
+          });
+        }
         switchAdminSection(initial);
         if (typeof window.__loadAdminSectionData === "function") {
           requestAnimationFrame(() => window.__loadAdminSectionData(initial));
@@ -2750,7 +2767,21 @@
       } catch (error) {
         console.error("Dashboard loading error:", error);
         const status = document.getElementById("dashboard-load-status");
-        if (status) status.textContent = "Unable to load dashboard. " + error.message + " Select Dashboard to retry.";
+        if (status) {
+          status.hidden = false;
+          status.replaceChildren();
+          const message = document.createElement("p");
+          message.textContent = "Dashboard could not load. " + (error?.message || "Please check your connection.");
+          const retry = document.createElement("button");
+          retry.type = "button";
+          retry.textContent = "Retry dashboard";
+          retry.style.cssText = "margin-top:12px;padding:10px 18px;border-radius:9px;border:1px solid var(--line);background:var(--white);cursor:pointer";
+          retry.addEventListener("click", async () => {
+            retry.disabled = true;
+            try { await loadDashboard(); } catch (_) {} finally { retry.disabled = false; }
+          });
+          status.append(message, retry);
+        }
         throw error;
       }
     }
