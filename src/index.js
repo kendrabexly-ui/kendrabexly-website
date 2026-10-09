@@ -8574,12 +8574,12 @@ if (
 
         const notesText = String(existingRequest.notes || "");
         // The introduction form already captures a preferred itinerary. Do not ask for it again.
-        const intro = notesText.match(/Introduction itinerary:\s*([^\\n]+)/i)?.[1]?.split("|").map(value=>value.trim()) || [];
+        const intro = notesText.match(/Introduction itinerary:\s*([^\n]+)/i)?.[1]?.split("|").map(value=>value.trim()) || [];
         const preferredDate = intro[3] && intro[3]!=="undecided" ? intro[3] : "";
         const preferredTime = intro[4] && intro[4]!=="undecided" ? intro[4] : "";
         const bookingDate=existingRequest.requested_date || preferredDate;
         const bookingTime=existingRequest.requested_time || preferredTime;
-        if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(bookingDate)||!/^\\d{2}:\\d{2}$/.test(bookingTime)||
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)||!/^\d{2}:\d{2}$/.test(bookingTime)||
            appointmentUtcMs(bookingDate,bookingTime)-Date.now()<4*3600000){
           return bookingCorsJson({ok:false,message:"Set a preferred appointment date and time at least four hours ahead before requesting a deposit."},{status:409});
         }
