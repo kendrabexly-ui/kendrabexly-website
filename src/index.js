@@ -1,3 +1,6 @@
+import { validateIntroductionTermsAcceptance } from "./introduction-terms-validation.js";
+import { handleIntroductionTermsAdmin } from "./introduction-terms-admin-api.js";
+import { handlePublicIntroductionTerms } from "./introduction-terms-public-api.js";
 async function requireScreeningMoveForward(env,requestId){
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_screening_checklists (
     date_request_id INTEGER PRIMARY KEY,
@@ -141,6 +144,7 @@ const VALID_BOOKING_STATE_CODES = new Set([
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
 ]);
 const VERIFICATION_ROUTE_PERMISSIONS = [
+  ["/api/admin/introduction-terms", "edit_verification"],
   ["/api/admin/clients/id-document/image", "view_id_images"],
   ["/api/admin/clients/id-document/retention", "delete_sensitive"],
   ["/api/admin/clients/id-document", "edit_verification"],
@@ -1552,12 +1556,21 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <p class="small">Your selections are preferences only. Screening approval comes first; actual availability, deposit instructions and booking confirmation remain private.</p>
 </section>
 <div id="status" class="status" role="status" aria-live="polite"></div>
+<section aria-label="Terms and Conditions" style="margin:20px 0">
+<h2>A Few Things to Know Before We Meet</h2>
+<p>Terms &amp; Conditions</p>
+<div id="introduction-terms-text" style="white-space:pre-wrap;max-height:260px;overflow:auto;border:1px solid #ded7cd;padding:16px;border-radius:10px" role="region" aria-label="Terms and Conditions text">Loading terms…</div>
+<label style="display:flex;gap:10px;align-items:flex-start;margin-top:14px"><input id="terms-accepted" name="terms_accepted" type="checkbox" value="yes" required disabled> I have read and agree to the Terms &amp; Conditions.</label>
+<input id="terms-version" name="terms_version" type="hidden">
+<p id="terms-error" role="status"></p>
+</section>
 <button id="submit" type="submit">Introduce Myself</button>
 </form>
 </div>
 </main>
 <script>
 (()=>{const f=document.getElementById("booking"),status=document.getElementById("status"),submit=document.getElementById("submit");
+fetch("/api/public/introduction-terms",{cache:"no-store"}).then(async r=>{if(!r.ok)throw Error("Terms unavailable");const d=await r.json();if(!d.terms||!d.version)throw Error("Terms not configured");document.getElementById("introduction-terms-text").textContent=d.terms;document.getElementById("terms-version").value=d.version;document.getElementById("terms-accepted").disabled=false;}).catch(()=>{document.getElementById("terms-error").textContent="Terms are currently unavailable. Please try again later.";submit.disabled=true;});
 const conditional=[["screening-method","linkedin-fields","linkedin"],["screening-method","employment-fields","employment"],["screening-method","id-fields","government-id"],["contact-method","contact-text-fields","text"]];
 function syncConditional(){for(const [selectId,boxId,value] of conditional){const box=document.getElementById(boxId),active=document.getElementById(selectId).value===value;box.hidden=!active;box.querySelectorAll("input").forEach(input=>{input.disabled=!active;input.required=active;});}}
 const flipPersonal=document.getElementById("flip-personal"),flipContact=document.getElementById("flip-contact"),screeningDetails=document.getElementById("screening-details");let flipSide=0;function showFlip(side){flipSide=side;flipPersonal.hidden=side!==0;flipContact.hidden=side!==1;document.getElementById("flip-count").textContent="Card "+(side+1)+" of 2";}document.getElementById("flip-next").addEventListener("click",()=>{const inputs=flipPersonal.querySelectorAll("input");for(const input of inputs){if(!input.reportValidity())return;}showFlip(1);});document.getElementById("flip-back").addEventListener("click",()=>showFlip(0));document.getElementById("flip-done").addEventListener("click",()=>{for(const input of flipContact.querySelectorAll("input,select")){if(input.required&&!input.reportValidity())return;}screeningDetails.hidden=false;screeningDetails.scrollIntoView({behavior:"smooth",block:"start"});});showFlip(0);
@@ -1613,11 +1626,20 @@ export default {
       });
     }
 
+    if (url.pathname === "/api/public/introduction-terms") {
+      await ensureSiteContentTables(env);
+      return handlePublicIntroductionTerms(request, env);
+    }
     const verificationAccess=verificationRouteAccess(url.pathname,request.method);
     if(verificationAccess){
       const authorization=authorizeVerificationRequest(request,env,verificationAccess.permission,{fresh:verificationAccess.fresh});
       if(!authorization.ok)return verificationForbidden(authorization);
     }
+    if (url.pathname === "/api/admin/introduction-terms") {
+      await ensureSiteContentTables(env);
+      return handleIntroductionTermsAdmin(request, env);
+    }
+
 
 
     if (url.pathname === "/api/admin/clients/run-screening" && ["GET","POST"].includes(request.method)) {
@@ -4659,6 +4681,12 @@ My journal will continue to be a place where I share a little more of that side 
           ? Object.fromEntries((await request.formData()).entries())
           : await request.json();
 
+        await ensureSiteContentTables(env);
+        const termsAcceptance = data.screening_only === true
+          ? await validateIntroductionTermsAcceptance(env.DB, data)
+          : null;
+        if (termsAcceptance && !termsAcceptance.ok) return bookingCorsJson({ok:false,message:termsAcceptance.message},{status:termsAcceptance.status});
+
         if (data.booking_option && (!data.date_type || !data.duration)) {
           const [optionType, optionDuration] = String(data.booking_option).split("|");
           data.date_type = optionType || "";
@@ -5156,6 +5184,11 @@ My journal will continue to be a place where I share a little more of that side 
 
         const requestId =
           requestResult.meta.last_row_id;
+        if (termsAcceptance) {
+          await env.DB.prepare("UPDATE date_requests SET terms_accepted_at = ?, terms_version = ? WHERE id = ?")
+            .bind(termsAcceptance.terms_accepted_at, termsAcceptance.terms_version, requestId).run();
+        }
+
 
         // Screening is advisory and must not delay or approve a submission.
         try { await runInitialScreening(env, requestId, "automatic"); }

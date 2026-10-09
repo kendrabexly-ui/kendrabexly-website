@@ -1113,6 +1113,7 @@
         <button type="button" data-section="x-agent">X Agent</button>
         <button type="button" data-section="marketing-retention">Marketing &amp; Retention</button>
         <button type="button" data-section="ad-copy-agent">Ad Copy Agent</button>
+        <button type="button" data-section="introduction-terms">Terms &amp; Conditions</button>
       </nav>
 
       
@@ -1120,6 +1121,16 @@
     </aside>
 
     <main class="main">
+      <section id="introduction-terms" class="section" aria-labelledby="introduction-terms-title">
+        <h2 id="introduction-terms-title">Terms &amp; Conditions</h2>
+        <details id="introduction-terms-settings" open style="margin:20px 0;padding:18px;background:#fffdf9;border:1px solid #ded7cd;border-radius:12px">
+        <summary style="cursor:pointer;font-weight:600">Terms &amp; Conditions — Introduction Form</summary>
+        <p style="margin:12px 0">Edit the terms shown before clients submit their introduction.</p>
+        <textarea id="introduction-terms-editor" rows="12" maxlength="12000" style="width:100%;padding:12px;border:1px solid #ded7cd;border-radius:8px"></textarea>
+        <button id="introduction-terms-save" type="button" style="margin-top:12px;padding:10px 18px;border-radius:8px">Save Terms &amp; Conditions</button>
+        <p id="introduction-terms-status" role="status" aria-live="polite"></p>
+        </details>
+      </section>
 
       <div class="topbar">
         <div>
@@ -10261,6 +10272,24 @@ function escapeHtml(value) {
   });
   observer.observe(document.body,{childList:true,subtree:true});
   document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);});
+})();
+</script>
+<script>
+(() => {
+ const editor=document.getElementById("introduction-terms-editor");
+ const status=document.getElementById("introduction-terms-status");
+ const button=document.getElementById("introduction-terms-save");
+ const endpoint="/api/admin/introduction-terms";
+ async function load() {
+  try { const r=await fetch(endpoint,{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("Could not load terms ("+r.status+")");const d=await r.json();editor.value=d.terms||""; }
+  catch(e){status.textContent=e.message;button.disabled=true;}
+ }
+ button.addEventListener("click",async()=>{
+  button.disabled=true;status.textContent="Saving…";
+  try{const r=await fetch(endpoint,{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({terms:editor.value})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Save failed");status.textContent="Terms saved successfully."; }
+  catch(e){status.textContent=e.message;}finally{button.disabled=false;}
+ });
+ load();
 })();
 </script>
 </body>
