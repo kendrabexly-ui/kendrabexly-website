@@ -4682,8 +4682,10 @@ My journal will continue to be a place where I share a little more of that side 
           : await request.json();
 
         await ensureSiteContentTables(env);
-        const termsAcceptance = await validateIntroductionTermsAcceptance(env.DB, data);
-        if (!termsAcceptance.ok) return bookingCorsJson({ok:false,message:termsAcceptance.message},{status:termsAcceptance.status});
+        const termsAcceptance = data.screening_only === true
+          ? await validateIntroductionTermsAcceptance(env.DB, data)
+          : null;
+        if (termsAcceptance && !termsAcceptance.ok) return bookingCorsJson({ok:false,message:termsAcceptance.message},{status:termsAcceptance.status});
 
         if (data.booking_option && (!data.date_type || !data.duration)) {
           const [optionType, optionDuration] = String(data.booking_option).split("|");
@@ -5182,8 +5184,10 @@ My journal will continue to be a place where I share a little more of that side 
 
         const requestId =
           requestResult.meta.last_row_id;
-        await env.DB.prepare("UPDATE date_requests SET terms_accepted_at = ?, terms_version = ? WHERE id = ?")
-          .bind(termsAcceptance.terms_accepted_at, termsAcceptance.terms_version, requestId).run();
+        if (termsAcceptance) {
+          await env.DB.prepare("UPDATE date_requests SET terms_accepted_at = ?, terms_version = ? WHERE id = ?")
+            .bind(termsAcceptance.terms_accepted_at, termsAcceptance.terms_version, requestId).run();
+        }
 
 
         // Screening is advisory and must not delay or approve a submission.
