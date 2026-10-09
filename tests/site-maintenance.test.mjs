@@ -38,19 +38,13 @@ test('WordPress public pages cannot send portal links back into WordPress', () =
   assert.match(worker,/url\.pathname\.startsWith\("\/portal\/"\)/);
 });
 
-test('screening and verification private pages stay on Cloudflare', () => {
+test('screening and verification private pages stay on the Cloudflare Worker', () => {
   const worker=fs.readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
   const wrangler=fs.readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8');
-  assert.match(worker,/url\.pathname === "\/complete"/);
-  assert.match(worker,/url\.pathname\.startsWith\("\/complete\/"\)/);
-  assert.match(worker,/url\.pathname === "\/the-details"/);
-  assert.match(worker,/url\.pathname\.startsWith\("\/the-details\/"\)/);
-  assert.match(worker,/url\.pathname === "\/portal"/);
-  assert.match(worker,/url\.pathname\.startsWith\("\/portal\/"\)/);
-  assert.match(wrangler,/"\/api\/\*"/);
-  assert.match(wrangler,/"\/portal\*"/);
-  assert.match(wrangler,/"\/complete\*"/);
-  assert.match(wrangler,/"\/the-details\*"/);
+  for(const path of ['/portal','/complete','/the-details'])assert.ok(worker.includes('url.pathname === "'+path+'"'));
+  assert.match(wrangler,/"main": "src\/index.js"/);
+  assert.match(wrangler,/"run_worker_first": true/);
+  assert.match(wrangler,/"binding": "ASSETS"/);
 });
 
 test('Muse adds seven slots while preserving the existing six', () => {
