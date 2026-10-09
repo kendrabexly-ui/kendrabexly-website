@@ -1594,6 +1594,18 @@
         }
       </style>
 
+      <!-- Consolidated verification presentation: retain legacy records and handlers without duplicate UI -->
+      <style>
+        .client-verification-flow .verification-flow-nav button[data-verification-jump]:not([data-verification-jump=".client-verification-overview"]):not([data-verification-jump=".client-basic-screening"]):not([data-verification-jump=".client-verification-editor"]){display:none!important}
+        .client-verification-flow .verification-progress-track,
+        .client-verification-flow .client-credential-card,
+        .client-verification-flow .client-address-verification-card,
+        .client-verification-flow .client-public-record-card,
+        .client-verification-flow .client-persona-card{display:none!important}
+        .client-verification-flow .verification-flow-nav{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+        .client-verification-flow .verification-flow-nav button{flex-shrink:0}
+      </style>
+
       <!-- CLIENTS -->
 
       <section id="clients" class="section">
@@ -1617,7 +1629,7 @@
             <button type="button" data-verification-summary-filter="unable_to_verify" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-unable">—</strong><div style="font-size:12px;margin-top:3px;">Unable to Verify</div></button>
             <button type="button" data-verification-summary-filter="declined" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-declined">—</strong><div style="font-size:12px;margin-top:3px;">Declined</div></button>
             <button type="button" data-verification-summary-filter="persona_pending" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-persona">—</strong><div style="font-size:12px;margin-top:3px;">Persona Pending</div></button>
-            <button type="button" data-verification-summary-filter="no_id" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-no-id">—</strong><div style="font-size:12px;margin-top:3px;">Awaiting ID</div></button>
+            <button type="button" data-verification-summary-filter="no_id" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-no-id">—</strong><div style="font-size:12px;margin-top:3px;">ID Review</div></button>
             <button type="button" data-verification-summary-filter="retention_due" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-retention-due">—</strong><div style="font-size:12px;margin-top:3px;">Retention Due</div></button>
           </div>
           <details style="margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;">
