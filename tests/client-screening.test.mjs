@@ -20,7 +20,7 @@ test("portal consolidates screening into one review panel",()=>{
   assert.match(portal,/class="screening-checklist-save"/);
 });
 test("portal report displays optional verification evidence sources",()=>{
-  for (const key of ["twilio","id_records","professional_licenses","professional_credentials","public_records","criminal_records","court_and_docket_indexes"]) {
+  for (const key of ["twilio","persona","id_records","professional_licenses","professional_credentials","public_records","criminal_records","court_and_docket_indexes"]) {
     assert.ok(portal.includes(key), "Expected source "+key+" in portal");
   }
 });
@@ -37,7 +37,7 @@ test("screening does not mutate final approval",async()=>{
   assert.equal(report.final_approval,"unchanged");
   assert.equal(report.email.ownership,"not_verified");
   assert.equal(report.occupation.employer,"not_verified");
-  assert.equal(report.phone.twilio.status,"not_configured");
+  assert.equal(report.phone.twilio.status,"not_checked");
   for (const key of ["id_records","professional_licenses","professional_credentials","public_records","criminal_records","court_and_docket_indexes"]) {
     assert.equal(report.external_sources[key].status,"not_checked", key);
   }
@@ -50,11 +50,14 @@ test("existing saved Twilio and records checks are reused without third-party ca
     null,{count:0},
     {phone_e164:"+12135550100",valid:1,line_type:"mobile",is_voip:0,checked_at:"2026-10-09"},
     {credential_status:"reviewed",source_name:"Issuing authority",source_url:"https://example.org/license",checked_at:"2026-10-09"},
-    {record_status:"needs_review",source_name:"Public index",source_url:"https://example.org/index",checked_at:"2026-10-09",public_records_reviewed:1,criminal_records_reviewed:0}
+    {record_status:"needs_review",source_name:"Public index",source_url:"https://example.org/index",checked_at:"2026-10-09",public_records_reviewed:1,criminal_records_reviewed:0},
+    {persona_transaction_status:"created",persona_database_status:"passed",persona_database_checked_at:"2026-10-09"}
   ];
   const env={DB:{prepare(){return {bind(){return this;},async first(){return rows.shift();},async run(){return {success:true};}};}}};
   const report=await runInitialScreening(env,3,"manual");
   assert.equal(report.phone.twilio.line_type,"mobile");
+  assert.equal(report.phone.twilio.number_mismatch,false);
+  assert.equal(report.persona.database_status,"passed");
   assert.equal(report.external_sources.professional_licenses.status,"reviewed");
   assert.equal(report.external_sources.public_records.status,"reviewed");
   assert.equal(report.external_sources.criminal_records.status,"not_checked");
