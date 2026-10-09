@@ -1611,6 +1611,9 @@
         .client-id-documents .client-verification-overview,
         .client-id-documents .client-verification-editor{display:none!important}
         .client-id-documents .client-screening-agent{display:block!important;padding:18px!important}
+        /* Unified screening replaces the legacy invitation and duplicate client summary. */
+        .client-id-documents .client-verification-flow > .client-basic-screening{display:none!important}
+        .client-id-documents .verification-flow-nav [data-verification-jump=".client-basic-screening"]{display:none!important}
         .client-id-documents > div > section.verification-card:not(.client-verification-overview):not(.client-verification-editor){display:block!important}
         .client-id-documents .verification-card{margin-bottom:14px}
         .client-id-documents .verification-card-collapse{min-height:38px}
