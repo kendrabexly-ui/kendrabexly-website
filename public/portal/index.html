@@ -3567,7 +3567,7 @@ async function loadRequests(options = {}) {
         button.style.borderColor=active?"var(--ink)":"var(--line)";
       });
       clientRecords.innerHTML = visibleClients.length ? visibleClients.map((client) => {
-        const sorted = [...client.requests].sort((a,b) => String(b.requested_date || "").localeCompare(String(a.requested_date || "")));
+        const sorted = [...client.requests].sort((a,b) => Number(b.id||0)-Number(a.id||0));
         const approved = client.requests.filter(r => r.status === "approved").length;
         const canceled = client.requests.filter(r => r.status === "canceled").length;
         const completed = client.requests.filter(r => {
