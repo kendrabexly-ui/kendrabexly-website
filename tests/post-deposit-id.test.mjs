@@ -58,3 +58,10 @@ test('paid client ID upload saves privately for review without final approval',a
   assert.ok(DB.writes.some(write=>write.sql.includes('SET id_received=1')));
   assert.ok(!DB.writes.some(write=>write.sql.includes('final_approval=1')));
 });
+
+test('client profile refreshes its private ID preview when reopened',()=>{
+  const portal=fs.readFileSync(new URL('../public/portal/index.html',import.meta.url),'utf8');
+  assert.match(portal,/loadIdDocument\(verificationSection, true\)/);
+  assert.match(portal,/loadIdDocument\(section,true\)/);
+  assert.match(portal,/\/api\/admin\/clients\/id-document\/image\?client_id=/);
+});
