@@ -32,6 +32,7 @@ export async function sendDueLocationEmails(env, now=Date.now()) {
     WHERE dr.status='approved' AND dr.deposit_paid=1 AND dr.final_approval=1
       AND TRIM(COALESCE(dr.location_address,''))<>'' AND TRIM(COALESCE(c.email,''))<>''`).all();
   for(const row of result.results||[]){
+    if(row.status!=="approved"||Number(row.deposit_paid)!==1||Number(row.final_approval)!==1)continue;
     const appointment=appointmentUtcMs(row.requested_date,row.requested_time);
     const due=appointment-2*3600000;
     if(!Number.isFinite(appointment)||now<due||now>=due+90000)continue;
