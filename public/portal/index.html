@@ -3760,7 +3760,7 @@ async function loadRequests(options = {}) {
                     </section>
                   </div>
 
-                  <section class="verification-card client-basic-screening is-collapsed">
+                  <section class="verification-card client-basic-screening is-collapsed" hidden style="display:none!important" aria-hidden="true">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">1. Initial review &amp; screening invitation</strong>
                       <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-basic-screening-badge" style="${basicScreeningStyle}">Basic screening: ${escapeHtml(basicScreeningLabel)}</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-basic-screening">Expand</button></span>
