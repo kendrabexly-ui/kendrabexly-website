@@ -1520,7 +1520,7 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <button type="button" id="flip-next" class="flip-action">Next: Let's keep in touch →</button></div>
 <div class="flip-face" id="flip-contact" hidden><h3>And how can I reach you? 💕</h3><div class="grid introduction-grid">
 <div><label for="phone">Phone number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 555-5555" required></div><div><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
-<div class="full"><div><label for="contact-method">Preferred method of contact *</label><select id="contact-method" name="contact_method" required><option value="">Choose a method</option><option value="email">Email</option><option value="text">Text (app-based numbers accepted)</option></select></div></div>
+<div class="full"><div><label for="contact-method">Preferred method of contact *</label><select id="contact-method" name="contact_method" required><option value="">Choose a method</option><option value="email">Email</option><option value="text">Text (app-based numbers accepted)</option></select></div></div><div class="full" id="contact-text-fields" hidden><label for="contact-text-number">Preferred text number *</label><input id="contact-text-number" name="contact_text_number" type="tel" autocomplete="off" placeholder="Enter your text number"><div class="small">App-based numbers are welcome for text messages.</div></div>
 </div><div class="flip-controls"><button type="button" id="flip-back" class="flip-back">← Back</button><button type="button" id="flip-done" class="flip-action">Continue to screening →</button></div></div>
 </div></div><div id="screening-details" class="grid" hidden>
 <div><label for="screening-method">Preferred screening method? *</label><select id="screening-method" name="screening_method" required><option value="">Choose a method</option><option value="government-id">Valid state/government-issued ID</option><option value="linkedin">LinkedIn with 200+ connections and a photo</option><option value="employment">Employment verification</option></select></div>
@@ -1530,7 +1530,7 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <div class="full small">I will not follow you or contact your employer. This information is only used for light screening, so I can feel comfortable knowing who I'm connecting with.</div>
 <div><label for="deposit-preference">How would you like to send a deposit? *</label><select id="deposit-preference" name="deposit_preference" required><option value="">Choose a method</option><option value="cash-app">Cash App</option><option value="gift-card">Gift Card</option><option value="crypto">Crypto</option></select></div>
 
-<div class="full" id="contact-text-fields" hidden><label for="contact-text-number">Text contact phone number *</label><input id="contact-text-number" name="contact_text_number" type="tel" placeholder="App-based numbers accepted"></div>
+
 <div><label for="occupation">Occupation *</label><input id="occupation" name="occupation" required></div>
 <div><label for="base">Base state *</label><select id="base" name="base_state" required>
 <option value="">Choose a state</option>
