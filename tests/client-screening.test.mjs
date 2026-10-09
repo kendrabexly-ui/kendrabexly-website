@@ -19,6 +19,12 @@ test("portal consolidates screening into one review panel",()=>{
   assert.match(portal,/Approve · Send deposit request/);
   assert.match(portal,/class="screening-checklist-save"/);
 });
+test("portal report displays optional verification evidence sources",()=>{
+  for (const key of ["twilio","id_records","professional_licenses","professional_credentials","public_records","criminal_records","court_and_docket_indexes"]) {
+    assert.ok(portal.includes(key), "Expected source "+key+" in portal");
+  }
+});
+
 test("screening does not mutate final approval",async()=>{
   const calls=[];
   const rows=[
