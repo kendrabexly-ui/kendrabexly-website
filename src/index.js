@@ -148,6 +148,7 @@ const VALID_BOOKING_STATE_CODES = new Set([
 const VERIFICATION_ROUTE_PERMISSIONS = [
   ["/api/admin/introduction-terms", "edit_verification"],
   ["/api/admin/clients/id-document/image", "view_id_images"],
+  ["/api/admin/clients/introduction-photo/image", "view_id_images"],
   ["/api/admin/clients/id-document/retention", "delete_sensitive"],
   ["/api/admin/clients/id-document", "edit_verification"],
   ["/api/admin/clients/verification-sensitive", "delete_sensitive"],
@@ -1520,7 +1521,7 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <p>Looking forward to meeting you! 💋</p>
 </section>
 <div class="flip-intro" id="flip-intro">
-<div class="flip-card-heading"><span class="eyebrow">A LITTLE INTRODUCTION</span><span id="flip-count">Card 1 of 2</span></div>
+<div class="flip-card-heading"><span class="eyebrow">A LITTLE INTRODUCTION</span><span id="flip-count">Card 1 of 3</span></div>
 <div class="flip-stage" aria-live="polite">
 <div class="flip-face" id="flip-personal"><h3>First, tell me who you are ♡</h3>
 <div class="grid introduction-grid"><div><label for="first">First name *</label><input id="first" name="first_name" autocomplete="given-name" placeholder="First name" required></div><div><label for="last">Last name *</label><input id="last" name="last_name" autocomplete="family-name" placeholder="Last name" required></div><div class="full"><label for="age">Age *</label><input id="age" name="age" type="number" inputmode="numeric" min="21" max="120" placeholder="Age" required></div><div><label for="occupation">Occupation *</label><input id="occupation" name="occupation" required></div><div><label for="base">Base state *</label><select id="base" name="base_state" required>
@@ -1531,7 +1532,8 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <div class="flip-face" id="flip-contact" hidden><h3>And how can I reach you? 💕</h3><div class="grid introduction-grid">
 <div><label for="phone">Phone number *</label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 555-5555" required></div><div><label for="email">Email *</label><input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
 <div class="full"><div><label for="contact-method">Preferred method of contact *</label><select id="contact-method" name="contact_method" required><option value="">Choose a method</option><option value="email">Email</option><option value="text">Text (app-based numbers accepted)</option></select></div></div><div class="full" id="contact-text-fields" hidden><label for="contact-text-number">Preferred text number *</label><input id="contact-text-number" name="contact_text_number" type="tel" autocomplete="off" placeholder="Enter your text number"><div class="small">App-based numbers are welcome for text messages.</div></div>
-</div><div class="flip-controls"><button type="button" id="flip-back" class="flip-back">← Back</button><button type="button" id="flip-done" class="flip-action">Continue to screening →</button></div></div>
+</div><div class="flip-controls"><button type="button" id="flip-back" class="flip-back">← Back</button><button type="button" id="flip-done" class="flip-action">Next: Your photo →</button></div></div>
+<div class="flip-face" id="flip-photo" hidden><h3>One photo, just as you are ♡</h3><p class="small">Please share a recent, clear, unedited photo of yourself for my private screening. No filters, retouching, or AI-generated images.</p><div class="grid introduction-grid"><div class="full"><label for="intro-photo">Your unedited photo *</label><input id="intro-photo" name="intro_photo" type="file" accept="image/jpeg,image/png,image/webp" required><p class="small">JPG, PNG or WebP · up to 10 MB. Kept private and never displayed publicly.</p></div></div><div class="flip-controls"><button type="button" id="flip-photo-back" class="flip-back">← Back</button><button type="button" id="flip-photo-done" class="flip-action">Continue to screening →</button></div></div>
 </div></div><div id="screening-details" class="grid" hidden>
 <div class="full"><h3 class="screening-heading">A Little Peace of Mind ♡</h3><p class="small">Choose how you'd like to introduce yourself for private screening.</p></div>
 <div class="full"><label for="screening-method">Your preferred verification method *</label><select id="screening-method" name="screening_method" required><option value="">Choose a method</option><option value="government-id">Valid state/government-issued ID</option><option value="linkedin">LinkedIn profile</option><option value="employment">Business website / employment details</option></select></div>
@@ -1575,7 +1577,7 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 fetch("/api/public/introduction-terms",{cache:"no-store"}).then(async r=>{if(!r.ok)throw Error("Terms unavailable");const d=await r.json();if(!d.terms||!d.version)throw Error("Terms not configured");document.getElementById("introduction-terms-text").textContent=d.terms;document.getElementById("terms-version").value=d.version;document.getElementById("terms-accepted").disabled=false;}).catch(()=>{document.getElementById("terms-error").textContent="Terms are currently unavailable. Please try again later.";submit.disabled=true;});
 const conditional=[["screening-method","linkedin-fields","linkedin"],["screening-method","employment-fields","employment"],["screening-method","id-fields","government-id"],["contact-method","contact-text-fields","text"]];
 function syncConditional(){for(const [selectId,boxId,value] of conditional){const box=document.getElementById(boxId),active=document.getElementById(selectId).value===value;box.hidden=!active;box.querySelectorAll("input").forEach(input=>{input.disabled=!active;input.required=active;});}}
-const flipPersonal=document.getElementById("flip-personal"),flipContact=document.getElementById("flip-contact"),screeningDetails=document.getElementById("screening-details");let flipSide=0;function showFlip(side){flipSide=side;flipPersonal.hidden=side!==0;flipContact.hidden=side!==1;document.getElementById("flip-count").textContent="Card "+(side+1)+" of 2";}document.getElementById("flip-next").addEventListener("click",()=>{const inputs=flipPersonal.querySelectorAll("input");for(const input of inputs){if(!input.reportValidity())return;}showFlip(1);});document.getElementById("flip-back").addEventListener("click",()=>showFlip(0));document.getElementById("flip-done").addEventListener("click",()=>{for(const input of flipContact.querySelectorAll("input,select")){if(input.required&&!input.reportValidity())return;}screeningDetails.hidden=false;screeningDetails.scrollIntoView({behavior:"smooth",block:"start"});});showFlip(0);
+const flipPersonal=document.getElementById("flip-personal"),flipContact=document.getElementById("flip-contact"),flipPhoto=document.getElementById("flip-photo"),screeningDetails=document.getElementById("screening-details");let flipSide=0;function showFlip(side){flipSide=side;flipPersonal.hidden=side!==0;flipContact.hidden=side!==1;flipPhoto.hidden=side!==2;document.getElementById("flip-count").textContent="Card "+(side+1)+" of 3";}document.getElementById("flip-next").addEventListener("click",()=>{const inputs=flipPersonal.querySelectorAll("input");for(const input of inputs){if(!input.reportValidity())return;}showFlip(1);});document.getElementById("flip-back").addEventListener("click",()=>showFlip(0));document.getElementById("flip-done").addEventListener("click",()=>{for(const input of flipContact.querySelectorAll("input,select")){if(input.required&&!input.reportValidity())return;}showFlip(2);});document.getElementById("flip-photo-back").addEventListener("click",()=>showFlip(1));document.getElementById("flip-photo-done").addEventListener("click",()=>{if(!document.getElementById("intro-photo").reportValidity())return;screeningDetails.hidden=false;screeningDetails.scrollIntoView({behavior:"smooth",block:"start"});});showFlip(0);
 const itineraryIds=["intro-experience","intro-duration","intro-location","intro-date","intro-time"];
 const itineraryRates={signature:{"30 minutes":300,"1 hour":500,"1.5 hours":750,"2 hours":1000,"4 hours":2300},grecian:{"30 minutes":400,"1 hour":700,"1.5 hours":1000,"2 hours":1300,"4 hours":2800},"sensual-touch":{"30 minutes":255,"1 hour":425,"1.5 hours":640,"2 hours":850}};
 let noteStep=0;const noteSteps=[...document.querySelectorAll(".note-step")];const noteNext=document.getElementById("note-next"),noteBack=document.getElementById("note-back");
@@ -2390,6 +2392,17 @@ export default {
         console.error("Load client ID document error:", error);
         return Response.json({ ok: false, message: "Unable to load the ID document." }, { status: 500 });
       }
+    }
+
+    if (url.pathname === "/api/admin/clients/introduction-photo/image" && request.method === "GET") {
+      if(!env.ID_DOCUMENTS)return new Response("Private image storage unavailable",{status:503});
+      const clientId=Number(url.searchParams.get("client_id"));
+      if(!await requireIdDocumentClient(env,clientId))return new Response("Not found",{status:404});
+      const row=await env.DB.prepare("SELECT object_key,mime_type FROM client_introduction_photos WHERE client_id=?").bind(clientId).first().catch(()=>null);
+      if(!row)return new Response("Not found",{status:404});
+      const object=await env.ID_DOCUMENTS.get(row.object_key);
+      if(!object)return new Response("Not found",{status:404});
+      return new Response(object.body,{headers:{"Content-Type":row.mime_type,"Cache-Control":"private, no-store, max-age=0","X-Content-Type-Options":"nosniff","Cross-Origin-Resource-Policy":"same-origin","Content-Security-Policy":"default-src 'none'"}});
     }
 
     if (url.pathname === "/api/admin/clients/id-document/image" && request.method === "GET") {
@@ -4691,6 +4704,15 @@ My journal will continue to be a place where I share a little more of that side 
           : await request.json();
         if (isSecureMultipart) data.screening_only = data.screening_only === "true";
         const initialIdFile = isSecureMultipart ? data.id_document : null;
+        const introductionPhoto = isSecureMultipart ? data.intro_photo : null;
+        if (data.screening_only === true) {
+          if (!(introductionPhoto instanceof File) || !introductionPhoto.size) return bookingCorsJson({ok:false,message:"Please upload your recent unedited photo."},{status:400});
+          if (!env.ID_DOCUMENTS) return bookingCorsJson({ok:false,message:"Private photo storage is unavailable."},{status:503});
+          if (!["image/jpeg","image/png","image/webp"].includes(introductionPhoto.type) || introductionPhoto.size>10*1024*1024) return bookingCorsJson({ok:false,message:"Use a JPG, PNG or WebP photo up to 10 MB."},{status:400});
+          const sig=new Uint8Array(await introductionPhoto.slice(0,12).arrayBuffer());
+          const valid=introductionPhoto.type==="image/jpeg" ? sig[0]===255&&sig[1]===216&&sig[2]===255 : introductionPhoto.type==="image/png" ? [137,80,78,71,13,10,26,10].every((v,i)=>sig[i]===v) : [82,73,70,70].every((v,i)=>sig[i]===v)&&[87,69,66,80].every((v,i)=>sig[i+8]===v);
+          if(!valid)return bookingCorsJson({ok:false,message:"Please select a valid photo image."},{status:400});
+        }
         if (data.screening_method === "government-id") {
           if (!(initialIdFile instanceof File) || !initialIdFile.size) return bookingCorsJson({ok:false,message:"Please upload your government-issued photo ID."},{status:400});
           if (!env.ID_DOCUMENTS) return bookingCorsJson({ok:false,message:"Secure ID storage is temporarily unavailable."},{status:503});
@@ -5253,6 +5275,17 @@ My journal will continue to be a place where I share a little more of that side 
           if(previous?.object_key && previous.object_key!==objectKey)try{await env.ID_DOCUMENTS.delete(previous.object_key);}catch(err){console.error("Old ID cleanup error",err);}
         }
 
+        if (data.screening_only === true && introductionPhoto) {
+          await env.DB.prepare("CREATE TABLE IF NOT EXISTS client_introduction_photos (client_id INTEGER PRIMARY KEY,object_key TEXT NOT NULL,mime_type TEXT NOT NULL,file_name TEXT NOT NULL,uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+          const extension=introductionPhoto.type==="image/png"?"png":introductionPhoto.type==="image/webp"?"webp":"jpg";
+          const oldPhoto=await env.DB.prepare("SELECT object_key FROM client_introduction_photos WHERE client_id=?").bind(clientId).first();
+          const key="clients/"+clientId+"/introduction-photos/"+crypto.randomUUID()+"."+extension;
+          await env.ID_DOCUMENTS.put(key,introductionPhoto.stream(),{httpMetadata:{contentType:introductionPhoto.type},customMetadata:{client_id:String(clientId),uploaded_for:"initial_introduction_photo"}});
+          try {
+            await env.DB.prepare("INSERT INTO client_introduction_photos(client_id,object_key,mime_type,file_name) VALUES(?,?,?,?) ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,mime_type=excluded.mime_type,file_name=excluded.file_name,uploaded_at=CURRENT_TIMESTAMP").bind(clientId,key,introductionPhoto.type,String(introductionPhoto.name||"introduction-photo").slice(0,180)).run();
+          }catch(err){await env.ID_DOCUMENTS.delete(key);throw err;}
+          if(oldPhoto?.object_key && oldPhoto.object_key!==key) try{await env.ID_DOCUMENTS.delete(oldPhoto.object_key);}catch(err){console.error("Old intro photo cleanup",err);}
+        }
         // Do not create an email draft when a booking request is submitted.
         // The first client email is created only when the request is moved
         // forward for screening. Deposit instructions are created only after verification.
