@@ -1,3 +1,4 @@
+import { sendDueLocationEmails } from "./location-email-scheduler.js";
 import { validateIntroductionTermsAcceptance } from "./introduction-terms-validation.js";
 import { handleIntroductionTermsAdmin } from "./introduction-terms-admin-api.js";
 import { handlePublicIntroductionTerms } from "./introduction-terms-public-api.js";
@@ -9807,6 +9808,7 @@ if (
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       await runVerificationRetention(env);
+      await sendDueLocationEmails(env);
 
       // X Agent automatic posting windows, Los Angeles time.
       // Auto posts only come from reviewed Tweet Bank items with Auto Pick enabled.
