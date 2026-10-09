@@ -1642,7 +1642,7 @@
         <div id="client-verification-dashboard" style="margin-bottom:14px;">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
             <button type="button" data-verification-summary-filter="pending_review" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-pending">—</strong><div style="font-size:12px;margin-top:3px;">Pending Review</div></button>
-            <button type="button" data-verification-summary-filter="verified" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-verified">—</strong><div style="font-size:12px;margin-top:3px;">Verified</div></button>
+            <button type="button" data-verification-summary-filter="verified" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-verified">—</strong><div style="font-size:12px;margin-top:3px;">Screening Approved</div></button>
             <button type="button" data-verification-summary-filter="unable_to_verify" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-unable">—</strong><div style="font-size:12px;margin-top:3px;">Unable to Verify</div></button>
             <button type="button" data-verification-summary-filter="declined" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-declined">—</strong><div style="font-size:12px;margin-top:3px;">Declined</div></button>
             <button type="button" data-verification-summary-filter="persona_pending" style="text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:white;cursor:pointer;"><strong id="verification-count-persona">—</strong><div style="font-size:12px;margin-top:3px;">Persona Pending</div></button>
@@ -1704,7 +1704,7 @@
                 <option value="public_record_match">Potential / Confirmed Public Record Match</option>
                 <option value="address_mismatch">Address Mismatch</option>
                 <option value="credential_issue">Credential Issue</option>
-                <option value="no_id">Awaiting ID</option>
+                
                 <option value="retention_due">Retention Due</option>
               </select><span id="client-result-count" aria-live="polite" style="align-self:center;font-size:12px;color:var(--muted);white-space:nowrap;"></span><button id="client-clear-filters" type="button" hidden style="padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:white;cursor:pointer;">Clear Filters</button>
             </div>
@@ -3645,13 +3645,11 @@ async function loadRequests(options = {}) {
             ? "WATCH"
             : "BLOCKED";
         const verificationCard = verificationOverviewByClient.get(Number(client.client_id)) || {};
-        const verificationCardLabel = !verificationCard.has_id ? "No ID" : verificationCard.retention_due ? "Retention Due" : ({
-          pending_review:"Pending Review",needs_more_information:"Needs More Information",verified:"Verified",
+        const verificationCardLabel = ({
+          pending_review:"Review Required",needs_more_information:"Needs Information",verified:"Approved",
           unable_to_verify:"Unable to Verify",declined:"Declined"
         }[verificationCard.verification_status] || "Pending Review");
-        const verificationCardStyle = !verificationCard.has_id
-          ? "background:#f1f1f1;color:#555;"
-          : verificationCard.verification_status==="verified"
+        const verificationCardStyle = verificationCard.verification_status==="verified"
             ? "background:#e8f6ec;color:#22613b;"
             : verificationCard.verification_status==="needs_more_information"
               ? "background:#fff4d8;color:#74520b;"
@@ -3663,7 +3661,7 @@ async function loadRequests(options = {}) {
         return `
           <div style="padding:22px;border-bottom:1px solid #ddd6ca;${blacklistRecord ? "border-left:4px solid #8f3d3d;" : ""}">
             <strong style="font-size:18px;">${escapeHtml(name)}</strong>
-            <span style="display:inline-block;margin-left:7px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;${verificationCardStyle}">Verification: ${escapeHtml(verificationCardLabel)}</span>
+            <span style="display:inline-block;margin-left:7px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;${verificationCardStyle}">Screening: ${escapeHtml(verificationCardLabel)}</span>
             ${blacklistRecord ? `<span style="display:inline-block;margin-left:8px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">🚩 BLACKLISTED · ${riskLabel}</span>` : ""}
             ${blacklistRecord && blockedAttempts.length > 1 ? `<span style="display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:#8f3d3d;color:white;font-size:11px;font-weight:700;">${blockedAttempts.length} BLOCKED ATTEMPTS</span>` : ""}
             <div style="margin-top:6px;font-size:13px;color:var(--muted);">${escapeHtml(client.email || "No email")} · ${escapeHtml(client.phone || "No phone")}</div>
