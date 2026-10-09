@@ -4685,9 +4685,20 @@ My journal will continue to be a place where I share a little more of that side 
       try {
         const bookingFormContentType = String(request.headers.get("content-type") || "").toLowerCase();
         const isWordPressBookingForm = bookingFormContentType.includes("application/x-www-form-urlencoded");
-        const data = isWordPressBookingForm
+        const isSecureMultipart = bookingFormContentType.includes("multipart/form-data");
+        const data = isWordPressBookingForm || isSecureMultipart
           ? Object.fromEntries((await request.formData()).entries())
           : await request.json();
+        if (isSecureMultipart) data.screening_only = data.screening_only === "true";
+        const initialIdFile = isSecureMultipart ? data.id_document : null;
+        if (data.screening_method === "government-id") {
+          if (!(initialIdFile instanceof File) || !initialIdFile.size) return bookingCorsJson({ok:false,message:"Please upload your government-issued photo ID."},{status:400});
+          if (!env.ID_DOCUMENTS) return bookingCorsJson({ok:false,message:"Secure ID storage is temporarily unavailable."},{status:503});
+          if (!["image/jpeg","image/png","image/webp"].includes(initialIdFile.type) || initialIdFile.size>10*1024*1024) return bookingCorsJson({ok:false,message:"Use a JPG, PNG, or WebP image up to 10 MB."},{status:400});
+          const sig=new Uint8Array(await initialIdFile.slice(0,12).arrayBuffer());
+          const valid=initialIdFile.type==="image/jpeg" ? sig[0]===255&&sig[1]===216&&sig[2]===255 : initialIdFile.type==="image/png" ? [137,80,78,71,13,10,26,10].every((v,i)=>sig[i]===v) : [82,73,70,70].every((v,i)=>sig[i]===v)&&[87,69,66,80].every((v,i)=>sig[i+8]===v);
+          if(!valid)return bookingCorsJson({ok:false,message:"The uploaded ID image is invalid."},{status:400});
+        }
 
         await ensureSiteContentTables(env);
         const termsAcceptance = data.screening_only === true
@@ -5223,6 +5234,24 @@ My journal will continue to be a place where I share a little more of that side 
           ""
         ).run();
 
+
+        if (data.screening_method === "government-id" && initialIdFile) {
+          await ensureClientIdDocumentsTable(env);
+          const extension=initialIdFile.type==="image/png"?"png":initialIdFile.type==="image/webp"?"webp":"jpg";
+          const previous=await env.DB.prepare("SELECT object_key FROM client_id_documents WHERE client_id=? LIMIT 1").bind(clientId).first();
+          const objectKey="clients/"+clientId+"/id-documents/"+crypto.randomUUID()+"."+extension;
+          await env.ID_DOCUMENTS.put(objectKey,initialIdFile.stream(),{httpMetadata:{contentType:initialIdFile.type},customMetadata:{client_id:String(clientId),uploaded_for:"initial_introduction"}});
+          try {
+            await env.DB.batch([
+              env.DB.prepare(`INSERT INTO client_id_documents (client_id,object_key,file_name,mime_type,file_size,verification_status,received_at,verified_at,updated_at)
+              VALUES (?,?,?,?,?,'pending_review',?,NULL,CURRENT_TIMESTAMP)
+              ON CONFLICT(client_id) DO UPDATE SET object_key=excluded.object_key,file_name=excluded.file_name,mime_type=excluded.mime_type,file_size=excluded.file_size,verification_status='pending_review',received_at=excluded.received_at,verified_at=NULL,updated_at=CURRENT_TIMESTAMP`)
+                .bind(clientId,objectKey,String(initialIdFile.name||"id-document."+extension).slice(0,180),initialIdFile.type,initialIdFile.size,idDocumentToday()),
+              env.DB.prepare("UPDATE date_requests SET id_received=1 WHERE id=?").bind(requestId)
+            ]);
+          }catch(uploadError){await env.ID_DOCUMENTS.delete(objectKey);throw uploadError;}
+          if(previous?.object_key && previous.object_key!==objectKey)try{await env.ID_DOCUMENTS.delete(previous.object_key);}catch(err){console.error("Old ID cleanup error",err);}
+        }
 
         // Do not create an email draft when a booking request is submitted.
         // The first client email is created only when the request is moved
