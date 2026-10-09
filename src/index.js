@@ -2000,18 +2000,12 @@ export default {
           const personaDatabaseStatus=String(row.persona_database_status || "").toLowerCase();
           const personaPending=isPersonaDatabasePending(row.persona_transaction_id,personaStatus,personaDatabaseStatus);
           const status=row.verification_status || "pending_review";
-          const checklistCount=Number(row.checklist_count || 0);
-          let queue_category="ready_for_final_decision";
-          if (status==="pending_review") queue_category="needs_manual_review";
-          else if (status === "needs_more_information") queue_category="needs_more_information";
-          else if (["potential_match","confirmed_match"].includes(String(row.public_record_status||""))) queue_category="public_record_match";
-          else if (String(row.address_status||"")==="mismatch") queue_category="address_mismatch";
-          else if (["expired","inactive","suspended","revoked","mismatch","unable_to_verify"].includes(String(row.credential_status||""))) queue_category="credential_issue";
-          else if (["unable_to_confirm","mismatch"].includes(String(row.employment_status||""))) queue_category="employment_unable";
-          else if (["errored","failed"].includes(personaStatus) || ["errored","failed"].includes(personaDatabaseStatus)) queue_category="persona_error";
-          else if (personaPending) queue_category="persona_pending";
-          else if (checklistCount < 5) queue_category="checklist_incomplete";
-          else if (status === "pending_review") queue_category="needs_manual_review";
+          // The unified screening checklist is the status authority. Historical
+          // Persona, ID and employment checkboxes are not second approval gates.
+          const checklistCount=status==="verified"?5:0;
+          const queue_category=status==="verified"?"ready_for_final_decision":
+            status==="declined"?"closed":
+            status==="needs_more_information"?"needs_more_information":"needs_manual_review";
           return {
             client_id:Number(row.client_id),
             first_name:row.first_name || "", last_name:row.last_name || "",
