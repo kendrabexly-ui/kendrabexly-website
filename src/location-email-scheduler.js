@@ -35,7 +35,9 @@ export async function sendDueLocationEmails(env, now=Date.now()) {
     if(row.status!=="approved"||Number(row.deposit_paid)!==1||Number(row.final_approval)!==1)continue;
     const appointment=appointmentUtcMs(row.requested_date,row.requested_time);
     const due=appointment-2*3600000;
-    if(!Number.isFinite(appointment)||now<due||now>=due+90000)continue;
+    // Allow a short Cloudflare cron delay, but never send when the appointment is near or past.
+    // The two-hour trigger remains the target; late sends are capped at ten minutes.
+    if(!Number.isFinite(appointment)||now<due||now>due+10*60000||now>=appointment)continue;
     if(row.blacklist_status!=="clear"||row.phone_status!=="non_voip"||row.identity_status!=="supported"||row.background_status!=="reviewed"||row.decision!=="move_forward")continue;
     const blocked=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=(SELECT client_id FROM date_requests WHERE id=?) LIMIT 1").bind(row.id).first();
     if(blocked)continue;
