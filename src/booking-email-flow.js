@@ -44,7 +44,7 @@ export async function sendDepositRequestEmail(env, requestId) {
   const claim=await env.DB.prepare("INSERT INTO booking_email_delivery(request_id,email_type,delivery_key,status) VALUES (?,'deposit_request','initial','sending') ON CONFLICT DO NOTHING").bind(row.id).run();
   if(Number(claim.meta?.changes||0)!==1)return {status:"already_claimed",message:"Deposit email previously sent or attempted; check delivery before retrying."};
   const amount=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(row.deposit_amount));
-  const method=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim()||"";
+  const method=String(row.notes||"").match(/(?:Deposit preference|Deposit payment method):\s*([^\n]+)/i)?.[1]?.trim()||"";
   const body=["Hi "+(row.first_name||"there")+",","",
     "I've reviewed your introduction, and I'd be happy to move forward.",
     "Date: "+row.requested_date,
