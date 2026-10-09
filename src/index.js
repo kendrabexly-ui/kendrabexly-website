@@ -5182,6 +5182,9 @@ My journal will continue to be a place where I share a little more of that side 
 
         const requestId =
           requestResult.meta.last_row_id;
+        await env.DB.prepare("UPDATE date_requests SET terms_accepted_at = ?, terms_version = ? WHERE id = ?")
+          .bind(termsAcceptance.terms_accepted_at, termsAcceptance.terms_version, requestId).run();
+
 
         // Screening is advisory and must not delay or approve a submission.
         try { await runInitialScreening(env, requestId, "automatic"); }
