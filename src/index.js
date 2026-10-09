@@ -8573,17 +8573,31 @@ if (
         if (blockedClient) return bookingCorsJson({ok:false,message:"This client is blacklisted. Private screening cannot be requested."},{status:409});
 
         const notesText = String(existingRequest.notes || "");
+        // The introduction form already captures a preferred itinerary. Do not ask for it again.
+        const intro = notesText.match(/Introduction itinerary:\s*([^\\n]+)/i)?.[1]?.split("|").map(value=>value.trim()) || [];
+        const preferredDate = intro[3] && intro[3]!=="undecided" ? intro[3] : "";
+        const preferredTime = intro[4] && intro[4]!=="undecided" ? intro[4] : "";
+        const bookingDate=existingRequest.requested_date || preferredDate;
+        const bookingTime=existingRequest.requested_time || preferredTime;
+        if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(bookingDate)||!/^\\d{2}:\\d{2}$/.test(bookingTime)||
+           appointmentUtcMs(bookingDate,bookingTime)-Date.now()<4*3600000){
+          return bookingCorsJson({ok:false,message:"Set a preferred appointment date and time at least four hours ahead before requesting a deposit."},{status:409});
+        }
+        const opening=await siteAvailableSlots(env,bookingDate,siteDurationMinutes(intro[1]||"1 hour"),requestId);
+        if(!opening.slots.includes(bookingTime)){
+          return bookingCorsJson({ok:false,message:"The preferred appointment time is not available. Choose an opening before requesting the deposit."},{status:409});
+        }
         const durationMatch = notesText.match(/Duration:\s*([^\n]+)/i);
         const dateTypeMatch = notesText.match(/Date type:\s*([^\n]+)/i);
         const appointmentTypeMatch = notesText.match(/Appointment type:\s*([^\n]+)/i);
         const offerMatch = notesText.match(/Offer:\s*([\s\S]*?)(?=\n(?:Date type:|Appointment type:|Preferred contact|Outcall address:|Duration:|Request details:|Screening requirement|25% deposit)|$)/i);
         const specialRateMatch = offerMatch?.[1]?.match(/for\s+\$([\d,]+)/i);
 
-        const durationKey = String(durationMatch?.[1] || "").trim().toLowerCase();
+        const durationKey = String(durationMatch?.[1] || intro[1] || "").trim().toLowerCase();
         const durationLabel = durationKey
           .replace(/-hours?$/, match => match === "-hour" ? " hour" : " hours");
-        const dateTypeKey = String(dateTypeMatch?.[1] || "").trim().toLowerCase();
-        const appointmentTypeKey = String(appointmentTypeMatch?.[1] || "").trim().toLowerCase();
+        const dateTypeKey = String(dateTypeMatch?.[1] || intro[0] || "").trim().toLowerCase();
+        const appointmentTypeKey = String(appointmentTypeMatch?.[1] || intro[2] || "").trim().toLowerCase();
         const specialRate = specialRateMatch
           ? Number(specialRateMatch[1].replace(/,/g, ""))
           : 0;
@@ -8595,7 +8609,10 @@ if (
           "signature-brief-introduction": "brief experiences",
           "greek-princess-brief-introduction": "brief experiences",
           "signature-girlfriend-experience": "the signature experience",
-          "greek-princess-experience": "the grecian experience"
+          "greek-princess-experience": "the grecian experience",
+          "grecian":"the grecian experience",
+          "signature":"the signature experience",
+          "sensual-touch":"the sensual touch"
         };
         const selectedService = configuredServices.find(service =>
           String(service.name || "").trim().toLowerCase() === serviceNameByDateType[dateTypeKey]
@@ -8619,9 +8636,12 @@ if (
           ? Math.round(bookingRate * 0.25 * 100) / 100
           : 0;
         const depositAmount = baseDepositAmount;
+        if(depositAmount<=0) return bookingCorsJson({ok:false,message:"The introduction experience or duration does not match a rate. Review the client itinerary."},{status:409});
 
-        await env.DB.prepare("UPDATE date_requests SET status='pending_final_approval',deposit_amount=? WHERE id=? AND status NOT IN ('approved','completed','declined','canceled','blacklisted_submission')")
-          .bind(depositAmount,requestId).run();
+        await env.DB.prepare("UPDATE date_requests SET status='pending_final_approval',deposit_amount=?,requested_date=?,requested_time=?,location_name=?,notes=? WHERE id=? AND status NOT IN ('approved','completed','declined','canceled','blacklisted_submission')")
+          .bind(depositAmount,bookingDate,bookingTime,appointmentTypeKey==="outcall"?"Outcall":"Incall",
+            notesText+(notesText.includes("Date type:")?"":"\nDate type: "+dateTypeKey)+(notesText.includes("Duration:")?"":"\nDuration: "+durationKey)+(notesText.includes("Appointment type:")?"":"\nAppointment type: "+appointmentTypeKey),
+            requestId).run();
         await recordBookingFunnelEvent(env,"moved_forward",{sessionId:"server:admin",requestId,path:"/portal/request"});
         const depositDelivery=await sendDepositRequestEmail(env,requestId);
         return bookingCorsJson({
