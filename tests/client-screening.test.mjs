@@ -44,6 +44,23 @@ test("screening does not mutate final approval",async()=>{
   assert.equal(calls.some(sql=>/UPDATE\s+date_requests|UPDATE\s+clients/i.test(sql)),false);
 });
 
+test("existing saved Twilio and records checks are reused without third-party calls",async()=>{
+  const rows=[
+    {request_id:3,client_id:4,first_name:"Test",last_name:"Client",email:"test@example.com",phone:"(213) 555-0100",notes:""},
+    null,{count:0},
+    {phone_e164:"+12135550100",valid:1,line_type:"mobile",is_voip:0,checked_at:"2026-10-09"},
+    {credential_status:"reviewed",source_name:"Issuing authority",source_url:"https://example.org/license",checked_at:"2026-10-09"},
+    {record_status:"needs_review",source_name:"Public index",source_url:"https://example.org/index",checked_at:"2026-10-09",public_records_reviewed:1,criminal_records_reviewed:0}
+  ];
+  const env={DB:{prepare(){return {bind(){return this;},async first(){return rows.shift();},async run(){return {success:true};}};}}};
+  const report=await runInitialScreening(env,3,"manual");
+  assert.equal(report.phone.twilio.line_type,"mobile");
+  assert.equal(report.external_sources.professional_licenses.status,"reviewed");
+  assert.equal(report.external_sources.public_records.status,"reviewed");
+  assert.equal(report.external_sources.criminal_records.status,"not_checked");
+  assert.equal(report.final_approval,"unchanged");
+});
+
 test("Move Forward and deposit endpoints enforce the saved screening decision",()=>{
   assert.match(source,/async function requireScreeningMoveForward\(env,requestId\)/);
   const move=source.indexOf('url.pathname === "/api/admin/request/move-forward"');
