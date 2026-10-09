@@ -1557,6 +1557,10 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 (()=>{const f=document.getElementById("booking"),status=document.getElementById("status"),submit=document.getElementById("submit");
 const conditional=[["screening-method","linkedin-fields","linkedin"],["screening-method","employment-fields","employment"],["screening-method","id-fields","government-id"],["contact-method","contact-text-fields","text"]];
 function syncConditional(){for(const [selectId,boxId,value] of conditional){const box=document.getElementById(boxId),active=document.getElementById(selectId).value===value;box.hidden=!active;box.querySelectorAll("input").forEach(input=>{input.disabled=!active;input.required=active;});}}
+const itineraryIds=["intro-experience","intro-duration","intro-location","intro-date","intro-time"];
+const itineraryRates={signature:{"30 minutes":300,"1 hour":500,"1.5 hours":750,"2 hours":1000,"4 hours":2300},grecian:{"30 minutes":400,"1 hour":700,"1.5 hours":1000,"2 hours":1300,"4 hours":2800}};
+function renderItinerary(){const [experience,duration,location,date,time]=itineraryIds.map(id=>document.getElementById(id).value);const rate=itineraryRates[experience]?.[duration];document.getElementById("intro-summary").textContent=[experience==="signature"?"Signature Experience":experience==="grecian"?"Grecian Experience":"Experience undecided",duration||"Duration undecided",location||"Meeting preference undecided",date||"Date to discuss",time||"Time to discuss",rate?"Estimated rate: $"+rate.toLocaleString("en-US"):""].filter(Boolean).join(" · ");}
+itineraryIds.forEach(id=>document.getElementById(id).addEventListener("change",renderItinerary));renderItinerary();
 document.getElementById("screening-method").addEventListener("change",syncConditional);document.getElementById("contact-method").addEventListener("change",syncConditional);syncConditional();
 
 function message(text,type){status.textContent=text;status.className="status show "+type}
