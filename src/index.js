@@ -1535,6 +1535,19 @@ button:disabled{opacity:.55;cursor:not-allowed}.status{display:none;margin-top:2
 
 </div>
 
+<section class="section" aria-labelledby="itinerary-title">
+<h2 id="itinerary-title">A Note From Kendra · Our Little Itinerary</h2>
+<p>Tell me what you have in mind, handsome. Your selections are preferences only, and I’ll review your introduction before we plan anything together.</p>
+<div class="grid">
+<div class="full"><label for="intro-experience">Your experience</label><select id="intro-experience" name="intro_experience"><option value="">Let's decide later</option><option value="signature">The Signature Experience</option><option value="grecian">The Grecian Experience</option></select></div>
+<div><label for="intro-duration">Our time together</label><select id="intro-duration" name="intro_duration"><option value="">Let's discuss</option><option value="30 minutes">30 minutes</option><option value="1 hour">1 hour</option><option value="1.5 hours">1½ hours</option><option value="2 hours">Up to 2 hours</option><option value="4 hours">Up to 4 hours</option></select></div>
+<div><label for="intro-location">Meeting preference</label><select id="intro-location" name="intro_location"><option value="">Let's discuss</option><option value="incall">Incall</option><option value="outcall">Outcall</option></select></div>
+<div><label for="intro-date">Preferred date</label><input id="intro-date" name="intro_preferred_date" type="date"></div>
+<div><label for="intro-time">Preferred time</label><input id="intro-time" name="intro_preferred_time" type="time"></div>
+</div>
+<div id="intro-summary" aria-live="polite" style="margin-top:18px;padding:18px;border-radius:16px;background:var(--blush)">Your little itinerary will appear here.</div>
+<p class="small">This is an introduction, not a booking. Actual availability is private. Screening approval is required before any deposit or confirmation.</p>
+</section>
 <div id="status" class="status" role="status" aria-live="polite"></div>
 <button id="submit" type="submit">Introduce Myself</button>
 </form>
