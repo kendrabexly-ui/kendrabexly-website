@@ -1,4 +1,4 @@
-import { normalizeTerms, termsVersion, hasAcceptedTerms } from "./introduction-terms.js";
+import { normalizeTerms, termsVersion, hasAcceptedTerms } from "../src/introduction-terms.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 test("terms normalize safely", () => assert.equal(normalizeTerms("  Hello  "), "Hello"));
