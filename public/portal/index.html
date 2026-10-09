@@ -1616,6 +1616,11 @@
         .client-id-documents .verification-flow-nav [data-verification-jump=".client-basic-screening"]{display:none!important}
         .client-id-documents > div > section.verification-card:not(.client-verification-overview):not(.client-verification-editor){display:block!important}
         .client-id-documents .verification-card{margin-bottom:14px}
+        .client-id-documents .client-extra-verification > .verification-card{margin-top:10px}
+        .client-id-documents .client-verification-flow > .client-verification-overview,
+        .client-id-documents .client-verification-flow > .client-verification-editor,
+        .client-id-documents .client-verification-flow > .client-basic-screening{display:none!important}
+        .client-id-documents .client-screening-agent{scroll-margin-top:16px}
         .client-id-documents .verification-card-collapse{min-height:38px}
         @media(max-width:640px){.client-id-documents .verification-card{padding:14px!important}.client-id-documents .verification-card button{max-width:100%;white-space:normal}}
         .unified-review-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:16px}
@@ -3872,6 +3877,9 @@ async function loadRequests(options = {}) {
 
 
 
+                  <details class="client-extra-verification" style="margin:12px 0;border:1px solid var(--line);border-radius:10px;padding:12px;background:white;">
+                    <summary style="cursor:pointer;font-weight:700;font-size:13px;">Additional verification tools (optional)</summary>
+                    <p style="font-size:12px;color:var(--muted);margin:7px 0 12px;">License, address, public-record, and Persona source checks are available when needed. These are supporting tools; save the final screening decision in the review above.</p>
                   <section class="verification-card client-credential-card is-collapsed">
                     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
                       <strong style="font-size:13px;">5. License &amp; Credential Verification <span style="font-weight:500;color:var(--muted);">· Optional when no credential is claimed</span></strong>
@@ -4148,6 +4156,7 @@ async function loadRequests(options = {}) {
                     <details class="client-persona-technical" hidden style="margin-top:7px;font-size:11px;color:var(--muted);"><summary style="cursor:pointer;font-weight:700;">View technical details</summary><div class="client-persona-technical-details" style="margin-top:5px;padding:8px;background:#f7f2e9;border-radius:7px;"></div></details>
                   </section>
 
+                  </details>
                   <section class="verification-card client-verification-editor is-collapsed" hidden>
                     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><strong style="font-size:13px;">9. Final Verification &amp; Decision</strong><span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-manual-badge">Checklist: Not checked</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-verification-editor">Expand</button></span></div>
                     <div style="margin-top:5px;font-size:12px;color:var(--muted);">Review the saved checks, choose the final decision, and record any private notes. Persona does not automatically approve or decline a client.</div>
@@ -6614,7 +6623,7 @@ async function loadRequests(options = {}) {
           }
         }));
         section.querySelector(".client-verification-back-top")?.addEventListener("click",()=>{
-          section.querySelector(".client-verification-overview")?.scrollIntoView({behavior:"smooth",block:"start"});
+          section.querySelector(".client-screening-agent")?.scrollIntoView({behavior:"smooth",block:"start"});
         });
         section.querySelector(".client-audit-history")?.addEventListener("toggle",event=>{
           if(event.currentTarget.open)loadVerificationCardData(event.currentTarget);
