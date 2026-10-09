@@ -8590,7 +8590,8 @@ if (
            appointmentUtcMs(bookingDate,bookingTime)-Date.now()<4*3600000){
           return bookingCorsJson({ok:false,message:"Set a preferred appointment date and time at least four hours ahead before requesting a deposit."},{status:409});
         }
-        const opening=await siteAvailableSlots(env,bookingDate,siteDurationMinutes(intro[1]||"1 hour"),requestId);
+        const requestedDuration=notesText.match(/Duration:\s*([^\n]+)/i)?.[1]||intro[1]||"1 hour";
+        const opening=await siteAvailableSlots(env,bookingDate,siteDurationMinutes(requestedDuration),requestId);
         if(!opening.slots.includes(bookingTime)){
           return bookingCorsJson({ok:false,message:"The preferred appointment time is not available. Choose an opening before requesting the deposit."},{status:409});
         }
