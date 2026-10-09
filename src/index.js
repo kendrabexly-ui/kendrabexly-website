@@ -1,4 +1,5 @@
-import { sendDueLocationEmails } from "./location-email-scheduler.js";
+import { sendDueLocationEmails, appointmentUtcMs } from "./location-email-scheduler.js";
+import { sendDepositRequestEmail, screeningReady } from "./booking-email-flow.js";
 import { validateIntroductionTermsAcceptance } from "./introduction-terms-validation.js";
 import { handleIntroductionTermsAdmin } from "./introduction-terms-admin-api.js";
 import { handlePublicIntroductionTerms } from "./introduction-terms-public-api.js";
@@ -1725,7 +1726,7 @@ export default {
           if(values[4]==="move_forward" && !(values[0]==="clear"&&values[1]==="non_voip"&&values[2]==="supported"&&values[3]==="reviewed"))
             return Response.json({ok:false,message:"Complete blacklist, non-VoIP phone, identity, and background review before moving forward."},{status:400});
           const notes={};
-          for(const key of ["blacklist","phone","identity","background"])notes[key]=String(payload.notes?.[key]||"").trim().slice(0,1500);
+          for(const key of ["summary"])notes[key]=String(payload.notes?.[key]||"").trim().slice(0,1500);
           await env.DB.prepare(`INSERT INTO client_screening_checklists
           (date_request_id,blacklist_status,phone_status,identity_status,background_status,decision,notes_json,updated_at)
           VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
@@ -1735,7 +1736,7 @@ export default {
           notes_json=excluded.notes_json,updated_at=CURRENT_TIMESTAMP`).bind(id,...values,JSON.stringify(notes)).run();
         }
         const row=await env.DB.prepare("SELECT * FROM client_screening_checklists WHERE date_request_id=?").bind(id).first();
-        return Response.json({ok:true,checklist:row?{...row,notes:JSON.parse(row.notes_json||"{}")}:null},{headers:{"Cache-Control":"private, no-store"}});
+        return Response.json({ok:true,checklist:row?{...row,notes:JSON.parse(row.notes_json||"{}"),screening_status:screeningReady(row)?"approved":row.decision==="decline"?"declined":row.decision==="needs_information"?"needs_information":"pending"}:null},{headers:{"Cache-Control":"private, no-store"}});
       }catch(error){console.error("Screening checklist failed",error);return Response.json({ok:false,message:"Screening checklist unavailable."},{status:500});}
     }
 
@@ -1946,11 +1947,16 @@ export default {
       await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_screening_runs (id INTEGER PRIMARY KEY AUTOINCREMENT,date_request_id INTEGER NOT NULL,client_id INTEGER NOT NULL,source TEXT NOT NULL,report_json TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
 
       try {
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS client_screening_checklists (date_request_id INTEGER PRIMARY KEY,blacklist_status TEXT NOT NULL DEFAULT 'pending',phone_status TEXT NOT NULL DEFAULT 'pending',identity_status TEXT NOT NULL DEFAULT 'pending',background_status TEXT NOT NULL DEFAULT 'pending',decision TEXT NOT NULL DEFAULT 'pending',notes_json TEXT NOT NULL DEFAULT '{}',updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`).run();
         await ensureVerificationWorkspaceTables(env);
         const rows = await env.DB.prepare(`
           SELECT c.id AS client_id, c.first_name, c.last_name, c.email, c.phone,
                  COALESCE(a.date_request_id, 0) AS booking_request_id,
-                 COALESCE(a.verification_status, 'pending_review') AS verification_status,
+                 CASE WHEN EXISTS (SELECT 1 FROM date_requests r WHERE r.client_id=c.id AND r.id=(SELECT MAX(r2.id) FROM date_requests r2 WHERE r2.client_id=c.id) AND r.status IN ('declined','canceled','blacklisted_submission')) THEN 'declined'
+                   WHEN EXISTS (SELECT 1 FROM client_screening_checklists sc WHERE sc.date_request_id=(SELECT MAX(r2.id) FROM date_requests r2 WHERE r2.client_id=c.id) AND sc.decision='decline') THEN 'declined'
+                   WHEN EXISTS (SELECT 1 FROM client_screening_checklists sc WHERE sc.date_request_id=(SELECT MAX(r2.id) FROM date_requests r2 WHERE r2.client_id=c.id) AND sc.blacklist_status='clear' AND sc.phone_status='non_voip' AND sc.identity_status='supported' AND sc.background_status='reviewed' AND sc.decision='move_forward') THEN 'verified'
+                   WHEN EXISTS (SELECT 1 FROM client_screening_checklists sc WHERE sc.date_request_id=(SELECT MAX(r2.id) FROM date_requests r2 WHERE r2.client_id=c.id) AND sc.decision='needs_information') THEN 'needs_more_information'
+                   ELSE 'pending_review' END AS verification_status,
                  (SELECT sr.report_json FROM client_screening_runs sr WHERE sr.client_id=c.id ORDER BY sr.id DESC LIMIT 1) AS initial_screening_report_json,
                  (SELECT sr.created_at FROM client_screening_runs sr WHERE sr.client_id=c.id ORDER BY sr.id DESC LIMIT 1) AS initial_screening_checked_at,
                  COALESCE(a.verification_method, '') AS verification_method,
@@ -1989,7 +1995,7 @@ export default {
           const status=row.verification_status || "pending_review";
           const checklistCount=Number(row.checklist_count || 0);
           let queue_category="ready_for_final_decision";
-          if (!Number(row.has_id || 0)) queue_category="needs_id";
+          if (status==="pending_review") queue_category="needs_manual_review";
           else if (status === "needs_more_information") queue_category="needs_more_information";
           else if (["potential_match","confirmed_match"].includes(String(row.public_record_status||""))) queue_category="public_record_match";
           else if (String(row.address_status||"")==="mismatch") queue_category="address_mismatch";
@@ -6828,6 +6834,7 @@ if (
           WHERE ed.id = ?
         `).bind(draftId).first();
         if (!draft) return bookingCorsJson({ ok:false, message:"Email draft not found." }, { status:404 });
+        if (draft.date_request_id) return bookingCorsJson({ok:false,message:"Booking emails are managed by the deposit and two-hour location workflow. Legacy drafts cannot be sent."},{status:409});
         if (!draft.email) return bookingCorsJson({ ok:false, message:"This client does not have an email address." }, { status:400 });
         if (draft.status === "sent") return bookingCorsJson({ ok:false, message:"This email has already been sent." }, { status:400 });
         const blockedRecipient = await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? OR (email <> '' AND LOWER(email)=LOWER(?)) OR (phone <> '' AND phone=?) LIMIT 1")
@@ -8613,62 +8620,15 @@ if (
           : 0;
         const depositAmount = baseDepositAmount;
 
-        await ensureSiteContentTables(env);
-        const continuationToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
-        const continuationTokenHash=await sha256Hex(continuationToken);
-        const continuationExpiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
-        await env.DB.prepare(`
-          INSERT INTO booking_continuations (date_request_id,token_hash,expires_at,completed_at,deposit_step_acknowledged,combined_step,updated_at)
-          VALUES (?,?,?,NULL,0,1,CURRENT_TIMESTAMP)
-          ON CONFLICT(date_request_id) DO UPDATE SET
-            token_hash=excluded.token_hash,
-            expires_at=excluded.expires_at,
-            completed_at=NULL,
-            deposit_step_acknowledged=0,
-            combined_step=1,
-            updated_at=CURRENT_TIMESTAMP
-        `).bind(requestId,continuationTokenHash,continuationExpiresAt).run();
-        const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
-
-        await env.DB
-          .prepare(`
-            UPDATE date_requests
-            SET status = 'screening_pending',
-                deposit_amount = ?
-            WHERE id = ?
-          `)
-          .bind(depositAmount, requestId)
-          .run();
-        await recordBookingFunnelEvent(env,"moved_forward",{
-          sessionId:"server:admin",
-          requestId,
-          path:"/portal/request"
-        });
-
-        {
-          await env.DB.prepare(`
-            INSERT INTO email_drafts (
-              client_id,
-              date_request_id,
-              email_type,
-              subject,
-              body,
-              status
-            )
-            VALUES (?, ?, ?, ?, ?, 'draft')
-          `).bind(
-            existingRequest.client_id,
-            requestId,
-            "pending_final_approval",
-            "A few details before our date",
-            privateScreeningEmailBody(existingRequest.first_name,existingRequest.requested_date,existingRequest.requested_time,continuationUrl)
-          ).run();
-        }
-
+        await env.DB.prepare("UPDATE date_requests SET status='pending_final_approval',deposit_amount=? WHERE id=? AND status NOT IN ('approved','completed','declined','canceled','blacklisted_submission')")
+          .bind(depositAmount,requestId).run();
+        await recordBookingFunnelEvent(env,"moved_forward",{sessionId:"server:admin",requestId,path:"/portal/request"});
+        const depositDelivery=await sendDepositRequestEmail(env,requestId);
         return bookingCorsJson({
           ok: true,
-          message: "Request moved forward.",
-          status: "screening_pending",
+          message: depositDelivery.message,
+          deposit_email_status:depositDelivery.status,
+          status: "pending_final_approval",
           deposit_amount: depositAmount,
           booking_rate: bookingRate,
           base_deposit_amount: baseDepositAmount,
@@ -8697,84 +8657,16 @@ if (
     // ============================================================
     if (url.pathname === "/api/admin/request/request-deposit" && request.method === "POST") {
       try {
-        const data=await request.json().catch(()=>({}));
-        const requestId=Number(data.id);
-        if(!Number.isInteger(requestId)||requestId<1) return bookingCorsJson({ok:false,message:"Invalid request ID."},{status:400});
-        if(!await requireScreeningMoveForward(env,requestId))return bookingCorsJson({ok:false,message:"Complete the screening checklist and save Move Forward before continuing."},{status:409});
-        await ensureSiteContentTables(env);
-        await ensureClientVerificationAuditsTable(env);
-        const row=await env.DB.prepare(`
-          SELECT dr.id,dr.client_id,dr.requested_date,dr.requested_time,dr.deposit_amount,dr.status,
-                 c.first_name,
-                 va.verification_status,va.completed_at AS verification_completed_at,
-                 bc.completed_at AS screening_submitted_at
-          FROM date_requests dr
-          JOIN clients c ON c.id=dr.client_id
-          LEFT JOIN client_verification_audits va ON va.date_request_id=dr.id AND va.client_id=dr.client_id
-          LEFT JOIN booking_continuations bc ON bc.date_request_id=dr.id
-          WHERE dr.id=? LIMIT 1
-        `).bind(requestId).first();
-        if(!row) return bookingCorsJson({ok:false,message:"Request not found."},{status:404});
-        const blockedDepositClient=await env.DB.prepare("SELECT id FROM blacklist WHERE client_id=? LIMIT 1").bind(row.client_id).first();
-        if(blockedDepositClient) return bookingCorsJson({ok:false,message:"This client is blacklisted. A deposit request cannot be created."},{status:409});
-        const continuation=await env.DB.prepare("SELECT combined_step FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
-        if(Number(continuation?.combined_step||0)===1) return bookingCorsJson({ok:false,message:"This client already received the combined screening and deposit request. Review the submitted form and confirm payment from the dashboard."},{status:409});
-        if(!row.screening_submitted_at) return bookingCorsJson({ok:false,message:"The client must submit screening details before a deposit can be requested."},{status:409});
-        if(String(row.verification_status||"")!=="verified"||!row.verification_completed_at) {
-          return bookingCorsJson({ok:false,message:"Mark screening Verified before requesting a deposit."},{status:409});
-        }
-        if(Number(row.deposit_amount||0)<=0) return bookingCorsJson({ok:false,message:"Deposit amount is unavailable."},{status:409});
-
-        const continuationToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
-        const continuationTokenHash=await sha256Hex(continuationToken);
-        const continuationExpiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
-        await env.DB.prepare(`
-          UPDATE booking_continuations
-          SET token_hash=?,expires_at=?,deposit_step_acknowledged=0,updated_at=CURRENT_TIMESTAMP
-          WHERE date_request_id=?
-        `).bind(continuationTokenHash,continuationExpiresAt,requestId).run();
-        const continuationUrl=new URL("/complete/?token="+encodeURIComponent(continuationToken),request.url).toString();
-        const detailsUrl=new URL("/the-details/#token="+encodeURIComponent(continuationToken),request.url).toString();
-        const depositDisplay=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(row.deposit_amount||0));
-
-        const existingDraft=await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='deposit_request' AND status='draft' LIMIT 1").bind(requestId).first();
-        const subject="Deposit details for our date";
-        const body=`Hi ${row.first_name},
-
-Your screening is complete and I’m comfortable moving forward with your request.
-
-Date: ${row.requested_date}
-Time: ${row.requested_time}
-
-Your base deposit is ${depositDisplay}. Use the private link below to choose your payment method and review the exact total:
-
-${continuationUrl}
-
-Please review The Details before completing the deposit step:
-
-${detailsUrl}
-
-Gift Card has no processing fee. Stripe and Crypto add a 10% processing fee to the deposit.
-
-Selecting a payment method does not confirm payment automatically. I’ll confirm the deposit separately once it is received, and the date is not final until I send confirmation.
-
-Kendra`;
-        if(existingDraft){
-          await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(subject,body,existingDraft.id).run();
-        } else {
-          await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')")
-            .bind(row.client_id,requestId,"deposit_request",subject,body).run();
-        }
-        await env.DB.prepare("UPDATE date_requests SET status='pending_final_approval' WHERE id=?").bind(requestId).run();
-        return bookingCorsJson({ok:true,status:"pending_final_approval",deposit_amount:Number(row.deposit_amount),message:"Deposit request draft created. Review it in Email Drafts before sending."});
-      } catch(error) {
-        console.error("Request deposit error:",error);
-        return bookingCorsJson({ok:false,message:"Unable to create the deposit request."},{status:500});
-      }
+        const {id}=await request.json();
+        const requestId=Number(id);
+        if(!Number.isSafeInteger(requestId)||requestId<1)return bookingCorsJson({ok:false,message:"Valid request ID required."},{status:400});
+        const delivery=await sendDepositRequestEmail(env,requestId);
+        return bookingCorsJson({ok:delivery.status==="sent"||delivery.status==="already_claimed",...delivery},{status:delivery.status==="blocked"?409:delivery.status==="unavailable"?503:200});
+      } catch(error){console.error("Deposit request failed",error);return bookingCorsJson({ok:false,message:"Deposit request failed."},{status:500});}
     }
 
-        // ============================================================
-    // CALCULATE / REPAIR DEPOSIT
+    // ============================================================
+        // CALCULATE / REPAIR DEPOSIT
     // ============================================================
     if (url.pathname === "/api/admin/request/calculate-deposit" && request.method === "POST") {
       try {
@@ -8840,10 +8732,7 @@ Kendra`;
           "SELECT id, status, deposit_amount, deposit_paid, requested_date, requested_time, notes FROM date_requests WHERE id = ? LIMIT 1"
         ).bind(requestId).first();
         if (!item) return bookingCorsJson({ ok:false, message:"Request not found." }, { status:404 });
-        const depositStep=await env.DB.prepare("SELECT deposit_step_acknowledged FROM booking_continuations WHERE date_request_id=? LIMIT 1").bind(requestId).first();
-        if(Number(depositStep?.deposit_step_acknowledged||0)!==1) {
-          return bookingCorsJson({ok:false,message:"The client must complete the deposit selection step before payment can be confirmed."},{status:409});
-        }
+        if(!await requireScreeningMoveForward(env,requestId))return bookingCorsJson({ok:false,message:"Screening approval is required before deposit confirmation."},{status:409});
         if (!["screening_pending","pending_final_approval"].includes(item.status)) return bookingCorsJson({ok:false,message:"This request is not awaiting payment confirmation."},{status:409});
         // Older/in-flight requests may have reached final approval before a
         // deposit amount was stored. Recalculate it from the same rate source used
@@ -8894,7 +8783,7 @@ Kendra`;
           }
         }
 
-        const appointmentLocal = new Date(String(item.requested_date || "") + "T" + String(item.requested_time || "") + ":00-07:00");
+        const appointmentLocal = new Date(appointmentUtcMs(item.requested_date,item.requested_time));
         const depositCutoff = new Date(appointmentLocal.getTime() - 4 * 60 * 60 * 1000);
         if (Number.isFinite(depositCutoff.getTime()) && Date.now() > depositCutoff.getTime()) {
           return bookingCorsJson(
@@ -8915,18 +8804,6 @@ Kendra`;
           "UPDATE date_requests SET deposit_paid = 1, notes = ? WHERE id = ?"
         ).bind(notes, requestId).run();
         await ensureSiteContentTables(env);
-        const idInvite = await env.DB.prepare("SELECT id FROM email_drafts WHERE date_request_id=? AND email_type='identity_request' AND status IN ('draft','sent') LIMIT 1").bind(requestId).first();
-        if (!idInvite) {
-          const client = await env.DB.prepare("SELECT dr.client_id,c.first_name FROM date_requests dr JOIN clients c ON c.id=dr.client_id WHERE dr.id=? LIMIT 1").bind(requestId).first();
-          const identityToken=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
-          const expiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
-          const identityUrl=new URL("/complete/?token="+encodeURIComponent(identityToken),request.url).toString();
-          const body="Hello handsome,\n\nWe’re a little closer to meeting, and I’m looking forward to having you all to myself.\n\nBefore I send your final confirmation and arrival details, please upload or email a clear photo of your valid ID.\n\n"+identityUrl+"\nor send directly to KendraBexly@gmail.com\n\nOnce I’ve received it, I’ll be in touch with everything you need for our date.\n\nUntil then, enjoy the anticipation…\n\nKendra";
-          await env.DB.batch([
-            env.DB.prepare("UPDATE booking_continuations SET token_hash=?,expires_at=?,combined_step=2,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?").bind(await sha256Hex(identityToken),expiresAt,requestId),
-            env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(client.client_id,requestId,"identity_request","One last detail before our date",body)
-          ]);
-        }
         await recordBookingFunnelEvent(env,"deposit_confirmed",{
           sessionId:"server:admin",
           requestId,
@@ -9203,31 +9080,7 @@ I just wanted to say I really enjoyed our time together. Thank you for making it
           );
         }
 
-        if (!Number(existingRequest.id_received)) return bookingCorsJson({ok:false,message:"The client must upload ID for this request before final approval."},{status:400});
-        await ensureClientVerificationAuditsTable(env);
-        const verificationRecord = await env.DB.prepare(`
-          SELECT verification_status, completed_at
-          FROM client_verification_audits
-          WHERE date_request_id = ? AND client_id = ?
-          LIMIT 1
-        `).bind(requestId, existingRequest.client_id).first();
-
-        if (
-          String(verificationRecord?.verification_status || "") !== "verified" ||
-          !verificationRecord?.completed_at
-        ) {
-          return bookingCorsJson(
-            { ok:false, message:"Screening must be marked Verified and completed before final approval." },
-            { status:400 }
-          );
-        }
-        await ensureClientIdDocumentsTable(env);
-        const finalId=await env.DB.prepare("SELECT object_key,verification_status,verified_at FROM client_id_documents WHERE client_id=? LIMIT 1").bind(existingRequest.client_id).first();
-        if(!finalId?.object_key || finalId.verification_status!=="verified" || !finalId.verified_at){
-          return bookingCorsJson({ok:false,message:"A saved, reviewed ID is required before final approval."},{status:400});
-        }
-        await ensureVerificationWorkspaceTables(env);
-
+        if(!await requireScreeningMoveForward(env,requestId))return bookingCorsJson({ok:false,message:"The unified screening decision must be approved before final booking confirmation."},{status:409});
         if (hasNewsletterSpecial && data.newsletter_special_approved !== true) {
           return bookingCorsJson(
             {
@@ -9291,11 +9144,7 @@ if (approvedRequest) {
   await ensureSiteContentTables(env);
 }
 
-const existingConfirmationDraft = await env.DB.prepare("SELECT id,status FROM email_drafts WHERE date_request_id=? AND email_type='date_confirmed' ORDER BY id DESC LIMIT 1").bind(requestId).first();
-const confirmationSubject = "Your date is confirmed";
-const confirmationBody = "Hi "+approvedRequest.first_name+"\n\nEverything is confirmed on my end for our date.\n\nDate: "+approvedRequest.requested_date+"\nTime: "+approvedRequest.requested_time+"\n"+(approvedRequest.location_name ? "Location: "+approvedRequest.location_name+"\n" : "")+(approvedRequest.location_address ? "Address: "+approvedRequest.location_address+"\n" : "")+"\nI am looking forward to seeing you and spending some lovely time together. Thank you for taking care of the details. I think we are going to have a really nice time. 💋\n\nSee you soon,\nKendra";
-if(existingConfirmationDraft?.status === "draft") await env.DB.prepare("UPDATE email_drafts SET subject=?,body=? WHERE id=?").bind(confirmationSubject,confirmationBody,existingConfirmationDraft.id).run();
-else if(!existingConfirmationDraft) await env.DB.prepare("INSERT INTO email_drafts (client_id,date_request_id,email_type,subject,body,status) VALUES (?,?,?,?,?,'draft')").bind(approvedRequest.client_id,requestId,"date_confirmed",confirmationSubject,confirmationBody).run();        return bookingCorsJson({
+        return bookingCorsJson({
           ok: true,
           message: "Final approval complete.",
           status: "approved"
