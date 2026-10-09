@@ -10334,14 +10334,12 @@ function escapeHtml(value) {
     document.querySelectorAll(".client-screening-agent").forEach(panel=>{
       if(panel.dataset.screeningLoaded==="1")return;
       panel.dataset.screeningLoaded="1";
-      // Position the single decision below the restored numbered verification tools.
-      const flow=panel.parentElement;
-      if(flow?.classList.contains("client-verification-flow") && flow.parentElement)flow.parentElement.appendChild(panel);
+      // Keep the unified screening review first in the verification flow.
       loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);
     });
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";const flow=panel.parentElement;if(flow?.classList.contains("client-verification-flow")&&flow.parentElement)flow.parentElement.appendChild(panel);loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);});
+  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);});
 })();
 </script>
 <script>
