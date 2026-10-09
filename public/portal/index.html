@@ -1607,9 +1607,14 @@
       </style>
 
       <style id="unified-verification-css">
-        .client-id-documents > div > section.verification-card,
-        .client-id-documents .client-verification-overview{display:none!important}
+        /* Preserve the original numbered verification cards and their working tools. */
+        .client-id-documents .client-verification-overview,
+        .client-id-documents .client-verification-editor{display:none!important}
         .client-id-documents .client-screening-agent{display:block!important;padding:18px!important}
+        .client-id-documents > div > section.verification-card:not(.client-verification-overview):not(.client-verification-editor){display:block!important}
+        .client-id-documents .verification-card{margin-bottom:14px}
+        .client-id-documents .verification-card-collapse{min-height:38px}
+        @media(max-width:640px){.client-id-documents .verification-card{padding:14px!important}.client-id-documents .verification-card button{max-width:100%;white-space:normal}}
         .unified-review-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:16px}
         .screening-unified-status{padding:5px 10px;border:1px solid #d4c4c8;border-radius:30px;background:#f5eced;font-size:12px}
         .unified-review-caption{font-size:12px;line-height:1.5;color:var(--muted);margin-top:8px}
@@ -10329,11 +10334,14 @@ function escapeHtml(value) {
     document.querySelectorAll(".client-screening-agent").forEach(panel=>{
       if(panel.dataset.screeningLoaded==="1")return;
       panel.dataset.screeningLoaded="1";
+      // Position the single decision below the restored numbered verification tools.
+      const flow=panel.parentElement;
+      if(flow?.classList.contains("client-verification-flow") && flow.parentElement)flow.parentElement.appendChild(panel);
       loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);
     });
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);});
+  document.querySelectorAll(".client-screening-agent").forEach(panel=>{panel.dataset.screeningLoaded="1";const flow=panel.parentElement;if(flow?.classList.contains("client-verification-flow")&&flow.parentElement)flow.parentElement.appendChild(panel);loadPanel(panel,false);loadScreeningNotes(panel);loadScreeningChecklist(panel);});
 })();
 </script>
 <script>
