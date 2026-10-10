@@ -49,11 +49,11 @@ export async function sendDepositRequestEmail(env, requestId) {
   const itinerary=noteValue("Introduction itinerary").split("|").map(v=>v.trim());
   const experience=itinerary[0]&&!/undecided/i.test(itinerary[0])?itinerary[0]:(noteValue("Date type")||"Selected experience");
   const duration=itinerary[1]&&!/undecided/i.test(itinerary[1])?itinerary[1]:(noteValue("Duration")||"See request");
-  const locationKey=String(row.location_name||itinerary[2]||noteValue("Location")).toLowerCase();
+  const locationKey=String(row.location_name||noteValue("Appointment type")||itinerary[2]||noteValue("Location")).toLowerCase();
   const location=locationKey.includes("outcall")?"Outcall — Kendra visits my location":
     locationKey.includes("incall")?"Incall — I'll visit Kendra at her location":"To be confirmed";
   const method=noteValue("Deposit payment method")||noteValue("Deposit preference");
-  const cashApp=/^cash[ -]?app$/i.test(method);
+  const cashApp=/^(cash[ -]?app|stripe)$/i.test(method);
   const crypto=/^crypto$/i.test(method);
   const giftCard=/^(gift[ -]?card|visa|mastercard)$/i.test(method);
   // A completed payment-method step already stores the fee-inclusive amount.
