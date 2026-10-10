@@ -5749,6 +5749,10 @@ async function loadRequests(options = {}) {
             disposition_summary:section.querySelector(".client-public-record-disposition")?.value||"",
             evidence_reference:section.querySelector(".client-public-record-evidence")?.value||""
           };
+          // A confirmed record match must have an identifiable, reviewable public source.
+          if(payload.record_status==="confirmed_match" && (!payload.source_name.trim() || !/^https:\/\//i.test(payload.source_url.trim()) || !(payload.case_reference.trim() || payload.evidence_reference.trim()))){
+            throw new Error("Confirmed matches need the official source name, HTTPS source URL, and a record reference or evidence note.");
+          }
           const response=await fetch("/api/admin/clients/public-record-check",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload)});
           const result=await response.json().catch(()=>({ok:false,message:"The server returned an invalid save response."}));
           if(!response.ok||!result.ok)throw new Error(result.message||"Unable to save public record check.");
@@ -6775,11 +6779,16 @@ async function loadRequests(options = {}) {
         syncPublicRecordDob();
         section.querySelector(".client-persona-birthdate")?.addEventListener("input",syncPublicRecordDob);
         section.querySelector(".client-persona-birthdate")?.addEventListener("change",syncPublicRecordDob);
-        section.querySelector(".client-public-record-dob")?.addEventListener("blur",event=>{
+        // One shared birthdate: entering it in court lookup also updates Persona readiness.
+        section.querySelector(".client-public-record-dob")?.addEventListener("change",event=>{
           const manualDob=section.querySelector(".client-persona-birthdate");
-          if(manualDob&&event.target.value&&event.target.value!==manualDob.value){
-            event.target.value=manualDob.value||"";
-          }
+          if(!manualDob)return;
+          const value=event.target.value.trim();
+          if(!value)return;
+          manualDob.value=value;
+          manualDob.dispatchEvent(new Event("input",{bubbles:true}));
+          manualDob.dispatchEvent(new Event("change",{bubbles:true}));
+          syncPublicRecordDob();
         });
         renderPublicRecordLookups(section);
         [".client-credential-occupation",".client-credential-state"].forEach(sel=>{
