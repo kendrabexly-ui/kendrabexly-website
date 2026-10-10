@@ -84,10 +84,11 @@ export async function sendDepositRequestEmail(env, requestId) {
       "Choose your preferred gift card retailer. These are official purchase pages:",
       "Amazon eGift Card: https://www.amazon.com/giftcards",
       "Target eGift Card: https://www.target.com/c/target-giftcards/-/N-5xsxt",
-      "Sprouts Gift Card (physical mail delivery; not instant): https://www.sprouts.com/faq/",
       "Virtual Prepaid Visa: https://www.vanillagift.com/catalog/e-gift-cards",
       "Note: Retail gift cards can generally be spent only with their retailer; a prepaid Visa is subject to issuer and merchant acceptance restrictions.",
-      "Please check card terms and delivery timing before purchasing. Your deposit is not confirmed until the gift card has been received and its value verified."
+      "Send your gift card to kendrabexly@gmail.com, then enter the retailer, purchase confirmation number, and sender email in your private booking form.",
+      "Your deposit amount is fixed by your itinerary. Do not send card numbers or PINs through the form.",
+      "Your deposit is confirmed only after the gift card is received and verified."
     ]:[]),
     ...(crypto?[
       "Cryptocurrency: USDC (native Solana token)",
