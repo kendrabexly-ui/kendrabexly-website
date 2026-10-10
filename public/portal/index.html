@@ -3908,35 +3908,6 @@ async function loadRequests(options = {}) {
                     <div class="verification-actions"><button type="button" class="client-phone-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Phone</button><span class="client-phone-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span></div>
                   </section>
 
-                  <section class="verification-card client-id-record is-collapsed">
-                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                      <strong style="font-size:13px;">3. ID Record</strong>
-                      <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;"><span class="verification-badge client-id-badge">Identity: Not checked</span><span class="verification-badge">Private record only</span><button type="button" class="verification-card-collapse" data-collapse-card=".client-id-record">Expand</button></span>
-                    </div>
-                    <div style="margin-top:6px;font-size:12px;line-height:1.55;color:var(--muted);">The ID image is stored for your private review and records. It is never sent to Persona.</div>
-                    <div class="client-id-empty" style="margin-top:10px;font-size:12px;color:var(--muted);">Checking for a saved ID document…</div>
-                    <img class="client-id-preview" alt="Private client ID preview" hidden style="width:100%;max-width:520px;max-height:420px;object-fit:contain;margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#f4f1eb;">
-                    <div class="client-id-meta" hidden style="margin-top:8px;padding:9px 10px;border-radius:8px;background:#f8f6f2;font-size:12px;color:var(--muted);line-height:1.55;"></div>
-                    <label style="display:block;margin-top:12px;font-size:12px;font-weight:700;">ID image<input class="client-id-file" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:5px;font:inherit;"></label>
-                    <div style="margin-top:5px;font-size:11px;color:var(--muted);">JPG, PNG, or WebP. Maximum 10 MB.</div>
-                    <div class="verification-grid">
-                      <label style="font-size:12px;font-weight:700;">ID type<select class="client-persona-id-class" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:white;font:inherit;"><option value="dl">Driver License</option><option value="id">State ID</option><option value="pp">Passport</option><option value="ppc">Passport Card</option><option value="pr">Permanent Resident Card</option></select></label>
-                      <label style="font-size:12px;font-weight:700;">Received date<input class="client-id-received" type="date" style="display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;"></label>
-                      <div style="font-size:12px;font-weight:700;">Uploaded<div class="client-id-uploaded-at" style="margin-top:7px;font-weight:500;color:var(--muted);">Not uploaded</div></div>
-                    </div>
-                    <input class="client-id-verification-status" type="hidden" value="pending_review">
-                    <input class="client-id-verified" type="hidden" value="">
-                    <div class="verification-actions">
-                      <button type="button" class="client-id-upload" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);color:white;cursor:pointer;font:inherit;">Upload ID</button>
-                      <span style="flex:1;"></span>
-                      <button type="button" class="client-id-delete" hidden aria-label="Permanently delete this client's private ID image" style="padding:8px 12px;border:1px solid #9f3030;border-radius:8px;background:#fff7f7;color:#8a2424;cursor:pointer;font:inherit;">Permanently Delete ID</button>
-                    </div>
-                    <div class="client-id-status" role="status" aria-live="polite" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
-                  </section>
-
-
-
-
                   <details class="client-extra-verification" style="margin:12px 0;border:1px solid var(--line);border-radius:10px;padding:12px;background:white;">
                     <summary style="cursor:pointer;font-weight:700;font-size:13px;">Additional verification tools (optional)</summary>
                     <p style="font-size:12px;color:var(--muted);margin:7px 0 12px;">License, address, public-record, and Persona source checks are available when needed. These are supporting tools; save the final screening decision in the review above.</p>
