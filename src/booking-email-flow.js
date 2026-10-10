@@ -71,6 +71,16 @@ export async function sendDepositRequestEmail(env, requestId) {
     "Meeting preference: "+location,
     "Preferred date: "+row.requested_date,
     "Preferred time: "+row.requested_time+" (Los Angeles time)","",
+    ...(locationKey.includes("outcall")?[
+      "OUTCALL LOCATION DETAILS — REQUIRED",
+      "Please reply to this email with all four details before our outcall can be finalized:",
+      "1. Location or hotel name",
+      "2. Full street address, city, state and ZIP code",
+      "3. Suite, unit or room number (write N/A if not applicable)",
+      "4. Name under which the reservation is booked (write N/A if not applicable)",
+      "Please confirm the location details even if you already entered an address on your introduction form.",
+      ""
+    ]:[]),
     "THE LITTLE DETAILS",
     "Base experience rate: "+money(baseRate),
     "Deposit (25% of base rate): "+money(baseDeposit),
