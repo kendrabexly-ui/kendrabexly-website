@@ -55,6 +55,7 @@ export async function sendDepositRequestEmail(env, requestId) {
   const method=noteValue("Deposit payment method")||noteValue("Deposit preference");
   const cashApp=/^cash[ -]?app$/i.test(method);
   const crypto=/^crypto$/i.test(method);
+  const giftCard=/^(gift[ -]?card|visa|mastercard)$/i.test(method);
   // A completed payment-method step already stores the fee-inclusive amount.
   const includesFee=!!noteValue("Deposit payment method") && cashApp;
   const baseDeposit=Math.round((includesFee?Number(row.deposit_amount)/1.1:Number(row.deposit_amount))*100)/100;
@@ -77,6 +78,17 @@ export async function sendDepositRequestEmail(env, requestId) {
     "Deposit due now: "+money(due),
     "Remaining experience balance: "+money(balance),
     ...(method?["Selected deposit method: "+method]:[]),
+    ...(giftCard?[
+      "",
+      "GIFT CARD PURCHASE OPTIONS",
+      "Choose your preferred gift card retailer. These are official purchase pages:",
+      "Amazon eGift Card: https://www.amazon.com/giftcards",
+      "Target eGift Card: https://www.target.com/c/target-giftcards/-/N-5xsxt",
+      "Sprouts Gift Card (physical mail delivery; not instant): https://www.sprouts.com/faq/",
+      "Virtual Prepaid Visa: https://www.vanillagift.com/catalog/e-gift-cards",
+      "Note: Retail gift cards can generally be spent only with their retailer; a prepaid Visa is subject to issuer and merchant acceptance restrictions.",
+      "Please check card terms and delivery timing before purchasing. Your deposit is not confirmed until the gift card has been received and its value verified."
+    ]:[]),
     ...(crypto?[
       "Cryptocurrency: USDC (native Solana token)",
       "Network: Solana mainnet",
