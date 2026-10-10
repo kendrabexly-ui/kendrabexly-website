@@ -5350,6 +5350,35 @@ My journal will continue to be a place where I share a little more of that side 
       }
     }
 
+    if (url.pathname === "/api/booking/continuation/gift-card-details" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const token=String(data.token||"");
+        const retailer=String(data.retailer||"");
+        const orderNumber=String(data.order_number||"").trim();
+        const senderEmail=String(data.sender_email||"").trim();
+        if(!/^[a-f0-9]{64}$/i.test(token))return bookingCorsJson({ok:false,message:"Invalid private link."},{status:403});
+        if(!["Amazon","Target","Virtual Prepaid Visa"].includes(retailer)
+           || !/^[a-zA-Z0-9][a-zA-Z0-9 _-]{0,119}$/.test(orderNumber)
+           || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)||senderEmail.length>254||data.sent!==true)
+          return bookingCorsJson({ok:false,message:"Complete the gift card purchase details and confirmation."},{status:400});
+        const row=await env.DB.prepare(`SELECT dr.id,dr.notes,dr.deposit_paid,bc.expires_at,bc.deposit_step_acknowledged
+          FROM booking_continuations bc JOIN date_requests dr ON dr.id=bc.date_request_id
+          WHERE bc.token_hash=? LIMIT 1`).bind(await sha256Hex(token)).first();
+        if(!row||Date.parse(row.expires_at)<Date.now())return bookingCorsJson({ok:false,message:"Private link is invalid or expired."},{status:403});
+        const method=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim().toLowerCase()
+          ||String(row.notes||"").match(/Deposit preference:\s*([^\n]+)/i)?.[1]?.trim().toLowerCase();
+        if(method!=="gift-card"||Number(row.deposit_paid)||Number(row.deposit_step_acknowledged||0)!==1)
+          return bookingCorsJson({ok:false,message:"This booking is not awaiting gift card details."},{status:409});
+        const notes=String(row.notes||"").replace(/^Gift card (?:retailer|order reference|sender email|submitted at):.*(?:\n|$)/gmi,"").trim();
+        await env.DB.prepare("UPDATE date_requests SET notes=? WHERE id=? AND deposit_paid=0").bind(
+          notes+"\nGift card retailer: "+retailer+"\nGift card order reference: "+orderNumber+
+          "\nGift card sender email: "+senderEmail+"\nGift card submitted at: "+new Date().toISOString(),row.id
+        ).run();
+        return bookingCorsJson({ok:true,message:"Gift card purchase details received. Kendra will verify receipt."});
+      }catch(error){console.error("Gift card submission error",error);return bookingCorsJson({ok:false,message:"Unable to save gift card details."},{status:500});}
+    }
+
     if (url.pathname === "/api/booking/continuation/crypto-hash" && request.method === "POST") {
       try {
         const data=await request.json();
