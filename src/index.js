@@ -8790,7 +8790,7 @@ if (
         }
 
         const item = await env.DB.prepare(
-          "SELECT id, status, deposit_amount, deposit_paid, requested_date, requested_time, notes FROM date_requests WHERE id = ? LIMIT 1"
+          "SELECT id, status, deposit_amount, deposit_paid, requested_date, requested_time, created_at, notes FROM date_requests WHERE id = ? LIMIT 1"
         ).bind(requestId).first();
         if (!item) return bookingCorsJson({ ok:false, message:"Request not found." }, { status:404 });
         if(!await requireScreeningMoveForward(env,requestId))return bookingCorsJson({ok:false,message:"Screening approval is required before deposit confirmation."},{status:409});
@@ -8869,6 +8869,10 @@ if (
             return bookingCorsJson({ok:false,message:"Solana verification is unavailable. Payment has not been confirmed."},{status:503});
           }
           if(!verification.ok)return bookingCorsJson({ok:false,message:verification.reason},{status:409});
+          const requestCreated=Date.parse(String(item.created_at||"").replace(" ","T")+"Z");
+          if(!Number.isFinite(requestCreated)||verification.blockTime*1000<requestCreated-60000){
+            return bookingCorsJson({ok:false,message:"This transaction predates the booking request and cannot be used."},{status:409});
+          }
           await env.DB.prepare(`CREATE TABLE IF NOT EXISTS crypto_deposit_transactions(
             signature TEXT PRIMARY KEY, request_id INTEGER NOT NULL UNIQUE,
             amount_usdc REAL NOT NULL, verified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
