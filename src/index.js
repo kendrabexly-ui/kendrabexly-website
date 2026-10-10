@@ -1,5 +1,6 @@
 import { sendDueLocationEmails, appointmentUtcMs } from "./location-email-scheduler.js";
 import { sendDepositRequestEmail, screeningReady } from "./booking-email-flow.js";
+import { verifyUsdcDeposit } from "./crypto-deposit-verification.js";
 import { validateIntroductionTermsAcceptance } from "./introduction-terms-validation.js";
 import { handleIntroductionTermsAdmin } from "./introduction-terms-admin-api.js";
 import { handlePublicIntroductionTerms } from "./introduction-terms-public-api.js";
@@ -8855,6 +8856,30 @@ if (
           );
         }
 
+        const cryptoMethod=String(item.notes||"").match(/Deposit payment method:\\s*([^\\n]+)/i)?.[1]?.trim().toLowerCase()
+          ||String(item.notes||"").match(/Deposit preference:\\s*([^\\n]+)/i)?.[1]?.trim().toLowerCase()||"";
+        if(cryptoMethod==="crypto"){
+          const signature=String(data.signature||"").trim();
+          if(!signature)return bookingCorsJson({ok:false,message:"Enter the Solana transaction signature to verify the USDC payment."},{status:400});
+          let verification;
+          try{
+            verification=await verifyUsdcDeposit(signature,depositAmount,env.SOLANA_RPC_URL||undefined);
+          }catch(error){
+            console.error("USDC verification unavailable",error);
+            return bookingCorsJson({ok:false,message:"Solana verification is unavailable. Payment has not been confirmed."},{status:503});
+          }
+          if(!verification.ok)return bookingCorsJson({ok:false,message:verification.reason},{status:409});
+          await env.DB.prepare(`CREATE TABLE IF NOT EXISTS crypto_deposit_transactions(
+            signature TEXT PRIMARY KEY, request_id INTEGER NOT NULL UNIQUE,
+            amount_usdc REAL NOT NULL, verified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )`).run();
+          try {
+            await env.DB.prepare("INSERT INTO crypto_deposit_transactions(signature,request_id,amount_usdc) VALUES (?,?,?)")
+              .bind(signature,requestId,verification.receivedUsdc).run();
+          }catch(error){
+            return bookingCorsJson({ok:false,message:"This crypto transaction has already been used or verified for a booking."},{status:409});
+          }
+        }
         const existingStamp = String(item.notes || "").match(/Deposit received at: ([^\n]+)/);
         const paidAt = existingStamp?.[1] || new Date().toISOString();
         let notes = String(item.notes || "");
