@@ -27,7 +27,7 @@ export function screeningLabel(row, closed=false) {
 }
 export async function sendDepositRequestEmail(env, requestId) {
   const row=await env.DB.prepare(`SELECT dr.id,dr.client_id,dr.status,dr.deposit_paid,dr.deposit_amount,
-    dr.requested_date,dr.requested_time,dr.notes,c.first_name,c.email,c.phone,
+    dr.requested_date,dr.requested_time,dr.location_name,dr.notes,c.first_name,c.email,c.phone,
     sc.blacklist_status,sc.phone_status,sc.identity_status,sc.background_status,sc.decision
     FROM date_requests dr JOIN clients c ON c.id=dr.client_id
     LEFT JOIN client_screening_checklists sc ON sc.date_request_id=dr.id
@@ -43,17 +43,43 @@ export async function sendDepositRequestEmail(env, requestId) {
   await ensureBookingEmailLedger(env);
   const claim=await env.DB.prepare("INSERT INTO booking_email_delivery(request_id,email_type,delivery_key,status) VALUES (?,'deposit_request','initial','sending') ON CONFLICT DO NOTHING").bind(row.id).run();
   if(Number(claim.meta?.changes||0)!==1)return {status:"already_claimed",message:"Deposit email previously sent or attempted; check delivery before retrying."};
-  const amount=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(row.deposit_amount));
-  const method=String(row.notes||"").match(/(?:Deposit preference|Deposit payment method):\s*([^\n]+)/i)?.[1]?.trim()||"";
-  const body=["Hi "+(row.first_name||"there")+",","",
-    "I've reviewed your introduction, and I'd be happy to move forward.",
-    "Date: "+row.requested_date,
-    "Time: "+row.requested_time+" (Los Angeles time)",
-    "Your 25% deposit: "+amount,
-    ...(method?["Preferred payment method: "+method]:[]),"",
+  const money=value=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value);
+  const notes=String(row.notes||"");
+  const noteValue=key=>notes.match(new RegExp("^"+key+":\\s*([^\\n]+)","im"))?.[1]?.trim()||"";
+  const itinerary=noteValue("Introduction itinerary").split("|").map(v=>v.trim());
+  const experience=itinerary[0]&&!/undecided/i.test(itinerary[0])?itinerary[0]:(noteValue("Date type")||"Selected experience");
+  const duration=itinerary[1]&&!/undecided/i.test(itinerary[1])?itinerary[1]:(noteValue("Duration")||"See request");
+  const locationKey=String(row.location_name||itinerary[2]||noteValue("Location")).toLowerCase();
+  const location=locationKey.includes("outcall")?"Outcall — Kendra visits my location":
+    locationKey.includes("incall")?"Incall — I'll visit Kendra at her location":"To be confirmed";
+  const method=noteValue("Deposit payment method")||noteValue("Deposit preference");
+  const cashApp=/^cash[ -]?app$/i.test(method);
+  // A completed payment-method step already stores the fee-inclusive amount.
+  const includesFee=!!noteValue("Deposit payment method") && cashApp;
+  const baseDeposit=Math.round((includesFee?Number(row.deposit_amount)/1.1:Number(row.deposit_amount))*100)/100;
+  const fee=cashApp?Math.round(baseDeposit*0.1*100)/100:0;
+  const due=Math.round((baseDeposit+fee)*100)/100;
+  const baseRate=Math.round(baseDeposit*4*100)/100;
+  const balance=Math.round((baseRate-baseDeposit)*100)/100;
+  const body=["Hey "+(row.first_name||"handsome")+",","",
+    "I've had a chance to look over your introduction, and I'd love for us to move forward.","",
+    "OUR LITTLE ITINERARY",
+    "Experience: "+experience,
+    "Time together: "+duration,
+    "Meeting preference: "+location,
+    "Preferred date: "+row.requested_date,
+    "Preferred time: "+row.requested_time+" (Los Angeles time)","",
+    "THE LITTLE DETAILS",
+    "Base experience rate: "+money(baseRate),
+    "Deposit (25% of base rate): "+money(baseDeposit),
+    ...(cashApp?["Cash App processing fee (10% of deposit): "+money(fee)]:[]),
+    "Deposit due now: "+money(due),
+    "Remaining experience balance: "+money(balance),
+    ...(method?["Selected deposit method: "+method]:[]),"",
     "Please reply to arrange the deposit using your selected payment method.",
     "Payment is not confirmed until I verify receipt. Your appointment and location are not confirmed until final approval.",
-    "I'll send the location details two hours before our appointment once everything is confirmed.","","Kendra"].join("\n");
+    "I'll send the location details two hours before our appointment once everything is confirmed.","",
+    "Looking forward to seeing you, handsome. 💋","Xoxo,","Kendra 💕"].join("\n");
   try{
     const response=await fetch("https://api.resend.com/emails",{
       method:"POST",
