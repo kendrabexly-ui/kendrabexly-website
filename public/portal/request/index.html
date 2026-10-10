@@ -752,7 +752,7 @@ confirmDepositButton.addEventListener("click", async function () {
     ||String(item.notes||"").match(/Deposit preference:\\s*([^\\n]+)/i)?.[1]?.trim().toLowerCase()||"";
   let signature="";
   if(cryptoMethod==="crypto"){
-    signature=window.prompt("Paste the successful USDC-on-Solana transaction signature. Payment will be checked on-chain before confirmation.")?.trim()||"";
+    signature=window.prompt("Review the client-submitted USDC-on-Solana transaction signature. It will be checked on-chain before confirmation.",String(item.notes||"").match(/Crypto transaction signature:\\s*([^\\n]+)/i)?.[1]?.trim()||"")?.trim()||"";
     if(!signature){depositStatus.textContent="A Solana transaction signature is required.";return;}
   }
   confirmDepositButton.disabled = true;
