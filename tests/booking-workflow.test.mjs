@@ -135,3 +135,30 @@ test("end-to-end booking simulation sends only deposit then scheduled address",a
     assert.equal(emails.length,2);
   }finally{globalThis.fetch=oldFetch;}
 });
+
+test("incall and outcall deposit emails route correctly, calculate fees, and preserve location privacy",async()=>{
+  const originalFetch=globalThis.fetch;
+  const base={id:77,client_id:22,status:"pending_final_approval",deposit_paid:0,requested_date:"2027-07-01",requested_time:"16:30",
+    first_name:"Taylor",email:"test@example.com",phone:"2135550100",...ready};
+  async function scenario(location_name,notes,deposit_amount,expectedSubject,expectedDue,expectOutcall){
+    const row={...base,location_name,notes,deposit_amount};let sent=0;
+    const DB={prepare(sql){return {args:[],bind(...args){this.args=args;return this;},
+      async first(){if(sql.includes("FROM date_requests dr JOIN clients"))return row;if(sql.includes("FROM blacklist"))return null;return null;},
+      async run(){return {meta:{changes:1}};}};}};
+    globalThis.fetch=async(_url,opts)=>{sent++;const email=JSON.parse(opts.body);
+      assert.equal(email.subject,expectedSubject);
+      assert.match(email.text,new RegExp("Deposit due now: \\$"+expectedDue.replace(".","\\.")));
+      assert.equal(email.text.includes("OUTCALL LOCATION DETAILS"),expectOutcall);
+      assert.doesNotMatch(email.text,/123 Secret Address/);
+      if(expectOutcall) assert.match(email.text,/reservation is booked/);
+      return {ok:true,json:async()=>({id:"test-id"})};
+    };
+    assert.equal((await sendDepositRequestEmail({DB,RESEND_API_KEY:"test"},row.id)).status,"sent");
+    assert.equal(sent,1);
+  }
+  try{
+    await scenario("Incall","Deposit preference: gift-card",125,"Your incall deposit details","125.00",false);
+    await scenario("Outcall","Deposit preference: gift-card\\nOutcall venue name: Example Hotel\\nOutcall reservation name: Taylor",125,"Your outcall deposit and location details","125.00",true);
+    await scenario("Incall","Deposit payment method: stripe",137.50,"Your incall deposit details","137.50",false);
+  }finally{globalThis.fetch=originalFetch;}
+});
