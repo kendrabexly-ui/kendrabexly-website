@@ -5350,6 +5350,28 @@ My journal will continue to be a place where I share a little more of that side 
       }
     }
 
+    if (url.pathname === "/api/booking/continuation/crypto-hash" && request.method === "POST") {
+      try {
+        const data=await request.json();
+        const token=String(data.token||"");
+        const signature=String(data.signature||"").trim();
+        if(!/^[a-f0-9]{64}$/i.test(token)||!/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature))
+          return bookingCorsJson({ok:false,message:"Please enter a valid Solana transaction signature."},{status:400});
+        const row=await env.DB.prepare(`SELECT dr.id,dr.notes,dr.deposit_paid,bc.expires_at,bc.deposit_step_acknowledged
+          FROM booking_continuations bc JOIN date_requests dr ON dr.id=bc.date_request_id
+          WHERE bc.token_hash=? LIMIT 1`).bind(await sha256Hex(token)).first();
+        if(!row||Date.parse(row.expires_at)<Date.now())return bookingCorsJson({ok:false,message:"Your private link has expired."},{status:403});
+        const method=String(row.notes||"").match(/Deposit payment method:\s*([^\n]+)/i)?.[1]?.trim().toLowerCase()
+          ||String(row.notes||"").match(/Deposit preference:\s*([^\n]+)/i)?.[1]?.trim().toLowerCase();
+        if(method!=="crypto"||Number(row.deposit_paid)||Number(row.deposit_step_acknowledged||0)!==1)
+          return bookingCorsJson({ok:false,message:"This booking is not waiting for a crypto payment."},{status:409});
+        const notes=String(row.notes||"").replace(/^Crypto transaction signature:.*(?:\n|$)/gmi,"").trim();
+        await env.DB.prepare("UPDATE date_requests SET notes=? WHERE id=? AND deposit_paid=0")
+          .bind(notes+"\nCrypto transaction signature: "+signature,row.id).run();
+        return bookingCorsJson({ok:true,message:"Transaction signature received. Your deposit remains pending until verified."});
+      }catch(error){console.error("Crypto signature submission failed",error);return bookingCorsJson({ok:false,message:"Unable to save your transaction signature."},{status:500});}
+    }
+
     if (url.pathname === "/api/booking/continuation" && request.method === "GET") {
       try {
         await ensureSiteContentTables(env);
