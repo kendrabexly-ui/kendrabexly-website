@@ -167,6 +167,26 @@
     .request-card button:not(:disabled),.request-card input[type="submit"]:not(:disabled) { accent-color:#793c60; }
     a:focus-visible,button:focus-visible { outline:3px solid #a56683;outline-offset:3px; }
 
+
+    /* Private Request: complete cream, blush, plum visual treatment */
+    :root { --request-cream:#f8f0eb; --request-ivory:#fffaf7; --request-blush:#f8f0f2; --request-rose:#a56683; --request-plum:#793c60; --request-ink:#432d37; --request-line:#e9dbe0; }
+    html,body { background:var(--request-cream) !important; color:var(--request-ink); }
+    .admin-top { background:var(--request-plum) !important; color:var(--request-ivory); }
+    .admin-top a { color:var(--request-ivory) !important; }
+    .page h1,.client-name { color:var(--request-ink); }
+    .page .back,.request-card a { color:var(--request-plum); }
+    #request-workflow { background:var(--request-blush) !important; border:1px solid var(--request-line) !important; color:var(--request-ink); }
+    .request-card { background:var(--request-ivory) !important; border-color:var(--request-line) !important; }
+    .request-header { background:var(--request-ivory); }
+    .detail { background:var(--request-ivory); border-bottom-color:var(--request-line) !important; }
+    .detail:nth-child(odd) { border-right-color:var(--request-line) !important; }
+    .notes { background:var(--request-ivory); }
+    .status { background:var(--request-blush) !important; color:var(--request-plum) !important; border-color:var(--request-rose) !important; }
+    .label { color:#9a6f81; }
+    .request-card button:not(:disabled) { border-color:var(--request-rose); }
+    .request-card button:not(:disabled):hover { border-color:var(--request-plum); }
+    .request-card a:focus-visible,.admin-top a:focus-visible,.page .back:focus-visible { outline:3px solid var(--request-rose);outline-offset:3px; }
+
   </style>
 </head>
 
