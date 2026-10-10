@@ -5512,6 +5512,7 @@ My journal will continue to be a place where I share a little more of that side 
         if (plansNote) notes += (notes?"\n":"")+"Plans note: "+plansNote;
         notes += (notes?"\n":"")+"Deposit payment method: "+method;
         if (appNumber) notes += "\nApp-based text number: "+appNumber;
+        if (requiresOutcallAddress) notes = notes.replace(/^Outcall (?:venue|reservation) name:.*$/gmi,"").trim()+"\nOutcall venue name: "+addressParts[0]+"\nOutcall reservation name: "+addressParts[3];
         try {
           await env.DB.batch([
             env.DB.prepare("UPDATE client_verification_audits SET birthdate=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?")
@@ -5625,13 +5626,13 @@ My journal will continue to be a place where I share a little more of that side 
           if(requiresOutcallAddress&&(!outcallVenue||!outcallAddressLine1||!outcallAddressLine2||!outcallReservation||!outcallCity||!outcallState||!outcallPostalCode)) {
             return bookingCorsJson({ok:false,message:"Complete the exact outcall address before submitting screening."},{status:400});
           }
-          const exactOutcallAddress=[outcallAddressLine1,outcallAddressLine2,outcallCity,outcallState,outcallPostalCode].filter(Boolean).join(", ");
+          const exactOutcallAddress=[outcallVenue,outcallAddressLine1,outcallAddressLine2,outcallCity,outcallState,outcallPostalCode].filter(Boolean).join(", ");
           await env.DB.prepare(`
             UPDATE client_verification_audits
             SET birthdate=?,updated_at=CURRENT_TIMESTAMP
             WHERE date_request_id=?
           `).bind(birthdate,row.date_request_id).run();
-          let updatedNotes=String(row.notes||"").replace(/^Plans note:.*$/gmi,"").trim();
+          let updatedNotes=String(row.notes||"").replace(/^Plans note:.*$/gmi,"").replace(/^Outcall (?:venue|reservation) name:.*$/gmi,"").trim();
           if(plansNote) updatedNotes += (updatedNotes?"\n":"") + "Plans note: " + plansNote;
           if(requiresOutcallAddress) updatedNotes += "\nOutcall venue name: "+outcallVenue+"\nOutcall reservation name: "+outcallReservation;
           await env.DB.prepare("UPDATE date_requests SET notes=? WHERE id=?")
