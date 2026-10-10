@@ -5495,8 +5495,8 @@ My journal will continue to be a place where I share a little more of that side 
           return bookingCorsJson({ok:false,message:"Enter a valid birthday before submitting screening."},{status:400});
         }
         const requiresOutcallAddress = /Appointment type:\s*outcall/i.test(String(row.notes||""));
-        const addressParts = ["outcall_address_line_1","outcall_address_line_2","outcall_city","outcall_state","outcall_postal_code"].map(key=>String(form.get(key)||"").trim().slice(0,200));
-        if (requiresOutcallAddress && [0,2,3,4].some(index=>!addressParts[index])) return bookingCorsJson({ok:false,message:"Complete the exact outcall address."},{status:400});
+        const addressParts = ["outcall_venue_name","outcall_address_line_1","outcall_address_line_2","outcall_reservation_name","outcall_city","outcall_state","outcall_postal_code"].map(key=>String(form.get(key)||"").trim().slice(0,200));
+        if (requiresOutcallAddress && addressParts.some(part=>!part)) return bookingCorsJson({ok:false,message:"Complete the exact outcall address."},{status:400});
         const method = String(form.get("deposit_payment_method")||"").trim().toLowerCase();
         const appNumber = String(form.get("app_text_number")||"").trim().slice(0,40);
         const appDigits = appNumber.replace(/\D/g,"");
@@ -5517,7 +5517,7 @@ My journal will continue to be a place where I share a little more of that side 
             env.DB.prepare("UPDATE client_verification_audits SET birthdate=?,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=?")
               .bind(birthdate,row.date_request_id),
             env.DB.prepare("UPDATE date_requests SET notes=?,location_address=CASE WHEN ? THEN ? ELSE location_address END,deposit_amount=? WHERE id=?")
-              .bind(notes,requiresOutcallAddress?1:0,addressParts.filter(Boolean).join(", "),total,row.date_request_id),
+              .bind(notes,requiresOutcallAddress?1:0,[addressParts[0],addressParts[1],addressParts[2],addressParts[4],addressParts[5],addressParts[6]].filter(Boolean).join(", "),total,row.date_request_id),
             env.DB.prepare("UPDATE booking_continuations SET completed_at=CURRENT_TIMESTAMP,deposit_step_acknowledged=1,updated_at=CURRENT_TIMESTAMP WHERE date_request_id=? AND completed_at IS NULL")
               .bind(row.date_request_id)
           ]);
@@ -5613,6 +5613,8 @@ My journal will continue to be a place where I share a little more of that side 
           }
           const birthdate=idDocumentDate(data.birthdate);
           const plansNote=String(data.plans_note||"").trim().replace(/\s+/g," ").slice(0,1200);
+          const outcallVenue=String(data.outcall_venue_name||"").trim().slice(0,200);
+          const outcallReservation=String(data.outcall_reservation_name||"").trim().slice(0,200);
           const outcallAddressLine1=String(data.outcall_address_line_1||"").trim().slice(0,200);
           const outcallAddressLine2=String(data.outcall_address_line_2||"").trim().slice(0,120);
           const outcallCity=String(data.outcall_city||"").trim().slice(0,120);
@@ -5620,7 +5622,7 @@ My journal will continue to be a place where I share a little more of that side 
           const outcallPostalCode=String(data.outcall_postal_code||"").trim().slice(0,20);
           const requiresOutcallAddress=/Appointment type:\s*outcall/i.test(String(row.notes||""));
           if(!birthdate||verificationAgeOnDate(birthdate)===null||verificationAgeOnDate(birthdate)<0) return bookingCorsJson({ok:false,message:"Enter a valid birthday before submitting screening."},{status:400});
-          if(requiresOutcallAddress&&(!outcallAddressLine1||!outcallCity||!outcallState||!outcallPostalCode)) {
+          if(requiresOutcallAddress&&(!outcallVenue||!outcallAddressLine1||!outcallAddressLine2||!outcallReservation||!outcallCity||!outcallState||!outcallPostalCode)) {
             return bookingCorsJson({ok:false,message:"Complete the exact outcall address before submitting screening."},{status:400});
           }
           const exactOutcallAddress=[outcallAddressLine1,outcallAddressLine2,outcallCity,outcallState,outcallPostalCode].filter(Boolean).join(", ");
@@ -5631,6 +5633,7 @@ My journal will continue to be a place where I share a little more of that side 
           `).bind(birthdate,row.date_request_id).run();
           let updatedNotes=String(row.notes||"").replace(/^Plans note:.*$/gmi,"").trim();
           if(plansNote) updatedNotes += (updatedNotes?"\n":"") + "Plans note: " + plansNote;
+          if(requiresOutcallAddress) updatedNotes += "\nOutcall venue name: "+outcallVenue+"\nOutcall reservation name: "+outcallReservation;
           await env.DB.prepare("UPDATE date_requests SET notes=? WHERE id=?")
             .bind(updatedNotes,row.date_request_id).run();
           if(requiresOutcallAddress) {
