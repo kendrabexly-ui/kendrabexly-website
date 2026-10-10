@@ -180,6 +180,13 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       <h2>Your details are in review.</h2>
       <p>No deposit is due right now.</p>
       <p>Kendra will review your screening first. If she is comfortable moving forward after verification, you will receive a separate deposit request with a private link.</p>
+      <form id="crypto-hash-form" hidden style="margin:18px 0;padding:16px;border:1px solid #d1bca8;border-radius:10px">
+        <label for="crypto-hash-input"><strong>USDC on Solana — Transaction Hash</strong></label>
+        <p>Once you've sent your deposit, paste the Solana transaction signature below. I'll verify it before confirming payment.</p>
+        <input id="crypto-hash-input" name="signature" type="text" required minlength="64" maxlength="88" autocomplete="off" spellcheck="false" placeholder="Paste your Solana transaction signature" style="width:100%;margin:10px 0">
+        <button class="button" type="submit">Submit Transaction Hash</button>
+        <p id="crypto-hash-status" role="status" aria-live="polite"></p>
+      </form>
       <a class="button" href="/the-details/" data-private-details-link>Review The Details</a>
     </section>
     <section id="combined-review" class="request-success" hidden>
@@ -431,6 +438,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       }
 
       if (data.deposit_completed) {
+        document.getElementById("crypto-hash-form").hidden = data.deposit_payment_method_key !== "crypto";
         depositComplete.hidden = false;
         return;
       }
@@ -443,6 +451,20 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       depositForm.hidden = false;
     }
 
+    document.getElementById("crypto-hash-form").addEventListener("submit",async event=>{
+      event.preventDefault();
+      const status=document.getElementById("crypto-hash-status");
+      const button=event.currentTarget.querySelector('button[type="submit"]');
+      button.disabled=true;
+      status.textContent="Saving your transaction signature...";
+      try {
+        const signature=document.getElementById("crypto-hash-input").value.trim();
+        const response=await fetch("/api/booking/continuation/crypto-hash",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,signature})});
+        const result=await response.json();
+        if(!response.ok||!result.ok)throw Error(result.message||"Unable to submit transaction.");
+        status.textContent=result.message;
+      }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
+    });
     document.getElementById("continuation-payment-method")?.addEventListener("change", updateDepositTotal);
     document.getElementById("combined-payment-method")?.addEventListener("change", updateCombinedDeposit);
 
