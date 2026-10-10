@@ -54,6 +54,7 @@ export async function sendDepositRequestEmail(env, requestId) {
     locationKey.includes("incall")?"Incall — I'll visit Kendra at her location":"To be confirmed";
   const method=noteValue("Deposit payment method")||noteValue("Deposit preference");
   const cashApp=/^cash[ -]?app$/i.test(method);
+  const crypto=/^crypto$/i.test(method);
   // A completed payment-method step already stores the fee-inclusive amount.
   const includesFee=!!noteValue("Deposit payment method") && cashApp;
   const baseDeposit=Math.round((includesFee?Number(row.deposit_amount)/1.1:Number(row.deposit_amount))*100)/100;
@@ -75,7 +76,15 @@ export async function sendDepositRequestEmail(env, requestId) {
     ...(cashApp?["Cash App processing fee (10% of deposit): "+money(fee)]:[]),
     "Deposit due now: "+money(due),
     "Remaining experience balance: "+money(balance),
-    ...(method?["Selected deposit method: "+method]:[]),"",
+    ...(method?["Selected deposit method: "+method]:[]),
+    ...(crypto?[
+      "Cryptocurrency: USDC (native Solana token)",
+      "Network: Solana mainnet",
+      "Receiving wallet: FKk2QHEXEJgk912qipmcD7zi3Xrg6yN43byTa1CtFSfB",
+      "Send exactly "+money(due)+" worth of USDC. Use Solana only; other networks or tokens will not count.",
+      "After sending, reply with your Solana transaction signature (transaction hash).",
+      "A transaction is not paid until the correct USDC amount reaches the wallet and the transaction is finalized on Solana."
+    ]:[]),"",
     "Please reply to arrange the deposit using your selected payment method.",
     "Payment is not confirmed until I verify receipt. Your appointment and location are not confirmed until final approval.",
     "I'll send the location details two hours before our appointment once everything is confirmed.","",
