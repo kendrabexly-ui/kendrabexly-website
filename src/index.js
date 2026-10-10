@@ -1629,7 +1629,7 @@ document.querySelectorAll(".note-choice").forEach(b=>b.addEventListener("click",
 document.getElementById("screening-method").addEventListener("change",syncConditional);document.getElementById("contact-method").addEventListener("change",syncConditional);syncConditional();
 
 function message(text,type){status.textContent=text;status.className="status show "+type}
-f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload=new FormData(f);payload.set("screening_only","true");try{const res=await fetch("/api/request",{method:"POST",body:payload});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");f.innerHTML='<div style="text-align:center;padding:34px 10px"><p class="eyebrow" style="color:#6B173F">YOUR REQUEST IS IN</p><h2 style="font-family:Georgia,serif;font-weight:400;font-size:38px;margin:0 0 14px">Thank you.</h2><p>Your private request has been received for review. If I would like to move forward, the next step will arrive privately.</p></div>'}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Introduce Myself"}});
+f.addEventListener("submit",async e=>{e.preventDefault();status.className="status";if(!f.reportValidity())return;submit.disabled=true;submit.textContent="Sending…";const payload=new FormData(f);payload.set("screening_only","true");try{const res=await fetch("/api/request",{method:"POST",body:payload});const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Unable to submit your request.");window.location.assign("/thank-you/")}catch(err){message(err.message||"Unable to submit your request. Please try again.","error");submit.disabled=false;submit.textContent="Introduce Myself"}});
 })();
 </script>
 </body>
@@ -9738,6 +9738,17 @@ if (
       const destination = new URL(request.url);
       destination.pathname = legacyPortalRoutes.get(url.pathname);
       return Response.redirect(destination.toString(), 302);
+    }
+
+    if (request.method === "GET" && (url.pathname === "/thank-you" || url.pathname === "/thank-you/")) {
+      return new Response(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Thank You | Kendra Bexly</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f8f0eb;color:#54454b;font-family:Georgia,serif;min-height:100vh;display:grid;place-items:center;padding:24px}.panel{background:#fffaf7;border-radius:20px;max-width:570px;width:100%;text-align:center;padding:45px 30px;box-shadow:0 10px 40px #6b3b5310}.brand{font-family:Arial,sans-serif;font-size:12px;letter-spacing:3px;color:#8f647d}.heart{font-size:38px;color:#a56683;margin:34px 0 10px}h1{font-size:clamp(30px,7vw,43px);font-weight:400;font-style:italic;color:#432d37;margin:8px 0 14px}.sub{color:#9a6f81;font-family:Arial,sans-serif;font-size:14px}p{line-height:1.8;font-size:16px}hr{border:0;border-top:1px solid #e9dbe0;margin:22px 0}.signature{font-style:italic;color:#793c60;font-size:23px;margin:22px 0}.privacy{background:#f8f0f2;border-radius:10px;padding:13px;font:13px/1.6 Arial,sans-serif;color:#69535d;margin:25px 0}a{display:block;background:#793c60;color:white;border-radius:40px;padding:15px;text-decoration:none;font:600 14px Arial,sans-serif}a:focus-visible{outline:3px solid #a56683;outline-offset:3px}</style>
+</head><body><main class="panel"><div class="brand">KENDRA BEXLY</div><hr><div class="heart" aria-hidden="true">♡</div><h1>Well, Hello There ♡</h1><div class="sub">Your introduction is in my hands.</div><p>Thank you for taking a moment to introduce yourself, handsome. I’ve received your little note, and I’m looking forward to getting to know you.</p><p>I’ll take a look at your details personally. If everything feels like a good fit, you’ll hear from me privately with what comes next.</p><p>Until then, keep an eye on your preferred contact method. ♡</p><div class="signature">Kisses,<div>Kendra ♡</div></div><div class="privacy">🔒 Your introduction is private and does not confirm an appointment.</div><a href="/">Return to Kendra’s Website</a></main></body></html>`, {
+        status: 200,
+        headers: {"Content-Type":"text/html; charset=UTF-8","Cache-Control":"no-store","X-Robots-Tag":"noindex, nofollow"}
+      });
     }
 
     if (url.pathname === "/booking" || url.pathname === "/booking/") {
