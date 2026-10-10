@@ -721,7 +721,8 @@ moveForwardButton.addEventListener(
       );
 
       moveForwardStatus.textContent =
-        "Unable to move request forward.";
+        error?.message || "Unable to move request forward. Please try again.";
+      moveForwardStatus.setAttribute("role", "alert");
 
       moveForwardButton.disabled = false;
     }
