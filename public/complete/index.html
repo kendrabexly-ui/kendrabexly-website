@@ -118,12 +118,20 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
           <p>This is collected privately only because you selected Outcall. It is required before screening can be reviewed.</p>
           <div class="form-grid">
             <div class="field full-width">
+              <label for="screening-outcall-venue">Location / hotel / venue name *</label>
+              <input id="screening-outcall-venue" name="outcall_venue_name" type="text" maxlength="200" disabled>
+            </div>
+            <div class="field full-width">
               <label for="screening-outcall-address-line-1">Street address *</label>
               <input id="screening-outcall-address-line-1" name="outcall_address_line_1" type="text" autocomplete="address-line1" disabled>
             </div>
             <div class="field full-width">
-              <label for="screening-outcall-address-line-2">Hotel, suite, unit, or room</label>
+              <label for="screening-outcall-address-line-2">Suite, unit, or room number * (enter N/A if not applicable)</label>
               <input id="screening-outcall-address-line-2" name="outcall_address_line_2" type="text" autocomplete="address-line2" disabled>
+            </div>
+            <div class="field full-width">
+              <label for="screening-outcall-reservation">Reservation name * (enter N/A if not applicable)</label>
+              <input id="screening-outcall-reservation" name="outcall_reservation_name" type="text" maxlength="200" disabled>
             </div>
             <div class="field">
               <label for="screening-outcall-city">City *</label>
@@ -373,7 +381,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       const outcall=document.getElementById("screening-outcall-address");
       const show=bookingLocation.value==="outcall";
       outcall.hidden=!show;
-      outcall.querySelectorAll("input").forEach(input=>{input.disabled=!show;input.required=show && !input.id.endsWith("line-2");});
+      outcall.querySelectorAll("input").forEach(input=>{input.disabled=!show;input.required=show;});
       bookingPrice();
     });
     async function saveBooking() {
@@ -417,7 +425,7 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
         if (data.requires_outcall_address && outcallFieldset) {
           outcallFieldset.hidden = false;
           outcallFieldset.querySelectorAll("input").forEach(input => { input.disabled = false; });
-          ["screening-outcall-address-line-1","screening-outcall-city","screening-outcall-state","screening-outcall-postal-code"].forEach(id => { document.getElementById(id).required = true; });
+          ["screening-outcall-venue","screening-outcall-address-line-1","screening-outcall-address-line-2","screening-outcall-reservation","screening-outcall-city","screening-outcall-state","screening-outcall-postal-code"].forEach(id => { document.getElementById(id).required = true; });
         }
         const combined = document.getElementById("combined-step");
         combined.hidden = false;
