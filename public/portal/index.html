@@ -3755,7 +3755,7 @@ async function loadRequests(options = {}) {
                     <section class="verification-card client-screening-agent" data-screening-request-id="${Number(latest?.id||0)}">
                       <div class="unified-review-heading"><strong>Client screening · One review</strong><span class="screening-unified-status" role="status">Review required</span></div>
                       <p class="unified-review-caption">Information below was already submitted by the client. Review the four decision checks and supporting verification source statuses, record one decision, and save. An approved decision requests the deposit automatically. No additional screening invitation or ID email is sent.</p>
-                      <details class="client-introduction-photo" style="margin:12px 0"><summary style="cursor:pointer;font-weight:700">Submitted unedited photo</summary><div style="margin-top:8px"><img src="/api/admin/clients/introduction-photo/image?client_id=${Number(client.client_id)}" alt="Privately submitted client introduction photo" loading="lazy" style="display:block;max-width:100%;max-height:340px;object-fit:contain;border:1px solid var(--line);border-radius:9px"></div><p style="font-size:12px;color:var(--muted)">Private screening only. If unavailable, confirm the public form was submitted with a photo.</p></details>
+                      <details class="client-introduction-photo" style="margin:12px 0"><summary style="cursor:pointer;font-weight:700">Submitted unedited photo</summary><div style="margin-top:8px"><button type="button" class="introduction-photo-open" aria-label="Open submitted photo for full-size review" style="border:0;background:transparent;padding:0;cursor:zoom-in;max-width:100%"><img src="/api/admin/clients/introduction-photo/image?client_id=${Number(client.client_id)}" alt="Privately submitted client introduction photo" loading="lazy" style="display:block;max-width:100%;max-height:340px;object-fit:contain;border:1px solid var(--line);border-radius:9px"></button></div><p style="font-size:12px;color:var(--muted)">Private screening only. If unavailable, confirm the public form was submitted with a photo.</p></details>
                       <div class="unified-submitted-grid">
                         <div><strong>Name</strong><span>${escapeHtml(name)}</span></div>
                         <div><strong>Email</strong><span>${escapeHtml(client.email||"Not provided")}</span></div>
@@ -7809,6 +7809,38 @@ function escapeHtml(value) {
                   w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}.offer-button{display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff!important;text-decoration:none;border-radius:6px;font:14px Arial,sans-serif}.offer-note{margin:12px 0 0!important;font:12px Arial,sans-serif!important;color:#77736f}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1>${newsletterImage ? `<img src="${newsletterImage}" alt="" style="display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin:0 0 24px;">` : ""}<p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p><a class="offer-button" href="/request?newsletter_offer=${encodeURIComponent(id)}">💋 Book My Subscriber Special</a><p class="offer-note">Book through this button so your subscriber special is automatically attached to your request.</p></div></main>
 \n
 
+<style>
+  .introduction-photo-lightbox{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(25,15,24,.94)}
+  .introduction-photo-lightbox[hidden]{display:none}
+  .introduction-photo-lightbox img{display:block;max-width:100%;max-height:calc(100dvh - 100px);object-fit:contain}
+  .introduction-photo-lightbox-close{position:absolute;top:16px;right:16px;border:1px solid #e9dbe0;background:#fffaf7;color:#793c60;border-radius:40px;padding:11px 17px;cursor:pointer}
+  .introduction-photo-open:focus-visible,.introduction-photo-lightbox-close:focus-visible{outline:3px solid #a56683;outline-offset:3px}
+</style>
+<div id="introduction-photo-lightbox" class="introduction-photo-lightbox" role="dialog" aria-modal="true" aria-label="Review submitted photo" hidden>
+  <button type="button" class="introduction-photo-lightbox-close" aria-label="Close full-size photo">Close ✕</button>
+  <img alt="Full-size private introduction photo">
+</div>
+<script>
+(() => {
+  const overlay=document.getElementById("introduction-photo-lightbox");
+  const photo=overlay.querySelector("img");
+  const close=overlay.querySelector(".introduction-photo-lightbox-close");
+  let previousFocus=null;
+  function dismiss(){overlay.hidden=true;photo.removeAttribute("src");document.body.style.overflow="";previousFocus?.focus();}
+  document.addEventListener("click",event=>{
+    const open=event.target.closest(".introduction-photo-open");
+    if(open){
+      const thumbnail=open.querySelector("img");
+      if(!thumbnail)return;
+      previousFocus=open;photo.src=thumbnail.currentSrc||thumbnail.src;
+      overlay.hidden=false;document.body.style.overflow="hidden";close.focus();
+    }
+  });
+  close.addEventListener("click",dismiss);
+  overlay.addEventListener("click",event=>{if(event.target===overlay)dismiss();});
+  document.addEventListener("keydown",event=>{if(overlay.hidden)return;if(event.key==="Escape")dismiss();else if(event.key==="Tab"){event.preventDefault();close.focus();}});
+})();
+</script>
 </body></html>`);
                   w.document.close();
                 }
