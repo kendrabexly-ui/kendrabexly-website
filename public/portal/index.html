@@ -880,6 +880,25 @@
       }
     }
 
+  
+    /* Shared thank-you page palette: private portal dashboard and tabs. */
+    :root {
+      --cream:#f8f0eb; --cream-dark:#f8f0f2; --ink:#432d37;
+      --muted:#69535d; --line:#e9dbe0; --white:#fffaf7;
+      --portal-plum:#793c60; --portal-blush:#a56683;
+    }
+    body { background:var(--cream); color:var(--ink); }
+    .sidebar { background:var(--portal-plum); }
+    .sidebar .nav button { color:#f8eaf1; }
+    .sidebar .nav button:hover,
+    .sidebar .nav button.active { background:#fffaf7; color:var(--portal-plum); }
+    .stat,.panel { background:var(--white); border-color:var(--line); }
+    .stat-number,.panel-title,.section-heading h2 { color:var(--ink); }
+    .main button:not(:disabled):focus-visible,
+    .nav button:focus-visible { outline:3px solid var(--portal-blush); outline-offset:2px; }
+    #x-agent #x-section-nav button[aria-pressed="true"],
+    #x-agent #x-section-nav button.active { background:var(--portal-plum); color:#fff; border-color:var(--portal-plum); }
+
   </style>
 <style>
 @media (max-width:640px){
