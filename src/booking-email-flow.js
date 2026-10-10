@@ -73,12 +73,12 @@ export async function sendDepositRequestEmail(env, requestId) {
     "Preferred time: "+row.requested_time+" (Los Angeles time)","",
     ...(locationKey.includes("outcall")?[
       "OUTCALL LOCATION DETAILS — REQUIRED",
-      "Please reply to this email with all four details before our outcall can be finalized:",
+      "Please provide or confirm all four details before our outcall can be finalized:",
       "1. Location or hotel name",
       "2. Full street address, city, state and ZIP code",
       "3. Suite, unit or room number (write N/A if not applicable)",
       "4. Name under which the reservation is booked (write N/A if not applicable)",
-      "Please confirm the location details even if you already entered an address on your introduction form.",
+      "These fields are collected in your private booking form. If anything has changed, please reply with the corrected details.",
       ""
     ]:[]),
     "THE LITTLE DETAILS",
@@ -116,12 +116,12 @@ export async function sendDepositRequestEmail(env, requestId) {
     const response=await fetch("https://api.resend.com/emails",{
       method:"POST",
       headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,"Content-Type":"application/json","Idempotency-Key":"kendra-deposit-"+row.id},
-      body:JSON.stringify({from:"Kendra Bexly <hello@kendrabexly.com>",reply_to:"kendrabexly@gmail.com",to:[row.email],subject:"Your deposit details",text:body})
+      body:JSON.stringify({from:"Kendra Bexly <hello@kendrabexly.com>",reply_to:"kendrabexly@gmail.com",to:[row.email],subject:locationKey.includes("outcall")?"Your outcall deposit and location details":"Your incall deposit details",text:body})
     });
     if(!response.ok){console.error("Deposit delivery failed",row.id,response.status);return {status:"delivery_unconfirmed",message:"Email delivery failed; check provider before retrying."};}
     const data=await response.json().catch(()=>({}));
     await env.DB.prepare("UPDATE booking_email_delivery SET status='sent',sent_at=CURRENT_TIMESTAMP,provider_id=? WHERE request_id=? AND email_type='deposit_request' AND delivery_key='initial'").bind(String(data.id||""),row.id).run();
-    await env.DB.prepare("INSERT INTO email_drafts(client_id,date_request_id,email_type,subject,body,status,sent_at) VALUES (?,?, 'deposit_request',?,?, 'sent',CURRENT_TIMESTAMP)").bind(row.client_id,row.id,"Your deposit details",body).run();
+    await env.DB.prepare("INSERT INTO email_drafts(client_id,date_request_id,email_type,subject,body,status,sent_at) VALUES (?,?, 'deposit_request',?,?, 'sent',CURRENT_TIMESTAMP)").bind(row.client_id,row.id,locationKey.includes("outcall")?"Your outcall deposit and location details":"Your incall deposit details",body).run();
     return {status:"sent",message:"Deposit email sent."};
   }catch(error){console.error("Deposit email exception",row.id,error);return {status:"delivery_unconfirmed",message:"Email delivery could not be confirmed; check provider before retrying."};}
 }
