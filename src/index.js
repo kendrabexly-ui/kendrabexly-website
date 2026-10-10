@@ -5254,9 +5254,9 @@ My journal will continue to be a place where I share a little more of that side 
             )
             .bind(
               clientId,
-              requestedDate,
-              requestedTime,
-              screeningOnly ? "" : appointmentType === "outcall" ? "Outcall" : "Incall",
+              screeningOnly ? introPreferredDate : requestedDate,
+              screeningOnly ? introPreferredTime : requestedTime,
+              screeningOnly ? (introLocation === "outcall" ? "Outcall" : introLocation === "incall" ? "Incall" : "") : appointmentType === "outcall" ? "Outcall" : "Incall",
               appointmentType === "outcall" ? outcallAddress : null,
               notes
             )
@@ -6298,6 +6298,19 @@ if (
       );
     }
 
+    // Older screening-only submissions stored preferences exclusively in notes.
+    // Surface those values without modifying the original client record.
+    if (item.notes && (!item.requested_date || !item.requested_time || !item.location_name)) {
+      const itinerary = String(item.notes).match(/^Introduction itinerary:\s*([^\n\r]*)/m);
+      if (itinerary) {
+        const parts = itinerary[1].split("|").map(value => value.trim());
+        if (parts.length >= 5) {
+          if (!item.requested_date && /^\d{4}-\d{2}-\d{2}$/.test(parts[3])) item.requested_date = parts[3];
+          if (!item.requested_time && /^\d{2}:(00|30)$/.test(parts[4])) item.requested_time = parts[4];
+          if (!item.location_name) item.location_name = parts[2] === "outcall" ? "Outcall" : parts[2] === "incall" ? "Incall" : "";
+        }
+      }
+    }
     return bookingCorsJson({
       ok: true,
       request: item
