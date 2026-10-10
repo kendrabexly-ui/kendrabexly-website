@@ -240,6 +240,21 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
         <button class="button" type="submit">Submit Transaction Hash</button>
         <p id="crypto-hash-status" role="status" aria-live="polite"></p>
       </form>
+      <form id="gift-card-details-form" hidden style="margin:18px 0;padding:16px;border:1px solid #d1bca8;border-radius:10px">
+        <h3>Send a Little Gift 💝</h3>
+        <p>Send your gift card to <strong>kendrabexly@gmail.com</strong>, then share your purchase details here.</p>
+        <label for="gift-card-retailer">Gift Card Retailer *</label>
+        <select id="gift-card-retailer" required><option value="">Choose a gift card</option><option value="Amazon">Amazon</option><option value="Target">Target</option><option value="Virtual Prepaid Visa">Virtual Prepaid Visa</option></select>
+        <p><strong>Required gift card amount: <span id="gift-card-fixed-amount"></span></strong> <small>(fixed from your itinerary)</small></p>
+        <label for="gift-card-order-number">Order / Confirmation Number *</label>
+        <input id="gift-card-order-number" type="text" required maxlength="120" autocomplete="off">
+        <label for="gift-card-sender-email">Email Used to Send the Gift Card *</label>
+        <input id="gift-card-sender-email" type="email" required maxlength="254" autocomplete="email">
+        <label><input id="gift-card-sent" type="checkbox" required> I've purchased my gift card and sent it to kendrabexly@gmail.com.</label>
+        <p><small>Do not enter gift card numbers, PINs, or redemption codes here.</small></p>
+        <button class="button" type="submit">Submit Gift Card Details</button>
+        <p id="gift-card-submit-status" role="status" aria-live="polite"></p>
+      </form>
       <a class="button" href="/the-details/" data-private-details-link>Review The Details</a>
     </section>
   </main>
@@ -439,6 +454,8 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
 
       if (data.deposit_completed) {
         document.getElementById("crypto-hash-form").hidden = data.deposit_payment_method_key !== "crypto";
+        document.getElementById("gift-card-details-form").hidden = data.deposit_payment_method_key !== "gift-card";
+        document.getElementById("gift-card-fixed-amount").textContent = money(data.deposit_amount);
         depositComplete.hidden = false;
         return;
       }
@@ -451,6 +468,24 @@ body.rendezvous-page{background:#FBF7F2;color:#66545D;font-family:"Rethink Sans"
       depositForm.hidden = false;
     }
 
+    document.getElementById("gift-card-details-form").addEventListener("submit",async event=>{
+      event.preventDefault();
+      const form=event.currentTarget;
+      const status=document.getElementById("gift-card-submit-status");
+      const button=form.querySelector('button[type="submit"]');
+      button.disabled=true;status.textContent="Saving your gift card details...";
+      try{
+        const response=await fetch("/api/booking/continuation/gift-card-details",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          token,retailer:document.getElementById("gift-card-retailer").value,
+          order_number:document.getElementById("gift-card-order-number").value.trim(),
+          sender_email:document.getElementById("gift-card-sender-email").value.trim(),
+          sent:document.getElementById("gift-card-sent").checked
+        })});
+        const result=await response.json();
+        if(!response.ok||!result.ok)throw Error(result.message||"Unable to save details.");
+        status.textContent=result.message;
+      }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
+    });
     document.getElementById("crypto-hash-form").addEventListener("submit",async event=>{
       event.preventDefault();
       const status=document.getElementById("crypto-hash-status");
