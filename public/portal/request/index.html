@@ -586,7 +586,7 @@ if(markDateCompletedButton){
     if(!window.confirm("Mark this date successfully completed and create the after date follow up draft?"))return;
     markDateCompletedButton.disabled=true;completedDateStatus.textContent="Completing date and drafting follow up...";
     try{
-      const response=await fetch("/api/admin/request/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(id)})});
+      const response=await fetch("/api/admin/request/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:Number(id),...(signature?{signature}:{})})});
       const result=await response.json();
       if(!response.ok||!result.ok)throw new Error(result.message||"Unable to complete date.");
       completedDateStatus.innerHTML='<strong>✓ Date successfully completed.</strong><div style="margin-top:5px;">The After Date Follow Up draft is ready for review.</div>';
@@ -748,8 +748,15 @@ if (item.deposit_paid) {
 idReceivedCheckbox.addEventListener("change",updateFinalApprovalReadiness);
 
 confirmDepositButton.addEventListener("click", async function () {
+  const cryptoMethod=String(item.notes||"").match(/Deposit payment method:\\s*([^\\n]+)/i)?.[1]?.trim().toLowerCase()
+    ||String(item.notes||"").match(/Deposit preference:\\s*([^\\n]+)/i)?.[1]?.trim().toLowerCase()||"";
+  let signature="";
+  if(cryptoMethod==="crypto"){
+    signature=window.prompt("Paste the successful USDC-on-Solana transaction signature. Payment will be checked on-chain before confirmation.")?.trim()||"";
+    if(!signature){depositStatus.textContent="A Solana transaction signature is required.";return;}
+  }
   confirmDepositButton.disabled = true;
-  depositStatus.textContent = "Confirming deposit...";
+  depositStatus.textContent = cryptoMethod==="crypto"?"Verifying finalized USDC transaction...":"Confirming deposit...";
   try {
     const response = await fetch("/api/admin/request/confirm-deposit", {
       method:"POST",
