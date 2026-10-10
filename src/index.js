@@ -4801,7 +4801,7 @@ My journal will continue to be a place where I share a little more of that side 
         const introPreferredTime = String(data.intro_preferred_time || "").trim().slice(0,20);
         const screeningOnly = data.screening_only === true;
         if (screeningOnly && (introPreferredDate || introPreferredTime)) {
-          if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(introPreferredDate) || !/^\\d{2}:(00|30)$/.test(introPreferredTime)) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(introPreferredDate) || !/^\d{2}:(00|30)$/.test(introPreferredTime)) {
             return bookingCorsJson({ok:false,message:"Select a date and a 30-minute appointment time."},{status:400});
           }
           const slots = await siteAvailableSlots(env,introPreferredDate,siteDurationMinutes(introDuration||"1 hour"));
