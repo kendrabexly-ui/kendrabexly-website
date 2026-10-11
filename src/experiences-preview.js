@@ -9,12 +9,12 @@ const experiences = [
     index: "01",
     kicker: "THE ART OF UNWINDING",
     description: "A soothing, massage-centered escape created around relaxation, comfort, and personal attention.",
-    heroIntro: "A soothing, massage-centered escape created around relaxation, comfort, and personal attention. Let the world fade away as you settle into an experience designed entirely around your well-being — unhurried, warm, and deeply restorative.",
+    heroIntro: "A softer kind of escape, where a soothing sensual massage, warm attention, and a calming atmosphere invite you to unwind. Settle in, get comfortable, and let me take care of the little details.",
     tags: ["Relaxation", "Sensual massage", "Comfort", "Personal attention"],
     descTitle: "An unhurried escape",
     descText: [
-      "Soft lighting, gentle music, and the warm scent of essential oils set the tone from the moment you arrive. Every detail is considered — from the temperature of the room to the pressure of each touch — so you can let go completely and simply breathe.",
-      "There is no rush here. No clock-watching, no pressure. Just a quiet, private space where time slows down and your comfort is the only thing that matters. This is your moment, and every minute of it is yours."
+      "Soft lighting, calming music, and a cozy setting make it easy to settle in. The focus is on a soothing massage and the pleasure of having a little time set aside just for you.",
+      "Whether you prefer a brief escape or a longer moment to unwind, you'll be met with warmth, care, and an easy, welcoming atmosphere."
     ],
     touches: [
       { icon: "🍯", title: "Light snacks & refreshments", text: "For dates of 90 minutes or longer, enjoy a thoughtful selection of light snacks and refreshing beverages, chosen to complement your experience." },
@@ -31,12 +31,12 @@ const experiences = [
     index: "02",
     kicker: "THE BEAUTY OF CONNECTION",
     description: "A romantic escape filled with feminine charm, playful chemistry, and genuine connection.",
-    heroIntro: "A romantic escape filled with feminine charm, playful chemistry, and genuine connection. From the first hello to the last goodbye, every moment is crafted to make you feel seen, appreciated, and completely at ease.",
+    heroIntro: "A little romance, a little playful chemistry, and plenty of attention just for you. Think easy conversation, feminine charm, and the pleasure of enjoying each other's company.",
     tags: ["Romance", "Chemistry", "Connection", "Elegance"],
     descTitle: "Where chemistry meets charm",
     descText: [
-      "From the moment you arrive, you will feel the warmth of genuine connection. Easy conversation, playful banter, and a sense of being truly seen — this is an experience built around chemistry, not just companionship.",
-      "Whether we are sharing a laugh, a quiet moment, or a deeper conversation, every interaction is natural and unhurried. There is no script, no pressure — just two people enjoying each other's company in a relaxed, beautiful setting."
+      "The best moments often begin with a smile and a little spark. Expect a warm welcome, playful conversation, and space to enjoy the connection as it unfolds.",
+      "Stay a little longer and we'll have more room for the small pleasures: a relaxed pace, thoughtful touches, and time to settle into the moment."
     ],
     touches: [
       { icon: "🍯", title: "Light snacks & refreshments", text: "For dates of 90 minutes or longer, enjoy a thoughtful selection of light snacks and refreshing beverages, chosen to complement your experience." },
@@ -53,12 +53,12 @@ const experiences = [
     index: "03",
     kicker: "A LITTLE MORE ADVENTUROUS",
     description: "A playful, adventurous escape for someone who is curious and open to something different.",
-    heroIntro: "A playful, adventurous escape for someone who is curious and open to something different. Indulge your senses, embrace the unexpected, and let yourself be swept into an experience that is as thrilling as it is attentive.",
+    heroIntro: "Feeling a little adventurous? The Grecian Experience pairs playful energy with a soft, attentive atmosphere. Bring your curiosity; I'll bring the feminine charm and thoughtful details.",
     tags: ["Adventure", "Indulgence", "Chemistry", "Personal attention"],
     descTitle: "For the curious and bold",
     descText: [
-      "For those who crave something a little more adventurous, the Grecian Experience is designed to delight and surprise. It is playful, indulgent, and unapologetically bold — the perfect escape for someone who is curious about what is possible.",
-      "Every detail is tailored to your comfort and your sense of adventure. Whether you are new to this or a seasoned explorer, you will find an experience that meets you where you are and takes you somewhere wonderful."
+      "A touch bolder than Signature, Grecian makes room for curiosity, playful chemistry, and a more adventurous mood, all within a welcoming setting.",
+      "There's no need to rush the experience. Choose the time that feels right and enjoy a relaxed pace, personal attention, and those little details that make a date feel special."
     ],
     touches: [
       { icon: "🍯", title: "Light snacks & refreshments", text: "For dates of 90 minutes or longer, enjoy a thoughtful selection of light snacks and refreshing beverages, chosen to complement your experience." },
@@ -145,7 +145,20 @@ footer{text-align:center;padding:28px;background:#fbf0f1;font-size:12px;color:#8
   .summary-section{padding:28px}.summary-card{padding:24px}
   .summary-price strong{font-size:36px}
   .actions{flex-direction:column}.actions .link{width:100%}
-}`;
+}
+/* October 10 editorial finishing pass */
+:root{--kb-plum:#795165;--kb-mauve:#9d7087;--kb-cream:#fffaf8;--kb-blush:#f9e9e9}
+body{color:#624b57;background:linear-gradient(180deg,#fffaf8 0%,#f9e9e9 62%,#fffaf8 100%)}
+h1,h2,h3{letter-spacing:-.015em}h1{line-height:1.14}h2{line-height:1.22}p{letter-spacing:.005em}
+.card,.exp-desc,.touches,.summary-section{border-color:#eadce0;box-shadow:0 16px 45px #986a7810}
+.card p{color:#715e67}.card .price-line{margin-top:14px}.card .link,.actions .link:not(.secondary){background:#9d7087;color:#fff}
+.link:hover:not(:disabled){background:#866074}.link:focus-visible,.return-link:focus-visible,.duration-card:focus-visible,nav a:focus-visible{outline:3px solid #a77b92;outline-offset:3px}
+.duration-section>p{color:#715e67}.duration-card{min-height:132px}.duration-card[aria-pressed=true]{border-width:2px}.dur-badge{min-height:14px}
+.touches h2,.duration-section h2{max-width:760px}.exp-desc-text p{color:#715e67}
+.summary-card{background:linear-gradient(140deg,#f8edf0,#fff9f8)}
+@media(max-width:760px){h2{font-size:clamp(27px,7vw,34px)}.hero-intro{font-size:16px;line-height:1.7}.hero{margin-bottom:32px}.exp-desc,.touches,.duration-section{margin-bottom:32px}.exp-desc,.touches,.summary-section{padding:26px 23px}.duration-cards{gap:12px}.duration-card{padding:18px 14px;min-height:125px}.duration-card .dur-price{font-size:26px}.duration-card .dur-label{font-size:14px}.hero-tag{font-size:12px;padding:6px 11px}.summary-card{padding:22px}}
+@media(prefers-reduced-motion:reduce){.card,.card-image img,.duration-card{transition:none}.card:hover,.duration-card:hover{transform:none}}
+`;
 
 function layout(body, title) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${title} | Kendra Bexly — Design Preview</title><style>${style}</style></head><body>
@@ -155,7 +168,7 @@ function layout(body, title) {
 
 function overview() {
   const cards = experiences.map((e) => `<article class="card"><div class="card-image"><img src="${e.heroImg}" alt="${e.title} — atmospheric editorial image" loading="lazy" data-fallback="${e.atmosphereImg}" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src=this.dataset.fallback}else{this.remove()}"></div><div class="card-body"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><div class="price-line">Starting at ${money(e.durations[0][1])}</div><a class="link" href="/explore-${e.slug}/">Explore the experience</a></div></article>`).join("");
-  return layout(`<section class="page-intro"><div class="eyebrow">Your Invitation to Something More</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you. Every experience has its own charm. Discover the one that speaks to you.</p></section><section class="cards">${cards}</section>`, "Our Time Together");
+  return layout(`<section class="page-intro"><div class="eyebrow">Your Invitation to Something More</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you. Each experience has its own mood and its own invitation. Find the one that feels like your kind of escape.</p></section><section class="cards">${cards}</section>`, "Our Time Together");
 }
 
 function enhancedDetail(e) {
@@ -182,7 +195,7 @@ function enhancedDetail(e) {
   <section class="duration-section">
     <div class="eyebrow">Choose Your Time</div>
     <h2>A little time just for you</h2>
-    <p>Select the duration that feels right for you. Each option includes the same attentive, unhurried care — the only difference is how long you get to enjoy it.</p>
+    <p>Choose the time that suits your mood. Longer appointments give us more room to unwind, enjoy the little extras, and settle into the experience.</p>
     <div class="duration-cards" role="group" aria-label="Appointment duration">${durationCards}</div>
   </section>
   <section class="touches">
