@@ -178,6 +178,32 @@ h1,h2,h3{letter-spacing:-.015em}h1{line-height:1.14}h2{line-height:1.22}p{letter
 .signature-page .duration-section{max-width:920px;margin:0 auto 48px}
 .signature-page .summary-section{margin-bottom:48px}
 @media(max-width:760px){.signature-page .signature-hero{margin:-32px -18px 0;padding:54px 16px 26px}.signature-page .signature-hero h1{font-size:clamp(31px,8.6vw,40px)}.signature-page .signature-hero p{font-size:17px}.signature-editorial{padding:24px 0 0}.signature-editorial h2{font-size:26px;margin:12px 0 19px}.signature-editorial p{font-size:16px;line-height:1.57;margin-bottom:16px}.signature-rendezvous{padding:18px 17px;margin:18px 0 24px}.signature-rendezvous h3{font-size:21px}.signature-down{margin:24px 0 40px}}
+
+/* Signature October 10 duration and selection reference */
+.signature-page .duration-section{text-align:center;max-width:780px;margin:0 auto 24px}
+.signature-page .duration-section .eyebrow{letter-spacing:.12em}
+.signature-page .duration-section h2{font-family:'DM Sans',sans-serif;font-weight:700;font-size:clamp(27px,3.5vw,36px);color:#58404d;line-height:1.22;margin:12px auto 12px;max-width:440px}
+.signature-page .duration-section>p{font-size:16px;max-width:none;margin:0 auto 22px}
+.signature-page .duration-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;text-align:left}
+.signature-page .duration-card{position:relative;min-height:145px;gap:10px;padding:18px 16px;border-radius:22px;border:1.5px solid #e3cbd4;box-shadow:none;color:#573f4b}
+.signature-page .duration-card .dur-label{font-size:17px;color:#543e49}
+.signature-page .duration-card .dur-price{font-family:'DM Sans',sans-serif;font-size:29px;font-weight:700;color:#543b49}
+.signature-page .duration-card .dur-badge{display:block;min-height:0;margin-top:auto;font-size:14px;line-height:1.4;letter-spacing:0;text-transform:none;font-weight:400;opacity:1;color:#715b66}
+.signature-page .duration-card[aria-pressed=true]{background:#e6ccd8;border:2px solid #85556e;box-shadow:0 0 0 1px #85556e}
+.signature-page .duration-card[aria-pressed=true] .dur-price{color:#503746}
+.signature-page .selected-check{display:none;position:absolute;right:15px;top:15px;border:1px solid #835870;color:#835870;width:17px;height:17px;border-radius:50%;font-size:11px;text-align:center;line-height:15px}
+.signature-page .duration-card[aria-pressed=true] .selected-check{display:block}
+.signature-selection{max-width:780px;margin:24px auto 44px;background:#efdae3;border-radius:22px;padding:24px;color:#58424e}
+.signature-selection .eyebrow{letter-spacing:.07em;font-size:12px}
+.signature-selection h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:clamp(24px,3vw,29px);margin:12px 0 10px;color:#503947}
+.signature-selection p{font-size:16px;line-height:1.55;margin:0 0 26px}
+.signature-selection hr{border:0;border-top:1px solid #dbc2cd;margin:26px 0}
+.signature-selection>strong{font-size:16px}.signature-includes{list-style:none;padding:0;margin:18px 0 24px;display:grid;gap:15px}
+.signature-includes li{font-size:16px;line-height:1.5;display:flex;gap:12px;align-items:flex-start}.signature-includes li span{font-size:22px;color:#996a81;min-width:23px;line-height:1}
+.signature-includes li[hidden]{display:none}
+.selection-total{border-top:1px solid #dbc2cd;padding-top:18px;font-size:17px}.selection-total strong{font-size:23px;color:#503947}
+.signature-next{display:flex;flex-direction:column;gap:16px;align-items:center;margin:0 auto 55px}.signature-next button:disabled{opacity:.65;cursor:not-allowed}.signature-next .note{margin:0}
+@media(max-width:760px){.signature-page .duration-section h2{font-size:27px;max-width:340px}.signature-page .duration-card{padding:15px 12px;min-height:132px;border-radius:19px}.signature-page .duration-card .dur-label{font-size:16px}.signature-page .duration-card .dur-price{font-size:26px}.signature-page .duration-card .dur-badge{font-size:13px}.signature-selection{padding:20px 17px;border-radius:20px}.signature-selection h3{font-size:23px}.signature-selection p,.signature-includes li{font-size:15px}}
 `;
 
 function layout(body, title) {
@@ -193,7 +219,9 @@ function overview() {
 
 
 function signatureDetail(e) {
-  const durationCards = e.durations.map(([duration, price, refreshments], i) => `<button type="button" class="duration-card" data-duration="${duration}" data-price="${price}" data-refreshments="${refreshments}" aria-pressed="${i === 0}"><span class="dur-label">${duration}</span><span class="dur-price">${money(price)}</span><span class="dur-badge">${refreshments ? "Includes refreshments" : "&nbsp;"}</span></button>`).join("");
+  const names = ["A Sweet Escape","The Perfect Date","The Romantic Indulgence","An Afternoon to Remember","The Signature Rendezvous"];
+  const descriptions = ["A lovely little introduction with warmth and personal attention.","A relaxed date with time for conversation and connection.","A leisurely escape with special amenities and added hospitality.","More time to unwind, connect, and savor the afternoon.","Four hours to enjoy a romantic date, a lovely meal, and a change of scenery."];
+  const durationCards = e.durations.map(([duration, price, refreshments], i) => `<button type="button" class="duration-card" data-duration="${duration}" data-price="${price}" data-name="${names[i]}" data-description="${descriptions[i]}" data-refreshments="${refreshments}" aria-pressed="${i === 2}"><span class="dur-label">${duration}</span><span class="dur-price">${money(price)}</span><span class="dur-badge">${names[i]}</span><span class="selected-check" aria-hidden="true">✓</span></button>`).join("");
   const body = `<div class="signature-page">
   <section class="signature-hero"><div class="eyebrow">THE BEAUTY OF CONNECTION</div><h1>The Signature Experience</h1><p>A little romance, a little chemistry, and undivided attention.</p></section>
   <section class="signature-editorial">
@@ -206,10 +234,10 @@ function signatureDetail(e) {
     <aside class="signature-rendezvous"><div class="eyebrow">THE SIGNATURE RENDEZVOUS</div><h3>A Date Worth Lingering Over</h3><p>Four hours gives us the freedom to enjoy a romantic date, a lovely meal outside our private space, and a little change of scenery without feeling rushed.</p></aside>
     <div class="signature-down" aria-hidden="true"><span>↓</span></div>
   </section>
-  <section class="duration-section"><div class="eyebrow">CHOOSE YOUR EXPERIENCE LENGTH</div><h2>Spend a little time together</h2><p>Choose a duration that feels right. Dates of 90 minutes or longer include light snacks and refreshments.</p><div class="duration-cards" role="group" aria-label="Appointment duration">${durationCards}</div></section>
-  <section class="summary-section"><div class="eyebrow" style="text-align:center;margin-bottom:20px">Your Selected Experience</div><div class="summary-card" aria-live="polite"><h2>The Signature Experience</h2><p class="sum-duration">Duration: <span id="duration">${e.durations[0][0]}</span></p><div class="summary-price"><span class="eyebrow">Investment</span><strong id="investment">${money(e.durations[0][1])}</strong></div><div class="refreshment-note" id="refreshment-note"><span class="ref-icon">✧</span><span>Includes light snacks and refreshments</span></div></div><div class="actions"><button class="link" type="button" disabled title="Booking disabled on staging" style="opacity:.65;cursor:not-allowed">Continue to introduction (preview only)</button><a class="link secondary" href="/our-time/">View all experiences</a></div><p class="note">Design preview only — no introduction, booking, or payment can be submitted here.</p></section>
-  <div style="text-align:center"><a class="return-link" href="/our-time/">← Return to Our Time Together</a></div>
-  <script>(function(){var cards=document.querySelectorAll('.duration-card');var d=document.getElementById('duration'),p=document.getElementById('investment'),r=document.getElementById('refreshment-note');cards.forEach(function(c){c.addEventListener('click',function(){cards.forEach(function(x){x.setAttribute('aria-pressed','false')});c.setAttribute('aria-pressed','true');d.textContent=c.dataset.duration;p.textContent=String.fromCharCode(36)+Number(c.dataset.price).toLocaleString('en-US');r.classList.toggle('show',c.dataset.refreshments==='true')})})})()<\/script>
+  <section class="duration-section"><div class="eyebrow">CHOOSE YOUR EXPERIENCE LENGTH</div><h2>How Long Shall We Spend Together?</h2><p>Find the appointment length that feels right for you.</p><div class="duration-cards" role="group" aria-label="Appointment duration">${durationCards}</div></section>
+  <section class="signature-selection" aria-live="polite"><div class="eyebrow">YOUR SELECTION</div><h3 id="selection-name">The Romantic Indulgence</h3><p id="selection-description">A leisurely escape with special amenities and added hospitality.</p><hr><strong>Your experience includes</strong><ul class="signature-includes"><li><span>♡</span>A comfortable setting and Kendra's personal attention.</li><li><span>✧</span>Adult toys</li><li><span>♧</span>Custom specialty table</li><li class="optional-refreshments">Light snacks and refreshments</li></ul><div class="selection-total">90 Minutes · <strong id="investment">$750</strong></div></section>
+  <section class="signature-next"><button class="link" type="button" disabled title="Booking disabled on staging">Continue to introduction (preview only)</button><a href="/our-time/" class="return-link">← Return to Our Time Together</a><p class="note">Design preview only — no bookings or payments accepted.</p></section>
+  <script>(function(){var cards=document.querySelectorAll('.signature-page .duration-card');var title=document.getElementById('selection-name'),desc=document.getElementById('selection-description'),price=document.getElementById('investment'),total=document.querySelector('.selection-total'),refresh=document.querySelector('.optional-refreshments');function select(c){cards.forEach(function(x){x.setAttribute('aria-pressed','false')});c.setAttribute('aria-pressed','true');title.textContent=c.dataset.name;desc.textContent=c.dataset.description;price.textContent='$'+Number(c.dataset.price).toLocaleString('en-US');total.firstChild.textContent=c.dataset.duration+' · ';refresh.hidden=c.dataset.refreshments!=='true'}cards.forEach(function(c){c.addEventListener('click',function(){select(c)})});if(cards[2])select(cards[2])})()<\/script>
   </div>`;
   return layout(body, e.title);
 }
