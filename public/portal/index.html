@@ -3908,6 +3908,17 @@ async function loadRequests(options = {}) {
                     <div class="verification-actions"><button type="button" class="client-phone-save" style="padding:8px 12px;border:1px solid var(--ink);border-radius:8px;background:white;cursor:pointer;font:inherit;font-weight:700;">Save Phone</button><span class="client-phone-save-status" role="status" aria-live="polite" style="font-size:12px;color:var(--muted);"></span></div>
                   </section>
 
+                  <section class="verification-card client-id-record is-collapsed" aria-label="Private identity document review">
+                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                      <strong style="font-size:13px;">3. Identity Document Review</strong>
+                      <button type="button" class="verification-card-collapse" data-collapse-card=".client-id-record">Expand</button>
+                    </div>
+                    <p class="client-id-empty" style="font-size:12px;color:var(--muted);">No ID document is stored for this client.</p>
+                    <img class="client-id-preview" alt="Private client ID preview" hidden style="width:100%;max-width:420px;max-height:340px;object-fit:contain;border-radius:8px;">
+                    <p class="client-id-meta" hidden style="font-size:12px;color:var(--muted);"></p>
+                    <p style="font-size:11px;color:var(--muted);">Private images are fetched only through the permission-protected admin image endpoint. Review after the required deposit stage.</p>
+                  </section>
+
                   <details class="client-extra-verification" style="margin:12px 0;border:1px solid var(--line);border-radius:10px;padding:12px;background:white;">
                     <summary style="cursor:pointer;font-weight:700;font-size:13px;">Additional verification tools (optional)</summary>
                     <p style="font-size:12px;color:var(--muted);margin:7px 0 12px;">License, address, public-record, and Persona source checks are available when needed. These are supporting tools; save the final screening decision in the review above.</p>
@@ -7788,39 +7799,6 @@ function escapeHtml(value) {
                 if (w) {
                   w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}.offer-button{display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff!important;text-decoration:none;border-radius:6px;font:14px Arial,sans-serif}.offer-note{margin:12px 0 0!important;font:12px Arial,sans-serif!important;color:#77736f}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1>${newsletterImage ? `<img src="${newsletterImage}" alt="" style="display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin:0 0 24px;">` : ""}<p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p><a class="offer-button" href="/request?newsletter_offer=${encodeURIComponent(id)}">💋 Book My Subscriber Special</a><p class="offer-note">Book through this button so your subscriber special is automatically attached to your request.</p></div></main>
 \n
-
-<style>
-  .introduction-photo-lightbox{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(25,15,24,.94)}
-  .introduction-photo-lightbox[hidden]{display:none}
-  .introduction-photo-lightbox img{display:block;max-width:100%;max-height:calc(100dvh - 100px);object-fit:contain}
-  .introduction-photo-lightbox-close{position:absolute;top:16px;right:16px;border:1px solid #e9dbe0;background:#fffaf7;color:#793c60;border-radius:40px;padding:11px 17px;cursor:pointer}
-  .introduction-photo-open:focus-visible,.introduction-photo-lightbox-close:focus-visible{outline:3px solid #a56683;outline-offset:3px}
-</style>
-<div id="introduction-photo-lightbox" class="introduction-photo-lightbox" role="dialog" aria-modal="true" aria-label="Review submitted photo" hidden>
-  <button type="button" class="introduction-photo-lightbox-close" aria-label="Close full-size photo">Close ✕</button>
-  <img alt="Full-size private introduction photo">
-</div>
-<script>
-(() => {
-  const overlay=document.getElementById("introduction-photo-lightbox");
-  const photo=overlay.querySelector("img");
-  const close=overlay.querySelector(".introduction-photo-lightbox-close");
-  let previousFocus=null;
-  function dismiss(){overlay.hidden=true;photo.removeAttribute("src");document.body.style.overflow="";previousFocus?.focus();}
-  document.addEventListener("click",event=>{
-    const open=event.target.closest(".introduction-photo-open");
-    if(open){
-      const thumbnail=open.querySelector("img");
-      if(!thumbnail)return;
-      previousFocus=open;photo.src=thumbnail.currentSrc||thumbnail.src;
-      overlay.hidden=false;document.body.style.overflow="hidden";close.focus();
-    }
-  });
-  close.addEventListener("click",dismiss);
-  overlay.addEventListener("click",event=>{if(event.target===overlay)dismiss();});
-  document.addEventListener("keydown",event=>{if(overlay.hidden)return;if(event.key==="Escape")dismiss();else if(event.key==="Tab"){event.preventDefault();close.focus();}});
-})();
-</script>
 </body></html>`);
                   w.document.close();
                 }
@@ -10442,6 +10420,38 @@ function escapeHtml(value) {
   catch(e){status.textContent=e.message;}finally{button.disabled=false;}
  });
  load();
+})();
+</script>
+<style>
+  .introduction-photo-lightbox{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(25,15,24,.94)}
+  .introduction-photo-lightbox[hidden]{display:none}
+  .introduction-photo-lightbox img{display:block;max-width:100%;max-height:calc(100dvh - 100px);object-fit:contain}
+  .introduction-photo-lightbox-close{position:absolute;top:16px;right:16px;border:1px solid #e9dbe0;background:#fffaf7;color:#793c60;border-radius:40px;padding:11px 17px;cursor:pointer}
+  .introduction-photo-open:focus-visible,.introduction-photo-lightbox-close:focus-visible{outline:3px solid #a56683;outline-offset:3px}
+</style>
+<div id="introduction-photo-lightbox" class="introduction-photo-lightbox" role="dialog" aria-modal="true" aria-label="Review submitted photo" hidden>
+  <button type="button" class="introduction-photo-lightbox-close" aria-label="Close full-size photo">Close ✕</button>
+  <img alt="Full-size private introduction photo">
+</div>
+<script>
+(() => {
+  const overlay=document.getElementById("introduction-photo-lightbox");
+  const photo=overlay.querySelector("img");
+  const close=overlay.querySelector(".introduction-photo-lightbox-close");
+  let previousFocus=null;
+  function dismiss(){overlay.hidden=true;photo.removeAttribute("src");document.body.style.overflow="";previousFocus?.focus();}
+  document.addEventListener("click",event=>{
+    const open=event.target.closest(".introduction-photo-open");
+    if(open){
+      const thumbnail=open.querySelector("img");
+      if(!thumbnail)return;
+      previousFocus=open;photo.src=thumbnail.currentSrc||thumbnail.src;
+      overlay.hidden=false;document.body.style.overflow="hidden";close.focus();
+    }
+  });
+  close.addEventListener("click",dismiss);
+  overlay.addEventListener("click",event=>{if(event.target===overlay)dismiss();});
+  document.addEventListener("keydown",event=>{if(overlay.hidden)return;if(event.key==="Escape")dismiss();else if(event.key==="Tab"){event.preventDefault();close.focus();}});
 })();
 </script>
 </body>

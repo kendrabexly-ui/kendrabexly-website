@@ -17,7 +17,10 @@ test('all inline scripts parse after markup cleanup', () => {
     assert.match(html,/<\/body>\s*<\/html>\s*$/i,path+' must be complete');
     assert.equal((html.match(/<script\b/g)||[]).length,(html.match(/<\/script>/g)||[]).length,path+' must close every script');
     assert.ok(!html.includes('>\\n  <'),path);
-    for(const [,script] of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(script,{filename:path});
+    for(const [index, match] of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].entries()) {
+      try { new vm.Script(match[1], {filename:`${path}:inline-script-${index+1}`}); }
+      catch(error) { throw new Error(`Invalid inline script ${index+1} in ${path}: ${error.message}`, {cause:error}); }
+    }
   }
   new vm.Script(read('site-shell.js'));
 });
