@@ -6,7 +6,7 @@ const source = fs.readFileSync(new URL("../src/index.js", import.meta.url), "utf
 const from = source.indexOf("function standaloneBookingPage()");
 assert.ok(from > 0, "Booking page function exists");
 const to = source.indexOf("\nfunction ", from + 20);
-const booking = source.slice(from, to > from ? to : from + 50000);
+const booking = source.slice(from, from + 50000);
 
 test("introduction still posts to the existing secured request endpoint with screening-only flag", () => {
   assert.match(booking, /new FormData\(f\)/);
