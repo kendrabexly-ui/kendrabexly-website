@@ -1540,6 +1540,7 @@ button{border:0;border-radius:999px;background:var(--wine);color:var(--ivory);pa
 <section class="section note-flow" aria-labelledby="itinerary-title">
 <p class="eyebrow">A NOTE FROM KENDRA</p><h2 id="itinerary-title">Our Little Itinerary 💕</h2>
 <p>Now, handsome, let's plan a little time together. Tell me what you have in mind.</p>
+<div id="preselected-experience" hidden style="padding:15px 18px;border-radius:14px;background:#f3e2e9;border-left:4px solid #86536e;margin:14px 0;color:#513548"><strong>Your chosen experience</strong><p id="preselected-description" style="margin:6px 0 10px"></p><button id="change-preselected-experience" type="button" class="note-back">Change experience or duration</button></div>
 <div class="note-progress"><span id="note-progress-bar"></span></div><p id="note-step-label" class="small">A little about our time · 1 of 4</p>
 <div class="note-step" data-step="0"><h3>Which experience catches your eye?</h3><div class="note-choices">
 <button type="button" class="note-choice" data-field="intro-experience" data-value="sensual-touch"><span class="note-choice-icon">♡</span><strong>The Sensual Touch</strong><small>A personalized experience focused on attentive touch.</small></button>
@@ -1605,6 +1606,26 @@ function renderNoteStep(){noteSteps.forEach((el,i)=>{el.hidden=i!==noteStep});do
 function chooseNote(b){document.getElementById(b.dataset.field).value=b.dataset.value;renderItinerary();if(noteStep<3){noteStep++;renderNoteStep();}}
 function renderDurations(){const box=document.getElementById("note-duration-choices");box.replaceChildren();durations.filter(([value])=>document.getElementById("intro-experience").value!=="sensual-touch"||value!=="4 hours").forEach(([value,label])=>{const b=document.createElement("button");b.type="button";b.className="note-choice";b.dataset.field="intro-duration";b.dataset.value=value;const price=itineraryRates[document.getElementById("intro-experience").value]?.[value];b.textContent=label+(price?" · $"+price.toLocaleString("en-US"):"");b.addEventListener("click",()=>chooseNote(b));box.appendChild(b);});renderItinerary();refreshIntroductionTimes();}
 document.querySelectorAll(".note-choice").forEach(b=>b.addEventListener("click",()=>{chooseNote(b);if(b.dataset.field==="intro-experience")renderDurations();}));noteBack.addEventListener("click",()=>{noteStep=Math.max(0,noteStep-1);renderNoteStep();});noteNext.addEventListener("click",()=>{if(noteStep<3){noteStep++;renderNoteStep();return;}const date=document.getElementById("intro-date"),time=document.getElementById("intro-time");date.setCustomValidity("");time.setCustomValidity("");if(!date.value){date.setCustomValidity("Please choose a preferred date.");date.reportValidity();return;}if(!/^[0-9]{2}:(00|30)$/.test(time.value)){time.setCustomValidity("Please choose an available appointment time.");time.reportValidity();return;}renderItinerary();document.getElementById("submit").scrollIntoView({behavior:"smooth",block:"center"});});document.getElementById("intro-date").addEventListener("change",()=>{document.getElementById("intro-date").setCustomValidity("");document.getElementById("intro-time").setCustomValidity("");refreshIntroductionTimes();});document.getElementById("intro-time").addEventListener("change",()=>{document.getElementById("intro-time").setCustomValidity("");renderItinerary();});renderNoteStep();renderItinerary();
+(function applyExperienceSelection(){
+  const params=new URLSearchParams(window.location.search);
+  const names={"sensual-touch":"The Sensual Touch",signature:"The Signature Experience",grecian:"The Grecian Experience"};
+  const key=params.get("experience"),raw=params.get("duration");
+  const duration={"90 minutes":"1.5 hours","1.5 hours":"1.5 hours","30 minutes":"30 minutes","1 hour":"1 hour","2 hours":"2 hours","4 hours":"4 hours"}[raw];
+  if(!Object.prototype.hasOwnProperty.call(names,key)||!duration||!Object.prototype.hasOwnProperty.call(itineraryRates[key],duration))return;
+  document.getElementById("intro-experience").value=key;
+  document.getElementById("intro-duration").value=duration;
+  renderDurations();
+  noteStep=2;renderNoteStep();renderItinerary();
+  const panel=document.getElementById("preselected-experience");
+  panel.hidden=false;
+  document.getElementById("preselected-description").textContent=names[key]+" · "+raw+" · $"+itineraryRates[key][duration].toLocaleString("en-US");
+  document.getElementById("change-preselected-experience").addEventListener("click",()=>{
+    panel.hidden=true;
+    document.getElementById("intro-experience").value="";
+    document.getElementById("intro-duration").value="";
+    noteStep=0;renderNoteStep();renderItinerary();refreshIntroductionTimes();
+  });
+})();
 document.getElementById("screening-method").addEventListener("change",syncConditional);document.getElementById("contact-method").addEventListener("change",syncConditional);syncConditional();
 
 function message(text,type){status.textContent=text;status.className="status show "+type}
