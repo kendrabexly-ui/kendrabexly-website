@@ -44,7 +44,7 @@ function detail(e) {
 }
 export default {async fetch(request){
   const url=new URL(request.url);
-  const path=url.pathname.replace(/\\/+$/,"")||"/";
+  const path=(url.pathname.endsWith("/") ? url.pathname.slice(0,-1) : url.pathname)||"/";
   if(!["GET","HEAD"].includes(request.method)) return new Response("Read-only staging preview.",{status:405});
   let html;
   if(path==="/our-time"||path==="/") html=overview();
