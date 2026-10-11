@@ -14,7 +14,8 @@ test("private ID preview remains permission protected without fresh-login requir
   assert.match(worker,/\["\/api\/admin\/clients\/id-document\/image", "view_id_images"\]/);
   assert.match(worker,/const fresh=method==="DELETE"/);
   assert.doesNotMatch(portal,/class="client-data-retention"/);
-  assert.match(portal,/class="client-id-preview" alt="Private client ID preview" hidden style="width:/);
+  assert.doesNotMatch(portal,/class="client-id-preview" alt="Private client ID preview"/);
+  assert.match(portal,/Client screening · One review/);
 });
 
 test("verified decision requires — current workflow",()=>{
@@ -334,10 +335,10 @@ test("phone line-type verification uses Twilio Lookup Intelligence",()=>{
 
 test("reverse phone lookup is the second verification card and remains outside Persona",()=>{
   const phoneStart=portal.indexOf('class="verification-card client-phone-checks is-collapsed"');
-  const identityStart=portal.indexOf('class="verification-card client-id-record is-collapsed"');
+  const credentialStart=portal.indexOf('class="verification-card client-credential-card is-collapsed"');
   const personaStart=portal.indexOf('class="verification-card client-persona-card is-collapsed"');
-  assert.ok(phoneStart>0&&identityStart>phoneStart&&personaStart>identityStart);
-  const phone=portal.slice(phoneStart,identityStart);
+  assert.ok(phoneStart>0&&credentialStart>phoneStart&&personaStart>credentialStart);
+  const phone=portal.slice(phoneStart,credentialStart);
   assert.match(phone,/class="client-persona-phone"/);
   assert.match(phone,/class="client-phone-reverse-lookup"/);
   assert.doesNotMatch(phone,/data-persona-field=/);
