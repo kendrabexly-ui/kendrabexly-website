@@ -1,3 +1,4 @@
+import { servePublicExperience } from "./public-experiences.js";
 import { sendDueLocationEmails, appointmentUtcMs } from "./location-email-scheduler.js";
 import { sendDepositRequestEmail, screeningReady } from "./booking-email-flow.js";
 import { verifyUsdcDeposit } from "./crypto-deposit-verification.js";
@@ -197,34 +198,12 @@ function normalizePhoneForLookup(value) {
   return "";
 }
 
-const DEFAULT_SITE_RATES_VERSION = "2026-09-20-experience-menu-v4";
+const DEFAULT_SITE_RATES_VERSION = "2026-10-11-three-experiences-v5";
 const DEFAULT_SITE_RATES = [
-  {
-    name: "Brief Experiences",
-    description: "A brief experience when you want a little more time to settle in and enjoy the moment.",
-    rates: [["The Signature Experience — 30 minutes", 300], ["The Grecian Experience — 30 minutes", 400]]
-  },
-  {
-    name: "The Sensual Touch",
-    description: "A private, personalized experience centered on attentive touch and a relaxed atmosphere.",
-    rates: [["30 minutes", 255], ["1 hour", 425], ["1½ hours", 640], ["Up to 2 hours", 850]]
-  },
-  {
-    name: "The Signature Experience",
-    description: "My signature experience is romantic, flirtatious, and intentionally unhurried, with genuine chemistry, affectionate company, playful conversation, and my complete attention.",
-    rates: [["1 hour", 500], ["1½ hours", 750], ["Up to 2 hours", 1000], ["Up to 4 hours", 2300]]
-  },
-  {
-    name: "The Grecian Experience",
-    description: "My more adventurous and elevated experience, with the same warmth and attentive companionship and a more daring, playful energy.",
-    rates: [["1 hour", 700], ["1½ hours", 1000], ["Up to 2 hours", 1300], ["Up to 4 hours", 2800]]
-  },
-  {
-    name: "Outcall",
-    description: "Prefer that I come to you? Outcall is available as an add-on for approved dates at upscale hotels, luxury residences, and other refined private locations.\n\nYour location must be clean, safe, discreet, and suitable for receiving a guest. Complete location details are required before final confirmation, and all outcall requests remain subject to my approval.\n\nSet the scene, make yourself comfortable, and I will bring the experience to you.",
-    rates: [["Outcall", 100]],
-    add_on: true
-  }
+  { name: "The Sensual Touch", description: "A soothing massage-centered escape with the Custom Table Experience and refreshments from 90 minutes.", rates: [["30 minutes", 255], ["1 hour", 425], ["90 minutes", 625], ["2 hours", 825]] },
+  { name: "The Signature Experience", description: "A warm, romantic date with personal attention and longer-visit amenities.", rates: [["30 minutes", 300], ["1 hour", 500], ["90 minutes", 725], ["2 hours", 975], ["4 hours", 1900]] },
+  { name: "The Grecian Experience", description: "A playful, adventurous experience with specialty amenities for longer appointments.", rates: [["30 minutes", 400], ["1 hour", 700], ["90 minutes", 1000], ["2 hours", 1300], ["4 hours", 2500]] },
+  { name: "Outcall", description: "Prefer that I come to you? Outcall is available as an add-on for approved dates at upscale hotels, luxury residences, and other refined private locations.\n\nYour location must be clean, safe, discreet, and suitable for receiving a guest. Complete location details are required before final confirmation, and all outcall requests remain subject to my approval.\n\nSet the scene, make yourself comfortable, and I will bring the experience to you.", rates: [["Outcall", 100]], add_on: true }
 ];
 
 async function ensureSiteContentTables(env) {
@@ -1640,6 +1619,10 @@ f.addEventListener("submit",async e=>{e.preventDefault();status.className="statu
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Four approved editorial experience routes only; all other routing is unchanged.
+    if (["/our-time", "/explore-sensual-touch", "/explore-signature-experience", "/explore-grecian-experience"].includes(url.pathname.replace(/\/$/, ""))) {
+      return servePublicExperience(request);
+    }
     const bookingCorsOrigin = String(request.headers.get("Origin") || "");
     const bookingCorsAllowed = new Set([
       "https://kendrabexly.wordpress.com",
