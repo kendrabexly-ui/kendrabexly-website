@@ -43,7 +43,7 @@ const experiences = [
       { icon: "💬", title: "Thoughtful conversation", text: "Genuine connection and playful chemistry in a relaxed, comfortable setting where you can truly be yourself." },
       { icon: "✨", title: "Personal attention", text: "Every moment is tailored to you — your interests, your pace, your enjoyment. This is your time, and it is all about you." }
     ],
-    heroImg: "https://images.unsplash.com/photo-1519408299519-5f0b3fe0c0f3?auto=format&fit=crop&w=900&h=1120&q=80",
+    heroImg: "https://images.unsplash.com/photo-1528909514045-220c4e3267e0?auto=format&fit=crop&w=900&h=1120&q=80",
     atmosphereImg: "https://images.unsplash.com/photo-1528909514045-220c4e3267e0?auto=format&fit=crop&w=1000&h=800&q=80",
     durations: [["30 minutes", 300, false], ["1 hour", 500, false], ["90 minutes", 750, true], ["2 hours", 1000, true], ["4 hours", 1900, true]]
   },
@@ -65,7 +65,7 @@ const experiences = [
       { icon: "🏛️", title: "Adventurous touches", text: "A playful, adventurous escape designed for the curious and bold, with every detail tailored to your comfort and sense of adventure." },
       { icon: "✨", title: "Personal attention", text: "Every moment is focused on your comfort and enjoyment — your pace, your boundaries, your experience. Nothing is rushed." }
     ],
-    heroImg: "https://images.unsplash.com/photo-1526045478596-90825fe5c2c5?auto=format&fit=crop&w=900&h=1120&q=80",
+    heroImg: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=900&h=1120&q=80",
     atmosphereImg: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=1000&h=800&q=80",
     durations: [["30 minutes", 400, false], ["1 hour", 700, false], ["90 minutes", 1000, true], ["2 hours", 1300, true], ["4 hours", 2500, true]]
   }
@@ -154,7 +154,7 @@ function layout(body, title) {
 }
 
 function overview() {
-  const cards = experiences.map((e) => `<article class="card"><div class="card-image"><img src="${e.heroImg}" alt="${e.title} — atmospheric editorial image" loading="lazy"></div><div class="card-body"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><div class="price-line">Starting at ${money(e.durations[0][1])}</div><a class="link" href="/explore-${e.slug}/">Explore the experience</a></div></article>`).join("");
+  const cards = experiences.map((e) => `<article class="card"><div class="card-image"><img src="${e.heroImg}" alt="${e.title} — atmospheric editorial image" loading="lazy" data-fallback="${e.atmosphereImg}" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src=this.dataset.fallback}else{this.remove()}"></div><div class="card-body"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><div class="price-line">Starting at ${money(e.durations[0][1])}</div><a class="link" href="/explore-${e.slug}/">Explore the experience</a></div></article>`).join("");
   return layout(`<section class="page-intro"><div class="eyebrow">Your Invitation to Something More</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you. Every experience has its own charm. Discover the one that speaks to you.</p></section><section class="cards">${cards}</section>`, "Our Time Together");
 }
 
@@ -171,12 +171,12 @@ function enhancedDetail(e) {
       <p class="hero-intro">${e.heroIntro}</p>
       <div class="hero-tags">${tagPills}</div>
     </div>
-    <div class="hero-image"><img src="${e.heroImg}" alt="${e.title} — editorial photography" loading="eager" referrerpolicy="no-referrer" onerror="this.style.display='none'"></div>
+    <div class="hero-image"><img src="${e.heroImg}" alt="${e.title} — editorial photography" loading="eager" referrerpolicy="no-referrer" data-fallback="${e.atmosphereImg}" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src=this.dataset.fallback}else{this.remove()}"></div>
   </section>
   <section class="exp-desc">
     <div class="exp-desc-grid">
       <div class="exp-desc-text"><div class="eyebrow">The Atmosphere</div><h2>${e.descTitle}</h2>${descParas}</div>
-      <div class="exp-desc-image"><img src="${e.atmosphereImg}" alt="${e.title} — atmosphere" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'"></div>
+      <div class="exp-desc-image"><img src="${e.atmosphereImg}" alt="${e.title} — atmosphere" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></div>
     </div>
   </section>
   <section class="duration-section">
