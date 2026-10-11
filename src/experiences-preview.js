@@ -23,7 +23,7 @@ const experiences = [
     ],
     heroImg: "https://images.unsplash.com/photo-1600334129128-685c5582fd35?auto=format&fit=crop&w=900&h=1120&q=80",
     atmosphereImg: "https://images.unsplash.com/photo-1600612253971-422e7f7faeb2?auto=format&fit=crop&w=1000&h=800&q=80",
-    durations: [["30 minutes", 255, false], ["1 hour", 425, false], ["90 minutes", 640, true], ["2 hours", 850, true]]
+    durations: [["30 minutes", 255, false], ["1 hour", 425, false], ["90 minutes", 625, true], ["2 hours", 825, true]]
   },
   {
     slug: "signature-experience",
@@ -45,7 +45,7 @@ const experiences = [
     ],
     heroImg: "https://images.unsplash.com/photo-1528909514045-220c4e3267e0?auto=format&fit=crop&w=900&h=1120&q=80",
     atmosphereImg: "https://images.unsplash.com/photo-1528909514045-220c4e3267e0?auto=format&fit=crop&w=1000&h=800&q=80",
-    durations: [["30 minutes", 300, false], ["1 hour", 500, false], ["90 minutes", 750, true], ["2 hours", 1000, true], ["4 hours", 1900, true]]
+    durations: [["30 minutes", 300, false], ["1 hour", 500, false], ["90 minutes", 725, true], ["2 hours", 975, true], ["4 hours", 1900, true]]
   },
   {
     slug: "grecian-experience",
