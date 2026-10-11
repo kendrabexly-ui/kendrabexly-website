@@ -395,7 +395,7 @@ export default {
     if (path === "/our-time" || path === "/") html = overview();
     else {
       const experience = experiences.find((e) => path === "/explore-" + e.slug);
-      if (experience) html = experience.slug === "signature-experience" ? signatureDetail(experience) : enhancedDetail(experience);
+      if (experience) html = experience.slug === "signature-experience" ? signatureDetail(experience) : companionEditorialDetail(experience);
     }
     if (!html) return new Response("Not available in isolated design preview.", { status: 404, headers: { "Cache-Control": "no-store" } });
     return new Response(request.method === "HEAD" ? null : html, {
