@@ -266,7 +266,6 @@ h1,h2,h3{letter-spacing:-.015em}h1{line-height:1.14}h2{line-height:1.22}p{letter
 @media(max-width:760px){.editorial-companion .signature-editorial{padding:24px 0 0}.editorial-companion .signature-editorial>h2{font-size:24px}.editorial-companion .signature-editorial>p{font-size:16px;line-height:1.5}.editorial-companion .custom-table h3{font-size:23px}.editorial-companion .signature-rendezvous.custom-table{padding:15px 13px}}
 .signature-page a.appointment-continue{display:flex;text-decoration:none;cursor:pointer;opacity:1}.signature-page a.appointment-continue:focus-visible{outline:3px solid #96647e;outline-offset:3px}
 .signature-page .reserve-section{max-width:780px;margin:20px auto 28px}.signature-page .reserve-section .appointment-continue{width:100%;min-height:54px;text-align:center}.signature-page .reserve-section .appointment-continue span{margin-left:12px}
-
 /* Editorial luxury selection refinement — isolated staging only */
 .signature-page .duration-section{max-width:800px;margin-left:auto;margin-right:auto}
 .signature-page .duration-cards{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;max-width:730px;margin-left:auto;margin-right:auto}
@@ -315,117 +314,7 @@ function signatureDetail(e) {
   <section class="signature-selection" aria-live="polite"><div class="eyebrow">YOUR SELECTION</div><h3 id="selection-name">The Romantic Indulgence</h3><p id="selection-description">A leisurely escape with special amenities and added hospitality.</p><hr><strong>Your experience includes</strong><ul class="signature-includes"><li><span>♡</span>A comfortable setting and Kendra's personal attention.</li><li><span>✧</span>Adult toys</li><li><span>♧</span>Custom specialty table</li><li class="optional-refreshments"><span>♧</span>Light snacks and refreshments</li></ul></section>
   <section class="reserve-section"><a class="appointment-continue" href="https://kendrabexly.com/booking/" aria-label="Reserve This Experience on the live booking site">Reserve This Experience <span aria-hidden="true">→</span></a></section>
   <section class="signature-explore"><div class="eyebrow">EXPLORE ANOTHER EXPERIENCE</div><div class="signature-crosslinks"><a href="/explore-sensual-touch/"><strong>The Sensual Touch</strong><span>Explore <b aria-hidden="true">→</b></span></a><a href="/explore-grecian-experience/"><strong>The Grecian Experience</strong><span>Explore <b aria-hidden="true">→</b></span></a></div><a href="/our-time/" class="signature-back">← &nbsp; Back to Experiences</a><p class="note">Design preview only. Continue opens the separate live introduction form; submitting there is not a staging test.</p></section>
-  <script>(function(){var cards=document.querySelectorAll('.signature-page .duration-card');var title=document.getElementById('selection-name'),desc=document.getElementById('selection-description'),price=document.getElementById('investment'),duration=document.getElementById('appointment-duration'),refresh=document.querySelector('.optional-refreshments');function select(c){cards.forEach(function(x){x.setAttribute('aria-pressed','false')});c.setAttribute('aria-pressed','true');title.textContent=c.dataset.name;desc.textContent=c.dataset.description;if(price)price.textContent='if(duration)duration.textContent=c.dataset.duration;refresh.hidden=c.dataset.refreshments!=='true'}cards.forEach(function(c){c.addEventListener('click',function(){select(c)})});if(cards[2])select(cards[2])})()<\/script>
-  </div>`;
-  return layout(body, e.title);
-}
-
-
-function companionEditorialDetail(e) {
-  const sensual = e.slug === "sensual-touch";
-  const names = sensual ? ["The Sweet Escape","The Perfect Pause","The Leisurely Indulgence","The Ultimate Unwind"] : ["The First Taste","The Grecian Escape","The Grecian Indulgence","The Grecian Affair","The Elevated Grecian Escape"];
-  const descriptions = sensual ? ["A soothing introduction with a little time to relax.","An inviting escape focused on sensual massage and comfort.","A slower pace with thoughtful touches and refreshments.","More time to unwind and enjoy personalized attention."] : ["A playful introduction with warmth and charm.","A little extra time for chemistry and connection.","An indulgent escape with thoughtful details.","An unhurried experience with room for more adventure.","Four hours of relaxed company, personal attention, and a change of pace."];
-  const intro = sensual
-    ? ["Some days, you just want to close the door on the outside world and let someone else take care of the little things.","That's exactly what I had in mind when creating The Sensual Touch. From the moment you arrive, I want you to feel comfortable, welcomed, and free to enjoy a little uninterrupted time for yourself.","Think warm oils, soothing touch, and a relaxed pace that helps you settle in. And when you choose to stay a little longer, I've made room for something special."]
-    : ["I have a soft spot for a gentleman with an adventurous side. Someone who's curious, open-minded, and isn't afraid to try something a little different.","The Grecian Experience brings a playful twist to our date. Think a little more excitement, a little more spontaneity, and just enough of the unexpected to keep things interesting. Between us, it's one of my absolute favorite ways to spend time with someone.","With me, there's no need to be shy or worry about being judged. I want you to feel comfortable, relaxed, and confident enough to let your guard down and enjoy something outside your usual routine.","For longer visits, adult toys and my custom specialty table add another dimension to the experience. Light refreshments make it easy to settle in, and dates beyond two hours take us out for a lovely meal.","So bring that curious side of yours, leave the everyday behind, and let's make a few memories worth smiling about."];
-  const heading = sensual ? "This Time Is All About You" : "Let’s Be a Little Adventurous";
-  const highlightLabel = sensual ? "THE ART OF UNWINDING" : "THE GRECIAN RENDEZVOUS";
-  const highlightTitle = sensual ? "A Little Time, Just for You" : "An Invitation to Linger";
-  const highlightText = "My custom massage table adds something different to your visit. Designed to keep you comfortably supported, its unique opening allows me to work above and below the table, creating a more layered and immersive massage experience.";
-  const highlightExtra = "Warm oils, soothing touch, and gentle changes in rhythm add to a relaxing escape where you can settle in and enjoy being cared for.";
-  const eyebrow = sensual ? "THE ART OF UNWINDING" : "A LITTLE MORE ADVENTUROUS";
-  const tagline = sensual ? "A little indulgence. A little escape. All about you." : "For the gentleman who enjoys a little adventure.";
-  const durationCards = e.durations.map(([duration,price,refreshments],i)=>`<button type="button" class="duration-card" data-duration="${duration}" data-price="${price}" data-name="${names[i]}" data-description="${descriptions[i]}" data-refreshments="${refreshments}" aria-pressed="${i===2}"><span class="dur-label">${duration}</span><span class="dur-price">${money(price)}</span><span class="dur-badge">${names[i]}</span><span class="selected-check" aria-hidden="true">✓</span></button>`).join("");
-  const paragraphs = intro.map(t=>`<p>${t}</p>`).join("");
-  const second = sensual ? {slug:"signature-experience",title:"The Signature Experience"} : {slug:"signature-experience",title:"The Signature Experience"};
-  const third = sensual ? {slug:"grecian-experience",title:"The Grecian Experience"} : {slug:"sensual-touch",title:"The Sensual Touch"};
-  const body = `<div class="signature-page editorial-companion">
-   <div class="reference-detail-photo"><img src="${e.heroImg}" alt="${e.title} — photographic placeholder" referrerpolicy="no-referrer"></div><section class="signature-hero"><div class="eyebrow">${eyebrow}</div><h1>${e.title}</h1><p>${tagline}</p></section>
-   <section class="signature-editorial"><div class="eyebrow">A PERSONAL EXPERIENCE</div><h2>${heading}</h2>${paragraphs}
-    ${sensual ? `<aside class="signature-rendezvous custom-table"><div class="eyebrow">FOR VISITS OF 90 MINUTES OR LONGER</div><h3>The Custom Table Experience</h3><p><em>A little unexpected. A little indulgent. Entirely about you.</em></p><p>${highlightText}</p><p>${highlightExtra}</p><p class="table-refreshments">Light snacks and refreshments are included with 90-minute and two-hour visits.</p></aside>` : ""}<div class="signature-down" aria-hidden="true"><span>↓</span></div></section>
-   <section class="duration-section"><div class="eyebrow">CHOOSE YOUR EXPERIENCE LENGTH</div><h2>${sensual ? "How Long Would You Like to Unwind?" : "How Shall We Spend the Day?"}</h2><p>Find the appointment length that feels right for you.</p><div class="duration-cards" role="group" aria-label="Appointment duration">${durationCards}</div></section>
-   <section class="signature-selection" aria-live="polite"><div class="eyebrow">YOUR SELECTION</div><h3 id="selection-name">${names[2]}</h3><p id="selection-description">${descriptions[2]}</p><hr><strong>Your experience includes</strong><ul class="signature-includes"><li><span>♡</span>A comfortable setting and Kendra's personal attention.</li>${sensual ? `<li class="optional-table"><span>♧</span>Custom specialty table</li>` : `<li class="optional-toys"><span>✧</span>Adult toys</li><li class="optional-table"><span>♧</span>Custom specialty table</li>`}<li class="optional-refreshments"><span>♧</span>Light snacks and refreshments</li></ul></section>
-   <section class="reserve-section"><a class="appointment-continue" href="https://kendrabexly.com/booking/" aria-label="Reserve This Experience on the live booking site">Reserve This Experience <span aria-hidden="true">→</span></a></section>
-   <section class="signature-explore"><div class="eyebrow">EXPLORE ANOTHER EXPERIENCE</div><div class="signature-crosslinks"><a href="/explore-${second.slug}/"><strong>${second.title}</strong><span>Explore <b aria-hidden="true">→</b></span></a><a href="/explore-${third.slug}/"><strong>${third.title}</strong><span>Explore <b aria-hidden="true">→</b></span></a></div><a href="/our-time/" class="signature-back">← &nbsp; Back to Experiences</a><p class="note">Design preview only. Continue opens the separate live introduction form; submitting there is not a staging test.</p></section>
-   <script>(function(){var cards=document.querySelectorAll('.editorial-companion .duration-card');var title=document.getElementById('selection-name'),desc=document.getElementById('selection-description'),price=document.getElementById('investment'),duration=document.getElementById('appointment-duration'),refresh=document.querySelector('.optional-refreshments'),table=document.querySelector('.optional-table'),toys=document.querySelector('.optional-toys');function select(c){cards.forEach(function(x){x.setAttribute('aria-pressed','false')});c.setAttribute('aria-pressed','true');title.textContent=c.dataset.name;desc.textContent=c.dataset.description;price.textContent=String.fromCharCode(36)+Number(c.dataset.price).toLocaleString('en-US');if(duration)duration.textContent=c.dataset.duration;refresh.hidden=c.dataset.refreshments!=='true';if(table)table.hidden=c.dataset.refreshments!=='true';if(toys)toys.hidden=c.dataset.refreshments!=='true'}cards.forEach(function(c){c.addEventListener('click',function(){select(c)})});if(cards[2])select(cards[2])})()</script>
-  </div>`;
-  return layout(body,e.title);
-}
-
-function enhancedDetail(e) {
-  const durationCards = e.durations.map(([duration, price, refreshments], i) => `<button type="button" class="duration-card" data-duration="${duration}" data-price="${price}" data-refreshments="${refreshments}" aria-pressed="${i === 0}"><span class="dur-label">${duration}</span><span class="dur-price">${money(price)}</span><span class="dur-badge">${refreshments ? "Includes refreshments" : "&nbsp;"}</span></button>`).join("");
-  const touchItems = e.touches.map((t) => `<div class="touch-item"><div class="touch-icon">${t.icon}</div><h3>${t.title}</h3><p>${t.text}</p></div>`).join("");
-  const descParas = e.descText.map((p) => `<p>${p}</p>`).join("");
-  const tagPills = e.tags.map((t) => `<span class="hero-tag">${t}</span>`).join("");
-  return layout(`
-  <section class="hero">
-    <div class="hero-text">
-      <div class="eyebrow">${e.index} · ${e.kicker}</div>
-      <h1>${e.title}</h1>
-      <p class="hero-intro">${e.heroIntro}</p>
-      <div class="hero-tags">${tagPills}</div>
-    </div>
-    <div class="hero-image"><img src="${e.heroImg}" alt="${e.title} — editorial photography" loading="eager" referrerpolicy="no-referrer" data-fallback="${e.atmosphereImg}" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src=this.dataset.fallback}else{this.remove()}"></div>
-  </section>
-  <section class="exp-desc">
-    <div class="exp-desc-grid">
-      <div class="exp-desc-text"><div class="eyebrow">The Atmosphere</div><h2>${e.descTitle}</h2>${descParas}</div>
-      <div class="exp-desc-image"><img src="${e.atmosphereImg}" alt="${e.title} — atmosphere" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></div>
-    </div>
-  </section>
-  <section class="duration-section">
-    <div class="eyebrow">Choose Your Time</div>
-    <h2>A little time just for you</h2>
-    <p>Choose the time that suits your mood. Longer appointments give us more room to unwind, enjoy the little extras, and settle into the experience.</p>
-    <div class="duration-cards" role="group" aria-label="Appointment duration">${durationCards}</div>
-  </section>
-  <section class="touches">
-    <div class="eyebrow">Thoughtful Touches</div>
-    <h2>Little extras, just because</h2>
-    <div class="touch-items">${touchItems}</div>
-    <div class="touch-highlight"><strong>Complimentary refreshments</strong> are included with all dates of 90 minutes or longer — a little something to enjoy before, during, or after your time together.</div>
-  </section>
-  <section class="summary-section">
-    <div class="eyebrow" style="text-align:center;margin-bottom:20px">Your Selected Experience</div>
-    <div class="summary-card" aria-live="polite">
-      <h2>${e.title}</h2>
-      <p class="sum-duration">Duration: <span id="duration">${e.durations[0][0]}</span></p>
-      <div class="summary-price"><span class="eyebrow">Investment</span><strong id="investment">${money(e.durations[0][1])}</strong></div>
-      <div class="refreshment-note" id="refreshment-note"><span class="ref-icon">🍯</span><span>Includes light snacks and refreshments</span></div>
-    </div>
-    <div class="actions">
-      <button class="link" type="button" disabled title="Booking disabled on staging" style="opacity:.65;cursor:not-allowed">Continue to introduction (preview only)</button>
-      <a class="link secondary" href="/our-time/">View all experiences</a>
-    </div>
-    <p class="note">This staging site cannot submit an introduction, create a booking, or process a payment.</p>
-  </section>
-  <div style="text-align:center"><a href="/our-time/" class="return-link">← Return to Our Time Together</a></div>
-  <script>(function(){var cards=document.querySelectorAll('.duration-card');var d=document.getElementById('duration'),p=document.getElementById('investment'),r=document.getElementById('refreshment-note');var f=cards[0];if(f&&f.dataset.refreshments==='true')r.classList.add('show');cards.forEach(function(c){c.addEventListener('click',function(){cards.forEach(function(x){x.setAttribute('aria-pressed','false')});c.setAttribute('aria-pressed','true');d.textContent=c.dataset.duration;p.textContent=String.fromCharCode(36)+Number(c.dataset.price).toLocaleString('en-US');if(c.dataset.refreshments==='true')r.classList.add('show');else r.classList.remove('show')})})})()</script>
-  `, e.title);
-}
-
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const path = (url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname) || "/";
-    if (!["GET", "HEAD"].includes(request.method)) return new Response("Read-only staging preview.", { status: 405 });
-    let html;
-    if (path === "/our-time" || path === "/") html = overview();
-    else {
-      const experience = experiences.find((e) => path === "/explore-" + e.slug);
-      if (experience) html = experience.slug === "signature-experience" ? signatureDetail(experience) : companionEditorialDetail(experience);
-    }
-    if (!html) return new Response("Not available in isolated design preview.", { status: 404, headers: { "Cache-Control": "no-store" } });
-    return new Response(request.method === "HEAD" ? null : html, {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store",
-        "X-Robots-Tag": "noindex, nofollow",
-        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src https://images.unsplash.com; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-      }
-    });
-  }
-};+Number(c.dataset.price).toLocaleString('en-US');if(duration)duration.textContent=c.dataset.duration;refresh.hidden=c.dataset.refreshments!=='true'}cards.forEach(function(c){c.addEventListener('click',function(){select(c)})});if(cards[2])select(cards[2])})()<\/script>
+  <script>(function(){var cards=document.querySelectorAll('.signature-page .duration-card');var title=document.getElementById('selection-name'),desc=document.getElementById('selection-description'),price=document.getElementById('investment'),duration=document.getElementById('appointment-duration'),refresh=document.querySelector('.optional-refreshments');function select(c){cards.forEach(function(x){x.setAttribute('aria-pressed','false')});c.setAttribute('aria-pressed','true');title.textContent=c.dataset.name;desc.textContent=c.dataset.description;if(price)price.textContent='$'+Number(c.dataset.price).toLocaleString('en-US');if(duration)duration.textContent=c.dataset.duration;refresh.hidden=c.dataset.refreshments!=='true'}cards.forEach(function(c){c.addEventListener('click',function(){select(c)})});if(cards[2])select(cards[2])})()<\/script>
   </div>`;
   return layout(body, e.title);
 }
