@@ -37,3 +37,57 @@ test("deposit choices and existing verification flow remain unchanged", () => {
   assert.match(booking,/No payment is collected before screening approval/);
   assert.match(booking,/Once everything is confirmed, which deposit method would you prefer/);
 });
+
+test("simulated submission sends only a synthetic multipart request and redirects on success", async () => {
+  // Execute the real browser submission callback, with network and FormData mocked.
+  const match=booking.match(/f\.addEventListener\("submit",(async e=>\{[\s\S]*?\})\);\s*\}\)\(\)/);
+  assert.ok(match,"submission callback is available");
+  const calls=[];
+  const status={className:""};
+  const submit={disabled:false,textContent:"Introduce Myself"};
+  const fakeForm={reportValidity(){return true}};
+  const window={location:{assign(path){calls.push({redirect:path})}}};
+  class MockFormData {
+    constructor(form){assert.equal(form,fakeForm);this.values={intro_hospitality:"Soft jazz and water",intro_photo:{type:"image/png",size:24},intro_preferred_time:"16:30"};}
+    set(k,v){this.values[k]=v;}
+  }
+  const fetch=async(path,options)=>{
+    assert.equal(path,"/api/request");
+    assert.equal(options.method,"POST");
+    assert.equal(options.body.values.screening_only,"true");
+    assert.equal(options.body.values.intro_hospitality,"Soft jazz and water");
+    calls.push({submitted:true});
+    return {ok:true,async json(){return {ok:true}}};
+  };
+  const message=()=>{throw Error("No error expected")};
+  const callback=new Function("f","status","submit","FormData","fetch","window","message","return ("+match[1]+")")(fakeForm,status,submit,MockFormData,fetch,window,message);
+  await callback({preventDefault(){}});
+  assert.deepEqual(calls,[{submitted:true},{redirect:"/thank-you/"}]);
+});
+test("rejected submissions cannot redirect to thank-you",async()=>{
+  const match=booking.match(/f\.addEventListener\("submit",(async e=>\{[\s\S]*?\})\);\s*\}\)\(\)/);
+  assert.ok(match);
+  const calls=[];
+  const status={className:""};
+  const submit={disabled:false,textContent:"Introduce Myself"};
+  const form={reportValidity(){return true}};
+  class MockFormData {set(){} constructor(){}}
+  const fetch=async()=>({ok:false,async json(){return {ok:false,message:"Invalid screening data"}}});
+  const window={location:{assign(){calls.push("redirect")}}};
+  const message=(content,type)=>calls.push({content,type});
+  const callback=new Function("f","status","submit","FormData","fetch","window","message","return ("+match[1]+")")(form,status,submit,MockFormData,fetch,window,message);
+  await callback({preventDefault(){}});
+  assert.deepEqual(calls,[{content:"Invalid screening data",type:"error"}]);
+  assert.equal(submit.disabled,false);
+});
+test("server enforces photo signature, slot availability, secure terms and persists private request",()=>{
+  assert.match(source,/introductionPhoto instanceof File/);
+  assert.match(source,/introductionPhoto\.size>10\*1024\*1024/);
+  assert.match(source,/Please select a valid photo image/);
+  assert.match(source,/validateIntroductionTermsAcceptance\(env\.DB, data\)/);
+  assert.match(source,/siteAvailableSlots\(env,introPreferredDate/);
+  assert.match(source,/less than two hours away/);
+  assert.match(source,/INSERT INTO date_requests/);
+  assert.match(source,/Personal touch: \$\{introHospitality/);
+  assert.match(source,/runInitialScreening\(env, requestId, "automatic"\)/);
+});
