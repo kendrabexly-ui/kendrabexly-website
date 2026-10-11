@@ -247,7 +247,7 @@ function signatureDetail(e) {
     <p>There's something lovely about getting away from the everyday and spending time with someone who makes you feel comfortable, appreciated, and completely at ease.</p>
     <p>The Signature Experience is my idea of a beautiful date. Think genuine conversation, soft feminine charm, playful chemistry, and the unexpected little moments that make a connection feel special.</p>
     <p>Whether we're sharing a sweet introduction or enjoying a leisurely afternoon, I want you to feel welcomed, relaxed, and free to enjoy my company.</p>
-    <p>Whether we’re sharing a sweet introduction or settling into a leisurely afternoon, I love making space for easy conversation, playful chemistry, and those little moments that make a date feel special.</p>
+    <p>To me, it’s the little things that make a date unforgettable. A shared smile, a little flirtation, and those moments when everything feels effortless. I want you to leave feeling appreciated, a little spoiled, and already looking forward to seeing me again.</p>
     <aside class="signature-rendezvous"><div class="eyebrow">THE SIGNATURE RENDEZVOUS</div><h3>A Date Worth Lingering Over</h3><p>Four hours gives us the freedom to enjoy a romantic date, a lovely meal outside our private space, and a little change of scenery without feeling rushed.</p></aside>
     <div class="signature-down" aria-hidden="true"><span>↓</span></div>
   </section>
