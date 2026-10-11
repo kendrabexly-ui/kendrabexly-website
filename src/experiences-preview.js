@@ -80,7 +80,7 @@ a{color:inherit}header{display:flex;align-items:center;justify-content:space-bet
 .logo{font-family:'Playfair Display',serif;font-size:24px;text-decoration:none}nav{display:flex;gap:18px;font-size:13px;flex-wrap:wrap}nav a{text-decoration:none}
 main{max-width:1280px;margin:auto;padding:80px 42px 96px}.eyebrow{font-size:11px;letter-spacing:.25em;font-weight:700;color:#996d81;text-transform:uppercase}
 h1,h2,h3{font-family:'Playfair Display',serif;font-weight:400;color:#795165}h1{font-size:clamp(40px,6vw,72px);line-height:1.13;margin:14px 0 22px}h2{font-size:clamp(28px,4vw,42px);margin:12px 0}h3{font-size:20px;margin:0 0 8px}
-p{line-height:1.75}.intro{max-width:740px;font-size:17px;margin-bottom:34px}
+p{line-height:1.75}.intro{max-width:740px;font-size:17px;margin:0 0 38px}.page-intro{max-width:820px;margin:0 auto 46px;text-align:center}.page-intro h1{margin:14px 0 17px}.page-intro .intro{margin:0 auto;max-width:690px}
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}.card,.details{background:#fffdfb;border:1px solid #f0dce2;border-radius:24px;box-shadow:0 16px 45px #986a7810}
 .card{display:flex;flex-direction:column;min-height:470px;overflow:hidden;transition:transform .25s ease,box-shadow .25s ease}.card:hover{transform:translateY(-6px);box-shadow:0 24px 62px #986a7829}.card-body{padding:34px;display:flex;flex-direction:column;flex:1}.card-image{aspect-ratio:4/3;overflow:hidden;background:linear-gradient(135deg,#f5dfe6,#f9e9e9)}.card-image img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .5s ease}.card:hover .card-image img{transform:scale(1.04)}.card .eyebrow{font-size:10px}.card h2{font-size:clamp(26px,3vw,35px);line-height:1.2}.card .price-line{font-size:14px;color:#795165;font-weight:600;margin:6px 0 22px}.card .link{align-self:stretch}.card p{flex:1}.link{background:#9d7087;color:white;border:0;text-align:center;border-radius:80px;padding:13px 20px;text-decoration:none;font-size:14px;display:inline-block;cursor:pointer}
 .secondary{background:transparent;color:#825b70;border:1px solid #bf9aaa}.details{max-width:860px;margin:30px auto}
@@ -132,7 +132,7 @@ p{line-height:1.75}.intro{max-width:740px;font-size:17px;margin-bottom:34px}
 footer{text-align:center;padding:28px;background:#fbf0f1;font-size:12px;color:#876c7a}
 @media(max-width:900px){.cards{grid-template-columns:1fr}.card{min-height:0}.card-image{aspect-ratio:16/9}.card h2{font-size:34px}.hero{gap:28px}}
 @media(max-width:760px){
-  header{align-items:flex-start;flex-direction:column}main{padding:35px 20px 70px}.card-body{padding:28px}.card-image{aspect-ratio:4/3}
+  header{align-items:center;flex-direction:row;justify-content:space-between;gap:10px;padding:13px 18px;min-height:64px}header .logo{font-size:22px;white-space:nowrap}header nav{gap:0;font-size:12px}header nav span{display:none}header nav a{padding:7px 10px;border:1px solid #ead9dd;border-radius:100px}main{padding:32px 18px 70px}.page-intro{margin-bottom:28px}.page-intro h1{font-size:clamp(38px,9vw,52px);margin:10px 0 14px}.page-intro .intro{font-size:15px;line-height:1.7}.card-body{padding:24px}.card-image{aspect-ratio:16/10}.card h2{font-size:30px;margin:8px 0 10px}.card p{font-size:15px;line-height:1.65;margin:0 0 14px}.card .price-line{margin:2px 0 18px}.card .link{padding:12px 16px}
   .cards{grid-template-columns:1fr}.card{min-height:unset}
   .details{padding:22px}
   .hero{grid-template-columns:1fr;gap:28px;margin-bottom:40px}
@@ -155,7 +155,7 @@ function layout(body, title) {
 
 function overview() {
   const cards = experiences.map((e) => `<article class="card"><div class="card-image"><img src="${e.heroImg}" alt="${e.title} — atmospheric editorial image" loading="lazy"></div><div class="card-body"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><div class="price-line">Starting at ${money(e.durations[0][1])}</div><a class="link" href="/explore-${e.slug}/">Explore the experience</a></div></article>`).join("");
-  return layout(`<div class="eyebrow">Your Invitation to Something More</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you. Every experience has its own charm. Discover the one that speaks to you.</p><section class="cards">${cards}</section>`, "Our Time Together");
+  return layout(`<section class="page-intro"><div class="eyebrow">Your Invitation to Something More</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you. Every experience has its own charm. Discover the one that speaks to you.</p></section><section class="cards">${cards}</section>`, "Our Time Together");
 }
 
 function enhancedDetail(e) {
