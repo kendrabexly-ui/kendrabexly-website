@@ -227,6 +227,30 @@ h1,h2,h3{letter-spacing:-.015em}h1{line-height:1.14}h2{line-height:1.22}p{letter
 .editorial-companion .custom-table p{margin:14px 0}
 .editorial-companion .custom-table .table-refreshments{background:#f3e2e9;padding:16px;border-radius:15px}
 .editorial-companion .signature-includes [hidden]{display:none}
+
+/* Four-page master video: photo-first vertically stacked editorial layout */
+.overview-master{max-width:760px;margin:0 auto}
+.overview-photo{height:240px;overflow:hidden;border-radius:18px 18px 0 0;background:#f0e1e6}
+.overview-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.overview-master .page-intro{background:#f3e4eb;padding:34px 18px;margin:0 0 28px}
+.overview-master .page-intro h1{font-family:'DM Sans',sans-serif;font-size:clamp(29px,4vw,37px);font-weight:700;color:#563f4c;margin:10px auto}
+.overview-master .page-intro .intro{font-size:16px;line-height:1.5}
+.collection-intro{text-align:center;margin:22px 0 24px}
+.collection-intro h2{font-family:'DM Sans',sans-serif;font-size:clamp(25px,3vw,32px);font-weight:700;color:#553c4a;margin:9px 0}
+.collection-intro p{margin:0;font-size:16px;line-height:1.5}
+.overview-master .cards{grid-template-columns:1fr;max-width:760px;gap:18px}
+.overview-master .card{min-height:0;border-radius:22px}
+.overview-master .card:hover{transform:none}
+.overview-master .card-image{aspect-ratio:1.5}
+.overview-master .card-body{padding:19px}
+.overview-master .card h2{font-family:'DM Sans',sans-serif;font-size:25px;font-weight:700;color:#503c48;margin:10px 0}
+.overview-master .card p{font-size:16px;line-height:1.5;margin:0 0 12px}
+.overview-master .card .price-line{margin:0 0 15px;font-weight:400;font-size:14px}
+.overview-master .card .link{background:#191919;color:white;font-size:14px;padding:13px}
+.reference-detail-photo{width:100%;height:260px;overflow:hidden;background:#f5e5eb}
+.reference-detail-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.signature-page .reference-detail-photo+.signature-hero{margin-top:0;padding-top:30px}
+@media(max-width:760px){.overview-photo{height:195px}.overview-master .page-intro{padding:22px 15px}.overview-master .card-image{aspect-ratio:1.48}.reference-detail-photo{height:220px}.signature-page .reference-detail-photo+.signature-hero{margin:0 -18px;padding:22px 18px}}
 `;
 
 function layout(body, title) {
@@ -236,17 +260,16 @@ function layout(body, title) {
 }
 
 function overview() {
-  const cards = experiences.map((e) => `<article class="card"><div class="card-image"><img src="${e.heroImg}" alt="${e.title} — atmospheric editorial image" loading="lazy" data-fallback="${e.atmosphereImg}" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src=this.dataset.fallback}else{this.remove()}"></div><div class="card-body"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><div class="price-line">Starting at ${money(e.durations[0][1])}</div><a class="link" href="/explore-${e.slug}/">Explore the experience</a></div></article>`).join("");
-  return layout(`<section class="page-intro"><div class="eyebrow">Your Invitation to Something More</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you. Each experience has its own mood and its own invitation. Find the one that feels like your kind of escape.</p></section><section class="cards">${cards}</section>`, "Our Time Together");
+  const cards = experiences.map((e) => `<article class="card"><div class="card-image"><img src="${e.heroImg}" alt="${e.title} — placeholder until Kendra adds her photographs" loading="lazy" data-fallback="${e.atmosphereImg}" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src=this.dataset.fallback}else{this.remove()}"></div><div class="card-body"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><div class="price-line">Beginning at ${money(e.durations[0][1])}</div><a class="link" href="/explore-${e.slug}/">Explore ${e.title}　 →</a></div></article>`).join("");
+  return layout(`<div class="overview-master"><div class="overview-photo"><img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85" alt="Warm inviting lounge — photo placeholder" referrerpolicy="no-referrer"></div><section class="page-intro"><div class="eyebrow">YOUR INVITATION TO SOMETHING MORE</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you.</p></section><section class="collection-intro"><div class="eyebrow">THE KENDRA COLLECTION</div><h2>Find Your Beautiful Escape</h2><p>Three ways to enjoy a little escape from the everyday.</p></section><section class="cards">${cards}</section></div>`, "Our Time Together");
 }
-
 
 function signatureDetail(e) {
   const names = ["A Sweet Escape","The Perfect Date","The Romantic Indulgence","An Afternoon to Remember","The Signature Rendezvous"];
   const descriptions = ["A lovely little introduction with warmth and personal attention.","A relaxed date with time for conversation and connection.","A leisurely escape with special amenities and added hospitality.","More time to unwind, connect, and savor the afternoon.","Four hours to enjoy a romantic date, a lovely meal, and a change of scenery."];
   const durationCards = e.durations.map(([duration, price, refreshments], i) => `<button type="button" class="duration-card" data-duration="${duration}" data-price="${price}" data-name="${names[i]}" data-description="${descriptions[i]}" data-refreshments="${refreshments}" aria-pressed="${i === 2}"><span class="dur-label">${duration}</span><span class="dur-price">${money(price)}</span><span class="dur-badge">${names[i]}</span><span class="selected-check" aria-hidden="true">✓</span></button>`).join("");
   const body = `<div class="signature-page">
-  <section class="signature-hero"><div class="eyebrow">THE BEAUTY OF CONNECTION</div><h1>The Signature Experience</h1><p>A little romance, a little chemistry, and undivided attention.</p></section>
+  <div class="reference-detail-photo"><img src="${e.heroImg}" alt="${e.title} — photographic placeholder" referrerpolicy="no-referrer"></div><section class="signature-hero"><div class="eyebrow">THE BEAUTY OF CONNECTION</div><h1>The Signature Experience</h1><p>A little romance, a little chemistry, and undivided attention.</p></section>
   <section class="signature-editorial">
     <div class="eyebrow">A PERSONAL EXPERIENCE</div>
     <h2>Let's Make This Date Something Special</h2>
@@ -286,7 +309,7 @@ function companionEditorialDetail(e) {
   const second = sensual ? {slug:"signature-experience",title:"The Signature Experience"} : {slug:"signature-experience",title:"The Signature Experience"};
   const third = sensual ? {slug:"grecian-experience",title:"The Grecian Experience"} : {slug:"sensual-touch",title:"The Sensual Touch"};
   const body = `<div class="signature-page editorial-companion">
-   <section class="signature-hero"><div class="eyebrow">${eyebrow}</div><h1>${e.title}</h1><p>${tagline}</p></section>
+   <div class="reference-detail-photo"><img src="${e.heroImg}" alt="${e.title} — photographic placeholder" referrerpolicy="no-referrer"></div><section class="signature-hero"><div class="eyebrow">${eyebrow}</div><h1>${e.title}</h1><p>${tagline}</p></section>
    <section class="signature-editorial"><div class="eyebrow">A PERSONAL EXPERIENCE</div><h2>${heading}</h2>${paragraphs}
     ${sensual ? `<aside class="signature-rendezvous custom-table"><div class="eyebrow">FOR VISITS OF 90 MINUTES OR LONGER</div><h3>The Custom Table Experience</h3><p><em>A little unexpected. A little indulgent. Entirely about you.</em></p><p>${highlightText}</p><p>${highlightExtra}</p><p class="table-refreshments">Light snacks and refreshments are included with 90-minute and two-hour visits.</p></aside>` : ""}<div class="signature-down" aria-hidden="true"><span>↓</span></div></section>
    <section class="duration-section"><div class="eyebrow">CHOOSE YOUR EXPERIENCE LENGTH</div><h2>${sensual ? "How Long Would You Like to Unwind?" : "How Shall We Spend the Day?"}</h2><p>Find the appointment length that feels right for you.</p><div class="duration-cards" role="group" aria-label="Appointment duration">${durationCards}</div></section>
