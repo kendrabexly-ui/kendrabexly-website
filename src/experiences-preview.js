@@ -251,6 +251,19 @@ h1,h2,h3{letter-spacing:-.015em}h1{line-height:1.14}h2{line-height:1.22}p{letter
 .reference-detail-photo img{display:block;width:100%;height:100%;object-fit:cover}
 .signature-page .reference-detail-photo+.signature-hero{margin-top:0;padding-top:30px}
 @media(max-width:760px){.overview-photo{height:195px}.overview-master .page-intro{padding:22px 15px}.overview-master .card-image{aspect-ratio:1.48}.reference-detail-photo{height:220px}.signature-page .reference-detail-photo+.signature-hero{margin:0 -18px;padding:22px 18px}}
+
+/* Screenshot 08:08 AM — Sensual Touch personal introduction and custom table */
+.editorial-companion .signature-editorial{background:#fffaf8;padding:24px 16px 0}
+.editorial-companion .signature-editorial>.eyebrow{font-size:11px;letter-spacing:.13em;margin-bottom:11px}
+.editorial-companion .signature-editorial>h2{font-family:'DM Sans',sans-serif;font-weight:700;font-size:clamp(24px,3vw,30px);line-height:1.23;letter-spacing:-.02em;margin:0 0 17px;color:#513945}
+.editorial-companion .signature-editorial>p{font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.52;color:#715c66;margin:0 0 17px}
+.editorial-companion .signature-rendezvous.custom-table{background:#fffdfb;border:1px solid #dfc7d3;border-radius:19px;padding:17px 15px 14px;box-shadow:none;margin:21px 0 27px}
+.editorial-companion .custom-table .eyebrow{font-size:10px;letter-spacing:.11em;color:#94717e}
+.editorial-companion .custom-table h3{font-family:'DM Sans',sans-serif;color:#543b48;font-size:clamp(22px,3vw,27px);font-weight:700;line-height:1.25;margin:11px 0}
+.editorial-companion .custom-table p{font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.5;color:#735e68;margin:12px 0}
+.editorial-companion .custom-table .table-refreshments{font-size:15px;line-height:1.5;padding:13px 16px 13px 40px;border-radius:12px;background:#f1e0e7;position:relative}
+.editorial-companion .custom-table .table-refreshments:before{content:'♧';position:absolute;left:13px;top:12px;color:#90677c;font-size:20px}
+@media(max-width:760px){.editorial-companion .signature-editorial{padding:24px 0 0}.editorial-companion .signature-editorial>h2{font-size:24px}.editorial-companion .signature-editorial>p{font-size:16px;line-height:1.5}.editorial-companion .custom-table h3{font-size:23px}.editorial-companion .signature-rendezvous.custom-table{padding:15px 13px}}
 `;
 
 function layout(body, title) {
