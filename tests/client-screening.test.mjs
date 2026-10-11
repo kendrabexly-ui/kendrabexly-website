@@ -21,13 +21,15 @@ test("portal consolidates screening into one review panel",()=>{
 });
 test("original numbered verification cards are displayed alongside one decision",()=>{
   assert.match(portal,/client-phone-checks is-collapsed/);
-  assert.match(portal,/client-id-record is-collapsed/);
+  assert.match(portal,/client-screening-agent/);
+  assert.match(portal,/client-verification-flow \.client-credential-card/);
+  assert.doesNotMatch(portal,/class="verification-card client-id-record is-collapsed"/);
   assert.match(portal,/client-credential-card is-collapsed/);
   assert.match(portal,/client-public-record-card is-collapsed/);
   assert.match(portal,/client-persona-card is-collapsed/);
   assert.match(portal,/client-verification-editor\{display:none!important\}/);
   assert.doesNotMatch(portal,/flow\.parentElement\.appendChild\(panel\)/);
-  assert.match(portal,/client-basic-screening is-collapsed" hidden/);
+  assert.match(portal,/client-basic-screening-open-request/);
 });
 
 test("portal report displays optional verification evidence sources",()=>{

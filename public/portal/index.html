@@ -7800,7 +7800,7 @@ function escapeHtml(value) {
   <button type="button" class="introduction-photo-lightbox-close" aria-label="Close full-size photo">Close ✕</button>
   <img alt="Full-size private introduction photo">
 </div>
-<script>
+\x3Cscript>
 (() => {
   const overlay=document.getElementById("introduction-photo-lightbox");
   const photo=overlay.querySelector("img");
@@ -7820,7 +7820,7 @@ function escapeHtml(value) {
   overlay.addEventListener("click",event=>{if(event.target===overlay)dismiss();});
   document.addEventListener("keydown",event=>{if(overlay.hidden)return;if(event.key==="Escape")dismiss();else if(event.key==="Tab"){event.preventDefault();close.focus();}});
 })();
-</script>
+<\/script>
 </body></html>`);
                   w.document.close();
                 }
