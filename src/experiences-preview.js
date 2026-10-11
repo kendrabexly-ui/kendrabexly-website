@@ -76,13 +76,13 @@ const money = (n) => "$" + n.toLocaleString("en-US");
 const style = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap');
 :root{font-family:'DM Sans',sans-serif;color:#624b57;background:#fffaf8}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#fff9f8,#f9e9e9 67%,#fffaf8)}
-a{color:inherit}header{display:flex;align-items:center;justify-content:space-between;padding:21px max(5vw,22px);background:#fffaf8cc;gap:14px;border-bottom:1px solid #eedede}
+a{color:inherit}header{display:flex;align-items:center;justify-content:space-between;padding:21px max(5vw,22px);background:#fffaf8dc;gap:14px;border-bottom:1px solid #eedede;position:sticky;top:0;z-index:20;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .logo{font-family:'Playfair Display',serif;font-size:24px;text-decoration:none}nav{display:flex;gap:18px;font-size:13px;flex-wrap:wrap}nav a{text-decoration:none}
-main{max-width:1140px;margin:auto;padding:54px 22px 85px}.eyebrow{font-size:11px;letter-spacing:.25em;font-weight:700;color:#996d81;text-transform:uppercase}
+main{max-width:1280px;margin:auto;padding:80px 42px 96px}.eyebrow{font-size:11px;letter-spacing:.25em;font-weight:700;color:#996d81;text-transform:uppercase}
 h1,h2,h3{font-family:'Playfair Display',serif;font-weight:400;color:#795165}h1{font-size:clamp(40px,6vw,72px);line-height:1.13;margin:14px 0 22px}h2{font-size:clamp(28px,4vw,42px);margin:12px 0}h3{font-size:20px;margin:0 0 8px}
 p{line-height:1.75}.intro{max-width:740px;font-size:17px;margin-bottom:34px}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}.card,.details{background:#fffdfb;border:1px solid #f0dce2;border-radius:24px;padding:30px;box-shadow:0 16px 45px #986a7810}
-.card{display:flex;flex-direction:column;min-height:355px}.card p{flex:1}.link{background:#9d7087;color:white;border:0;text-align:center;border-radius:80px;padding:13px 20px;text-decoration:none;font-size:14px;display:inline-block;cursor:pointer}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}.card,.details{background:#fffdfb;border:1px solid #f0dce2;border-radius:24px;box-shadow:0 16px 45px #986a7810}
+.card{display:flex;flex-direction:column;min-height:470px;overflow:hidden;transition:transform .25s ease,box-shadow .25s ease}.card:hover{transform:translateY(-6px);box-shadow:0 24px 62px #986a7829}.card-body{padding:34px;display:flex;flex-direction:column;flex:1}.card-image{aspect-ratio:4/3;overflow:hidden;background:linear-gradient(135deg,#f5dfe6,#f9e9e9)}.card-image img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .5s ease}.card:hover .card-image img{transform:scale(1.04)}.card .eyebrow{font-size:10px}.card h2{font-size:clamp(26px,3vw,35px);line-height:1.2}.card .price-line{font-size:14px;color:#795165;font-weight:600;margin:6px 0 22px}.card .link{align-self:stretch}.card p{flex:1}.link{background:#9d7087;color:white;border:0;text-align:center;border-radius:80px;padding:13px 20px;text-decoration:none;font-size:14px;display:inline-block;cursor:pointer}
 .secondary{background:transparent;color:#825b70;border:1px solid #bf9aaa}.details{max-width:860px;margin:30px auto}
 .hero{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:center;margin-bottom:64px}
 .hero-text .eyebrow{margin-bottom:4px}.hero-text h1{margin:10px 0 20px}
@@ -130,8 +130,9 @@ p{line-height:1.75}.intro{max-width:740px;font-size:17px;margin-bottom:34px}
 .return-link{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:15px;color:#825b70;border:1px solid #bf9aaa;border-radius:80px;padding:12px 24px;background:transparent;transition:background .2s}
 .return-link:hover{background:#f8edf0}
 footer{text-align:center;padding:28px;background:#fbf0f1;font-size:12px;color:#876c7a}
+@media(max-width:900px){.cards{grid-template-columns:1fr}.card{min-height:0}.card-image{aspect-ratio:16/9}.card h2{font-size:34px}.hero{gap:28px}}
 @media(max-width:760px){
-  header{align-items:flex-start;flex-direction:column}main{padding-top:35px}
+  header{align-items:flex-start;flex-direction:column}main{padding:35px 20px 70px}.card-body{padding:28px}.card-image{aspect-ratio:4/3}
   .cards{grid-template-columns:1fr}.card{min-height:unset}
   .details{padding:22px}
   .hero{grid-template-columns:1fr;gap:28px;margin-bottom:40px}
@@ -153,7 +154,7 @@ function layout(body, title) {
 }
 
 function overview() {
-  const cards = experiences.map((e) => `<article class="card"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><p>Starting at ${money(e.durations[0][1])}</p><a class="link" href="/explore-${e.slug}/">Explore the experience</a></article>`).join("");
+  const cards = experiences.map((e) => `<article class="card"><div class="card-image"><img src="${e.heroImg}" alt="${e.title} — atmospheric editorial image" loading="lazy"></div><div class="card-body"><div class="eyebrow">${e.index} · ${e.kicker}</div><h2>${e.title}</h2><p>${e.description}</p><div class="price-line">Starting at ${money(e.durations[0][1])}</div><a class="link" href="/explore-${e.slug}/">Explore the experience</a></div></article>`).join("");
   return layout(`<div class="eyebrow">Your Invitation to Something More</div><h1>Our Time Together</h1><p class="intro">A little romance, a little indulgence, and plenty of attention just for you. Every experience has its own charm. Discover the one that speaks to you.</p><section class="cards">${cards}</section>`, "Our Time Together");
 }
 
