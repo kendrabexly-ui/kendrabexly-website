@@ -39,3 +39,22 @@ test("HEAD does not return content, POST is rejected, booking route unchanged", 
   const post=await servePublicExperience(new Request("https://kendrabexly.com/our-time/",{method:"POST"}));
   assert.equal(post.status,405);
 });
+
+
+test("experience pages pass the chosen selection to the existing booking form", async () => {
+  const paths = ["/explore-sensual-touch/","/explore-signature-experience/","/explore-grecian-experience/"];
+  for (const path of paths) {
+    const html = await (await servePublicExperience(new Request("https://kendrabexly.com"+path))).text();
+    assert.match(html, /class="appointment-continue"/, path);
+    assert.match(html, /data-duration=/, path);
+    assert.match(html, /data-price=/, path);
+    assert.match(html, /reserve\.href\s*=\s*['"]\/booking\/\?experience=/, path);
+    assert.match(html, /encodeURIComponent\(c\.dataset\.duration\)/, path);
+  }
+  const bookingSource=readFileSync(new URL("../src/index.js", import.meta.url),"utf8");
+  assert.match(bookingSource,/function applyExperienceSelection\(/);
+  assert.match(bookingSource,/new URLSearchParams\(window\.location\.search\)/);
+  assert.match(bookingSource,/itineraryRates\[key\]\[duration\]/);
+  assert.match(bookingSource,/change-preselected-experience/);
+  assert.match(bookingSource,/noteStep=2;renderNoteStep\(\);renderItinerary\(\)/);
+});
