@@ -1430,6 +1430,11 @@ function withWebsiteButtonStyles(response) {
     .on("head", {
       element(head) { head.append("<style>" + WEBSITE_BUTTON_CSS + "</style>", { html: true }); }
     })
+    // WordPress.com may append its hosted comment widget after the authored page.
+    // Remove the widget at the edge on public editorial pages; do not alter WordPress design.
+    .on("#comments, #respond, #commentform, .comments-area, .wp-block-comments, .jetpack-comments-area, #jetpack-comments, #jp-comments, .comment-respond, .comment-form", {
+      element(element) { element.remove(); }
+    })
     .on("a[href]", {
       element(anchor) {
         const href = String(anchor.getAttribute("href") || "").trim();
