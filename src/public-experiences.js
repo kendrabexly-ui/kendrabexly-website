@@ -387,14 +387,14 @@ function enhancedDetail(e) {
   <section class="duration-section">
     <div class="eyebrow">Choose Your Time</div>
     <h2>A little time just for you</h2>
-    <p>Choose the time that suits your mood. Longer appointments give us more room to unwind, enjoy the little extras, and settle into the experience.</p>
+    <p>Choose the time that suits you. From 90 minutes onward, there's room to settle in without rushing, enjoy thoughtful comforts, and make the visit feel a little more personal.</p>
     <div class="duration-cards" role="group" aria-label="Appointment duration">${durationCards}</div>
   </section>
   <section class="touches">
     <div class="eyebrow">Thoughtful Touches</div>
     <h2>Little extras, just because</h2>
     <div class="touch-items">${touchItems}</div>
-    <div class="touch-highlight"><strong>Complimentary refreshments</strong> are included with all dates of 90 minutes or longer — a little something to enjoy before, during, or after your time together.</div>
+    <div class="touch-highlight"><strong>A little extra comfort</strong> comes with visits of 90 minutes or longer: light refreshments, thoughtful touches, and a more unhurried pace.</div>
   </section>
   <section class="summary-section">
     <div class="eyebrow" style="text-align:center;margin-bottom:20px">Your Selected Experience</div>
