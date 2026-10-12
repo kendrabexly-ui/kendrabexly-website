@@ -43,7 +43,7 @@ await page.goto('http://127.0.0.1:8787/booking/?experience=signature&duration=90
 assert.equal(await page.locator('input[name="intro_photo"]').count(),1);
 const selector=page.locator('#screening-method');
 for(const [method,hasID] of [['government-id',true],['linkedin',false],['employment',false]]){
- await selector.selectOption(method);
+ await selector.evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));},method);
  const hint=(await page.locator('#intro-photo-instructions').innerText()).toLowerCase();
  assert.equal(hint.includes('holding your valid state'),hasID,method);
 }
