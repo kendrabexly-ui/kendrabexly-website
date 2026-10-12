@@ -1430,6 +1430,11 @@ function withWebsiteButtonStyles(response) {
     .on("head", {
       element(head) { head.append("<style>" + WEBSITE_BUTTON_CSS + "</style>", { html: true }); }
     })
+    // Jetpack appends image-carousel comment fields after the authored page.
+    // Remove just its comment controls, preserving the photo carousel and WordPress design.
+    .on(".jp-carousel-comments-wrapper, .jp-carousel-icon-comments, #jp-carousel-comments-loading, #jp-carousel-comment-form-container, #comments, #respond, #commentform, .comments-area, .wp-block-comments, .comment-respond, .comment-form", {
+      element(element) { element.remove(); }
+    })
     .on("a[href]", {
       element(anchor) {
         const href = String(anchor.getAttribute("href") || "").trim();
