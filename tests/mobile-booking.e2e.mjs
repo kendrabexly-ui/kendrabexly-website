@@ -52,10 +52,27 @@ assert.ok(width.scroll<=width.view+2,'mobile horizontal overflow '+JSON.stringif
 assert.equal(submitted,0,'no actual submissions made');
 const invalid=await page.locator('#booking').evaluate(form=>{form.noValidate=false;return !form.checkValidity();});
 assert.equal(invalid,true,'empty required fields are invalid');
-await page.locator('#booking').evaluate(form=>{
-  form.reportValidity=()=>true; // Only the isolated success path: API is intercepted, not sent.
-  form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-});
+// Supply a genuinely valid form without overriding reportValidity().
+await page.route('**/api/public/introduction-terms',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({terms:'Isolated test terms',version:'test-1'})}));
+await page.reload({waitUntil:'domcontentloaded'});
+await page.locator('#first').fill('Taylor');
+await page.locator('#last').fill('Example');
+await page.locator('#age').fill('35');
+await page.locator('#occupation').fill('Research Test');
+await page.locator('#base').selectOption('CA');
+await page.locator('#phone').fill('2135550100');
+await page.locator('#email').fill('taylor@example.invalid');
+await page.locator('#contact-method').selectOption('email');
+await page.locator('#screening-method').evaluate(el=>{el.value='government-id';el.dispatchEvent(new Event('change',{bubbles:true}));});
+await page.locator('#intro-photo').setInputFiles({name:'test.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/JQAAAABJRU5ErkJggg==','base64')});
+await page.locator('#intro-location').evaluate(el=>el.value='incall');
+await page.locator('#intro-date').fill('2027-02-10');
+await page.locator('#intro-time').evaluate(el=>{if(![...el.options].some(o=>o.value==='16:00'))el.add(new Option('4:00 PM','16:00'));el.value='16:00';});
+await page.locator('#deposit-preference').selectOption('gift-card');
+await page.locator('#terms-accepted').check();
+const allValid=await page.locator('#booking').evaluate(form=>form.checkValidity());
+assert.equal(allValid,true,'completed form should be valid');
+await page.locator('#booking').evaluate(form=>form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
 await page.waitForURL(/\/thank-you\//,{timeout:10000});
 assert.equal(submitted,1,'exactly one intercepted simulated introduction');
 
