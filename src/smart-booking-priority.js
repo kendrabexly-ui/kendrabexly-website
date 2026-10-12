@@ -1,7 +1,7 @@
 // Preview-only priority policy. No database writes, holds, emails, or booking mutations.
 export const BOOKING_PRIORITY_POLICY = Object.freeze({
   mode: "longest_first",
-  unverified_hold_minutes: 30,
+  unverified_hold_minutes: 60,
   returning_verified_tiebreak: true,
   manual_screening_required: true,
 });
