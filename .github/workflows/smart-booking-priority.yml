@@ -1,0 +1,23 @@
+name: Smart Booking Priority checks
+on:
+  push:
+    branches: [feature/smart-booking-priority-preview]
+  pull_request:
+    paths:
+      - 'src/smart-booking-priority.js'
+      - 'src/index.js'
+      - 'public/portal/index.html'
+      - 'tests/smart-booking-priority.test.mjs'
+      - '.github/workflows/smart-booking-priority.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check src/index.js
+      - run: node --check src/smart-booking-priority.js
+      - run: node --test tests/smart-booking-priority.test.mjs
+      - run: npm test
