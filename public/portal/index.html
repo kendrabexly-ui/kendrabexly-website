@@ -3048,6 +3048,24 @@ async function loadRequests(options = {}) {
     if (renderClientProfiles) document.getElementById("client-records").innerHTML = '<div class="empty">Loading client profiles...</div>';
     const data = await fetchRequestData("/api/admin/requests", 20000);
     const requests = data.requests || [];
+    // Advisory order only. Does not grant screening approval or reserve a time.
+    const smartPriority = (item) => {
+      const status=String(item.status||"").toLowerCase();
+      if(status==="pending" || status==="screening_pending" || status==="pending_final_approval") return 0;
+      if(status==="blacklisted_submission") return 2;
+      return 1;
+    };
+    const compareSmartRequests=(a,b)=>{
+      const state=smartPriority(a)-smartPriority(b);
+      if(state) return state;
+      if(state!==0) return new Date(b.created_at||0)-new Date(a.created_at||0);
+      const duration=(Number(b.duration_minutes)||0)-(Number(a.duration_minutes)||0);
+      if(duration) return duration;
+      const returning=Number(Boolean(b.returning_verified))-Number(Boolean(a.returning_verified));
+      if(returning) return returning;
+      return new Date(a.created_at||0)-new Date(b.created_at||0);
+    };
+
     const requestCount=(status)=>requests.filter(item=>String(item.status||"").toLowerCase()===status).length;
     const requestSummaryValues={
       "request-summary-pending":requestCount("pending"),
@@ -3076,6 +3094,7 @@ async function loadRequests(options = {}) {
           </div>
           <div style="margin-top:9px;font-weight:600;">${escapeHtml(formatCalendarDate(item.requested_date))} · ${escapeHtml(formatCalendarTime(item.requested_time))}</div>
           <div style="margin-top:3px;font-size:13px;color:var(--muted);">${escapeHtml(item.location_name || "Location not provided")}</div>
+          ${(status==="pending"||status==="screening_pending"||status==="pending_final_approval")&&Number(item.duration_minutes)>0 ? `<div style="margin-top:7px;font-size:12px;font-weight:650;color:var(--plum,var(--ink));">Priority · ${escapeHtml(String(item.duration_minutes))} minutes${item.returning_verified?" · Returning verified":""}</div>` : ""}
           ${showAge&&ageLabel ? `<div style="margin-top:7px;font-size:11px;color:${ageDays>=3?"var(--red)":"var(--muted)"};font-weight:${ageDays>=3?"700":"500"};">${escapeHtml(ageLabel)}</div>` : ""}
           ${status==="pending_final_approval" ? `<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;font-size:11px;"><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(deposit)}</span><span style="padding:4px 7px;border-radius:999px;background:#f7f2e9;">${escapeHtml(screening)}</span></div>` : ""}
           <div style="margin-top:11px;font-size:13px;font-weight:700;text-decoration:underline;">${escapeHtml(nextActions[status] || "View Request")} →</div>
@@ -3095,10 +3114,10 @@ async function loadRequests(options = {}) {
       if (!recordsContainer) return;
       const selected = statusFilter ? statusFilter.value : "all";
       const query = requestSearch ? requestSearch.value.trim().toLowerCase() : "";
-      const requestPriority={blacklisted_submission:0,pending:1,pending_final_approval:2,approved:3,completed:4,canceled:5};
+      const requestPriority={blacklisted_submission:2,pending:0,screening_pending:0,pending_final_approval:0,approved:1,completed:1,canceled:1};
       let filtered = selected === "all"
-        ? [...requests].sort((a,b)=>(requestPriority[String(a.status||"")]??9)-(requestPriority[String(b.status||"")]??9))
-        : requests.filter(item => item.status === selected);
+        ? [...requests].sort(compareSmartRequests)
+        : requests.filter(item => item.status === selected).sort(compareSmartRequests);
       if (query) {
         filtered = filtered.filter((item) => {
           const haystack = [
