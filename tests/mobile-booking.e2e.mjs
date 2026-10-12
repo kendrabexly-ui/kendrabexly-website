@@ -50,5 +50,14 @@ for(const [method,hasID] of [['government-id',true],['linkedin',false],['employm
 const width=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,view:window.innerWidth}));
 assert.ok(width.scroll<=width.view+2,'mobile horizontal overflow '+JSON.stringify(width));
 assert.equal(submitted,0,'no actual submissions made');
-console.log('MOBILE E2E PASS: 14 price/duration handoffs, change option, 3 conditional photo modes, 390px overflow; requests blocked='+blocked);
+const invalid=await page.locator('#booking').evaluate(form=>{form.noValidate=false;return !form.checkValidity();});
+assert.equal(invalid,true,'empty required fields are invalid');
+await page.locator('#booking').evaluate(form=>{
+  form.reportValidity=()=>true; // Only the isolated success path: API is intercepted, not sent.
+  form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+});
+await page.waitForURL(/\/thank-you\//,{timeout:10000});
+assert.equal(submitted,1,'exactly one intercepted simulated introduction');
+
+console.log('MOBILE E2E PASS: 14 price/duration handoffs, change option, 3 conditional photo modes, required-field check, mocked thank-you redirect, 390px overflow; requests blocked='+blocked);
 await browser.close();
