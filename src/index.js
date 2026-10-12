@@ -6206,7 +6206,7 @@ My journal will continue to be a place where I share a little more of that side 
                 dr.final_approval,
                 dr.notes,
                 dr.created_at,
-                (SELECT COUNT(*) FROM date_requests earlier WHERE earlier.client_id=dr.client_id AND earlier.id<>dr.id AND earlier.status IN ('approved','completed') AND earlier.final_approval=1) AS previous_verified_appointments,
+                (SELECT COUNT(*) FROM date_requests earlier WHERE earlier.client_id=dr.client_id AND earlier.id<>dr.id AND earlier.status IN ('approved','completed') AND earlier.final_approval=1 AND EXISTS (SELECT 1 FROM client_screening_checklists sc WHERE sc.date_request_id=earlier.id AND sc.blacklist_status='clear' AND sc.phone_status='non_voip' AND sc.identity_status='supported' AND sc.background_status='reviewed' AND sc.decision='move_forward')) AS previous_verified_appointments,
                 (SELECT ed.sent_at FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='after_date_follow_up' AND ed.status='sent' ORDER BY ed.sent_at DESC, ed.id DESC LIMIT 1) AS after_date_follow_up_sent_at,
                 (SELECT ed.sent_at FROM email_drafts ed WHERE ed.date_request_id=dr.id AND ed.email_type='pending_final_approval' AND ed.status='sent' ORDER BY ed.sent_at DESC, ed.id DESC LIMIT 1) AS private_screening_email_sent_at
               FROM date_requests dr
