@@ -7831,97 +7831,7 @@ function escapeHtml(value) {
                 if (w) {
                   w.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Newsletter Preview</title><style>body{font-family:Georgia,serif;background:#f6f1e8;color:#29282d;margin:0;padding:28px}main{max-width:680px;margin:auto;background:#fffdf9;padding:34px;border:1px solid #ded7cd;border-radius:12px}h1,h2{font-weight:500}p{white-space:pre-wrap;line-height:1.65}.offer{margin-top:28px;padding:20px;background:#eee7dc;border-radius:10px}.offer-button{display:inline-block;margin-top:8px;padding:12px 18px;background:#29282d;color:#fff!important;text-decoration:none;border-radius:6px;font:14px Arial,sans-serif}.offer-note{margin:12px 0 0!important;font:12px Arial,sans-serif!important;color:#77736f}</style></head><body><main><div style="letter-spacing:3px;font:12px Arial;color:#77736f">KENDRA BEXLY</div><h1>${escapeHtml(subject)}</h1>${newsletterImage ? `<img src="${newsletterImage}" alt="" style="display:block;width:100%;max-height:440px;object-fit:cover;border-radius:10px;margin:0 0 24px;">` : ""}<p>${escapeHtml(content)}</p><hr style="border:0;border-top:1px solid #ded7cd;margin:28px 0"><h2>${escapeHtml(blogTitle)}</h2><p>${escapeHtml(blogContent)}</p><div class="offer"><strong>This Month's Special</strong><p>${escapeHtml(specialOffer)}</p><a class="offer-button" href="/request?newsletter_offer=${encodeURIComponent(id)}">💋 Book My Subscriber Special</a><p class="offer-note">Book through this button so your subscriber special is automatically attached to your request.</p></div></main>
 \n
-<script>
-(function () {
-  const page = document.getElementById("experience-photo-page");
-  const slot = document.getElementById("experience-photo-slot");
-  const upload = document.getElementById("experience-photo-upload");
-  const preview = document.getElementById("experience-photo-preview");
-  const empty = document.getElementById("experience-photo-empty");
-  const alt = document.getElementById("experience-photo-alt");
-  const status = document.getElementById("experience-photo-status");
-  const save = document.getElementById("experience-photo-save");
-  const remove = document.getElementById("experience-photo-remove");
-  if (!page || !slot || !upload || !save) return;
-  let records = [];
-  let pending = null;
-  let pendingMime = "";
-  let revision = 0;
-  function message(value) { status.textContent = value; }
-  function selected() { return records.find(r => r.page === page.value && Number(r.slot) === Number(slot.value)); }
-  function show(src) {
-    preview.style.display = src ? "block" : "none";
-    empty.style.display = src ? "none" : "block";
-    if (src) preview.src = src; else preview.removeAttribute("src");
-  }
-  function refresh() {
-    pending = null; pendingMime = ""; upload.value = "";
-    const r = selected();
-    show(r ? "data:" + r.mime_type + ";base64," + r.image_base64 : "");
-    alt.value = r ? (r.alt_text || "") : "";
-    message(r ? "Current published photograph loaded." : "Original photograph is being displayed on the website.");
-  }
-  async function load() {
-    const current = ++revision;
-    try {
-      const response = await fetch("/api/admin/page-photos", {credentials:"same-origin", cache:"no-store"});
-      if (!response.ok) throw Error("Unable to load photos. Check your portal session.");
-      const data = await response.json();
-      if (!data.ok) throw Error(data.message || "Unable to load photos.");
-      if (current !== revision) return;
-      records = (data.images || []).filter(x => ["sensual-touch","signature-experience","grecian-experience"].includes(x.page));
-      refresh();
-    } catch(err) { message(err.message || "Unable to load photos."); }
-  }
-  page.addEventListener("change", refresh);
-  slot.addEventListener("change", refresh);
-  upload.addEventListener("change", async function() {
-    const file = upload.files && upload.files[0];
-    if (!file) return;
-    if (!["image/jpeg","image/png","image/webp"].includes(file.type)) { message("Select a JPG, PNG, or WebP image."); upload.value=""; return; }
-    if (file.size > 12 * 1024 * 1024) { message("Choose a photograph under 12 MB."); upload.value=""; return; }
-    try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(bitmap.width * scale);
-      canvas.height = Math.round(bitmap.height * scale);
-      canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      if (bitmap.close) bitmap.close();
-      let quality = 0.85;
-      let uri = canvas.toDataURL("image/jpeg", quality);
-      while (uri.length > 2900000 && quality > 0.4) { quality -= 0.1; uri = canvas.toDataURL("image/jpeg", quality); }
-      if (uri.length > 2900000) throw Error("This image is too large after optimization. Try a smaller photograph.");
-      pending = uri.split(",")[1]; pendingMime = "image/jpeg";
-      show(uri);
-      message("Preview ready. Select Save & Publish Photo to update the website.");
-    } catch(err) { message(err.message || "Unable to prepare the photograph."); }
-  });
-  save.addEventListener("click", async function() {
-    if (!pending) { message("Choose a photograph first."); return; }
-    save.disabled = true;
-    try {
-      const res = await fetch("/api/admin/page-photos", {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({page:page.value, slot:Number(slot.value), mime_type:pendingMime, image_base64:pending, alt_text:alt.value.trim()})});
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw Error(data.message || "Photo could not be saved.");
-      await load(); message("Photo published successfully. Check the public experience page.");
-    } catch(err) {message(err.message || "Unable to publish photo.");}
-    finally {save.disabled=false;}
-  });
-  remove.addEventListener("click", async function() {
-    if (!selected()) { pending=null; pendingMime=""; refresh(); return; }
-    remove.disabled = true;
-    try {
-      const res = await fetch("/api/admin/page-photos", {method:"DELETE",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({page:page.value,slot:Number(slot.value)})});
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw Error(data.message || "Unable to restore original.");
-      await load(); message("Original page photo restored.");
-    } catch(err) {message(err.message || "Unable to restore original.");}
-    finally {remove.disabled=false;}
-  });
-  load();
-})();
-</script>
+
 </body></html>`);
                   w.document.close();
                 }
@@ -10575,6 +10485,100 @@ function escapeHtml(value) {
   close.addEventListener("click",dismiss);
   overlay.addEventListener("click",event=>{if(event.target===overlay)dismiss();});
   document.addEventListener("keydown",event=>{if(overlay.hidden)return;if(event.key==="Escape")dismiss();else if(event.key==="Tab"){event.preventDefault();close.focus();}});
+})();
+</script>
+<script>
+(function () {
+  const page = document.getElementById("experience-photo-page");
+  const slot = document.getElementById("experience-photo-slot");
+  const upload = document.getElementById("experience-photo-upload");
+  const preview = document.getElementById("experience-photo-preview");
+  const empty = document.getElementById("experience-photo-empty");
+  const alt = document.getElementById("experience-photo-alt");
+  const status = document.getElementById("experience-photo-status");
+  const save = document.getElementById("experience-photo-save");
+  const remove = document.getElementById("experience-photo-remove");
+  if (!page || !slot || !upload || !save) return;
+  let records = [];
+  let pending = null;
+  let pendingMime = "";
+  let revision = 0;
+  function message(value) { status.textContent = value; }
+  function selected() { return records.find(r => r.page === page.value && Number(r.slot) === Number(slot.value)); }
+  function show(src) {
+    preview.style.display = src ? "block" : "none";
+    empty.style.display = src ? "none" : "block";
+    if (src) preview.src = src; else preview.removeAttribute("src");
+  }
+  function refresh() {
+    pending = null; pendingMime = ""; upload.value = "";
+    const r = selected();
+    show(r ? "data:" + r.mime_type + ";base64," + r.image_base64 : "");
+    alt.value = r ? (r.alt_text || "") : "";
+    message(r ? "Current published photograph loaded." : "Original photograph is being displayed on the website.");
+  }
+  async function load() {
+    const current = ++revision;
+    try {
+      const response = await fetch("/api/admin/page-photos", {credentials:"same-origin", cache:"no-store"});
+      if (!response.ok) throw Error("Unable to load photos. Check your portal session.");
+      const data = await response.json();
+      if (!data.ok) throw Error(data.message || "Unable to load photos.");
+      if (current !== revision) return;
+      records = (data.images || []).filter(x => ["sensual-touch","signature-experience","grecian-experience"].includes(x.page));
+      refresh();
+      return true;
+    } catch(err) { message(err.message || "Unable to load photos."); return false; }
+  }
+  page.addEventListener("change", refresh);
+  slot.addEventListener("change", refresh);
+  upload.addEventListener("change", async function() {
+    const file = upload.files && upload.files[0];
+    if (!file) return;
+    if (!["image/jpeg","image/png","image/webp"].includes(file.type)) { message("Select a JPG, PNG, or WebP image."); upload.value=""; return; }
+    if (file.size > 12 * 1024 * 1024) { message("Choose a photograph under 12 MB."); upload.value=""; return; }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (bitmap.close) bitmap.close();
+      let quality = 0.85;
+      let uri = canvas.toDataURL("image/jpeg", quality);
+      while (uri.length > 2900000 && quality > 0.4) { quality -= 0.1; uri = canvas.toDataURL("image/jpeg", quality); }
+      if (uri.length > 2900000) throw Error("This image is too large after optimization. Try a smaller photograph.");
+      pending = uri.split(",")[1]; pendingMime = "image/jpeg";
+      show(uri);
+      message("Preview ready. Select Save & Publish Photo to update the website.");
+    } catch(err) { message(err.message || "Unable to prepare the photograph."); }
+  });
+  save.addEventListener("click", async function() {
+    if (!pending) { message("Choose a photograph first."); return; }
+    save.disabled = true;
+    try {
+      const res = await fetch("/api/admin/page-photos", {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({page:page.value, slot:Number(slot.value), mime_type:pendingMime, image_base64:pending, alt_text:alt.value.trim()})});
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw Error(data.message || "Photo could not be saved.");
+      const verified = await load();
+      if (!verified || !selected()) throw Error("The photo was submitted, but the saved image could not be verified. Please refresh before trying again.");
+      message("Photo saved and verified. Check the public experience page.");
+    } catch(err) {message(err.message || "Unable to publish photo.");}
+    finally {save.disabled=false;}
+  });
+  remove.addEventListener("click", async function() {
+    if (!selected()) { pending=null; pendingMime=""; refresh(); return; }
+    remove.disabled = true;
+    try {
+      const res = await fetch("/api/admin/page-photos", {method:"DELETE",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({page:page.value,slot:Number(slot.value)})});
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw Error(data.message || "Unable to restore original.");
+      await load(); message("Original page photo restored.");
+    } catch(err) {message(err.message || "Unable to restore original.");}
+    finally {remove.disabled=false;}
+  });
+  load();
 })();
 </script>
 </body>
