@@ -10538,17 +10538,17 @@ function escapeHtml(value) {
     if (!["image/jpeg","image/png","image/webp"].includes(file.type)) { message("Select a JPG, PNG, or WebP image."); upload.value=""; return; }
     if (file.size > 12 * 1024 * 1024) { message("Choose a photograph under 12 MB."); upload.value=""; return; }
     try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+      const bitmap = await new Promise((resolve, reject) => {\n        const image = new Image();\n        const url = URL.createObjectURL(file);\n        image.onload = () => { URL.revokeObjectURL(url); resolve(image); };\n        image.onerror = () => { URL.revokeObjectURL(url); reject(Error("This photograph could not be opened. Try a JPG or PNG.")); };\n        image.src = url;\n      });
+      const scale = Math.min(1, 1400 / Math.max(bitmap.naturalWidth || bitmap.width, bitmap.naturalHeight || bitmap.height));
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(bitmap.width * scale);
-      canvas.height = Math.round(bitmap.height * scale);
+      canvas.width = Math.max(1,Math.round((bitmap.naturalWidth || bitmap.width) * scale));
+      canvas.height = Math.max(1,Math.round((bitmap.naturalHeight || bitmap.height) * scale));
       canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      if (bitmap.close) bitmap.close();
-      let quality = 0.85;
+
+      let quality = 0.8;
       let uri = canvas.toDataURL("image/jpeg", quality);
-      while (uri.length > 2900000 && quality > 0.4) { quality -= 0.1; uri = canvas.toDataURL("image/jpeg", quality); }
-      if (uri.length > 2900000) throw Error("This image is too large after optimization. Try a smaller photograph.");
+      while (uri.length > 1400000 && quality > 0.35) { quality -= 0.1; uri = canvas.toDataURL("image/jpeg", quality); }
+      if (uri.length > 1400000) throw Error("This image is too large after optimization. Try a smaller photograph.");
       pending = uri.split(",")[1]; pendingMime = "image/jpeg";
       show(uri);
       message("Preview ready. Select Save & Publish Photo to update the website.");
@@ -10562,7 +10562,7 @@ function escapeHtml(value) {
       const data = await res.json();
       if (!res.ok || !data.ok) throw Error(data.message || "Photo could not be saved.");
       const verified = await load();
-      if (!verified || !selected()) throw Error("The photo was submitted, but the saved image could not be verified. Please refresh before trying again.");
+      const savedRecord = records.find(r => r.page === targetPage && Number(r.slot) === targetSlot);\n      if (!verified || !savedRecord || savedRecord.image_base64 !== imageToSave) throw Error("The upload was submitted but the saved photo could not be verified in the selected experience.");
       message("Photo saved and verified. Check the public experience page.");
     } catch(err) {message(err.message || "Unable to publish photo.");}
     finally {save.disabled=false;}
