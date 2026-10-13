@@ -298,7 +298,7 @@ h1,h2,h3{letter-spacing:-.015em}h1{line-height:1.14}h2{line-height:1.22}p{letter
 const experiencePhotoScript = `<script>
 (function(){
   const defaults = ${JSON.stringify(experiences.map(e => ({slug:e.slug, hero:e.heroImg})))};
-  const path = window.location.pathname.replace(/\\/$/, "");
+  const path = window.location.pathname.replace(/[/]$/, "");
   const isOverview = path === "/our-time";
   const active = defaults.find(e => path === "/explore-" + e.slug);
   const targets = isOverview ? defaults : (active ? [active] : []);
@@ -310,7 +310,7 @@ const experiencePhotoScript = `<script>
       if (!data.ok) return;
       const slot = isOverview ? 1 : 2;
       const selected = (data.images || []).find(image => image.slot === slot);
-      if (!selected || !/^image\\/(jpeg|png|webp)$/.test(selected.mime_type) || !selected.image_base64) return;
+      if (!selected || !["image/jpeg","image/png","image/webp"].includes(selected.mime_type) || !selected.image_base64) return;
       const img = isOverview ? document.querySelectorAll(".cards .card-image img")[index] :
         [...document.querySelectorAll("main img")].find(image => image.getAttribute("src") === target.hero);
       if (!img) return;
