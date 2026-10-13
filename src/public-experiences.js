@@ -293,10 +293,39 @@ h1,h2,h3{letter-spacing:-.015em}h1{line-height:1.14}h2{line-height:1.22}p{letter
 
 `;
 
+// Experience photo overrides are stored by the existing authenticated portal API.
+// Slot 1 controls the collection card; slot 2 controls the detail-page hero.
+const experiencePhotoScript = `<script>
+(function(){
+  const defaults = ${JSON.stringify(experiences.map(e => ({slug:e.slug, hero:e.heroImg})))};
+  const path = window.location.pathname.replace(/\\/$/, "");
+  const isOverview = path === "/our-time";
+  const active = defaults.find(e => path === "/explore-" + e.slug);
+  const targets = isOverview ? defaults : (active ? [active] : []);
+  targets.forEach(async function(target, index){
+    try {
+      const response = await fetch("/api/public/page-photos?page=" + encodeURIComponent(target.slug), {credentials:"same-origin"});
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!data.ok) return;
+      const slot = isOverview ? 1 : 2;
+      const selected = (data.images || []).find(image => image.slot === slot);
+      if (!selected || !/^image\\/(jpeg|png|webp)$/.test(selected.mime_type) || !selected.image_base64) return;
+      const img = isOverview ? document.querySelectorAll(".cards .card-image img")[index] :
+        [...document.querySelectorAll("main img")].find(image => image.getAttribute("src") === target.hero);
+      if (!img) return;
+      img.src = "data:" + selected.mime_type + ";base64," + selected.image_base64;
+      img.alt = selected.alt_text || "Kendra Bexly — " + target.slug.replace(/-/g," ");
+      img.removeAttribute("onerror");
+    } catch (_) { /* Original design photograph remains available. */ }
+  });
+})();
+<\/script>`;
+ 
 function layout(body, title) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | Kendra Bexly</title><style>${style}</style></head><body>
   <header><a href="/our-time/" class="logo">Kendra Bexly</a><nav><a href="/our-time/">Experiences</a><span>Your Invitation to Something More</span></nav></header>
-  <main>${body}</main><footer>Kendra Bexly · Your Invitation to Something More</footer></body></html>`;
+  <main>${body}</main><footer>Kendra Bexly · Your Invitation to Something More</footer>${experiencePhotoScript}</body></html>`;
 }
 
 function overview() {
