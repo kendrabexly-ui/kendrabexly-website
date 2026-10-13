@@ -4595,7 +4595,7 @@ My journal will continue to be a place where I share a little more of that side 
     if (url.pathname === "/api/public/page-photos" && request.method === "GET") {
       await ensurePagePhotosTable(env);
       const page = url.searchParams.get("page") || "";
-      if (!["invitation", "meet-kendra", "our-time", "the-details"].includes(page)) {
+      if (!["invitation", "meet-kendra", "our-time", "the-details", "sensual-touch", "signature-experience", "grecian-experience"].includes(page)) {
         return Response.json({ ok: false, message: "Unknown page." }, { status: 400 });
       }
       const result = await env.DB.prepare("SELECT slot, mime_type, image_base64, alt_text FROM site_page_photos WHERE page = ? ORDER BY slot").bind(page).all();
@@ -4604,7 +4604,7 @@ My journal will continue to be a place where I share a little more of that side 
 
     if (url.pathname === "/api/admin/page-photos") {
       await ensurePagePhotosTable(env);
-      const pages = ["invitation", "meet-kendra", "our-time", "the-details"];
+      const pages = ["invitation", "meet-kendra", "our-time", "the-details", "sensual-touch", "signature-experience", "grecian-experience"];
       if (request.method === "GET") {
         const result = await env.DB.prepare("SELECT page, slot, mime_type, image_base64, alt_text FROM site_page_photos ORDER BY page, slot").all();
         return Response.json({ ok: true, images: result.results || [] });
