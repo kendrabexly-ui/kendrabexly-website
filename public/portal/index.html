@@ -10527,7 +10527,8 @@ function escapeHtml(value) {
       if (current !== revision) return;
       records = (data.images || []).filter(x => ["sensual-touch","signature-experience","grecian-experience"].includes(x.page));
       refresh();
-    } catch(err) { message(err.message || "Unable to load photos."); }
+      return true;
+    } catch(err) { message(err.message || "Unable to load photos."); return false; }
   }
   page.addEventListener("change", refresh);
   slot.addEventListener("change", refresh);
@@ -10560,7 +10561,9 @@ function escapeHtml(value) {
       const res = await fetch("/api/admin/page-photos", {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, body:JSON.stringify({page:page.value, slot:Number(slot.value), mime_type:pendingMime, image_base64:pending, alt_text:alt.value.trim()})});
       const data = await res.json();
       if (!res.ok || !data.ok) throw Error(data.message || "Photo could not be saved.");
-      await load(); message("Photo published successfully. Check the public experience page.");
+      const verified = await load();
+      if (!verified || !selected()) throw Error("The photo was submitted, but the saved image could not be verified. Please refresh before trying again.");
+      message("Photo saved and verified. Check the public experience page.");
     } catch(err) {message(err.message || "Unable to publish photo.");}
     finally {save.disabled=false;}
   });
