@@ -1300,13 +1300,14 @@
               <h3>Blur</h3>
               <div class="photo-editor-row">
                 <button type="button" id="photo-editor-blur-mode" data-photo-requires-image>Blur Box</button>
+                 <button type="button" id="photo-editor-oval-blur-mode" data-photo-requires-image>Oval Blur</button>
                 <button type="button" id="photo-editor-brush-mode" data-photo-requires-image>Soft Blur Brush</button>
                 <button type="button" id="photo-editor-erase-brush" data-photo-requires-image>Erase Blur</button>
                 <button type="button" id="photo-editor-blur-all" data-photo-requires-image>Blur Entire Photo</button>
               </div>
               <div class="photo-editor-field"><label for="photo-editor-blur-strength"><span>Blur strength</span><span id="photo-editor-blur-strength-value">12 px</span></label><input id="photo-editor-blur-strength" data-photo-requires-image type="range" min="2" max="40" value="12"></div>
               <div class="photo-editor-field"><label for="photo-editor-brush-size"><span>Brush size</span><span id="photo-editor-brush-size-value">80 px</span></label><input id="photo-editor-brush-size" data-photo-requires-image type="range" min="20" max="400" value="80"></div>
-              <div class="photo-editor-note">Box blur previews live while you drag. Brush blur uses a soft circular brush; Erase Blur restores pixels from the start of the current brush pass.</div>
+              <div class="photo-editor-note">Box and oval blur preview live while you drag. Oval Blur softens only the inside of the selected ellipse. Brush blur uses a soft circular brush; Erase Blur restores pixels from the start of the current brush pass.</div>
             </div>
 
             <div class="photo-editor-card">
