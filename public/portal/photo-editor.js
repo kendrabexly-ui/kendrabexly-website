@@ -252,8 +252,8 @@
   }
   function setMode(next){
     mode=next;
-    ["blur-box","blur-brush","erase-brush","crop","pan"].forEach(m=>{
-      const id={"blur-box":"photo-editor-blur-mode","blur-brush":"photo-editor-brush-mode","erase-brush":"photo-editor-erase-brush","crop":"photo-editor-crop-mode","pan":"photo-editor-pan"}[m];
+    ["blur-box","blur-oval","blur-brush","erase-brush","crop","pan"].forEach(m=>{
+      const id={"blur-box":"photo-editor-blur-mode","blur-oval":"photo-editor-oval-blur-mode","blur-brush":"photo-editor-brush-mode","erase-brush":"photo-editor-erase-brush","crop":"photo-editor-crop-mode","pan":"photo-editor-pan"}[m];
       $(id)?.classList.toggle("photo-editor-mode",next===m);
     });
     wrap.classList.toggle("selection-active",!!next&&next!=="pan");
@@ -261,6 +261,7 @@
     say(next?("Mode: "+next.replace("-"," ")+". Press Esc to cancel."):"Selection mode off.");
   }
   $("photo-editor-blur-mode")?.addEventListener("click",()=>setMode(mode==="blur-box"?null:"blur-box"));
+  $("photo-editor-oval-blur-mode")?.addEventListener("click",()=>setMode(mode==="blur-oval"?null:"blur-oval"));
   $("photo-editor-brush-mode")?.addEventListener("click",()=>setMode(mode==="blur-brush"?null:"blur-brush"));
   $("photo-editor-erase-brush")?.addEventListener("click",()=>setMode(mode==="erase-brush"?null:"erase-brush"));
   $("photo-editor-crop-mode")?.addEventListener("click",()=>setMode(mode==="crop"?null:"crop"));
@@ -274,18 +275,33 @@
     if(Math.abs(w/h)>ratio) w=Math.abs(h)*ratio*sx; else h=Math.abs(w)/ratio*sy;
     return {x:a.x+w,y:a.y+h};
   }
+  function applyOvalBlur(x,y,w,h) {
+    // Blur the complete source before clipping, preventing unblurred edges.
+    const blurred=document.createElement("canvas");
+    blurred.width=canvas.width;blurred.height=canvas.height;
+    const bctx=blurred.getContext("2d");
+    bctx.filter="blur("+$("photo-editor-blur-strength").value+"px)";
+    bctx.drawImage(canvas,0,0);
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);
+    ctx.clip();
+    ctx.drawImage(blurred,0,0);
+    ctx.restore();
+  }
   function drawSelection(previewBlur=false){
     if(!selectionSnapshot||!startPoint||!lastPoint)return;
     ctx.putImageData(selectionSnapshot,0,0);
     const end=mode==="crop"?ratioAdjusted(startPoint,lastPoint):lastPoint;
     const x=Math.min(startPoint.x,end.x), y=Math.min(startPoint.y,end.y), w=Math.abs(end.x-startPoint.x), h=Math.abs(end.y-startPoint.y);
-    if(previewBlur&&w>2&&h>2){
+    if(previewBlur&&w>2&&h>2&&mode==="blur-oval") applyOvalBlur(x,y,w,h);
+    else if(previewBlur&&w>2&&h>2){
       const temp=document.createElement("canvas");temp.width=w;temp.height=h;
       temp.getContext("2d").drawImage(canvas,x,y,w,h,0,0,w,h);
       ctx.save();ctx.filter="blur("+$("photo-editor-blur-strength").value+"px)";ctx.drawImage(temp,x,y,w,h);ctx.restore();ctx.filter="none";
     }
-    ctx.save(); ctx.strokeStyle="#000"; ctx.lineWidth=Math.max(4,canvas.width/500); ctx.strokeRect(x,y,w,h);
-    ctx.strokeStyle="#fff";ctx.lineWidth=Math.max(2,canvas.width/900);ctx.setLineDash([10,7]);ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
+    ctx.save(); ctx.strokeStyle="#000"; ctx.lineWidth=Math.max(4,canvas.width/500); if(mode==="blur-oval"){ctx.beginPath();ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);ctx.stroke();}else ctx.strokeRect(x,y,w,h);
+    ctx.strokeStyle="#fff";ctx.lineWidth=Math.max(2,canvas.width/900);ctx.setLineDash([10,7]);if(mode==="blur-oval"){ctx.beginPath();ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);ctx.stroke();}else ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
     if(mode==="crop"){
       const hs=Math.max(12,canvas.width/80);
       [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy])=>{ctx.fillStyle="#fff";ctx.strokeStyle="#000";ctx.lineWidth=2;ctx.fillRect(hx-hs/2,hy-hs/2,hs,hs);ctx.strokeRect(hx-hs/2,hy-hs/2,hs,hs);});
@@ -350,7 +366,7 @@
     if(mode==="pan"&&panStart){wrap.scrollLeft=panStart.left-(e.clientX-panStart.x);wrap.scrollTop=panStart.top-(e.clientY-panStart.y);return;}
     if(mode==="crop"&&cropHandle){resizeCropSelection(cropHandle,point(e));return;}
     lastPoint=point(e);
-    if(mode==="blur-box") drawSelection(true);
+    if(mode==="blur-box"||mode==="blur-oval") drawSelection(true);
     else if(mode==="crop") drawSelection(false);
     else if(mode==="blur-brush"||mode==="erase-brush") blurBrushAt(lastPoint,mode==="erase-brush");
   });
@@ -369,7 +385,11 @@
     let x=Math.max(0,Math.floor(Math.min(startPoint.x,end.x))),y=Math.max(0,Math.floor(Math.min(startPoint.y,end.y)));
     let w=Math.min(canvas.width-x,Math.floor(Math.abs(end.x-startPoint.x))),h=Math.min(canvas.height-y,Math.floor(Math.abs(end.y-startPoint.y)));
     if(w<12||h<12){say("Selection is too small. Drag a larger area.",true);selection=null;setMode(null);return;}
-    if(active==="blur-box"){
+    if(active==="blur-oval"){
+      pushUndo("Oval blur",{width:canvas.width,height:canvas.height,data:selectionSnapshot});
+      applyOvalBlur(x,y,w,h);
+      base=ctx.getImageData(0,0,canvas.width,canvas.height);selection=null;setMode(null);say("Oval area blurred.");
+    } else if(active==="blur-box"){
       pushUndo("Blur area",{width:canvas.width,height:canvas.height,data:selectionSnapshot});
       const temp=document.createElement("canvas");temp.width=w;temp.height=h;temp.getContext("2d").drawImage(canvas,x,y,w,h,0,0,w,h);
       ctx.save();ctx.filter="blur("+$("photo-editor-blur-strength").value+"px)";ctx.drawImage(temp,x,y);ctx.restore();ctx.filter="none";
@@ -401,7 +421,7 @@
     canvas.width=w;canvas.height=h;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(temp,0,0);base=ctx.getImageData(0,0,w,h);pushUndo("Crop",before);selection=null;$("photo-editor-apply-crop").disabled=true;setMode(null);updateMeta();fitToScreen();say("Crop applied.");
   });
 
-  $("photo-editor-blur-strength")?.addEventListener("input",()=>{ if(mode==="blur-box"&&dragging) drawSelection(true); });
+  $("photo-editor-blur-strength")?.addEventListener("input",()=>{ if((mode==="blur-box"||mode==="blur-oval")&&dragging) drawSelection(true); });
 
   $("photo-editor-blur-all")?.addEventListener("click",()=>{
     if(!canvas.width)return;const before=state();const temp=document.createElement("canvas");temp.width=canvas.width;temp.height=canvas.height;temp.getContext("2d").drawImage(canvas,0,0);
