@@ -320,7 +320,7 @@ const experiencePhotoScript = `<script>
     } catch (_) { /* Original design photograph remains available. */ }
   });
 })();
-<\\/script>`;
+<\/script>`;
  
 function layout(body, title) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | Kendra Bexly</title><style>${style}</style></head><body>
